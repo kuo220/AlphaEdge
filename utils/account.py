@@ -66,11 +66,11 @@ class Account:
         positions_df = pd.DataFrame(s.__dict__ for s in api.list_positions(api.stock_account))
         unrealized_pnl = round(positions_df.pnl.sum()) if len(positions_df) > 0 else 0
         return unrealized_pnl
-        
-        
+    
+    
     @staticmethod
     def generate_trade_record(api: sj.Shioaji, trade_record_path: str):
-        """ 製作投資紀錄表 """
+        """ 製作投資紀錄表（模擬模式） """
         
         columns_name = ["date", "stock_id", "order_action", "seqno", "volume", "buy_price", "sell_price", "pnl"]
         trade_record_df: pd.DataFrame = pd.DataFrame(columns=columns_name)
@@ -95,14 +95,14 @@ class Account:
                                               0]],
                                             columns=columns_name)
                 trade_record_df = pd.concat([trade_record_df, trade_record], ignore_index=True)
+
+        # open existed record
+        exist_trade_record = pd.read_csv(trade_record_path) if os.path.exists(trade_record_path) else pd.DataFrame(columns=columns_name)   
+        exist_trade_record = pd.concat([exist_trade_record, trade_record_df], ignore_index=True)
             
         # Add pnl to trading record
         for trade in pnl_list:
-            trade_record_df.loc[trade_record_df['seqno'] == trade.seqno, 'pnl'] = trade.pnl
+            exist_trade_record.loc[exist_trade_record['seqno'] == trade.seqno, 'pnl'] = trade.pnl
 
-        if os.path.exists(trade_record_path):
-            exist_trade_record = pd.read_csv(trade_record_path)
-            new_trade_record = pd.concat([exist_trade_record, trade_record_df], ignore_index=True)
-            new_trade_record.to_csv(trade_record_path, index=False)
-        else:
-            trade_record_df.to_csv(trade_record_path, index=False)
+        # Store the record to csv file
+        exist_trade_record.to_csv(trade_record_path, index=False)

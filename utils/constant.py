@@ -72,15 +72,3 @@ class Status(str, Enum):
     PendingSubmit = "PendingSubmit"
     PreSubmitted = "PreSubmitted"
     Submitted = "Submitted"
-
-
-class ExecuteMode(str, Enum):
-    Backtest = "Backtest"
-    Autotrade = "Autotrade"
-    
-
-class BacktestData(str, Enum):
-    API = "API"
-    Data = "Data"
-    Tick = "Tick"
-    
