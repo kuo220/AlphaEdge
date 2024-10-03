@@ -4,8 +4,8 @@ __pycache__/
 # Environments
 .env
 
-# .ipynb
-*.ipynb
+# test.ipynb
+kuo_test.ipynb
 
 # db
 *.db
