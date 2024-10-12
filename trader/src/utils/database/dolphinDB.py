@@ -62,8 +62,6 @@ class DolphinDB:
             print(f"dolphinDB create unsuccessfully!\n{e}")
             
     
-
-
     def add_csv_to_dolphinDB(self, csv_path: str):
         """ 將 .csv 檔案存入創建好的 database """
         
