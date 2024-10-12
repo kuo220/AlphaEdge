@@ -16,49 +16,52 @@ class DolphinDB:
         else:
             print("Database doesn't exist")
         
-    
+            
     @staticmethod
-    def create_dolphinDB(db_name: str):
+    def create_dolphingDB(db_name: str, table_name: str):
         """ 創建 dolphinDB """
     
         session = ddb.session()
         session.connect("localhost", 8848, "admin", "123456")
-  
+        
+        start_time = '2020.01.01'
+        end_time = '2030.12.31'
+        
         script = f"""
         if (!existsDatabase("dfs://{db_name}")) {{
-            db1 = database(partitionType=RANGE, partitionScheme=2020.01.01..2120.12.31)
-            db2 = database(partitionType=HASH, partitionScheme=[SYMBOL,50001])
-            db12 = database(directory="dfs://{db_name}", partitionType=COMPO, partitionScheme=[db1, db2], engine="TSDB")
+           create database "dfs://{db_name}"
+           partitioned by VALUE({start_time}..{end_time}), HASH([SYMBOL, 25]) 
+           engine='TSDB'
         }}
-        db = database(directory="dfs://{db_name}")
-        tbSchema = table(1:0, `stock_id`time`close`volume`bid_price`bid_volume`ask_price`ask_volume`tick_type, 
-            [SYMBOL, NANOTIMESTAMP, FLOAT, INT, FLOAT, INT, FLOAT, INT, INT])
-        sortKeyMappingFunction = [hashBucket{{,500}}]
+        
         try {{
-            db.createPartitionedTable(table=tbSchema, tableName=`tick, partitionColumns=`time`stock_id, 
-                sortColumns=`stock_id`time, sortKeyMappingFunction=sortKeyMappingFunction)
-            setColumnComment(table=loadTable("dfs://{db_name}", "tick"), columnComments={{
-                stock_id: "股票代號",
-                time: "timestamp",
-                close: "成交價",
-                volume: "成交量",
-                bid_price: "委買價",
-                bid_volume: "委買量",
-                ask_price: "委賣價",
-                ask_volume: "委賣量",
-                tick_type: "內外盤別{{1: 外盤, 2: 內盤, 0: 無法判定}}"
-            }})
+            create table "dfs://{db_name}"."{table_name}"(
+            stock_id SYMBOL
+            time NANOTIMESTAMP
+            close FLOAT
+            volume INT
+            bid_price FLOAT
+            bid_volume INT
+            ask_price FLOAT
+            ask_volume INT
+            tick_type INT
+            )
+            partitioned by time, stock_id,
+            sortColumns=[`stock_id, `time],
+            keepDuplicates=ALL
         }} catch (ex) {{
             dropDatabase("dfs://{db_name}")
             throw ex
         }}
         """
-
+        
         try:
             session.run(script)
             print("dolphinDB create successfully!")
         except Exception as e:
             print(f"dolphinDB create unsuccessfully!\n{e}")
+            
+    
 
 
     def add_csv_to_dolphinDB(self, csv_path: str):
@@ -88,7 +91,7 @@ class DolphinDB:
         except Exception as e:
             print(f"The csv file fail to save into database and table!\n{e}")    
     
-    
+
     @staticmethod
     def delete_dolphinDB(db_path: str):
         """ 刪除資料庫 """
