@@ -1,4 +1,6 @@
+import pandas as pd
 import os
+import re
 from pathlib import Path
 import dolphindb as ddb
 
@@ -6,15 +8,23 @@ import dolphindb as ddb
 class DolphinDB:
     
     def __init__(self, db_path: str, db_name: str, table_name: str):
-        self.db_path = db_path
-        self.db_name = db_name
-        self.table_name = table_name
+        self.db_path = db_path          # ex: "dfs://tickDB"
+        self.db_name = db_name          # ex: "tickDB"
+        self.table_name = table_name    # ex: "tick"
         
         self.session = ddb.session()
         self.session.connect("localhost", 8848, "admin", "123456")  
         
         if (self.session.existsDatabase(db_path)):
             print("Database exists!")
+            
+            # set TSDBCacheEngineSize to 5GB (must < 8(maxMemSize) * 0.75 GB)
+            script = """ 
+            memSize = 2
+            setTSDBCacheEngineSize(memSize)
+            print("TSDBCacheEngineSize: " + string(getTSDBCacheEngineSize() / pow(1024, 3)) + "GB")
+            """
+            self.session.run(script)
         else:
             print("Database doesn't exist!")
         
@@ -127,7 +137,20 @@ class DolphinDB:
         except Exception as e:
             print(f"All csv files fail to save into database and table!\n{e}")
 
+    
+    @staticmethod
+    def clear_all_cache():
+        """ 清除 Cache Data """
         
+        session = ddb.session()
+        session.connect("localhost", 8848, "admin", "123456")
+        
+        script = """ 
+        clearAllCache()
+        """
+        session.run(script)
+    
+    
     @staticmethod
     def delete_dolphinDB(db_path: str):
         """ 刪除資料庫 """
@@ -148,4 +171,23 @@ class DolphinDB:
             print("Delete database unsuccessfully!")
         else:
             print("Delete database successfully!")
+            
+    
+    @staticmethod
+    def format_csv_time_to_microsec(csv_path: dir):
+        """ 將 tick csv 檔案時間格式格式化至微秒（才能存進 dolphinDB） """
+        
+        df = pd.read_csv(csv_path)
+        
+        # 若 time 欄位沒有精確到微秒則格式化
+        if not df['time'].astype(str).str.match(r'.*\.\d{6}$').all():
+            csv_name = Path(csv_path).name
+            print(f"{csv_name} start formatting...")
+            
+            # 將 'time' 欄位轉換為 datetime 格式，並補足到微秒，同時加上年月日
+            df['time'] = pd.to_datetime(df['time'], errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S.%f')
+            
+            # 將處理後的 DataFrame 保存回 CSV
+            df.to_csv(csv_path, index=False)
+            print(f"{csv_name} finish formatting!")
             
