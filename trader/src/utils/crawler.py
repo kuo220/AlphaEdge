@@ -40,3 +40,9 @@ class CrawlShioaji:
 
 class CrawlHTML:
     pass
+
+
+class Crawler:
+    def __init__(self):
+        self.FromSJ = CrawlShioaji()
+        self.FromHTML = CrawlHTML() 
