@@ -174,7 +174,7 @@ class DolphinDB:
             
     
     @staticmethod
-    def format_csv_time_to_microsec(csv_path: dir):
+    def format_tick_time_to_microsec(csv_path: dir):
         """ 將 tick csv 檔案時間格式格式化至微秒（才能存進 dolphinDB） """
         
         df = pd.read_csv(csv_path)
@@ -191,3 +191,14 @@ class DolphinDB:
             df.to_csv(csv_path, index=False)
             print(f"{csv_name} finish formatting!")
             
+    
+    @staticmethod
+    def format_ticks_data(df: pd.DataFrame, stock_id: str) -> pd.DataFrame:
+        """ 統一 tick data 的格式 """
+        
+        df.rename(columns={'ts': 'time'}, inplace=True)
+        df['stock_id'] = stock_id
+        new_columns_order = ['stock_id','time', 'close', 'volume', 'bid_price', 'bid_volume', 'ask_price', 'ask_volume', 'tick_type']
+        df = df[new_columns_order]
+
+        return df
