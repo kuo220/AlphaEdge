@@ -34,3 +34,9 @@ def stock_list_crawler() -> List[str]:
     return stock_list
     
 
+class CrawlShioaji:
+    pass
+
+
+class CrawlHTML:
+    pass
