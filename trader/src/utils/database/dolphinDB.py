@@ -1,6 +1,5 @@
 import pandas as pd
 import os
-import re
 from pathlib import Path
 import dolphindb as ddb
 
@@ -15,7 +14,7 @@ class DolphinDB:
         self.session = ddb.session()
         self.session.connect("localhost", 8848, "admin", "123456")  
         
-        if (self.session.existsDatabase(db_path)):
+        if (self.session.existsDatabase(self.db_path)):
             print("Database exists!")
             
             # set TSDBCacheEngineSize to 5GB (must < 8(maxMemSize) * 0.75 GB)
@@ -174,19 +173,7 @@ class DolphinDB:
             
     
     @staticmethod
-    def format_tick_data(df: pd.DataFrame, stock_id: str) -> pd.DataFrame:
-        """ 將 tick data 的欄位格式化 """
-        
-        df.rename(columns={'ts': 'time'}, inplace=True)
-        df['stock_id'] = stock_id
-        new_columns_order = ['stock_id','time', 'close', 'volume', 'bid_price', 'bid_volume', 'ask_price', 'ask_volume', 'tick_type']
-        df = df[new_columns_order]
-
-        return df
-    
-    
-    @staticmethod
-    def format_tick_time_to_microsec(csv_path: dir):
+    def format_csv_time_to_microsec(csv_path: dir):
         """ 將 tick csv 檔案時間格式格式化至微秒（才能存進 dolphinDB） """
         
         df = pd.read_csv(csv_path)
@@ -202,3 +189,4 @@ class DolphinDB:
             # 將處理後的 DataFrame 保存回 CSV
             df.to_csv(csv_path, index=False)
             print(f"{csv_name} finish formatting!")
+            
