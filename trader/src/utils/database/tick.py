@@ -1,7 +1,59 @@
-import sqlite3
 import pandas as pd
 import datetime
+import dolphindb as ddb
 
+class Tick:
+    """ 存在 DolphinDB 內的 tick API """
+    
+    def __init__(self, db_path: str, db_name: str, table_name: str):
+        self.db_path = db_path
+        self.db_name = db_name
+        self.table_name = table_name
+        
+        self.session = ddb.session()
+        self.session.connect("localhost", 8848, "admin", "123456")
+        
+        if (self.session.existsDatabase(self.db_path)):
+            print("* Database exists!")
+            
+            # set TSDBCacheEngineSize to 5GB (must < 8(maxMemSize) * 0.75 GB)
+            script = """ 
+            memSize = 2
+            setTSDBCacheEngineSize(memSize)
+            print("TSDBCacheEngineSize: " + string(getTSDBCacheEngineSize() / pow(1024, 3)) + "GB")
+            """
+            self.session.run(script)
+        else:
+            print("* Database doesn't exist!")
+    
+    
+    def get(self, stock_id: str, start_time: datetime.date, end_time: datetime.date) -> pd.DataFrame:
+        """ 取得 tick 資料 """
+    
+        if start_time <= end_time:
+            start_time = start_time.strftime('%Y.%m.%d')
+            end_time = (end_time + datetime.timedelta(days=1)).strftime('%Y.%m.%d')
+        else:
+            return pd.DataFrame()
+        
+        script = f""" 
+        db = database("{self.db_path}")
+        table = loadTable(db, "{self.table_name}")
+        select * from table
+        where stock_id=`{stock_id} and time between nanotimestamp({start_time}):nanotimestamp({end_time})
+        """
+        tick = self.session.run(script)
+        return tick
+    
+    
+    def get_last_tick(self, stock_id: str, date: datetime.date) -> pd.DataFrame:
+        """ 取得當日最後一筆 tick """
+        
+        tick = self.get(stock_id, date, date)
+        if len(tick) > 0:
+            return tick.iloc[-1:]
+        return pd.DataFrame
+    
 
 class TickTool:
     @staticmethod
@@ -15,64 +67,4 @@ class TickTool:
 
         return df
     
-    @staticmethod
-    def create_sql(db_path: str):
-        """ 創建 sqlite3 tick db """
-        
-        conn = sqlite3.connect(db_path)
-        create_table_query = """ 
-        CREATE TABLE IF NOT EXISTS ticks (
-            stock_id INTEGER NOT NULL,
-            time TEXT NOT NULL,
-            close REAL NOT NULL,
-            volume INTEGER NOT NULL,
-            bid_price REAL NOT NULL,
-            bid_volume INTEGER NOT NULL,
-            ask_price REAL NOT NULL,
-            ask_volume INTEGER NOT NULL,
-            tick_type INTEGER NOT NULL
-        )
-        """
-        conn.execute(create_table_query)
-        
-    @staticmethod
-    def add_to_sql(df, db_path: str):
-        """ 更新 tick db """
-        
-        conn = sqlite3.connect(db_path)
-        df.to_sql('ticks', conn, if_exists='append', index=False)
 
-
-class Tick:
-    def __init__(self):
-        # open the db
-        self.db_path = './tick.db'
-        self.conn = sqlite3.connect(self.db_path)
-
-    def get(self, table_name: str, stock_id: str, start_time: datetime.date, end_time: datetime.date) -> pd.DataFrame:
-        if start_time == end_time:
-            start_time = datetime.datetime(start_time.year, start_time.month, start_time.day, 0, 0, 0).strftime('%Y-%m-%d %H:%M:%S')
-        else:
-            start_time = start_time.strftime('%Y-%m-%d %H:%M:%S')
-        end_time = datetime.datetime(end_time.year, end_time.month, end_time.day, 23, 59, 59).strftime('%Y-%m-%d %H:%M:%S')
-        
-        cursor = self.conn.cursor()
-
-        stock_query = f""" 
-        SELECT * FROM {table_name}
-        WHERE stock_id={stock_id} 
-        AND time BETWEEN '{start_time}' AND '{end_time}'
-        """
-        cursor.execute(stock_query)
-        
-        ticks = cursor.fetchall()
-        ticks = pd.DataFrame(ticks, columns=['stock_id','time', 'close', 'volume', 'bid_price', 'bid_volume', 'ask_price', 'ask_volume', 'tick_type'])
-        return ticks
-    
-    def get_last_tick(self, table_name: str, stock_id: str, start_time: datetime.date, end_time: datetime.date) -> pd.DataFrame:
-        ticks = self.get(table_name, stock_id, start_time, end_time)
-        return ticks.iloc[-1:]
-    
-    def db_close(self):
-        self.conn.close()
-    
