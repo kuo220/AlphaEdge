@@ -3,7 +3,7 @@ import datetime
 import dolphindb as ddb
 
 class Tick:
-    """ 存在 DolphinDB 內的 tick API """
+    """ tick data API """
     
     def __init__(self, db_path: str, db_name: str, table_name: str):
         self.db_path = db_path
