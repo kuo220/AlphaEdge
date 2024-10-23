@@ -10,7 +10,7 @@ class Tick:
         self.db_name = db_name
         self.table_name = table_name
         
-        self.session = ddb.session()
+        self.session = ddb.session() 
         self.session.connect("localhost", 8848, "admin", "123456")
         
         if (self.session.existsDatabase(self.db_path)):
@@ -30,12 +30,11 @@ class Tick:
     def get(self, stock_id: str, start_time: datetime.date, end_time: datetime.date) -> pd.DataFrame:
         """ 取得 tick 資料 """
     
-        if start_time <= end_time:
-            start_time = start_time.strftime('%Y.%m.%d')
-            end_time = (end_time + datetime.timedelta(days=1)).strftime('%Y.%m.%d')
-        else:
+        if start_time > end_time:
             return pd.DataFrame()
         
+        start_time = start_time.strftime('%Y.%m.%d')
+        end_time = (end_time + datetime.timedelta(days=1)).strftime('%Y.%m.%d')
         script = f""" 
         db = database("{self.db_path}")
         table = loadTable(db, "{self.table_name}")
