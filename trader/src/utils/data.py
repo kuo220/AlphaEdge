@@ -13,8 +13,8 @@ class QXData:
 
         self.macro_eco_db = table_without_stockid
 
-        # 開啟資料庫
-        data_path = Path(__file__).resolve().parents[3] / 'Data' / 'data.db'
+        # 開啟資料庫（data_path會根據data.py放置位置不同而改變）
+        data_path = Path(__file__).resolve().parents[2] / 'Data' / 'data.db'
         
         self.conn = sqlite3.connect(str(data_path))
         cursor = self.conn.execute('SELECT name FROM sqlite_master WHERE type = "table"')
@@ -276,5 +276,10 @@ class Data:
     
     def __init__(self):
         self.QXData = QXData()
-        self.Tick = Tick()
+        
+        """ Ensure dolphinDB server has been opened """
+        try:
+            self.Tick = Tick()
+        except Exception as e:
+            print(e)
         
