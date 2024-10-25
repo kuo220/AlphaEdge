@@ -52,18 +52,4 @@ class Tick:
         if len(tick) > 0:
             return tick.iloc[-1:]
         return pd.DataFrame
-    
-
-class TickTool:
-    @staticmethod
-    def format_ticks_data(df: pd.DataFrame, stock_id: str) -> pd.DataFrame:
-        """ 統一 tick data 的格式 """
-        
-        df.rename(columns={'ts': 'time'}, inplace=True)
-        df['stock_id'] = stock_id
-        new_columns_order = ['stock_id','time', 'close', 'volume', 'bid_price', 'bid_volume', 'ask_price', 'ask_volume', 'tick_type']
-        df = df[new_columns_order]
-
-        return df
-    
 

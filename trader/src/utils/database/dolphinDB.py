@@ -26,8 +26,20 @@ class DolphinDB:
             self.session.run(script)
         else:
             print("Database doesn't exist!")
+    
+    
+    @staticmethod
+    def format_ticks_data(df: pd.DataFrame, stock_id: str) -> pd.DataFrame:
+        """ 統一 tick data 的格式 """
         
-            
+        df.rename(columns={'ts': 'time'}, inplace=True)
+        df['stock_id'] = stock_id
+        new_columns_order = ['stock_id','time', 'close', 'volume', 'bid_price', 'bid_volume', 'ask_price', 'ask_volume', 'tick_type']
+        df = df[new_columns_order]
+
+        return df
+
+
     @staticmethod
     def create_dolphinDB(db_name: str, table_name: str):
         """ 創建 dolphinDB """
@@ -189,4 +201,3 @@ class DolphinDB:
             # 將處理後的 DataFrame 保存回 CSV
             df.to_csv(csv_path, index=False)
             print(f"{csv_name} finish formatting!")
-            
