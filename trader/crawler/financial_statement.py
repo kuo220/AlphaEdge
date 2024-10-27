@@ -255,7 +255,7 @@ def fill_season4(tbs):
 def to_db(tbs):
     import sqlite3
     print('save table to db')
-    conn = sqlite3.connect(os.path.join('data', 'data.db'))
+    conn = sqlite3.connect(os.path.join('Data', 'data.db'))
     for i, df in tbs.items():
         print('  ', i)
         df = df.reset_index().sort_values(['stock_id', 'date']).drop_duplicates(['stock_id', 'date']).set_index(['stock_id', 'date'])
@@ -280,8 +280,8 @@ def html2db(date):
     else:
         return None
     
-    pack_htmls(year, season, os.path.join('data', 'financial_statement', str(year) + str(season)))
-    d = get_all_pickles(os.path.join('data', 'financial_statement'))
+    pack_htmls(year, season, os.path.join('Data', 'financial_statement', str(year) + str(season)))
+    d = get_all_pickles(os.path.join('Data', 'financial_statement'))
     tbs = combine(d)
     fill_season4(tbs)
     to_db(tbs)

@@ -992,7 +992,8 @@ def crawl_finance_statement2019(year, season):
 
 
 def crawl_finance_statement(year, season, stock_ids):
-    directory = os.path.join('data', 'financial_statement', str(year) + str(season))
+    # directory = os.path.join('Data', 'financial_statement', str(year) + str(season))
+    directory = str(Path(__file__).resolve().parents[1] / 'Data' / 'financial_statement')
     if not os.path.exists(directory):
         os.makedirs(directory)
 
