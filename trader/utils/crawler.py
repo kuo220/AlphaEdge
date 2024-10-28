@@ -1325,7 +1325,7 @@ class CrawlQuantX:
                     self.add_to_sql(conn, i, d)
                     print('df save successfully', d.head())
 
-    
+    """ 
     def get_old_capital_increment(self, file):
         df = pd.read_csv("./data/現金增資/" + file)
         df = df.astype(str)
@@ -1398,6 +1398,7 @@ class CrawlQuantX:
         df = df[df.columns[df.isnull().all() == False]]
 
         return df
+    """
     
     
     def widget(self, conn, table_name, crawl_func, range_date):
