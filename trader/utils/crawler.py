@@ -27,15 +27,6 @@ from dateutil.rrule import rrule, DAILY, MONTHLY
 from dateutil.relativedelta import relativedelta
 
 
-
-
-class Crawler:
-    def __init__(self):
-        self.FromSJ = CrawlShioaji()
-        self.FromHTML = CrawlHTML() 
-        self.FromQX = CrawlQuantX()
-
-
 class CrawlShioaji:
     """ Shioaji Crawler """
     
@@ -153,6 +144,7 @@ class CrawlQuantX:
         return pd.DataFrame()
     
     
+    """ 
     def add_tw_pmi_csv(self, conn, name):
         path = os.path.join('data', 'pmi.xlsx')
         df = pd.read_excel(path)
@@ -219,7 +211,7 @@ class CrawlQuantX:
         df.rename(columns={"Unnamed: 0": "date"}, inplace=True)
         dates = df["date"]
         new_dates = pd.to_datetime(dates) + pd.DateOffset(months=1)
-        df["date"] = new_dates
+        df["date"] = new_dates 
         df.set_index(['date'], inplace=True)
         df = df.apply(lambda s: pd.to_numeric(s, errors='coerce'))
         df = df[df.columns[df.isnull().all() == False]]
@@ -280,7 +272,8 @@ class CrawlQuantX:
         df = df.apply(lambda s: pd.to_numeric(s, errors='coerce'))
         df = df[df.columns[df.isnull().all() == False]]
 
-        return df
+        return df 
+     """
     
     
     def crawl_benchmark_return(self, date):
@@ -909,7 +902,7 @@ class CrawlQuantX:
             print("上市", url)
 
             # 偽瀏覽器
-            headers = generate_random_header()
+            headers = self.generate_random_header()
 
             # 下載該年月的網站，並用pandas轉換成 dataframe
             try:
@@ -1038,7 +1031,7 @@ class CrawlQuantX:
 
 
     def crawl_finance_statement(self, year, season, stock_ids):
-        directory = os.path.join('data', 'financial_statement', str(year) + str(season))
+        directory = str(Path(__file__).resolve().parents[1] / 'Data' / 'financial_statement')
         if not os.path.exists(directory):
             os.makedirs(directory)
 
@@ -1107,7 +1100,7 @@ class CrawlQuantX:
 
 
     def crawl_finance_statement_by_date(self, date):
-        finDataHandler = FinanceDataHandler()
+        FDH = FinanceDataHandler()
         
         year = date.year
         if date.month == 3:
@@ -1131,7 +1124,7 @@ class CrawlQuantX:
         else:
             df = self.crawl_monthly_report(datetime.datetime(year, month, 1))
             self.crawl_finance_statement(year, season, df.index.levels[0])
-        finDataHandler.html2db(date)
+        FDH.html2db(date)
         return {}
 
 
@@ -1568,7 +1561,7 @@ class FinanceDataHandler:
             df = dfs[1].copy().drop_duplicates(subset=0, keep='last')
             df = df.set_index(0)
             balance_sheet[stock_id] = df[1].dropna()
-            #balance_sheet = combine(balance_sheet, df[1].dropna(), stock_id)
+            #balance_sheet = self.combine(balance_sheet, df[1].dropna(), stock_id)
 
             # 取得 income statement
             df = dfs[2].copy().drop_duplicates(subset=0, keep='last')
@@ -1723,3 +1716,12 @@ class FinanceDataHandler:
         self.fill_season4(tbs)
         self.to_db(tbs)
         return {}
+
+
+class Crawler:
+    """ Crawler API """
+    
+    def __init__(self):
+        self.FromSJ = CrawlShioaji()
+        self.FromHTML = CrawlHTML() 
+        self.FromQX = CrawlQuantX()
