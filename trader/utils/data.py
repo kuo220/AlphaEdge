@@ -2,8 +2,10 @@ import sqlite3
 import pandas as pd
 import datetime
 from pathlib import Path
-import dolphindb as ddb
-
+try:
+    import dolphindb as ddb
+except ModuleNotFoundError:
+    print("Warning: dolphindb module is not installed.")
 
 class QXData:
     """ QuantX Data API """

@@ -1,7 +1,10 @@
 import pandas as pd
 import os
 from pathlib import Path
-import dolphindb as ddb
+try:
+    import dolphindb as ddb
+except ModuleNotFoundError:
+    print("Warning: dolphindb module is not installed.")
 
 
 class DolphinDB:

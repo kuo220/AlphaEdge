@@ -4,7 +4,7 @@ __pycache__/
 # Environments
 .env
 
-# test.ipynb
+# all .ipynb
 *.ipynb
 
 # db
