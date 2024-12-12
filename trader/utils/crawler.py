@@ -36,7 +36,7 @@ class CrawlShioaji:
 class CrawlHTML:
     """ HTML Crawler """    
     
-    def stock_list_crawler(self) -> List[str]:
+    def crawl_stock_list(self) -> List[str]:
         """ 爬取上市櫃公司的股票代號 """
         
         # 取得上市公司代號
