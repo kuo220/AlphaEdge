@@ -7,6 +7,7 @@ try:
 except ModuleNotFoundError:
     print("Warning: dolphindb module is not installed.")
 
+
 class QXData:
     """ QuantX Data API """
     
