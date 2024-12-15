@@ -66,7 +66,7 @@ class CrawlHTML:
         return stock_list
     
     
-    def crawl_institutional_investors(year: int, month: int, day: int):
+    def crawl_institutional_investors(self, year: int, month: int, day: int):
         """ 爬取上市櫃三大法人盤後籌碼 """
         
         twse_url = f'https://www.twse.com.tw/rwd/zh/fund/T86?date={year}{month}{day}&selectType=ALLBUT0999&response=html'
@@ -87,9 +87,10 @@ class CrawlHTML:
 class CrawlQuantX:
     """ QuantX Crawler """
     
-    table_without_stockid = ["tw_total_pmi", "tw_total_nmi", "tw_business_indicator", "benchmark_return", "margin_balance"]
-    ses = None
-    warnings.simplefilter(action='ignore', category=FutureWarning)
+    def __init__(self):
+        self.table_without_stockid = ["tw_total_pmi", "tw_total_nmi", "tw_business_indicator", "benchmark_return", "margin_balance"]
+        self.ses = None
+        warnings.simplefilter(action='ignore', category=FutureWarning)
 
     def generate_random_header(self):
         ua = UserAgent()
@@ -104,11 +105,11 @@ class CrawlQuantX:
             try:
                 print('獲取新的Session 第', i, '回合')
                 headers = self.generate_random_header()
-                ses = requests.Session()
-                ses.get('https://www.twse.com.tw/zh/', headers=headers, timeout=10)
-                ses.headers.update(headers)
+                self.ses = requests.Session()
+                self.ses.get('https://www.twse.com.tw/zh/', headers=headers, timeout=10)
+                self.ses.headers.update(headers)
                 print('成功！')
-                return ses
+                return self.ses
             except (ConnectionError, ReadTimeout) as error:
                 print(error)
                 print('失敗，10秒後重試')
@@ -120,21 +121,20 @@ class CrawlQuantX:
         
     
     def requests_get(self, *args1, **args2):
-    # get current session
-        global ses
-        if ses == None:
-            ses = self.find_best_session()
+        # get current session
+        if self.ses == None:
+            self.ses = self.find_best_session()
 
         # download data
         i = 3
         while i >= 0:
             try:
-                return ses.get(*args1, timeout=10, **args2)
+                return self.ses.get(*args1, timeout=10, **args2)
             except (ConnectionError, ReadTimeout) as error:
                 print(error)
                 print('retry one more time after 60s', i, 'times left')
                 time.sleep(60)
-                ses = self.find_best_session()
+                self.ses = self.find_best_session()
 
             i -= 1
         return pd.DataFrame()
@@ -142,20 +142,19 @@ class CrawlQuantX:
     
     def requests_post(self, *args1, **args2):
         # get current session
-        global ses
-        if ses == None:
-            ses = self.find_best_session()
+        if self.ses == None:
+            self.ses = self.find_best_session()
 
         # download data
         i = 3
         while i >= 0:
             try:
-                return ses.post(*args1, timeout=10, **args2)
+                return self.ses.post(*args1, timeout=10, **args2)
             except (ConnectionError, ReadTimeout) as error:
                 print(error)
                 print('retry one more time after 60s', i, 'times left')
                 time.sleep(60)
-                ses = self.find_best_session()
+                self.ses = self.find_best_session()
 
             i -= 1
         return pd.DataFrame()
@@ -1265,7 +1264,7 @@ class CrawlQuantX:
                 print('success')
 
             if len(df) > 50000:
-                if table_name in CrawlQuantX.table_without_stockid:
+                if table_name in self.table_without_stockid:
                     self.add_to_sql_without_stock_id_index(conn, table_name, df)
                 else:
                     self.add_to_sql(conn, table_name, df)
@@ -1275,7 +1274,7 @@ class CrawlQuantX:
             time.sleep(15)
 
         if df is not None and len(df) != 0:
-            if table_name in CrawlQuantX.table_without_stockid:
+            if table_name in self.table_without_stockid:
                 self.add_to_sql_without_stock_id_index(conn, table_name, df)
             else:
                 self.add_to_sql(conn, table_name, df)
@@ -1319,7 +1318,7 @@ class CrawlQuantX:
                 print('success')
 
             if len(df) > 50000:
-                if table_name in CrawlQuantX.table_without_stockid:
+                if table_name in self.table_without_stockid:
                     self.add_to_sql_without_stock_id_index(conn, table_name, df)
                 else:
                     self.add_to_sql(conn, table_name, df)
@@ -1329,7 +1328,7 @@ class CrawlQuantX:
             time.sleep(15)
 
         if df is not None and len(df) != 0:
-            if table_name in CrawlQuantX.table_without_stockid:
+            if table_name in self.table_without_stockid:
                 self.add_to_sql_without_stock_id_index(conn, table_name, df)
             else:
                 self.add_to_sql(conn, table_name, df)
