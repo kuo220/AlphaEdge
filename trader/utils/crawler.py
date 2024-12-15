@@ -92,6 +92,7 @@ class CrawlQuantX:
         self.ses = None
         warnings.simplefilter(action='ignore', category=FutureWarning)
 
+
     def generate_random_header(self):
         ua = UserAgent()
         user_agent = ua.random
