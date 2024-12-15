@@ -64,6 +64,23 @@ class CrawlHTML:
         
         print(f"* Len of listed company in market: {len(stock_list)}")
         return stock_list
+    
+    
+    def crawl_institutional_investors(year: int, month: int, day: int):
+        """ 爬取上市櫃三大法人盤後籌碼 """
+        
+        twse_url = f'https://www.twse.com.tw/rwd/zh/fund/T86?date={year}{month}{day}&selectType=ALLBUT0999&response=html'
+        tpex_url = f'https://www.tpex.org.tw/www/zh-tw/insti/dailyTrade?type=Daily&sect=EW&date={year}%2F{month}%2F{day}&id=&response=html'
+        
+        twse_response = requests.get(twse_url)
+        tpex_response = requests.get(tpex_url)
+        twse_df = pd.read_html(StringIO(twse_response.text))[0]
+        tpex_df = pd.read_html(StringIO(tpex_response.text))[0]
+        
+        
+        return tpex_df
+
+
 
 
 
