@@ -69,8 +69,10 @@ class CrawlHTML:
     def crawl_institutional_investors(self, year: int, month: int, day: int):
         """ 爬取上市櫃三大法人盤後籌碼 """
         
-        twse_url = f'https://www.twse.com.tw/rwd/zh/fund/T86?date={year}{month}{day}&selectType=ALLBUT0999&response=html'
-        tpex_url = f'https://www.tpex.org.tw/www/zh-tw/insti/dailyTrade?type=Daily&sect=EW&date={year}%2F{month}%2F{day}&id=&response=html'
+        twse_crawl_date = datetime(year, month, day).strftime("%Y%m%d")
+        tpex_crawl_date = datetime(year, month, day).strftime("%Y/%m/%d")
+        twse_url = f'https://www.twse.com.tw/rwd/zh/fund/T86?date={twse_crawl_date}&selectType=ALLBUT0999&response=html'
+        tpex_url = f'https://www.tpex.org.tw/www/zh-tw/insti/dailyTrade?type=Daily&sect=EW&date={tpex_crawl_date}&id=&response=html'
         
         twse_response = requests.get(twse_url)
         tpex_response = requests.get(tpex_url)
