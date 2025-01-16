@@ -78,6 +78,14 @@ class CrawlHTML:
     
     def crawl_institutional_investors(self, year: int, month: int, day: int):
         """ 爬取上市櫃三大法人盤後籌碼 """
+        """ 
+        TWSE: 2012/5/2 開始提供
+        TPEX: 2007/4/20 開始提供 (但這邊先從 2014 開始爬)
+        
+        TWSE 改制時間:   TPEX 改制時間:
+        1. 2014/12/1    1. 2018/1/5
+        2. 2017/12/18
+        """
         
         twse_crawl_date = datetime(year, month, day).strftime("%Y%m%d")
         tpex_crawl_date = datetime(year, month, day).strftime("%Y/%m/%d")
