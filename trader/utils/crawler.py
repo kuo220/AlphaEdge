@@ -34,7 +34,17 @@ class CrawlShioaji:
 
 
 class CrawlHTML:
-    """ HTML Crawler """    
+    """ HTML Crawler """
+    
+    def generate_random_header(self):
+        """ 產生隨機 headers 避免爬蟲被鎖 """
+        
+        ua = UserAgent()
+        user_agent = ua.random
+        headers = {'Accept': '*/*', 'Connection': 'keep-alive',
+                'User-Agent': user_agent}
+        return headers
+    
     
     def crawl_stock_list(self) -> List[str]:
         """ 爬取上市櫃公司的股票代號 """
