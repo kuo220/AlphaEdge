@@ -33,6 +33,7 @@ class CrawlShioaji:
     pass
 
 
+
 class CrawlHTML:
     """ HTML Crawler """
     
@@ -99,8 +100,6 @@ class CrawlHTML:
         
         
         return tpex_df
-
-
 
 
 
@@ -179,138 +178,6 @@ class CrawlQuantX:
 
             i -= 1
         return pd.DataFrame()
-    
-    
-    """ 
-    def add_tw_pmi_csv(self, conn, name):
-        path = os.path.join('data', 'pmi.xlsx')
-        df = pd.read_excel(path)
-        df.drop(0, inplace=True)
-        df.rename(columns={"Unnamed: 0": "date"}, inplace=True)
-        dates = df["date"]
-        new_dates = pd.to_datetime(dates) + pd.DateOffset(months=1)
-        df["date"] = new_dates
-        df.set_index(['date'], inplace=True)
-
-        self.add_to_sql_without_stock_id_index(conn, name, df)
-
-        print("df save successfully")
-    
-    
-    def add_tw_nmi_csv(self, conn, name):
-        path = os.path.join('data', 'nmi.xlsx')
-        df = pd.read_excel(path)
-        df.drop(0, inplace=True)
-        df.rename(columns={"Unnamed: 0": "date"}, inplace=True)
-        dates = df["date"]
-        new_dates = pd.to_datetime(dates) + pd.DateOffset(months=1)
-        df["date"] = new_dates
-        df.set_index(['date'], inplace=True)
-
-        self.add_to_sql_without_stock_id_index(conn, name, df)
-
-        print("df save successfully")
-        
-        
-    def add_tw_bi_csv(self, conn, name):
-        path = os.path.join('data', 'tw_bi.xlsx')
-        df = pd.read_excel(path)
-        df.drop(0, inplace=True)
-        df.rename(columns={"Unnamed: 0": "date"}, inplace=True)
-        df.drop("景氣對策信號(燈號)", axis=1, inplace=True)
-        dates = df["date"]
-        new_dates = pd.to_datetime(dates) + pd.DateOffset(months=1, days=26)
-        df["date"] = new_dates
-        df.set_index(['date'], inplace=True)
-
-        self.add_to_sql_without_stock_id_index(conn, name, df)
-
-        print("df save successfully")
-        
-        
-    def crawl_tw_total_pmi(self, date):
-        url = "https://index.ndc.gov.tw/n/excel/data/PMI/total?sy=" + str(date.year) + "&sm=" + str(
-            date.month) + "&ey=" + str(date.year) + "&em=" + str(
-            date.month) + "&id=59%2C60%2C61%2C62%2C63%2C64%2C65%2C66%2C279%2C280%2C281%2C282&sq=0,0,0&file_type=xlsx"
-        print("TW Total PMI", url)
-
-        path_xlsx = os.path.join('data', 'macro_economics', str(date.year) + "_" + str(date.month) + '_pmi.xlsx')
-        try:
-            urllib.request.urlretrieve(url, filename=path_xlsx)
-        except:
-            print("**WARRN: requests cannot download {} {} total_pmi.xls".format(date.year, date.month))
-            return None
-
-        print("finish download")
-
-        df = pd.read_excel(path_xlsx)
-        df.drop(0, inplace=True)
-        df.rename(columns={"Unnamed: 0": "date"}, inplace=True)
-        dates = df["date"]
-        new_dates = pd.to_datetime(dates) + pd.DateOffset(months=1)
-        df["date"] = new_dates 
-        df.set_index(['date'], inplace=True)
-        df = df.apply(lambda s: pd.to_numeric(s, errors='coerce'))
-        df = df[df.columns[df.isnull().all() == False]]
-
-        return df
-    
-    
-    def crawl_tw_total_nmi(self, date):
-        url = "https://index.ndc.gov.tw/n/excel/data/NMI/total?sy=" + str(date.year) + "&sm=" + str(
-            date.month) + "&ey=" + str(date.year) + "&em=" + str(
-            date.month) + "&id=160%2C161%2C162%2C163%2C164%2C165%2C166%2C167%2C168%2C169%2C170%2C171%2C172&sq=0,0,0&file_type=xlsx"
-        print("TW Total NMI", url)
-
-        path_xlsx = os.path.join('data', 'macro_economics', str(date.year) + "_" + str(date.month) + '_nmi.xlsx')
-        try:
-            urllib.request.urlretrieve(url, filename=path_xlsx)
-        except:
-            print("**WARRN: requests cannot download {} {} total_nmi.xls".format(date.year, date.month))
-            return None
-
-        print("finish download")
-
-        df = pd.read_excel(path_xlsx)
-        df.drop(0, inplace=True)
-        df.rename(columns={"Unnamed: 0": "date"}, inplace=True)
-        dates = df["date"]
-        new_dates = pd.to_datetime(dates) + pd.DateOffset(months=1)
-        df["date"] = new_dates
-        df.set_index(['date'], inplace=True)
-        df = df.apply(lambda s: pd.to_numeric(s, errors='coerce'))
-        df = df[df.columns[df.isnull().all() == False]]
-
-        return df
-    
-    
-    def crawl_tw_business_indicator(self, date):
-        url = "https://index.ndc.gov.tw/n/excel/data/eco/indicators?sy=" + str(date.year) + "&sm=" + str(
-            date.month) + "&ey=" + str(date.year) + "&em=" + str(
-            date.month) + "&id=1%2C12%2C13%2C14%2C25%2C26%2C33%2C34&sq=0,0,0&file_type=xlsx"
-        print("TW Business Indicator ", url)
-
-        path_xlsx = os.path.join('data', 'macro_economics', str(date.year) + "_" + str(date.month) + '_bi.xlsx')
-        try:
-            urllib.request.urlretrieve(url, filename=path_xlsx)
-        except:
-            print("**WARRN: requests cannot download {} {} total_bi.xls".format(date.year, date.month))
-            return None
-
-        print("finish download")
-
-        df = pd.read_excel(path_xlsx)
-        df.drop(0, inplace=True)
-        df.rename(columns={"Unnamed: 0": "date"}, inplace=True)
-        dates = df["date"]
-        new_dates = pd.to_datetime(dates) + pd.DateOffset(months=1, days=26)
-        df["date"] = new_dates
-        df.set_index(['date'], inplace=True)
-        df = df.apply(lambda s: pd.to_numeric(s, errors='coerce'))
-        df = df[df.columns[df.isnull().all() == False]]
-
-        return df 
-     """
     
     
     def crawl_benchmark_return(self, date):
@@ -1362,81 +1229,6 @@ class CrawlQuantX:
                     self.add_to_sql(conn, i, d)
                     print('df save successfully', d.head())
 
-    """ 
-    def get_old_capital_increment(self, file):
-        df = pd.read_csv("./data/現金增資/" + file)
-        df = df.astype(str)
-        df = df.rename(columns={'代號': 'stock_id', '除權日': 'date'})
-        df = df[["stock_id", "date", "現金增資(仟股)"]]
-        df["現金增資(仟股)"] = df["現金增資(仟股)"].str.replace(',', '').astype(int)
-        df["date"] = df["date"].apply(lambda x: x.replace("/", "-") + "-15")
-        df["date"] = pd.to_datetime(df["date"])
-
-        df = df.set_index(['stock_id', 'date'])
-
-        df = df.apply(lambda s: pd.to_numeric(s, errors='coerce'))
-        df = df[df.columns[df.isnull().all() == False]]
-
-        return df
-
-
-    def get_old_ds_chip(self, file):
-        df = pd.read_excel("./data/董監持股/" + file)
-        df = df.astype(str)
-        df = df.rename(columns={'代號': 'stock_id', '年月日': 'date'})
-        df = df[["stock_id", "date", "董監持股%"]]
-        df["date"] = df["date"].apply(lambda x: x.replace("/", "-") + "-15")
-        df["date"] = pd.to_datetime(df["date"])
-
-        df = df.set_index(['stock_id', 'date'])
-
-        df = df.apply(lambda s: pd.to_numeric(s, errors='coerce'))
-        df = df[df.columns[df.isnull().all() == False]]
-
-        return df
-    
-    
-    def get_old_monthly_revenue(self, file):
-        df = pd.read_excel("./data/月營收/" + file)
-        df = df.astype(str)
-        df = df.rename(columns={'證券代碼': 'stock_id', '年月': 'date', '單月營收(千元)': '當月營收',
-                                '去年單月營收(千元)': '去年當月營收', '累計營收成長率％': '前期比較增減(%)',
-                                '單月營收成長率％': '去年同月增減(%)', '單月營收與上月比％': '上月比較增減(%)',
-                                '去年累計營收(千元)': '去年累計營收', '累計營收(千元)': '當月累計營收'})
-        df = df[["stock_id", "date", '當月營收', '去年當月營收', '前期比較增減(%)', '去年同月增減(%)', '上月比較增減(%)',
-                '去年累計營收', '當月累計營收']]
-        df["stock_id"] = df["stock_id"].apply(lambda x: x.split(" ")[0])
-        df['date'] = pd.to_datetime(df['date'], format='%Y%m')
-        df['date'] = df['date'].apply(lambda x: x.replace(day=10, hour=0, minute=0, second=0) + relativedelta(months=1))
-
-        df = df.set_index(['stock_id', 'date'])
-
-        df = df.apply(lambda s: pd.to_numeric(s, errors='coerce'))
-        df = df[df.columns[df.isnull().all() == False]]
-
-        return df
-
-
-    def get_old_statement(self, statement_name, file):
-        df = pd.read_excel("./data/" + statement_name + "/" + file)
-        df = df.astype(str)
-        df = df.rename(columns={'證券代碼': 'stock_id', '年月': 'date'})
-        df["stock_id"] = df["stock_id"].apply(lambda x: x.split(" ")[0])
-        df['date'] = pd.to_datetime(df['date'], format='%Y%m')
-        df['date'] = df['date'].apply(
-            lambda x: x.replace(month=8, day=14, hour=0, minute=0, second=0) if x.month == 6 else (
-                x.replace(year=x.year+1, month=3, day=31, hour=0, minute=0, second=0) if x.month == 12 else (
-                    x.replace(month=5, day=15, hour=0, minute=0, second=0) if x.month == 3 else x.replace(month=11, day=14,
-                                                                                                        hour=0, minute=0,
-                                                                                                        second=0))))
-        df = df.set_index(['stock_id', 'date'])
-        df.rename(columns=lambda x: x.replace(' ', ''), inplace=True)
-        df = df.apply(lambda s: pd.to_numeric(s, errors='coerce'))
-        df = df[df.columns[df.isnull().all() == False]]
-
-        return df
-    """
-    
     
     def widget(self, conn, table_name, crawl_func, range_date):
         date_picker_from = widgets.DatePicker(
@@ -1476,6 +1268,7 @@ class CrawlQuantX:
 
         items = [date_picker_from, date_picker_to, btn]
         display(widgets.VBox([label, widgets.HBox(items)]))
+
 
 
 class FinanceDataHandler:
@@ -1754,6 +1547,7 @@ class FinanceDataHandler:
         self.fill_season4(tbs)
         self.to_db(tbs)
         return {}
+
 
 
 class Crawler:
