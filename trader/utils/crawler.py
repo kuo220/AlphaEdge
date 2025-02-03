@@ -77,30 +77,84 @@ class CrawlHTML:
         return stock_list
     
     
-    def crawl_institutional_investors(self, year: int, month: int, day: int):
-        """ 爬取上市櫃三大法人盤後籌碼 """
+    def crawl_twse_institutional_investors(self, year: int, month: int, day: int, dir_path: str='../tasks/三大法人盤後籌碼'):
+        """ TWSE 三大法人爬蟲 """
         """ 
         TWSE: 2012/5/2 開始提供
-        TPEX: 2007/4/20 開始提供 (但這邊先從 2014 開始爬)
-        
-        TWSE 改制時間:   TPEX 改制時間:
-        1. 2014/12/1    1. 2018/1/5
-        2. 2017/12/18
+        TWSE 改制時間: 1. 2014/12/1, 2. 2017/12/18
         """
-        
-        twse_crawl_date = datetime(year, month, day).strftime("%Y%m%d")
-        tpex_crawl_date = datetime(year, month, day).strftime("%Y/%m/%d")
-        twse_url = f'https://www.twse.com.tw/rwd/zh/fund/T86?date={twse_crawl_date}&selectType=ALLBUT0999&response=html'
-        tpex_url = f'https://www.tpex.org.tw/www/zh-tw/insti/dailyTrade?type=Daily&sect=EW&date={tpex_crawl_date}&id=&response=html'
-        
-        twse_response = requests.get(twse_url)
-        tpex_response = requests.get(tpex_url)
-        twse_df = pd.read_html(StringIO(twse_response.text))[0]
-        tpex_df = pd.read_html(StringIO(tpex_response.text))[0]
-        
-        
-        return tpex_df
 
+        first_reform_date = datetime.datetime(2014, 12, 1)
+        second_reform_date = datetime.datetime(2017, 12, 18)
+
+        start_date = datetime.datetime(year, month, day)
+        end_date = datetime.datetime.now() # 定義結束日期 (今天)
+        cur_date = start_date
+
+        while cur_date <= end_date:
+            twse_crawl_date = cur_date.strftime("%Y%m%d")
+            twse_url = f'https://www.twse.com.tw/rwd/zh/fund/T86?date={twse_crawl_date}&selectType=ALLBUT0999&response=html'
+            twse_response = requests.get(twse_url)
+
+            # 檢查是否為假日
+            try:
+                twse_df = pd.read_html(StringIO(twse_response.text))[0]
+            except Exception as e:
+                print("It's Holiday!")
+                cur_date += datetime.timedelta(days=1)
+                continue
+
+            twse_df = pd.read_html(StringIO(twse_response.text))[0]
+            twse_df.columns = twse_df.columns.droplevel(0)
+            twse_df.insert(0, '日期', cur_date)
+
+            if cur_date < first_reform_date:
+                col_move_name = "自營商買賣超股數"
+                col_after_name = "自營商賣出股數"
+                col_to_move = twse_df[col_move_name]
+                
+                # 刪除 "自營商買賣超股數" column
+                twse_df.drop(columns=[col_move_name], inplace=True)
+                # 找到 "自營商賣出股數" 的索引位置
+                insert_pos = twse_df.columns.get_loc(col_after_name) + 1
+                # 放到 "自營商賣出股數" 之後
+                twse_df.insert(insert_pos, col_move_name, col_to_move)
+                
+            elif first_reform_date <= cur_date < second_reform_date:
+                col_move_name = "自營商買賣超股數"
+                col_after_name = "自營商買賣超股數(避險)"
+                col_to_move = twse_df[col_move_name]
+                
+                twse_df.drop(columns=[col_move_name], inplace=True)
+                insert_pos = twse_df.columns.get_loc(col_after_name) + 1
+                twse_df.insert(insert_pos, col_move_name, col_to_move)
+
+            else:
+                foreign_net_buying = twse_df['外陸資買進股數(不含外資自營商)'] + twse_df['外資自營商買進股數']
+                foreign_net_selling = twse_df['外陸資賣出股數(不含外資自營商)'] + twse_df['外資自營商賣出股數']
+                foreign_net = twse_df['外陸資買賣超股數(不含外資自營商)'] + twse_df['外資自營商買賣超股數']
+                twse_df.drop(columns=['外陸資買進股數(不含外資自營商)', '外陸資賣出股數(不含外資自營商)', '外陸資買賣超股數(不含外資自營商)',
+                                    '外資自營商買進股數', '外資自營商賣出股數', '外資自營商買賣超股數'], inplace=True)
+
+                insert_pos = twse_df.columns.get_loc('證券名稱') + 1
+                twse_df.insert(insert_pos, '外資買進股數', foreign_net_buying)
+                insert_pos = twse_df.columns.get_loc('外資買進股數') + 1
+                twse_df.insert(insert_pos, '外資賣出股數', foreign_net_selling)
+                insert_pos = twse_df.columns.get_loc('外資賣出股數') + 1
+                twse_df.insert(insert_pos, '外資買賣超股數', foreign_net)
+                
+            twse_df.to_csv(f'{dir_path}/{twse_crawl_date}.csv', index=False)
+            cur_date += datetime.timedelta(days=1)
+    
+
+    def crawl_tpex_institutional_investors(self, year: int, month: int, day: int):
+        """ TPEX 三大法人爬蟲 """
+        """ 
+        TPEX: 2007/4/20 開始提供 (但這邊先從 2014/12/1 開始爬)
+        TPEX 改制時間: 1. 2018/1/5
+        """
+    
+        pass
 
 
 class CrawlQuantX:
