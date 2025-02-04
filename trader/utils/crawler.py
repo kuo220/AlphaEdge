@@ -76,6 +76,12 @@ class CrawlHTML:
         print(f"* Len of listed company in market: {len(stock_list)}")
         return stock_list
 
+    
+    def move_col(self, df: pd.DataFrame, col_name: str, ref_col_name: str):
+        """ 移動 columns 位置"""
+        col_data = df.pop(col_name)
+        df.insert(df.columns.get_loc(ref_col_name) + 1, col_name, col_data)
+
 
     def crawl_twse_institutional_investors(self, year: int, month: int, day: int, dir_path: str='../tasks/三大法人盤後籌碼'):
         """ TWSE 三大法人爬蟲 """
@@ -83,11 +89,6 @@ class CrawlHTML:
         TWSE: 2012/5/2 開始提供
         TWSE 改制時間: 1. 2014/12/1, 2. 2017/12/18
         """
-        
-        def move_col(df: pd.DataFrame, col_name: str, ref_col_name: str):
-            """ 移動 columns 位置"""
-            col_data = df.pop(col_name)
-            df.insert(df.columns.get_loc(ref_col_name) + 1, col_name, col_data)
         
         first_reform_date = datetime.datetime(2014, 12, 1)
         second_reform_date = datetime.datetime(2017, 12, 18)
@@ -113,23 +114,23 @@ class CrawlHTML:
             twse_df.insert(0, '日期', cur_date)
 
             if cur_date < first_reform_date:
-                move_col(twse_df, "自營商買賣超股數", "自營商賣出股數")
+                self.move_col(twse_df, "自營商買賣超股數", "自營商賣出股數")
             elif first_reform_date <= cur_date < second_reform_date:
-                move_col(twse_df, "自營商買賣超股數", "自營商買賣超股數(避險)")
+                self.move_col(twse_df, "自營商買賣超股數", "自營商買賣超股數(避險)")
             else:
                 twse_df['外資買進股數'] = twse_df['外陸資買進股數(不含外資自營商)'] + twse_df['外資自營商買進股數']
                 twse_df['外資賣出股數'] = twse_df['外陸資賣出股數(不含外資自營商)'] + twse_df['外資自營商賣出股數']
                 twse_df['外資買賣超股數'] = twse_df['外陸資買賣超股數(不含外資自營商)'] + twse_df['外資自營商買賣超股數']
                 twse_df.drop(columns=['外陸資買進股數(不含外資自營商)', '外陸資賣出股數(不含外資自營商)', '外陸資買賣超股數(不含外資自營商)',
                                     '外資自營商買進股數', '外資自營商賣出股數', '外資自營商買賣超股數'], inplace=True)
-                move_col(twse_df, '外資買進股數', '證券名稱')
-                move_col(twse_df, '外資賣出股數', '外資買進股數')
-                move_col(twse_df, '外資買賣超股數', '外資賣出股數')
+                self.move_col(twse_df, '外資買進股數', '證券名稱')
+                self.move_col(twse_df, '外資賣出股數', '外資買進股數')
+                self.move_col(twse_df, '外資買賣超股數', '外資賣出股數')
             
             if not os.path.exists(dir_path):
                 os.makedirs(dir_path)
             
-            twse_df.to_csv(f'{dir_path}/{twse_crawl_date}.csv', index=False)
+            twse_df.to_csv(f'{dir_path}/twse_{cur_date.strftime("%Y%m%d")}.csv', index=False)
             cur_date += datetime.timedelta(days=1)
     
 
@@ -137,7 +138,7 @@ class CrawlHTML:
         """ TPEX 三大法人爬蟲 """
         """ 
         TPEX: 2007/4/20 開始提供 (但這邊先從 2014/12/1 開始爬)
-        TPEX 改制時間: 1. 2018/1/5
+        TPEX 改制時間: 1. 2018/1/15
         """
     
         pass
