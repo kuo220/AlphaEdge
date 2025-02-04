@@ -142,7 +142,10 @@ class CrawlHTML:
                 twse_df.insert(insert_pos, '外資賣出股數', foreign_net_selling)
                 insert_pos = twse_df.columns.get_loc('外資賣出股數') + 1
                 twse_df.insert(insert_pos, '外資買賣超股數', foreign_net)
-                
+            
+            if not os.path.exists(dir_path):
+                os.makedirs(dir_path)
+            
             twse_df.to_csv(f'{dir_path}/{twse_crawl_date}.csv', index=False)
             cur_date += datetime.timedelta(days=1)
     
