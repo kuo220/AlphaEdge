@@ -36,7 +36,7 @@ class CrawlShioaji:
 
 class CrawlHTML:
     """ HTML Crawler """
-    
+        
     def generate_random_header(self):
         """ 產生隨機 headers 避免爬蟲被鎖 """
         
@@ -77,18 +77,25 @@ class CrawlHTML:
         return stock_list
     
     
+    def crawl_institutional_investors_df(self, date, url):
+        response = requests.get(url)
+
     def crawl_twse_institutional_investors(self, year: int, month: int, day: int, dir_path: str='../tasks/三大法人盤後籌碼'):
         """ TWSE 三大法人爬蟲 """
         """ 
         TWSE: 2012/5/2 開始提供
         TWSE 改制時間: 1. 2014/12/1, 2. 2017/12/18
         """
-
+        
+        def move_col(df: pd.DataFrame, col_name: str, ref_col_name: str):
+            """ 移動 columns 位置"""
+            col_data = df.pop(col_name)
+            df.insert(df.columns.get_loc(ref_col_name) + 1, col_name, col_data)
+        
         first_reform_date = datetime.datetime(2014, 12, 1)
         second_reform_date = datetime.datetime(2017, 12, 18)
 
-        start_date = datetime.datetime(year, month, day)
-        end_date = datetime.datetime.now() # 定義結束日期 (今天)
+        start_date, end_date = datetime.datetime(year, month, day), datetime.datetime.now()
         cur_date = start_date
 
         while cur_date <= end_date:
@@ -109,39 +116,18 @@ class CrawlHTML:
             twse_df.insert(0, '日期', cur_date)
 
             if cur_date < first_reform_date:
-                col_move_name = "自營商買賣超股數"
-                col_after_name = "自營商賣出股數"
-                col_to_move = twse_df[col_move_name]
-                
-                # 刪除 "自營商買賣超股數" column
-                twse_df.drop(columns=[col_move_name], inplace=True)
-                # 找到 "自營商賣出股數" 的索引位置
-                insert_pos = twse_df.columns.get_loc(col_after_name) + 1
-                # 放到 "自營商賣出股數" 之後
-                twse_df.insert(insert_pos, col_move_name, col_to_move)
-                
+                move_col(twse_df, "自營商買賣超股數", "自營商賣出股數")
             elif first_reform_date <= cur_date < second_reform_date:
-                col_move_name = "自營商買賣超股數"
-                col_after_name = "自營商買賣超股數(避險)"
-                col_to_move = twse_df[col_move_name]
-                
-                twse_df.drop(columns=[col_move_name], inplace=True)
-                insert_pos = twse_df.columns.get_loc(col_after_name) + 1
-                twse_df.insert(insert_pos, col_move_name, col_to_move)
-
+                move_col(twse_df, "自營商買賣超股數", "自營商買賣超股數(避險)")
             else:
-                foreign_net_buying = twse_df['外陸資買進股數(不含外資自營商)'] + twse_df['外資自營商買進股數']
-                foreign_net_selling = twse_df['外陸資賣出股數(不含外資自營商)'] + twse_df['外資自營商賣出股數']
-                foreign_net = twse_df['外陸資買賣超股數(不含外資自營商)'] + twse_df['外資自營商買賣超股數']
+                twse_df['外資買進股數'] = twse_df['外陸資買進股數(不含外資自營商)'] + twse_df['外資自營商買進股數']
+                twse_df['外資賣出股數'] = twse_df['外陸資賣出股數(不含外資自營商)'] + twse_df['外資自營商賣出股數']
+                twse_df['外資買賣超股數'] = twse_df['外陸資買賣超股數(不含外資自營商)'] + twse_df['外資自營商買賣超股數']
                 twse_df.drop(columns=['外陸資買進股數(不含外資自營商)', '外陸資賣出股數(不含外資自營商)', '外陸資買賣超股數(不含外資自營商)',
                                     '外資自營商買進股數', '外資自營商賣出股數', '外資自營商買賣超股數'], inplace=True)
-
-                insert_pos = twse_df.columns.get_loc('證券名稱') + 1
-                twse_df.insert(insert_pos, '外資買進股數', foreign_net_buying)
-                insert_pos = twse_df.columns.get_loc('外資買進股數') + 1
-                twse_df.insert(insert_pos, '外資賣出股數', foreign_net_selling)
-                insert_pos = twse_df.columns.get_loc('外資賣出股數') + 1
-                twse_df.insert(insert_pos, '外資買賣超股數', foreign_net)
+                move_col(twse_df, '外資買進股數', '證券名稱')
+                move_col(twse_df, '外資賣出股數', '外資買進股數')
+                move_col(twse_df, '外資買賣超股數', '外資賣出股數')
             
             if not os.path.exists(dir_path):
                 os.makedirs(dir_path)
