@@ -75,10 +75,7 @@ class CrawlHTML:
         
         print(f"* Len of listed company in market: {len(stock_list)}")
         return stock_list
-    
-    
-    def crawl_institutional_investors_df(self, date, url):
-        response = requests.get(url)
+
 
     def crawl_twse_institutional_investors(self, year: int, month: int, day: int, dir_path: str='../tasks/三大法人盤後籌碼'):
         """ TWSE 三大法人爬蟲 """
