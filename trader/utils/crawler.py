@@ -81,8 +81,8 @@ class CrawlHTML:
         """ 移動 columns 位置"""
         col_data = df.pop(col_name)
         df.insert(df.columns.get_loc(ref_col_name) + 1, col_name, col_data)
-
-
+   
+   
     def crawl_twse_institutional_investors(self, year: int, month: int, day: int, dir_path: str='../tasks/三大法人盤後籌碼'):
         """ TWSE 三大法人爬蟲 """
         """ 
@@ -97,8 +97,7 @@ class CrawlHTML:
         cur_date = start_date
 
         while cur_date <= end_date:
-            twse_crawl_date = cur_date.strftime("%Y%m%d")
-            twse_url = f'https://www.twse.com.tw/rwd/zh/fund/T86?date={twse_crawl_date}&selectType=ALLBUT0999&response=html'
+            twse_url = f'https://www.twse.com.tw/rwd/zh/fund/T86?date={cur_date.strftime("%Y%m%d")}&selectType=ALLBUT0999&response=html'
             twse_response = requests.get(twse_url)
 
             # 檢查是否為假日
@@ -113,10 +112,13 @@ class CrawlHTML:
             twse_df.columns = twse_df.columns.droplevel(0)
             twse_df.insert(0, '日期', cur_date)
 
+            # 第一次格式改制前
             if cur_date < first_reform_date:
                 self.move_col(twse_df, "自營商買賣超股數", "自營商賣出股數")
+            # 第一次格式改制後，第二次格式改制前
             elif first_reform_date <= cur_date < second_reform_date:
                 self.move_col(twse_df, "自營商買賣超股數", "自營商買賣超股數(避險)")
+            # 第二次格式改制後
             else:
                 twse_df['外資買進股數'] = twse_df['外陸資買進股數(不含外資自營商)'] + twse_df['外資自營商買進股數']
                 twse_df['外資賣出股數'] = twse_df['外陸資賣出股數(不含外資自營商)'] + twse_df['外資自營商賣出股數']
@@ -134,14 +136,51 @@ class CrawlHTML:
             cur_date += datetime.timedelta(days=1)
     
 
-    def crawl_tpex_institutional_investors(self, year: int, month: int, day: int):
+    def crawl_tpex_institutional_investors(self, year: int, month: int, day: int, dir_path: str='../tasks/三大法人盤後籌碼'):
         """ TPEX 三大法人爬蟲 """
         """ 
         TPEX: 2007/4/20 開始提供 (但這邊先從 2014/12/1 開始爬)
         TPEX 改制時間: 1. 2018/1/15
         """
-    
-        pass
+        first_reform_date = datetime.datetime(2018, 1, 15)
+        start_date, end_date = datetime.datetime(year, month, day), datetime.datetime.now()
+        cur_date = start_date
+        
+        while cur_date <= end_date:
+            tpex_url = f'https://www.tpex.org.tw/www/zh-tw/insti/dailyTrade?type=Daily&sect=EW&date={cur_date.strftime("%Y/%m/%d")}&id=&response=html'
+            tpex_response = requests.get(tpex_url)
+            tpex_df = pd.read_html(StringIO(tpex_response.text))[0]
+            tpex_df.columns = tpex_df.columns.droplevel(0)
+            tpex_df.drop(index=tpex_df.index[0], columns=tpex_df.columns[-1], inplace=True)
+            
+            # 檢查是否為假日
+            if tpex_df.shape[0] == 2:
+                print("It's Holiday!")
+                cur_date += datetime.timedelta(days=1)
+                continue
+            
+            new_col_name = [
+                '證券代號', '證券名稱', '外資買進股數', '外資賣出股數', '外資買賣超股數',
+                '投信買進股數', '投信賣出股數', '投信買賣超股數', '自營商買賣超股數',
+                '自營商買進股數(自行買賣)', '自營商賣出股數(自行買賣)', '自營商買賣超股數(自行買賣)',
+                '自營商買進股數(避險)', '自營商賣出股數(避險)', '自營商買賣超股數(避險)', '三大法人買賣超股數'
+            ]
+            
+            # 格式改制前
+            if cur_date < first_reform_date:
+                tpex_df.insert(0, '日期', cur_date)
+                old_col_name = [
+                    '代號', '名稱', '外資 及陸資 買股數', '外資 及陸資 賣股數', '外資 及陸資 淨買股數',
+                    '投信 買股數', '投信 賣股數', '投信 淨買股數', '自營商 淨買股數',
+                    '自營商 (自行買賣) 買股數', '自營商 (自行買賣) 賣股數', '自營商 (自行買賣) 淨買股數',
+                    '自營商 (避險) 買股數', '自營商 (避險) 賣股數', '自營商 (避險) 淨買股數', '三大法人 買賣超股數'
+                ]
+                
+                tpex_df.rename(columns=dict(zip(old_col_name, new_col_name)), inplace=True)
+                self.move_col(tpex_df, "自營商買賣超股數", "自營商買賣超股數(避險)")
+            # 格式改制後
+            else:
+                pass    
 
 
 class CrawlQuantX:
