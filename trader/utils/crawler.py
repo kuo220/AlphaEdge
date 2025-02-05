@@ -202,7 +202,6 @@ class CrawlHTML:
             
             tpex_df.insert(0, '日期', cur_date)
             self.move_col(tpex_df, "自營商買賣超股數", "自營商買賣超股數(避險)")
-
             tpex_df.to_csv(f'{dir_path}/tpex_{cur_date.strftime("%Y%m%d")}.csv', index=False)
             cur_date += datetime.timedelta(days=1)
 
