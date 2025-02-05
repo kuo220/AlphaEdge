@@ -33,7 +33,6 @@ class CrawlShioaji:
     pass
 
 
-
 class CrawlHTML:
     """ HTML Crawler """
         
@@ -95,6 +94,9 @@ class CrawlHTML:
 
         start_date, end_date = datetime.datetime(year, month, day), datetime.datetime.now()
         cur_date = start_date
+        
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
 
         while cur_date <= end_date:
             twse_url = f'https://www.twse.com.tw/rwd/zh/fund/T86?date={cur_date.strftime("%Y%m%d")}&selectType=ALLBUT0999&response=html'
@@ -129,9 +131,6 @@ class CrawlHTML:
                 self.move_col(twse_df, '外資賣出股數', '外資買進股數')
                 self.move_col(twse_df, '外資買賣超股數', '外資賣出股數')
             
-            if not os.path.exists(dir_path):
-                os.makedirs(dir_path)
-            
             twse_df.to_csv(f'{dir_path}/twse_{cur_date.strftime("%Y%m%d")}.csv', index=False)
             cur_date += datetime.timedelta(days=1)
     
@@ -146,18 +145,22 @@ class CrawlHTML:
         start_date, end_date = datetime.datetime(year, month, day), datetime.datetime.now()
         cur_date = start_date
         
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
+        
         while cur_date <= end_date:
             tpex_url = f'https://www.tpex.org.tw/www/zh-tw/insti/dailyTrade?type=Daily&sect=EW&date={cur_date.strftime("%Y/%m/%d")}&id=&response=html'
             tpex_response = requests.get(tpex_url)
             tpex_df = pd.read_html(StringIO(tpex_response.text))[0]
-            tpex_df.columns = tpex_df.columns.droplevel(0)
             tpex_df.drop(index=tpex_df.index[0], columns=tpex_df.columns[-1], inplace=True)
             
             # 檢查是否為假日
-            if tpex_df.shape[0] == 2:
+            if tpex_df.shape[0] == 1:
                 print("It's Holiday!")
                 cur_date += datetime.timedelta(days=1)
                 continue
+            
+            tpex_df.columns = tpex_df.columns.droplevel(0)
             
             new_col_name = [
                 '證券代號', '證券名稱', '外資買進股數', '外資賣出股數', '外資買賣超股數',
@@ -168,7 +171,6 @@ class CrawlHTML:
             
             # 格式改制前
             if cur_date < first_reform_date:
-                tpex_df.insert(0, '日期', cur_date)
                 old_col_name = [
                     '代號', '名稱', '外資 及陸資 買股數', '外資 及陸資 賣股數', '外資 及陸資 淨買股數',
                     '投信 買股數', '投信 賣股數', '投信 淨買股數', '自營商 淨買股數',
@@ -177,10 +179,32 @@ class CrawlHTML:
                 ]
                 
                 tpex_df.rename(columns=dict(zip(old_col_name, new_col_name)), inplace=True)
-                self.move_col(tpex_df, "自營商買賣超股數", "自營商買賣超股數(避險)")
             # 格式改制後
             else:
-                pass    
+                new_tpex_df = pd.DataFrame(columns=new_col_name)
+                new_tpex_df['證券代號'] = tpex_df.loc[:, ('代號', '代號')]
+                new_tpex_df['證券名稱'] = tpex_df.loc[:, ('名稱', '名稱')]
+                new_tpex_df['外資買進股數'] = tpex_df.loc[:, ('外資及陸資', '買進股數')]
+                new_tpex_df['外資賣出股數'] = tpex_df.loc[:, ('外資及陸資', '賣出股數')]
+                new_tpex_df['外資買賣超股數'] = tpex_df.loc[:, ('外資及陸資', '買賣超股數')]
+                new_tpex_df['投信買進股數'] = tpex_df.loc[:, ('投信', '買進股數')]
+                new_tpex_df['投信賣出股數'] = tpex_df.loc[:, ('投信', '賣出股數')]
+                new_tpex_df['投信買賣超股數'] = tpex_df.loc[:, ('投信', '買賣超股數')]
+                new_tpex_df['自營商買賣超股數'] = tpex_df.loc[:, ('自營商', '買賣超股數')]
+                new_tpex_df['自營商買進股數(自行買賣)'] = tpex_df.loc[:, ('自營商(自行買賣)', '買進股數')]
+                new_tpex_df['自營商賣出股數(自行買賣)'] = tpex_df.loc[:, ('自營商(自行買賣)', '賣出股數')]
+                new_tpex_df['自營商買賣超股數(自行買賣)'] = tpex_df.loc[:, ('自營商(自行買賣)', '買賣超股數')]
+                new_tpex_df['自營商買進股數(避險)'] = tpex_df.loc[:, ('自營商(避險)', '買進股數')]
+                new_tpex_df['自營商賣出股數(避險)'] = tpex_df.loc[:, ('自營商(避險)', '賣出股數')]
+                new_tpex_df['自營商買賣超股數(避險)'] = tpex_df.loc[:, ('自營商(避險)', '買賣超股數')]
+                new_tpex_df['三大法人買賣超股數'] = tpex_df.loc[:, ('三大法人買賣超 股數合計', '三大法人買賣超 股數合計')]
+                tpex_df = new_tpex_df
+            
+            tpex_df.insert(0, '日期', cur_date)
+            self.move_col(tpex_df, "自營商買賣超股數", "自營商買賣超股數(避險)")
+
+            tpex_df.to_csv(f'{dir_path}/tpex_{cur_date.strftime("%Y%m%d")}.csv', index=False)
+            cur_date += datetime.timedelta(days=1)
 
 
 class CrawlQuantX:
