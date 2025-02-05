@@ -51,7 +51,6 @@ class CrawlHTML:
         
         # 取得上市公司代號
         twse_code_url = "https://isin.twse.com.tw/isin/class_main.jsp?owncode=&stockname=&isincode=&market=1&issuetype=1&industry_code=&Page=1&chklike=Y"
-
         response = requests.get(twse_code_url)
         twse_list = pd.read_html(StringIO(response.text))[0]
         twse_list.columns = twse_list.iloc[0, :]
@@ -100,7 +99,8 @@ class CrawlHTML:
 
         while cur_date <= end_date:
             twse_url = f'https://www.twse.com.tw/rwd/zh/fund/T86?date={cur_date.strftime("%Y%m%d")}&selectType=ALLBUT0999&response=html'
-            twse_response = requests.get(twse_url)
+            headers = self.generate_random_header()
+            twse_response = requests.get(twse_url, headers=headers)
 
             # 檢查是否為假日
             try:
@@ -150,7 +150,8 @@ class CrawlHTML:
         
         while cur_date <= end_date:
             tpex_url = f'https://www.tpex.org.tw/www/zh-tw/insti/dailyTrade?type=Daily&sect=EW&date={cur_date.strftime("%Y/%m/%d")}&id=&response=html'
-            tpex_response = requests.get(tpex_url)
+            headers = self.generate_random_header()
+            tpex_response = requests.get(tpex_url, headers=headers)
             tpex_df = pd.read_html(StringIO(tpex_response.text))[0]
             tpex_df.drop(index=tpex_df.index[0], columns=tpex_df.columns[-1], inplace=True)
             
