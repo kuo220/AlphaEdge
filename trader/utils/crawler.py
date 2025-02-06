@@ -94,6 +94,9 @@ class CrawlHTML:
         start_date, end_date = datetime.datetime(year, month, day), datetime.datetime.now()
         cur_date = start_date
         
+        # if crawl_cnt == 100, then sleep
+        crawl_cnt = 0
+        
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
 
@@ -133,6 +136,18 @@ class CrawlHTML:
             
             twse_df.to_csv(f'{dir_path}/twse_{cur_date.strftime("%Y%m%d")}.csv', index=False)
             cur_date += datetime.timedelta(days=1)
+            
+            crawl_cnt += 1
+            
+            if crawl_cnt == 100:
+                print("Sleep 2 minutes...")
+                crawl_cnt = 0
+                time.sleep(120)
+            else:
+                delay = random.randint(1, 5)
+                time.sleep(delay)
+            
+            
     
 
     def crawl_tpex_institutional_investors(self, year: int, month: int, day: int, dir_path: str='../tasks/三大法人盤後籌碼'):
@@ -144,6 +159,9 @@ class CrawlHTML:
         first_reform_date = datetime.datetime(2018, 1, 15)
         start_date, end_date = datetime.datetime(year, month, day), datetime.datetime.now()
         cur_date = start_date
+        
+        # if crawl_cnt == 100, then sleep
+        crawl_cnt = 0
         
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
@@ -205,6 +223,16 @@ class CrawlHTML:
             self.move_col(tpex_df, "自營商買賣超股數", "自營商買賣超股數(避險)")
             tpex_df.to_csv(f'{dir_path}/tpex_{cur_date.strftime("%Y%m%d")}.csv', index=False)
             cur_date += datetime.timedelta(days=1)
+            
+            crawl_cnt += 1
+        
+            if crawl_cnt == 100:
+                print("Sleep 2 minutes...")
+                crawl_cnt = 0
+                time.sleep(120)
+            else:
+                delay = random.randint(1, 5)
+                time.sleep(delay)
 
 
 class CrawlQuantX:
