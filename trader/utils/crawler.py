@@ -221,15 +221,17 @@ class CrawlHTML:
                 new_tpex_df['投信賣出股數'] = tpex_df.loc[:, ('投信', '賣出股數')]
                 new_tpex_df['投信買賣超股數'] = tpex_df.loc[:, ('投信', '買賣超股數')]
                 new_tpex_df['自營商買賣超股數'] = tpex_df.loc[:, ('自營商', '買賣超股數')]
-                new_tpex_df['自營商買進股數_自行買賣'] = tpex_df.loc[:, ('自營商_自行買賣', '買進股數')]
-                new_tpex_df['自營商賣出股數_自行買賣'] = tpex_df.loc[:, ('自營商_自行買賣', '賣出股數')]
-                new_tpex_df['自營商買賣超股數_自行買賣'] = tpex_df.loc[:, ('自營商_自行買賣', '買賣超股數')]
-                new_tpex_df['自營商買進股數_避險'] = tpex_df.loc[:, ('自營商_避險', '買進股數')]
-                new_tpex_df['自營商賣出股數_避險'] = tpex_df.loc[:, ('自營商_避險', '賣出股數')]
-                new_tpex_df['自營商買賣超股數_避險'] = tpex_df.loc[:, ('自營商_避險', '買賣超股數')]
+                new_tpex_df['自營商買進股數_自行買賣'] = tpex_df.loc[:, ('自營商(自行買賣)', '買進股數')]
+                new_tpex_df['自營商賣出股數_自行買賣'] = tpex_df.loc[:, ('自營商(自行買賣)', '賣出股數')]
+                new_tpex_df['自營商買賣超股數_自行買賣'] = tpex_df.loc[:, ('自營商(自行買賣)', '買賣超股數')]
+                new_tpex_df['自營商買進股數_避險'] = tpex_df.loc[:, ('自營商(避險)', '買進股數')]
+                new_tpex_df['自營商賣出股數_避險'] = tpex_df.loc[:, ('自營商(避險)', '賣出股數')]
+                new_tpex_df['自營商買賣超股數_避險'] = tpex_df.loc[:, ('自營商(避險)', '買賣超股數')]
                 new_tpex_df['三大法人買賣超股數'] = tpex_df.loc[:, ('三大法人買賣超 股數合計', '三大法人買賣超 股數合計')]
                 tpex_df = new_tpex_df
             
+            # 刪掉最後一個 row
+            tpex_df = tpex_df.iloc[:-1]
             tpex_df.insert(0, '日期', cur_date)
             self.move_col(tpex_df, "自營商買賣超股數", "自營商買賣超股數_避險")
             tpex_df.to_csv(f'{dir_path}/tpex_{cur_date.strftime("%Y%m%d")}.csv', index=False)
