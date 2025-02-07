@@ -35,20 +35,20 @@ if __name__ == '__main__':
     2. 2017/12/18
     """
     
-    dir_path = Path(__file__).resolve().parent.parent / 'Downloads' / '三大法人盤後籌碼'
-    print(dir_path)
     crawler = Crawler().FromHTML
     
     # TWSE
+    twse_dir_path = Path(__file__).resolve().parent.parent / 'Downloads' / '三大法人盤後籌碼' / 'TWSE'
     twse_start_year = 2012
     twse_start_month = 5
     twse_start_day = 2
     
-    crawler.crawl_twse_institutional_investors(twse_start_year, twse_start_month, twse_start_day, dir_path)
+    crawler.crawl_twse_institutional_investors(twse_start_year, twse_start_month, twse_start_day, twse_dir_path)
     
     # TPEX
+    tpex_dir_path = Path(__file__).resolve().parent.parent / 'Downloads' / '三大法人盤後籌碼' / 'TPEX'
     tpex_start_year = 2014
     tpex_start_month = 12
     tpex_start_day = 1
     
-    crawler.crawl_tpex_institutional_investors(tpex_start_year, tpex_start_month, tpex_start_day, dir_path) 
+    crawler.crawl_tpex_institutional_investors(tpex_start_year, tpex_start_month, tpex_start_day, tpex_dir_path) 
