@@ -33,5 +33,12 @@ def move_col(df: pd.DataFrame, col_name: str, ref_col_name: str):
     
     
 if __name__ == '__main__':
-    dir_path = Path(__file__).resolve().parent.parent / 'Downloads' / '三大法人盤後籌碼'
+    dir_path = Path(__file__).resolve().parent.parent / 'Downloads' / 'tmp'
     print(dir_path)
+    
+    for file in os.listdir(dir_path):
+        file_path = dir_path / file
+        
+        df = pd.read_csv(file_path)
+        move_col(df, "自營商買賣超股數", "自營商買賣超股數(避險)")
+        df.to_csv(file_path, index=False)
