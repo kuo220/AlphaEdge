@@ -116,13 +116,20 @@ class CrawlHTML:
             twse_df = pd.read_html(StringIO(twse_response.text))[0]
             twse_df.columns = twse_df.columns.droplevel(0)
             twse_df.insert(0, '日期', cur_date)
-
+            
+            old_col_name = ['自營商買進股數(自行買賣)', '自營商賣出股數(自行買賣)', '自營商買賣超股數(自行買賣)', 
+                            '自營商買進股數(避險)', '自營商賣出股數(避險)', '自營商買賣超股數(避險)']
+            
+            new_col_name = ['自營商買進股數_自行買賣', '自營商賣出股數_自行買賣', '自營商買賣超股數_自行買賣', 
+                            '自營商買進股數_避險', '自營商賣出股數_避險', '自營商買賣超股數_避險']
+            
             # 第一次格式改制前
             if cur_date < first_reform_date:
                 self.move_col(twse_df, "自營商買賣超股數", "自營商賣出股數")
             # 第一次格式改制後，第二次格式改制前
             elif first_reform_date <= cur_date < second_reform_date:
                 self.move_col(twse_df, "自營商買賣超股數", "自營商買賣超股數(避險)")
+                twse_df.rename(columns=dict(zip(old_col_name, new_col_name)), inplace=True)
             # 第二次格式改制後
             else:
                 twse_df['外資買進股數'] = twse_df['外陸資買進股數(不含外資自營商)'] + twse_df['外資自營商買進股數']
@@ -134,6 +141,7 @@ class CrawlHTML:
                 self.move_col(twse_df, '外資賣出股數', '外資買進股數')
                 self.move_col(twse_df, '外資買賣超股數', '外資賣出股數')
                 self.move_col(twse_df, "自營商買賣超股數", "自營商買賣超股數(避險)")
+                twse_df.rename(columns=dict(zip(old_col_name, new_col_name)), inplace=True)
             
             twse_df.to_csv(f'{dir_path}/twse_{cur_date.strftime("%Y%m%d")}.csv', index=False)
             cur_date += datetime.timedelta(days=1)
@@ -183,8 +191,8 @@ class CrawlHTML:
             new_col_name = [
                 '證券代號', '證券名稱', '外資買進股數', '外資賣出股數', '外資買賣超股數',
                 '投信買進股數', '投信賣出股數', '投信買賣超股數', '自營商買賣超股數',
-                '自營商買進股數(自行買賣)', '自營商賣出股數(自行買賣)', '自營商買賣超股數(自行買賣)',
-                '自營商買進股數(避險)', '自營商賣出股數(避險)', '自營商買賣超股數(避險)', '三大法人買賣超股數'
+                '自營商買進股數_自行買賣', '自營商賣出股數_自行買賣', '自營商買賣超股數_自行買賣',
+                '自營商買進股數_避險', '自營商賣出股數_避險', '自營商買賣超股數_避險', '三大法人買賣超股數'
             ]
             
             # 格式改制前
@@ -209,17 +217,17 @@ class CrawlHTML:
                 new_tpex_df['投信賣出股數'] = tpex_df.loc[:, ('投信', '賣出股數')]
                 new_tpex_df['投信買賣超股數'] = tpex_df.loc[:, ('投信', '買賣超股數')]
                 new_tpex_df['自營商買賣超股數'] = tpex_df.loc[:, ('自營商', '買賣超股數')]
-                new_tpex_df['自營商買進股數(自行買賣)'] = tpex_df.loc[:, ('自營商(自行買賣)', '買進股數')]
-                new_tpex_df['自營商賣出股數(自行買賣)'] = tpex_df.loc[:, ('自營商(自行買賣)', '賣出股數')]
-                new_tpex_df['自營商買賣超股數(自行買賣)'] = tpex_df.loc[:, ('自營商(自行買賣)', '買賣超股數')]
-                new_tpex_df['自營商買進股數(避險)'] = tpex_df.loc[:, ('自營商(避險)', '買進股數')]
-                new_tpex_df['自營商賣出股數(避險)'] = tpex_df.loc[:, ('自營商(避險)', '賣出股數')]
-                new_tpex_df['自營商買賣超股數(避險)'] = tpex_df.loc[:, ('自營商(避險)', '買賣超股數')]
+                new_tpex_df['自營商買進股數_自行買賣'] = tpex_df.loc[:, ('自營商_自行買賣', '買進股數')]
+                new_tpex_df['自營商賣出股數_自行買賣'] = tpex_df.loc[:, ('自營商_自行買賣', '賣出股數')]
+                new_tpex_df['自營商買賣超股數_自行買賣'] = tpex_df.loc[:, ('自營商_自行買賣', '買賣超股數')]
+                new_tpex_df['自營商買進股數_避險'] = tpex_df.loc[:, ('自營商_避險', '買進股數')]
+                new_tpex_df['自營商賣出股數_避險'] = tpex_df.loc[:, ('自營商_避險', '賣出股數')]
+                new_tpex_df['自營商買賣超股數_避險'] = tpex_df.loc[:, ('自營商_避險', '買賣超股數')]
                 new_tpex_df['三大法人買賣超股數'] = tpex_df.loc[:, ('三大法人買賣超 股數合計', '三大法人買賣超 股數合計')]
                 tpex_df = new_tpex_df
             
             tpex_df.insert(0, '日期', cur_date)
-            self.move_col(tpex_df, "自營商買賣超股數", "自營商買賣超股數(避險)")
+            self.move_col(tpex_df, "自營商買賣超股數", "自營商買賣超股數_避險")
             tpex_df.to_csv(f'{dir_path}/tpex_{cur_date.strftime("%Y%m%d")}.csv', index=False)
             cur_date += datetime.timedelta(days=1)
             
