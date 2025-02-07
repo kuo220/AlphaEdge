@@ -100,7 +100,9 @@ class CrawlHTML:
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
 
+        print("* Start crawling TWSE institutional investors data...")
         while cur_date <= end_date:
+            print(cur_date.strftime("%Y/%m/%d"))
             twse_url = f'https://www.twse.com.tw/rwd/zh/fund/T86?date={cur_date.strftime("%Y%m%d")}&selectType=ALLBUT0999&response=html'
             headers = self.generate_random_header()
             twse_response = requests.get(twse_url, headers=headers)
@@ -173,7 +175,9 @@ class CrawlHTML:
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
         
+        print("* Start crawling TPEX institutional investors data...")
         while cur_date <= end_date:
+            print(cur_date.strftime("%Y/%m/%d"))
             tpex_url = f'https://www.tpex.org.tw/www/zh-tw/insti/dailyTrade?type=Daily&sect=EW&date={cur_date.strftime("%Y/%m/%d")}&id=&response=html'
             headers = self.generate_random_header()
             tpex_response = requests.get(tpex_url, headers=headers)
