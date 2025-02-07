@@ -85,7 +85,7 @@ class CrawlHTML:
         """ TWSE 三大法人爬蟲 """
         """ 
         TWSE: 2012/5/2 開始提供
-        TWSE 改制時間: 1. 2014/12/1, 2. 2017/12/18
+        TWSE 改制時間: 2014/12/1, 2017/12/18
         """
         
         first_reform_date = datetime.datetime(2014, 12, 1)
@@ -133,6 +133,7 @@ class CrawlHTML:
                 self.move_col(twse_df, '外資買進股數', '證券名稱')
                 self.move_col(twse_df, '外資賣出股數', '外資買進股數')
                 self.move_col(twse_df, '外資買賣超股數', '外資賣出股數')
+                self.move_col(twse_df, "自營商買賣超股數", "自營商買賣超股數(避險)")
             
             twse_df.to_csv(f'{dir_path}/twse_{cur_date.strftime("%Y%m%d")}.csv', index=False)
             cur_date += datetime.timedelta(days=1)
@@ -154,7 +155,7 @@ class CrawlHTML:
         """ TPEX 三大法人爬蟲 """
         """ 
         TPEX: 2007/4/20 開始提供 (但這邊先從 2014/12/1 開始爬)
-        TPEX 改制時間: 1. 2018/1/15
+        TPEX 改制時間: 2018/1/15
         """
         first_reform_date = datetime.datetime(2018, 1, 15)
         start_date, end_date = datetime.datetime(year, month, day), datetime.datetime.now()
