@@ -248,7 +248,7 @@ class CrawlHTML:
                 time.sleep(delay)
 
     
-    def create_chip_db(self, db_path: str, table_name: str='investors'):
+    def create_chip_db(self, db_path: str, table_name: str='chip'):
         """ 創建三大法人盤後籌碼db """
         
         conn = sqlite3.connect(db_path)
@@ -287,10 +287,18 @@ class CrawlHTML:
         
         conn.commit()
         conn.close()
-        
-        
-    a
 
+    
+    def add_chip_to_sql(self, db_path: str, dir_path: str, table_name: str='chip'):
+        """ 將三大法人盤後籌碼存入DB """
+        
+        conn = sqlite3.connect(db_path)
+        
+        for file_name in os.listdir(dir_path):
+            df = pd.read_csv(os.path.join(dir_path, file_name))
+            df.to_sql(table_name, conn, if_exists='append', index=False)
+            print(f"Save {file_name} into database.")
+         
 
 class CrawlQuantX:
     """ QuantX Crawler """
