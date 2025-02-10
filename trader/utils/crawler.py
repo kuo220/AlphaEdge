@@ -281,9 +281,9 @@ class CrawlHTML:
         # 檢查是否成功建立 table
         cursor.execute(f"PRAGMA table_info('{table_name}')")
         if cursor.fetchall():
-            print(f"Table {table_name} creat successfully!")
+            print(f"Table {table_name} create successfully!")
         else:
-            print(f"Table {table_name} creat unsuccessfully!")
+            print(f"Table {table_name} create unsuccessfully!")
         
         conn.commit()
         conn.close()
