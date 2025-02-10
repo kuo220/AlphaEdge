@@ -81,7 +81,7 @@ class CrawlHTML:
         df.insert(df.columns.get_loc(ref_col_name) + 1, col_name, col_data)
    
    
-    def crawl_twse_institutional_investors(self, year: int, month: int, day: int, dir_path: str='../tasks/三大法人盤後籌碼/TWSE'):
+    def crawl_twse_institutional_investors(self, year: int, month: int, day: int, dir_path: str='../tasks/三大法人盤後籌碼'):
         """ TWSE 三大法人爬蟲 """
         """ 
         TWSE: 2012/5/2 開始提供（這邊從 2014/12/1 開始爬）
@@ -159,7 +159,7 @@ class CrawlHTML:
                 time.sleep(delay)
             
               
-    def crawl_tpex_institutional_investors(self, year: int, month: int, day: int, dir_path: str='../tasks/三大法人盤後籌碼/TPEX'):
+    def crawl_tpex_institutional_investors(self, year: int, month: int, day: int, dir_path: str='../tasks/三大法人盤後籌碼'):
         """ TPEX 三大法人爬蟲 """
         """ 
         TPEX: 2007/4/20 開始提供 (這邊從 2014/12/1 開始爬)
