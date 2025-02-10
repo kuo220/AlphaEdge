@@ -27,7 +27,7 @@ def generate_random_header():
 if __name__ == '__main__':
     
     """ 
-    TWSE: 2012/5/2 開始提供
+    TWSE: 2012/5/2 開始提供（這邊從 2014/12/1 開始爬）
     TPEX: 2007/4/20 開始提供 (但這邊先從 2014/12/1 開始爬)
     
     TWSE 改制時間：   TPEX 改制時間：
@@ -39,9 +39,9 @@ if __name__ == '__main__':
     
     # TWSE
     twse_dir_path = Path(__file__).resolve().parent.parent / 'Downloads' / '三大法人盤後籌碼' / 'TWSE'
-    twse_start_year = 2012
-    twse_start_month = 5
-    twse_start_day = 2
+    twse_start_year = 2014
+    twse_start_month = 12
+    twse_start_day = 1
     
     crawler.crawl_twse_institutional_investors(twse_start_year, twse_start_month, twse_start_day, twse_dir_path)
     

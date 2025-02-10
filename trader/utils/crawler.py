@@ -84,7 +84,7 @@ class CrawlHTML:
     def crawl_twse_institutional_investors(self, year: int, month: int, day: int, dir_path: str='../tasks/三大法人盤後籌碼/TWSE'):
         """ TWSE 三大法人爬蟲 """
         """ 
-        TWSE: 2012/5/2 開始提供
+        TWSE: 2012/5/2 開始提供（這邊從 2014/12/1 開始爬）
         TWSE 改制時間: 2014/12/1, 2017/12/18
         """
         
@@ -162,7 +162,7 @@ class CrawlHTML:
     def crawl_tpex_institutional_investors(self, year: int, month: int, day: int, dir_path: str='../tasks/三大法人盤後籌碼/TPEX'):
         """ TPEX 三大法人爬蟲 """
         """ 
-        TPEX: 2007/4/20 開始提供 (但這邊先從 2014/12/1 開始爬)
+        TPEX: 2007/4/20 開始提供 (這邊從 2014/12/1 開始爬)
         TPEX 改制時間: 2018/1/15
         """
         first_reform_date = datetime.datetime(2018, 1, 15)
@@ -246,6 +246,47 @@ class CrawlHTML:
             else:
                 delay = random.randint(1, 5)
                 time.sleep(delay)
+
+    
+    def create_institutional_investors_db(self, db_path: str, table_name: str='investors'):
+        """ 創建三大法人盤後籌碼db """
+        
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        create_table_query = f""" 
+        CREATE TABLE IF NOT EXISTS {table_name}(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            日期 TEXT NOT NULL,
+            證券代號 TEXT NOT NULL,
+            證券名稱 TEXT NOT NULL,
+            外資買進股數 INT NOT NULL,
+            外資賣出股數 INT NOT NULL,
+            外資買賣超股數 INT NOT NULL,
+            投信買進股數 INT NOT NULL,
+            投信賣出股數 INT NOT NULL,
+            投信買賣超股數 INT NOT NULL,
+            自營商買進股數_自行買賣 INT,
+            自營商賣出股數_自行買賣 INT,
+            自營商買賣超股數_自行買賣 INT,
+            自營商買進股數_避險 INT,
+            自營商賣出股數_避險 INT,
+            自營商買賣超股數_避險 INT,
+            自營商買賣超股數 INT NOT NULL,
+            三大法人買賣超股數 INT NOT NULL
+        );
+        """
+        cursor.execute(create_table_query)
+        
+        # 檢查是否成功建立 table
+        cursor.execute(f"PRAGMA table_info('{table_name}')")
+        if cursor.fetchall():
+            print(f"Table {table_name} creat successfully!")
+        else:
+            print(f"Table {table_name} creat unsuccessfully!")
+        
+        conn.commit()
+        conn.close()
 
 
 class CrawlQuantX:
