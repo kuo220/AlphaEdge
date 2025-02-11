@@ -164,7 +164,7 @@ class CrawlHTML:
                 twse_df.rename(columns=dict(zip(old_col_name, new_col_name)), inplace=True)
             
             twse_df = self.remove_redundant_col(twse_df, '三大法人買賣超股數')
-            twse_df = self.fill_na(twse_df, 0)
+            twse_df = self.fill_nan(twse_df, 0)
             twse_df.to_csv(os.path.join(dir_path, f"twse_{cur_date.strftime('%Y%m%d')}.csv"), index=False)
             cur_date += datetime.timedelta(days=1)
             
