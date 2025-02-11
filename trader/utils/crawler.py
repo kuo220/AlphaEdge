@@ -89,6 +89,14 @@ class CrawlHTML:
             last_col_loc = df.columns.get_loc(col_name)
             df = df.iloc[:, :last_col_loc + 1]
         return df
+    
+    
+    def fill_nan(self, df: pd.DataFrame, value: int) -> pd.DataFrame:
+        """ 檢查 DataFrame 是否有 NaN 值，若有則將所有 NaN 值填補為指定值 """
+        
+        if df.isnull().values.any():
+            df.fillna(value, inplace=True)
+        return df
    
    
     def crawl_twse_chip(self, year: int, month: int, day: int, dir_path: str=os.path.join('..', 'tasks', '三大法人盤後籌碼')):
