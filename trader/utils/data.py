@@ -1,4 +1,5 @@
 import sqlite3
+import os
 import pandas as pd
 import datetime
 from pathlib import Path
@@ -10,7 +11,26 @@ except ModuleNotFoundError:
 
 class Chip:
     """ Institutional investors chip """
-    pass
+    
+    def __init__(self, db_path: str=os.path.join('..', 'Data'), db_name: str="chip.db", table_name: str="chip"):
+        self.db_path = db_path
+        self.db_name = db_name
+        self.table_name = table_name
+        
+        self.conn = sqlite3.connect(os.path.join(self.db_path, self.db_name))
+        
+    
+    def get(self, start_date: datetime.date, end_date: datetime.date) -> pd.DataFrame:
+        """ 取得三大法人盤後籌碼資料 """
+        
+        if start_date > end_date:
+            return pd.DataFrame()
+        
+        query = f""" 
+        SELECT * FROM {self.table_name} WHERE 日期 BETWEEN '{start_date}' AND '{end_date}'
+        """
+        df = pd.read_sql_query(query, self.conn)
+        return df
 
 
 class Tick:
@@ -289,4 +309,6 @@ class Data:
             self.Tick = Tick()
         except Exception as e:
             print(e)
+            
+        self.Chip = Chip()
         

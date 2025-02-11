@@ -278,7 +278,6 @@ class CrawlHTML:
         
         create_table_query = f""" 
         CREATE TABLE IF NOT EXISTS {table_name}(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
             日期 TEXT NOT NULL,
             證券代號 TEXT NOT NULL,
             證券名稱 TEXT NOT NULL,

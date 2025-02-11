@@ -22,7 +22,6 @@ from utils import Data
     
 if __name__ == '__main__':
     db_path = os.path.join('..', 'Data', 'chip.db')
-    # dir_path = os.path.join('..', 'Downloads', 'tmp')
     dir_path = os.path.join('..', 'Downloads', '三大法人盤後籌碼')
     
     crawler = Crawler().FromHTML
