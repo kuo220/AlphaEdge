@@ -311,7 +311,7 @@ class CrawlHTML:
         conn.close()
 
     
-    def add_chip_to_sql(self, db_path: str, dir_path: str, table_name: str='chip'):
+    def add_chip_data_to_sql(self, db_path: str, dir_path: str, table_name: str='chip'):
         """ 將三大法人盤後籌碼存入DB """
         
         conn = sqlite3.connect(db_path)

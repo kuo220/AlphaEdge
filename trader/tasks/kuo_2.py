@@ -26,5 +26,5 @@ if __name__ == '__main__':
     
     crawler = Crawler().FromHTML
     crawler.create_chip_db(db_path)
-    crawler.add_chip_to_sql(db_path, dir_path)
+    crawler.add_chip_data_to_sql(db_path, dir_path)
     
