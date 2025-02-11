@@ -185,6 +185,7 @@ class CrawlHTML:
         TPEX: 2007/4/20 開始提供 (這邊從 2014/12/1 開始爬)
         TPEX 改制時間: 2018/1/15
         """
+        
         first_reform_date = datetime.datetime(2018, 1, 15)
         start_date, end_date = datetime.datetime(year, month, day), datetime.datetime.now()
         cur_date = start_date
