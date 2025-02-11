@@ -1,6 +1,7 @@
 import datetime
 import time
 import os
+import shutil
 import numpy as np
 import pandas as pd
 import re
@@ -321,6 +322,7 @@ class CrawlHTML:
             print(f"Save {file_name} into database.")
             cnt += 1
         conn.close()
+        shutil.rmtree(dir_path)
         print(f"Total file: {cnt}")
          
 
