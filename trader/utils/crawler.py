@@ -82,7 +82,7 @@ class CrawlHTML:
         df.insert(df.columns.get_loc(ref_col_name) + 1, col_name, col_data)
         
     
-    def remove_redundant_col(self, df: pd.DataFrame, col_name) -> pd.DataFrame:
+    def remove_redundant_col(self, df: pd.DataFrame, col_name: str) -> pd.DataFrame:
         """ 刪除 DataFrame 中指定欄位後面的所有欄位 """
         
         if col_name in df.columns:
@@ -91,7 +91,7 @@ class CrawlHTML:
         return df
     
     
-    def fill_nan(self, df: pd.DataFrame, value: int) -> pd.DataFrame:
+    def fill_nan(self, df: pd.DataFrame, value: int=0) -> pd.DataFrame:
         """ 檢查 DataFrame 是否有 NaN 值，若有則將所有 NaN 值填補為指定值 """
         
         if df.isnull().values.any():
@@ -164,6 +164,7 @@ class CrawlHTML:
                 twse_df.rename(columns=dict(zip(old_col_name, new_col_name)), inplace=True)
             
             twse_df = self.remove_redundant_col(twse_df, '三大法人買賣超股數')
+            twse_df = self.fill_na(twse_df, 0)
             twse_df.to_csv(os.path.join(dir_path, f"twse_{cur_date.strftime('%Y%m%d')}.csv"), index=False)
             cur_date += datetime.timedelta(days=1)
             
@@ -253,6 +254,7 @@ class CrawlHTML:
             tpex_df.insert(0, '日期', cur_date)
             self.move_col(tpex_df, "自營商買賣超股數", "自營商買賣超股數_避險")
             tpex_df = self.remove_redundant_col(tpex_df, '三大法人買賣超股數')
+            tpex_df = self.fill_nan(tpex_df, 0)
             tpex_df.to_csv(os.path.join(dir_path, f"tpex_{cur_date.strftime('%Y%m%d')}.csv"), index=False)
             cur_date += datetime.timedelta(days=1)
             
