@@ -18,27 +18,14 @@ from utils import Crawler
 from utils import Data
 
 
-def generate_random_header():
-    ua = UserAgent()
-    user_agent = ua.random
-    headers = {'Accept': '*/*', 'Connection': 'keep-alive',
-            'User-Agent': user_agent}
-    return headers
-
-
-def move_col(df: pd.DataFrame, col_name: str, ref_col_name: str):
-    """ 移動 columns 位置"""
-    col_data = df.pop(col_name)
-    df.insert(df.columns.get_loc(ref_col_name) + 1, col_name, col_data)
     
     
 if __name__ == '__main__':
-    dir_path = Path(__file__).resolve().parent.parent / 'Downloads' / 'tmp'
-    print(dir_path)
+    db_path = os.path.join('..', 'Data', 'chip.db')
+    # dir_path = os.path.join('..', 'Downloads', 'tmp')
+    dir_path = os.path.join('..', 'Downloads', '三大法人盤後籌碼')
     
-    for file in os.listdir(dir_path):
-        file_path = dir_path / file
-        
-        df = pd.read_csv(file_path)
-        move_col(df, "自營商買賣超股數", "自營商買賣超股數(避險)")
-        df.to_csv(file_path, index=False)
+    crawler = Crawler().FromHTML
+    crawler.create_chip_db(db_path)
+    crawler.add_chip_to_sql(db_path, dir_path)
+    

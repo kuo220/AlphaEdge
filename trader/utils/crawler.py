@@ -77,11 +77,21 @@ class CrawlHTML:
     
     def move_col(self, df: pd.DataFrame, col_name: str, ref_col_name: str):
         """ 移動 columns 位置"""
+        
         col_data = df.pop(col_name)
         df.insert(df.columns.get_loc(ref_col_name) + 1, col_name, col_data)
+        
+    
+    def remove_redundant_col(self, df: pd.DataFrame, col_name) -> pd.DataFrame:
+        """ 刪除 DataFrame 中指定欄位後面的所有欄位 """
+        
+        if col_name in df.columns:
+            last_col_loc = df.columns.get_loc(col_name)
+            df = df.iloc[:, :last_col_loc + 1]
+        return df
    
    
-    def crawl_twse_chip(self, year: int, month: int, day: int, dir_path: str='../tasks/三大法人盤後籌碼'):
+    def crawl_twse_chip(self, year: int, month: int, day: int, dir_path: str=os.path.join('..', 'tasks', '三大法人盤後籌碼')):
         """ TWSE 三大法人爬蟲 """
         """ 
         TWSE: 2012/5/2 開始提供（這邊從 2014/12/1 開始爬）
@@ -145,7 +155,8 @@ class CrawlHTML:
                 self.move_col(twse_df, "自營商買賣超股數", "自營商買賣超股數(避險)")
                 twse_df.rename(columns=dict(zip(old_col_name, new_col_name)), inplace=True)
             
-            twse_df.to_csv(f'{dir_path}/twse_{cur_date.strftime("%Y%m%d")}.csv', index=False)
+            twse_df = self.remove_redundant_col(twse_df, '三大法人買賣超股數')
+            twse_df.to_csv(os.path.join(dir_path, f"twse_{cur_date.strftime('%Y%m%d')}.csv"), index=False)
             cur_date += datetime.timedelta(days=1)
             
             crawl_cnt += 1
@@ -159,7 +170,7 @@ class CrawlHTML:
                 time.sleep(delay)
             
               
-    def crawl_tpex_chip(self, year: int, month: int, day: int, dir_path: str='../tasks/三大法人盤後籌碼'):
+    def crawl_tpex_chip(self, year: int, month: int, day: int, dir_path: str=os.path.join('..', 'tasks', '三大法人盤後籌碼')):
         """ TPEX 三大法人爬蟲 """
         """ 
         TPEX: 2007/4/20 開始提供 (這邊從 2014/12/1 開始爬)
@@ -234,7 +245,7 @@ class CrawlHTML:
             tpex_df = tpex_df.iloc[:-1]
             tpex_df.insert(0, '日期', cur_date)
             self.move_col(tpex_df, "自營商買賣超股數", "自營商買賣超股數_避險")
-            tpex_df.to_csv(f'{dir_path}/tpex_{cur_date.strftime("%Y%m%d")}.csv', index=False)
+            tpex_df.to_csv(os.path.join(dir_path, f"tpex_{cur_date.strftime('%Y%m%d')}.csv"), index=False)
             cur_date += datetime.timedelta(days=1)
             
             crawl_cnt += 1
@@ -260,20 +271,20 @@ class CrawlHTML:
             日期 TEXT NOT NULL,
             證券代號 TEXT NOT NULL,
             證券名稱 TEXT NOT NULL,
-            外資買進股數 INT NOT NULL,
-            外資賣出股數 INT NOT NULL,
-            外資買賣超股數 INT NOT NULL,
-            投信買進股數 INT NOT NULL,
-            投信賣出股數 INT NOT NULL,
-            投信買賣超股數 INT NOT NULL,
+            外資買進股數 INT,
+            外資賣出股數 INT,
+            外資買賣超股數 INT,
+            投信買進股數 INT,
+            投信賣出股數 INT,
+            投信買賣超股數 INT,
             自營商買進股數_自行買賣 INT,
             自營商賣出股數_自行買賣 INT,
             自營商買賣超股數_自行買賣 INT,
             自營商買進股數_避險 INT,
             自營商賣出股數_避險 INT,
             自營商買賣超股數_避險 INT,
-            自營商買賣超股數 INT NOT NULL,
-            三大法人買賣超股數 INT NOT NULL
+            自營商買賣超股數 INT,
+            三大法人買賣超股數 INT
         );
         """
         cursor.execute(create_table_query)
@@ -293,11 +304,14 @@ class CrawlHTML:
         """ 將三大法人盤後籌碼存入DB """
         
         conn = sqlite3.connect(db_path)
-        
+        cnt = 0
         for file_name in os.listdir(dir_path):
             df = pd.read_csv(os.path.join(dir_path, file_name))
             df.to_sql(table_name, conn, if_exists='append', index=False)
             print(f"Save {file_name} into database.")
+            cnt += 1
+        conn.close()
+        print(f"Total file: {cnt}")
          
 
 class CrawlQuantX:

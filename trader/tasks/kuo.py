@@ -51,4 +51,4 @@ if __name__ == '__main__':
     tpex_start_month = 12
     tpex_start_day = 1
     
-    crawler.crawl_tpex_institutional_investors(tpex_start_year, tpex_start_month, tpex_start_day, tpex_dir_path) 
+    crawler.crawl_tpex_institutional_investors(tpex_start_year, tpex_start_month, tpex_start_day, tpex_dir_path)  
