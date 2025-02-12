@@ -173,10 +173,11 @@ class QXData:
                     s3 = ("""SELECT DISTINCT date FROM %s where stock_id='2330'"""%('price'))
 
                     # 將日期抓出來並排序整理，放到self.dates中
-                    df = (pd.read_sql(s1, self.conn)
-                          .append(pd.read_sql(s2, self.conn))
-                          .append(pd.read_sql(s3, self.conn))
+                    df = (pd.concat([pd.read_sql(s1, self.conn), 
+                                     pd.read_sql(s2, self.conn), 
+                                     pd.read_sql(s3, self.conn)])
                           .drop_duplicates('date').sort_values('date'))
+
                     df['date'] = pd.to_datetime(df['date'])
                     df = df.set_index('date')
                     self.dates[tname] = df
