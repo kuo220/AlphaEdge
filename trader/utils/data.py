@@ -93,8 +93,8 @@ class Tick:
             print("* Database doesn't exist!")
     
     
-    def get(self, stock_id: str, start_date: datetime.date, end_date: datetime.date) -> pd.DataFrame:
-        """ 取得 tick 資料 """
+    def get_stock_tick(self, stock_id: str, start_date: datetime.date, end_date: datetime.date) -> pd.DataFrame:
+        """ 取得個股 tick 資料 """
     
         if start_date > end_date:
             return pd.DataFrame()
@@ -114,7 +114,7 @@ class Tick:
     def get_last_tick(self, stock_id: str, date: datetime.date) -> pd.DataFrame:
         """ 取得當日最後一筆 tick """
         
-        tick = self.get(stock_id, date, date)
+        tick = self.get_stock_tick(stock_id, date, date)
         if len(tick) > 0:
             return tick.iloc[-1:]
         return pd.DataFrame
