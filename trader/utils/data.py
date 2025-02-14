@@ -94,7 +94,25 @@ class Tick:
     
     
     def get(self, start_date: datetime.date, end_date: datetime.date) -> pd.DataFrame:
-        """ 取得 tick 資料（以時間排序） """
+        """ 取得所有個股各自排序好 tick 資料（個股沒有混在一起排序） """
+        
+        if start_date > end_date:
+            return pd.DataFrame()
+        
+        start_date = start_date.strftime('%Y.%m.%d')
+        end_date = (end_date + datetime.timedelta(days=1)).strftime('%Y.%m.%d')
+        script = f""" 
+        db = database("{self.db_path}")
+        table = loadTable(db, "{self.table_name}")
+        select * from table
+        where time between nanotimestamp({start_date}):nanotimestamp({end_date})
+        """
+        tick = self.session.run(script)
+        return tick
+
+
+    def get_ordered_ticks(self, start_date: datetime.date, end_date: datetime.date) -> pd.DataFrame:
+        """ 取得排序好的 tick 資料（所有個股混在一起以時間排序） """
         """ 模擬市場盤中情形 """
         
         if start_date > end_date:
@@ -112,7 +130,7 @@ class Tick:
         return tick
     
     
-    def get_stock_tick(self, stock_id: str, start_date: datetime.date, end_date: datetime.date) -> pd.DataFrame:
+    def get_stock_ticks(self, stock_id: str, start_date: datetime.date, end_date: datetime.date) -> pd.DataFrame:
         """ 取得個股 tick 資料 """
     
         if start_date > end_date:
