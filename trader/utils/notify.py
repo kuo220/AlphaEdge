@@ -6,7 +6,7 @@ from utils.constant import Action, StockPriceType
 
 
 class Notification:
-    """ 執行Line通知 """
+    """ 執行 Line 通知 """
     
     @staticmethod
     def post_line_notify(token: str, msg: str):

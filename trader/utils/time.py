@@ -3,6 +3,7 @@ import datetime
 
 
 class  TimeTool:
+    """ 處理各式關於時間問題的工具 """
     
     @staticmethod
     def get_last_trading_date(api: sj.Shioaji, date: datetime.date) -> datetime.date:

@@ -5,6 +5,7 @@ from utils.time import TimeTool
 
 
 class Stock:
+    """ 以 Shioaji 為基礎建立的 API Tool """
     
     @staticmethod
     def get_close_price(api: sj.Shioaji, stock_id: str, date: datetime.date) -> float:
