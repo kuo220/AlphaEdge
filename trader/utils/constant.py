@@ -26,11 +26,6 @@ STOCK_ORDER_LOT_FIXING = "Fixing"  # 定盤
 STOCK_ORDER_LOT_ODD = "Odd"  # 零股
 STOCK_ORDER_LOT_INTRADAY_ODD = "IntradayOdd"  # 零股
 
-# 券商手續費費率（commission rate） & 券商手續費折扣 & 券商最低手續費限制
-COMM_RATE = 0.001425
-COMM_DISCOUNT = 0.3
-MIN_FEE = 20
-
 
 class Action(str, Enum):
     Buy = ACTION_BUY
@@ -77,3 +72,10 @@ class Status(str, Enum):
     PendingSubmit = "PendingSubmit"
     PreSubmitted = "PreSubmitted"
     Submitted = "Submitted"
+    
+
+class Commission(float, Enum):
+    """ 券商手續費相關常數 """
+    Rate = 0.001425  # 券商手續費率（commission rate）
+    Discount = 0.3  # 券商手續費折扣（commission discount）
+    MinFee = 20.0  # 券商最低手續費限制（minimum fee）

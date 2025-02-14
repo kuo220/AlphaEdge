@@ -1,6 +1,6 @@
 import datetime
 from typing import List, Dict, Tuple, Any
-from utils.constant import COMM_RATE, COMM_DISCOUNT, MIN_FEE
+from utils.constant import Commission
 
 
 """ 
@@ -46,7 +46,7 @@ class Trade:
         """
         
         record: TradeRecord = TradeRecord()
-        buy_cost = stock['price'] * stock['volume'] + max(stock['price'] * stock['volume'] * COMM_RATE * COMM_DISCOUNT, MIN_FEE)
+        buy_cost = stock['price'] * stock['volume'] + max(stock['price'] * stock['volume'] * Commission.Rate * Commission.Discount, Commission.MinFee)
         if account['balance'] >= buy_cost:
             account['balance'] -= buy_cost
             record = TradeRecord(code=stock['code'], volume=stock['volume'], buy_date=stock['buy_date'], buy_price=stock['price'])    
