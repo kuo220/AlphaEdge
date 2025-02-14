@@ -4,6 +4,8 @@ from utils.constant import OrderState
 
 
 class Callback:
+    """ Order callback """
+    
     @staticmethod
     def order_callback(api: sj.Shioaji, token: str):
         """ 

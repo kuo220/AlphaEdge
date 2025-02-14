@@ -7,7 +7,7 @@ from typing import List
 """
 
 
-class TradeRecord():
+class TradeRecord:
     """ 單筆交易紀錄 """
     
     def __init__(self, stock_id: str, stock_share: float, stock_volume: float, 
@@ -23,3 +23,11 @@ class TradeRecord():
         self.sell_price = sell_price
         self.profit = profit
         self.ROI = roi
+        
+
+class Trade:
+    """ 回測交易等工具 """
+    
+    @staticmethod
+    def buy():
+        pass
