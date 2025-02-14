@@ -93,19 +93,19 @@ class Tick:
             print("* Database doesn't exist!")
     
     
-    def get(self, stock_id: str, start_time: datetime.date, end_time: datetime.date) -> pd.DataFrame:
+    def get(self, stock_id: str, start_date: datetime.date, end_date: datetime.date) -> pd.DataFrame:
         """ 取得 tick 資料 """
     
-        if start_time > end_time:
+        if start_date > end_date:
             return pd.DataFrame()
         
-        start_time = start_time.strftime('%Y.%m.%d')
-        end_time = (end_time + datetime.timedelta(days=1)).strftime('%Y.%m.%d')
+        start_date = start_date.strftime('%Y.%m.%d')
+        end_date = (end_date + datetime.timedelta(days=1)).strftime('%Y.%m.%d')
         script = f""" 
         db = database("{self.db_path}")
         table = loadTable(db, "{self.table_name}")
         select * from table
-        where stock_id=`{stock_id} and time between nanotimestamp({start_time}):nanotimestamp({end_time})
+        where stock_id=`{stock_id} and time between nanotimestamp({start_date}):nanotimestamp({end_date})
         """
         tick = self.session.run(script)
         return tick
