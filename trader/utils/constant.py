@@ -79,3 +79,4 @@ class Commission(float, Enum):
     Rate = 0.001425  # 券商手續費率（commission rate）
     Discount = 0.3  # 券商手續費折扣（commission discount）
     MinFee = 20.0  # 券商最低手續費限制（minimum fee）
+    TaxRate = 0.003 # 證券交易稅（Securities Transaction Tax Rate）

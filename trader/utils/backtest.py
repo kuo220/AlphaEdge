@@ -23,8 +23,27 @@ class TradeRecord:
         self.sell_price = sell_price
         self.profit = profit
         self.ROI = roi
-        
 
+
+class Stock:
+    """ 個股資訊 """
+    
+    def __init__(self, code: str="", date: datetime.date=None, 
+                 price: float=0.0, volume: float=0.0):
+        self.code = code
+        self.date = date
+        self.price = price
+        self.volume = price
+
+
+
+class Account:
+    """ 帳戶資訊 """
+    
+    def __init__(self, balance: float=0.0):
+        self.balance = balance
+    
+    
 class Trade:
     """ 回測交易等工具 """
     
@@ -37,10 +56,6 @@ class Trade:
                 目標股票的資訊
             - account: Dict[str, Any]
                 帳戶資訊
-            - discount: float
-                券商手續費折扣
-            - lowest_fee: int
-                券商最低手續費
         - Return:
             - record: TradeRecord
         """
@@ -51,4 +66,19 @@ class Trade:
             account['balance'] -= buy_cost
             record = TradeRecord(code=stock['code'], volume=stock['volume'], buy_date=stock['buy_date'], buy_price=stock['price'])    
         return record
+    
+    
+    @staticmethod
+    def sell(stock: Dict[str, Any], account: Dict[str, Any]) -> TradeRecord:
+        """ 
+        - Description: 賣入股票
+        - Parameters:
+            - stock: Dict[str, Any]
+                目標股票的資訊
+            - account: Dict[str, Any]
+                帳戶資訊
+        - Return:
+            - record: TradeRecord
+        """
+        record: TradeRecord = TradeRecord()
         
