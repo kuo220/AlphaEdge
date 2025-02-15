@@ -10,7 +10,7 @@ except ModuleNotFoundError:
 
 
 class Chip:
-    """ Institutional investors chip """
+    """ Institutional investors chip API """
     
     def __init__(self, db_path: str=os.path.join('..', 'Data'), db_name: str="chip.db", table_name: str="chip"):
         self.db_path = db_path
