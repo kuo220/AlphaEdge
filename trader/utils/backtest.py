@@ -47,7 +47,7 @@ class Trade:
     """ 回測交易等工具 """
     
     @staticmethod
-    def buy(stock: Stock, account: Account) -> TradeRecord:
+    def buy(stock: Stock, account: Account) -> TradeData:
         """ 
         - Description: 買入股票
         - Parameters:
@@ -69,7 +69,7 @@ class Trade:
     
     
     @staticmethod
-    def sell(stock: Stock, account: Account)-> TradeRecord:
+    def sell(stock: Stock, account: Account)-> TradeData:
         """ 
         - Description: 賣入股票
         - Parameters:
