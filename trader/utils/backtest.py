@@ -26,8 +26,8 @@ class Stock:
         self.volume = price
 
 
-class TradeData:
-    """ 單筆交易資料 """
+class TradeEntry:
+    """ 單筆交易紀錄 """
     
     def __init__(self, code: str="", volume: float=0.0,
                  buy_date: datetime.date=None, buy_price: float=0.0, 
@@ -47,7 +47,7 @@ class Trade:
     """ 回測交易等工具 """
     
     @staticmethod
-    def buy(stock: Stock, account: Account) -> TradeData:
+    def buy(stock: Stock, account: Account) -> TradeEntry:
         """ 
         - Description: 買入股票
         - Parameters:
@@ -56,20 +56,20 @@ class Trade:
             - account: Account
                 帳戶資訊
         - Return:
-            - record: TradeRecord
+            - record: TradeEntry
         """
         
-        record: TradeRecord = TradeRecord()
+        record: TradeEntry = TradeEntry()
         stock_cost = stock.price * stock.volume
         buy_cost = max(stock_cost * Commission.CommRate * Commission.Discount, Commission.MinFee)
         if account.balance >= buy_cost:
             account.balance -= (stock_cost + buy_cost)
-            record = TradeRecord(code=stock.code, volume=stock.volume, buy_date=stock.date, buy_price=stock.price)    
+            record = TradeEntry(code=stock.code, volume=stock.volume, buy_date=stock.date, buy_price=stock.price)    
         return record
     
     
     @staticmethod
-    def sell(stock: Stock, account: Account)-> TradeData:
+    def sell(stock: Stock, account: Account)-> TradeEntry:
         """ 
         - Description: 賣入股票
         - Parameters:
@@ -78,11 +78,11 @@ class Trade:
             - account: Dict[str, Any]
                 帳戶資訊
         - Return:
-            - record: TradeRecord
+            - record: TradeEntry
         """
-        record: TradeRecord = TradeRecord()
+        record: TradeEntry = TradeEntry()
         stock_cost = stock.price * stock.volume
         sell_cost = max(stock_cost * Commission.CommRate * Commission.Discount, Commission.MinFee) + stock_cost * Commission.TaxRate
         account.balance += (stock_cost - sell_cost)
-        record = TradeRecord(code=stock.code, volume=stock.volume, sell_date=stock.date, sell_price=stock.price)
+        record = TradeEntry(code=stock.code, volume=stock.volume, sell_date=stock.date, sell_price=stock.price)
         return record
