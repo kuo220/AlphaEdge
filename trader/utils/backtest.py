@@ -26,8 +26,8 @@ class Stock:
         self.volume = price
 
 
-class TradeRecord:
-    """ 單筆交易紀錄 """
+class TradeData:
+    """ 單筆交易資料 """
     
     def __init__(self, code: str="", volume: float=0.0,
                  buy_date: datetime.date=None, buy_price: float=0.0, 

@@ -7,3 +7,4 @@ from .finance import Stock
 from .constant import Action, OrderType, StockPriceType, QuoteType, StockOrderLot, OrderState, Status, Commission
 from .data import Data
 from .crawler import Crawler
+from .backtest import Account, Stock, TradeData, Trade
