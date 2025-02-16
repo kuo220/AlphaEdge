@@ -8,6 +8,24 @@ from utils.constant import Commission
 """
 
 
+class Account:
+    """ 帳戶資訊 """
+    
+    def __init__(self, balance: float=0.0):
+        self.balance = balance
+
+
+class Stock:
+    """ 個股資訊 """
+    
+    def __init__(self, code: str="", date: datetime.date=None, 
+                 price: float=0.0, volume: float=0.0):
+        self.code = code
+        self.date = date
+        self.price = price
+        self.volume = price
+
+
 class TradeRecord:
     """ 單筆交易紀錄 """
     
@@ -25,24 +43,6 @@ class TradeRecord:
         self.ROI = roi
 
 
-class Stock:
-    """ 個股資訊 """
-    
-    def __init__(self, code: str="", date: datetime.date=None, 
-                 price: float=0.0, volume: float=0.0):
-        self.code = code
-        self.date = date
-        self.price = price
-        self.volume = price
-
-
-class Account:
-    """ 帳戶資訊 """
-    
-    def __init__(self, balance: float=0.0):
-        self.balance = balance
-    
-    
 class Trade:
     """ 回測交易等工具 """
     
