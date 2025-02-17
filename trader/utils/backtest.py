@@ -8,7 +8,7 @@ from utils.constant import Commission
 """
 
 
-class Account:
+class AccountBacktest:
     """ 帳戶資訊 """
     
     def __init__(self, balance: float=0.0):
@@ -18,7 +18,7 @@ class Account:
 class Stock:
     """ 個股資訊 """
     
-    def __init__(self, code: str="", date: datetime.date=None, 
+    def __init__(self, code: str="", date: datetime.datetime=None, 
                  price: float=0.0, volume: float=0.0):
         self.code = code
         self.date = date
@@ -30,8 +30,8 @@ class TradeEntry:
     """ 單筆交易紀錄 """
     
     def __init__(self, code: str="", volume: float=0.0,
-                 buy_date: datetime.date=None, buy_price: float=0.0, 
-                 sell_date: datetime.date=None, sell_price: float=0.0, 
+                 buy_date: datetime.datetime=None, buy_price: float=0.0, 
+                 sell_date: datetime.datetime=None, sell_price: float=0.0, 
                  profit: float=0.0, roi: float=0.0):
         self.code = code
         self.volume = volume
@@ -47,7 +47,7 @@ class Trade:
     """ 回測交易等工具 """
     
     @staticmethod
-    def buy(stock: Stock, account: Account) -> TradeEntry:
+    def buy(stock: Stock, account: AccountBacktest) -> TradeEntry:
         """ 
         - Description: 買入股票
         - Parameters:
@@ -69,7 +69,7 @@ class Trade:
     
     
     @staticmethod
-    def sell(stock: Stock, account: Account)-> TradeEntry:
+    def sell(stock: Stock, account: AccountBacktest)-> TradeEntry:
         """ 
         - Description: 賣入股票
         - Parameters:
