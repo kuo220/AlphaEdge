@@ -21,7 +21,7 @@ class Chip:
         
     
     def get(self, start_date: datetime.date, end_date: datetime.date) -> pd.DataFrame:
-        """ 取得三大法人盤後籌碼資料 """
+        """ 取得所有股票的三大法人籌碼 """
         
         if start_date > end_date:
             return pd.DataFrame()
@@ -34,7 +34,7 @@ class Chip:
     
     
     def get_stock_chip(self, stock_id: str, start_date: datetime.date, end_date: datetime.date) -> pd.DataFrame:
-        """ 取得個股三大法人盤後籌碼資料 """
+        """ 取得指定個股的三大法人籌碼 """
         
         if start_date > end_date:
             return pd.DataFrame()
@@ -47,7 +47,7 @@ class Chip:
 
     
     def get_net_chip(self, start_date: datetime.date, end_date: datetime.date) -> pd.DataFrame:
-        """ 取得三大法人盤後籌碼 """
+        """ 取得所有股票的三大法人淨買賣超 """
         
         if start_date > end_date:
             return pd.DataFrame()
@@ -58,7 +58,7 @@ class Chip:
         
     
     def get_stock_net_chip(self, stock_id: str, start_date: datetime.date, end_date: datetime.date) -> pd.DataFrame:
-        """ 取得個股三大法人盤後籌碼 """
+        """ 取得指定個股的三大法人淨買賣超 """
         
         if start_date > end_date:
             return pd.DataFrame()
