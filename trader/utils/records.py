@@ -14,7 +14,7 @@ class Account:
     def __init__(self, balance: float=0.0):
         self.balance: float = balance
         self.positions: List[StockTradeEntry] = []
-        self.stock_trade_history: StockTradeHistory = StockTradeHistory()
+        self.stock_trade_history: Dict[int, StockTradeEntry] = {}
 
 
 class StockQuote:
@@ -26,7 +26,7 @@ class StockQuote:
         self.code: str = code
         self.date: datetime.datetime = date
         self.price: float = price
-        self.volume: float = volume
+        self.volume: float = volume # 股數
 
 
 class StockTradeEntry:
@@ -38,17 +38,10 @@ class StockTradeEntry:
                  profit: float=0.0, roi: float=0.0):
         self.id: int = id
         self.code: str = code
-        self.volume: float = volume
+        self.volume: float = volume # 股數
         self.buy_date: datetime.datetime = buy_date
         self.buy_price: float = buy_price
         self.sell_date: datetime.datetime = sell_date
         self.sell_price: float = sell_price
         self.profit: float = profit
         self.roi: float = roi
-        
-        
-class StockTradeHistory:
-    """ 每筆股票交易紀錄 """
-    
-    def __init__(self):
-        self.trade_records: Dict[int, StockTradeEntry] = {} # key: id, value: StockTradeEntry

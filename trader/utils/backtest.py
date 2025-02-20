@@ -1,6 +1,6 @@
 import datetime
 from typing import List, Dict, Tuple, Any
-from trader.utils.records import Account, StockQuote, StockTradeEntry
+from utils.records import Account, StockQuote, StockTradeEntry
 from utils.constant import Commission
 
 
@@ -14,7 +14,7 @@ class Trade:
     """ 回測交易等工具 """
     
     @staticmethod
-    def buy(stock: StockQuote, account: Account) -> StockTradeEntry:
+    def buy(account: Account, stock: StockQuote) -> StockTradeEntry:
         """ 
         - Description: 買入股票
         - Parameters:
@@ -33,13 +33,14 @@ class Trade:
             account.balance -= (stock_value + buy_cost)
             position = StockTradeEntry(id=stock.id, code=stock.code, volume=stock.volume, buy_date=stock.date, buy_price=stock.price)
             account.positions.append(position)
+            account.stock_trade_history[position.id] = position
         return position
     
     
     @staticmethod
-    def sell(stock: StockQuote, account: Account)-> StockTradeEntry:
+    def sell(account: Account, stock: StockQuote)-> StockTradeEntry:
         """ 
-        - Description: 賣入股票
+        - Description: 賣出股票
         - Parameters:
             - stock: StockQuote
                 目標股票的資訊
@@ -53,5 +54,6 @@ class Trade:
         sell_cost = max(stock_value * Commission.CommRate * Commission.Discount, Commission.MinFee) + stock_value * Commission.TaxRate
         account.balance += (stock_value - sell_cost)
         account.positions = [entry for entry in account.positions if entry.id != stock.id]
-        position = StockTradeEntry(id=stock.id, code=stock.code, volume=stock.volume, sell_date=stock.date, sell_price=stock.price)
-        return position
+        account.stock_trade_history[stock.id].sell_date = stock.date
+        account.stock_trade_history[stock.id].sell_price = stock.price
+        return account.stock_trade_history[stock.id]

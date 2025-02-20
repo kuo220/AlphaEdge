@@ -2,14 +2,15 @@ import numpy as np
 import datetime
 import shioaji as sj
 from utils.time import TimeTool
+from utils.constant import Commission
 
 
 class Stock:
-    """ 以 Shioaji 為基礎建立的 API Tool """
+    """ Stock Related Tool """
     
     @staticmethod
     def get_close_price(api: sj.Shioaji, stock_id: str, date: datetime.date) -> float:
-        """ 取得指定股票在特定日期的收盤價 """
+        """ Shioaji: 取得指定股票在特定日期的收盤價 """
         
         tick = api.ticks(
             contract=api.Contracts.Stocks[stock_id],
@@ -22,7 +23,7 @@ class Stock:
 
     @staticmethod
     def get_price_chg(api: sj.Shioaji, stock_id: str, date: datetime.date) -> float:
-        """ 取得指定股票在指定日期的漲跌幅 """
+        """ Shioaji: 取得指定股票在指定日期的漲跌幅 """
         
         # 取得前一個交易日的日期
         last_trading_date = TimeTool.get_last_trading_date(api, date)
@@ -33,3 +34,31 @@ class Stock:
         
         # if cur_close_price or prev_close_price is np.nan, then function will return np.nan
         return round((cur_close_price / prev_close_price - 1) * 100, 2)
+    
+    
+    @staticmethod
+    def get_stock_profit(buy_price: float, sell_price: float, volume: float) -> float:
+        """ 
+        - Description: 計算股票交易的淨收益（扣除手續費和交易稅）
+        - Parameters:
+            - buy_price: float
+                股票買入價格
+            - sell_price: float
+                股票賣出價格
+            - volume: float
+                股數
+        - Return:
+            - profit: float
+        """
+        
+        buy_value = buy_price * volume
+        sell_value = sell_price * volume
+        
+        # 買入 & 賣出手續費
+        buy_comm = max(buy_value * Commission.CommRate * Commission.Discount, Commission.MinFee)
+        sell_comm = max(sell_value * Commission.CommRate * Commission.Discount, Commission.MinFee)
+        tax = sell_value * Commission.TaxRate
+        
+        profit = (sell_value - buy_value) - (buy_comm + sell_comm + tax)
+        return round(profit, 2)
+            

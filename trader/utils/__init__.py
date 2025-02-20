@@ -8,4 +8,4 @@ from .constant import Action, OrderType, StockPriceType, QuoteType, StockOrderLo
 from .data import Data
 from .crawler import Crawler
 from .backtest import Trade
-from .records import Account, StockQuote, StockTradeEntry, StockTradeHistory
+from .records import Account, StockQuote, StockTradeEntry
