@@ -13,15 +13,16 @@ class Account:
     
     def __init__(self, balance: float=0.0):
         self.balance: float = balance
-        self.position: List[StockTradeEntry] = []
+        self.positions: List[StockTradeEntry] = []
         self.stock_trade_history: StockTradeHistory = StockTradeHistory()
 
 
 class StockQuote:
     """ 個股資訊 """
     
-    def __init__(self, code: str="", date: datetime.datetime=None, 
+    def __init__(self, id: int=0, code: str="", date: datetime.datetime=None, 
                  price: float=0.0, volume: float=0.0):
+        self.id: int = id
         self.code: str = code
         self.date: datetime.datetime = date
         self.price: float = price
