@@ -8,12 +8,13 @@ from utils.constant import Commission
 """
 
 
-class Portfolio:
+class Account:
     """ 庫存及餘額資訊 """
     
     def __init__(self, balance: float=0.0):
         self.balance: float = balance
         self.position: List[StockTradeEntry] = []
+        self.stock_trade_history: StockTradeHistory = StockTradeHistory()
 
 
 class StockQuote:
@@ -30,10 +31,11 @@ class StockQuote:
 class StockTradeEntry:
     """ 單筆股票交易紀錄 """
     
-    def __init__(self, code: str="", volume: float=0.0,
+    def __init__(self, id: int=0, code: str="", volume: float=0.0,
                  buy_date: datetime.datetime=None, buy_price: float=0.0, 
                  sell_date: datetime.datetime=None, sell_price: float=0.0, 
                  profit: float=0.0, roi: float=0.0):
+        self.id: int = id
         self.code: str = code
         self.volume: float = volume
         self.buy_date: datetime.datetime = buy_date

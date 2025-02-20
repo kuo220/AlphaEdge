@@ -5,8 +5,8 @@ import shioaji as sj
 from utils.constant import Action, Status
 
 
-class Account:
-    """ Account Information """
+class ShioajiAccount:
+    """ Shioaji API Account Tool """
     
     # API login
     @staticmethod

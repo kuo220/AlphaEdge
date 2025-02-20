@@ -1,7 +1,7 @@
 import pandas as pd
 import requests
 import shioaji as sj
-from utils.account import Account
+from utils.account import ShioajiAccount
 from utils.constant import Action, StockPriceType
 
 
@@ -76,7 +76,7 @@ class Notification:
             f"{row['chg_rate']:<{len(info['chg_rate'].name) + 5}}"
             for _, row in info.iterrows()
         ) + "\n"
-        msg += f"\nTotal realized pnl: {Account.get_realized_pnl(api)}"
+        msg += f"\nTotal realized pnl: {ShioajiAccount.get_realized_pnl(api)}"
         msg += f"\nTotal unrealized pnl: {info['pnl'].sum():.0f}"
         
         Notification.post_line_notify(token, msg)
