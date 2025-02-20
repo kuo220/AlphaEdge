@@ -2,6 +2,7 @@ import datetime
 from typing import List, Dict, Tuple, Any
 from utils.records import Account, StockQuote, StockTradeEntry
 from utils.constant import Commission
+from utils.finance import Stock
 
 
 
@@ -53,7 +54,15 @@ class Trade:
         stock_value = stock.price * stock.volume
         sell_cost = max(stock_value * Commission.CommRate * Commission.Discount, Commission.MinFee) + stock_value * Commission.TaxRate
         account.balance += (stock_value - sell_cost)
+        
+        # 每一筆買入都記錄一個 id，因此這邊只會刪除對應到買入的 id
         account.positions = [entry for entry in account.positions if entry.id != stock.id]
-        account.stock_trade_history[stock.id].sell_date = stock.date
-        account.stock_trade_history[stock.id].sell_price = stock.price
+        
+        if account.stock_trade_history.get(stock.id):
+            position = account.stock_trade_history[stock.id]
+            position.sell_date = stock.date
+            position.sell_price = stock.price
+            position.profit = Stock.get_net_profit(position.buy_price, position.sell_price, position.volume)
+            position.roi = Stock.get_roi(position.buy_price, position.sell_price, position.volume)
+            account.stock_trade_history[stock.id] = position
         return account.stock_trade_history[stock.id]

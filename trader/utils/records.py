@@ -36,7 +36,7 @@ class StockTradeEntry:
                  buy_date: datetime.datetime=None, buy_price: float=0.0, 
                  sell_date: datetime.datetime=None, sell_price: float=0.0, 
                  profit: float=0.0, roi: float=0.0):
-        self.id: int = id
+        self.id: int = id # 每一筆買入就是一個id
         self.code: str = code
         self.volume: float = volume # 股數
         self.buy_date: datetime.datetime = buy_date
