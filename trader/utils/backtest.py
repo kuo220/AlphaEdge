@@ -20,7 +20,7 @@ class Trade:
         - Parameters:
             - stock: StockQuote
                 目標股票的資訊
-            - portfolio: Account
+            - account: Account
                 帳戶資訊
         - Return:
             - entry: StockTradeEntry
@@ -43,7 +43,7 @@ class Trade:
         - Parameters:
             - stock: StockQuote
                 目標股票的資訊
-            - portfolio: Account
+            - account: Account
                 帳戶資訊
         - Return:
             - entry: StockTradeEntry
