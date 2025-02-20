@@ -5,7 +5,6 @@ from utils.constant import Commission
 from utils.finance import Stock
 
 
-
 """ 
 * This section mainly consists of tools used for backtesting.
 """
@@ -57,12 +56,11 @@ class Trade:
         
         # 每一筆買入都記錄一個 id，因此這邊只會刪除對應到買入的 id
         account.positions = [entry for entry in account.positions if entry.id != stock.id]
-        
-        if account.stock_trade_history.get(stock.id):
-            position = account.stock_trade_history[stock.id]
+        position = account.stock_trade_history.get(stock.id)
+        if position:
             position.sell_date = stock.date
             position.sell_price = stock.price
             position.profit = Stock.get_net_profit(position.buy_price, position.sell_price, position.volume)
             position.roi = Stock.get_roi(position.buy_price, position.sell_price, position.volume)
             account.stock_trade_history[stock.id] = position
-        return account.stock_trade_history[stock.id]
+        return position
