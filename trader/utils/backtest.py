@@ -23,17 +23,17 @@ class Trade:
             - account: Account
                 帳戶資訊
         - Return:
-            - entry: StockTradeEntry
+            - position: StockTradeEntry
         """
         
-        entry: StockTradeEntry = StockTradeEntry()
+        position: StockTradeEntry = StockTradeEntry()
         stock_value = stock.price * stock.volume
         buy_cost = max(stock_value * Commission.CommRate * Commission.Discount, Commission.MinFee)
         if account.balance >= buy_cost:
             account.balance -= (stock_value + buy_cost)
-            entry = StockTradeEntry(id=stock.id, code=stock.code, volume=stock.volume, buy_date=stock.date, buy_price=stock.price)
-            account.positions.append(entry)
-        return entry
+            position = StockTradeEntry(id=stock.id, code=stock.code, volume=stock.volume, buy_date=stock.date, buy_price=stock.price)
+            account.positions.append(position)
+        return position
     
     
     @staticmethod
@@ -46,12 +46,12 @@ class Trade:
             - account: Account
                 帳戶資訊
         - Return:
-            - entry: StockTradeEntry
+            - position: StockTradeEntry
         """
         
         stock_value = stock.price * stock.volume
         sell_cost = max(stock_value * Commission.CommRate * Commission.Discount, Commission.MinFee) + stock_value * Commission.TaxRate
         account.balance += (stock_value - sell_cost)
         account.positions = [entry for entry in account.positions if entry.id != stock.id]
-        entry = StockTradeEntry(id=stock.id, code=stock.code, volume=stock.volume, sell_date=stock.date, sell_price=stock.price)
-        return entry
+        position = StockTradeEntry(id=stock.id, code=stock.code, volume=stock.volume, sell_date=stock.date, sell_price=stock.price)
+        return position
