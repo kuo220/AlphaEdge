@@ -1,8 +1,15 @@
+import sys
+import os
+from pathlib import Path
+import requests
+import numpy as np
+import pandas as pd
 import datetime
 from typing import List, Dict, Tuple, Any
-from utils.records import Account, StockQuote, StockTradeEntry
-from utils.constant import Commission
-from utils.finance import Stock
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from utils import Data
+from utils import Account, Stock, StockQuote, StockTradeEntry
+from utils import Commission
 
 
 """ 
@@ -64,3 +71,27 @@ class Trade:
             position.roi = Stock.get_roi(position.buy_price, position.sell_price, position.volume)
             account.stock_trade_history[stock.id] = position
         return position
+    
+    
+class BackTester:
+    """ Backtest Framework
+    - Time Interval：
+        1. Ticks
+        2. Daily price
+    """
+    
+    def __init__(self):
+        self.data: Data = Data()
+        
+        
+    
+    def run(self):
+        """ 執行 Backtest (目前只有全tick回測) """
+        
+        # load backtest data
+        data = self.data.QXData
+        tick = self.data.Tick
+        chip = self.data.Chip
+        
+        
+        

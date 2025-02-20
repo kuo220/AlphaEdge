@@ -78,6 +78,7 @@ class Stock:
             - roi: float
                 投資報酬率（%）
         """
+        
         buy_value = buy_price * volume
         buy_comm = max(buy_value * Commission.CommRate * Commission.Discount, Commission.MinFee)
         
