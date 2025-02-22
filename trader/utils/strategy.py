@@ -15,18 +15,21 @@ class Strategy(ABC):
     """ Strategy Framework (Base Template) """
     
     def __init__(self):
+        self.strategy_name: str = ""                # Strategy name
         self.market: str = 'Stock'                  # Stock or Future
         self.strategy_direction: str = 'Long'       # Long or Short
-        self.day_trade: bool = False                # Enable/Unable to day trade
-        self.holding_limit: int = 0                 # Limit numbers of holdings
-        self.dataset: Dict[str, bool] = {           # Dataset used in the strategy   
-            'QXData': False,
-            'Tick': False,
-            'Chip': False
-        }
+        self.day_trade: bool = True
+        self.capital: float = 0                     # Initial capital
+        self.max_positions: int = 0                 # max limit numbers of positions
         
+        """ === Backtest Setting === """
         self.is_backtest: bool = True               # Whether it's used for backtest or not
-        self.scale: str = 'Day'                     # kbar scale: Day/Tick
+        self.scale: str = 'Day'                     # Backtest scale: Day/Tick
+        self.dataset: Dict[str, bool] = {           # Dataset used in the strategy   
+            'QXData': True,
+            'Tick': True,
+            'Chip': True
+        }
         self.start_time: datetime.date = None       # Optional: if is_backtest == True, then set start date in backtest
         self.end_time: datetime.date = None         # Optional: if is_backtest == True, then set end date in backtest
 

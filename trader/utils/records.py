@@ -49,4 +49,4 @@ class StockTradeEntry:
         self.sell_date: datetime.datetime = sell_date
         self.sell_price: float = sell_price
         self.profit: float = profit
-        self.roi: float = roi
+        self.ROI: float = roi

@@ -8,3 +8,21 @@ import datetime
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from utils import Strategy
 
+
+class Strategy(Strategy):
+    """ Strategy """
+    
+    def __init__(self):
+        super().__init__()
+        self.strategy_name = "Momentum"
+        self.capital = 1000000.0
+        self.max_positions = 10
+        self.scale = 'Tick'
+        self.dataset = {
+            'QXData': True,
+            'Tick': True,
+            'Chip': False
+        }
+        self.start_time = datetime.date(2020, 4, 1)
+        self.end_time = datetime.date(2024, 5, 10)
+        
