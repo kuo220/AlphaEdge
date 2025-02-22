@@ -23,15 +23,15 @@ class StockQuote:
     def __init__(self, id: int=0, code: str="", date: datetime.datetime=None, 
                  price: float=0.0, volume: float=0.0,
                  open: float=0.0, high: float=0.0, low: float=0.0, close: float=0.0):
-        self.id: int = id
-        self.code: str = code
-        self.date: datetime.datetime = date
-        self.price: float = price                   # Current price
-        self.volume: float = volume                 # Shares
-        self.open: float = open                     # Open price
-        self.high: float = high                     # High price
-        self.low: float = low                       # Low price
-        self.close: float = close                   # Close price
+        self.id: int = id                                   # QUote id
+        self.code: str = code                               # Stock code
+        self.date: datetime.datetime = date                 # Current date
+        self.price: float = price                           # Current price
+        self.volume: float = volume                         # Shares
+        self.open: float = open                             # Open price
+        self.high: float = high                             # High price
+        self.low: float = low                               # Low price
+        self.close: float = close                           # Close price
 
 
 class StockTradeEntry:
@@ -41,9 +41,9 @@ class StockTradeEntry:
                  buy_date: datetime.datetime=None, buy_price: float=0.0, 
                  sell_date: datetime.datetime=None, sell_price: float=0.0, 
                  profit: float=0.0, roi: float=0.0):
-        self.id: int = id # 每一筆買入就是一個id
+        self.id: int = id                                   # 每一筆買入就是一個id
         self.code: str = code
-        self.volume: float = volume # 股數
+        self.volume: float = volume                         # 股數
         self.buy_date: datetime.datetime = buy_date
         self.buy_price: float = buy_price
         self.sell_date: datetime.datetime = sell_date
