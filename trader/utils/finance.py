@@ -104,7 +104,3 @@ class Stock:
         
         roi = (Stock.get_net_profit(buy_price, sell_price, volume) / investment_cost) * 100
         return round(roi, 2)
-        
-        
-        
-        
