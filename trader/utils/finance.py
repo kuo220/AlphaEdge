@@ -56,7 +56,7 @@ class Stock:
     @staticmethod
     def get_net_profit(buy_price: float, sell_price: float, volume: float) -> float:
         """ 
-        - Description: 計算股票交易的淨收益（扣除手續費和交易稅）
+        - Description: 計算股票交易的淨收益（扣除手續費和交易稅）（目前只有做多）
         - Parameters:
             - buy_price: float
                 股票買入價格
@@ -81,7 +81,7 @@ class Stock:
     @staticmethod
     def get_roi(buy_price: float, sell_price: float, volume: float) -> float:
         """ 
-        - Description: 計算股票投資報酬率（ROI）
+        - Description: 計算股票投資報酬率（ROI）（目前只有做多）
         - Parameters:
             - buy_price: float
                 股票買入價格
