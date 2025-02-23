@@ -7,9 +7,7 @@ import pandas as pd
 import datetime
 from typing import List, Dict, Tuple, Any
 sys.path.append(str(Path(__file__).resolve().parents[1]))
-from utils import Data
-from utils import Account, Stock, StockQuote, StockTradeEntry
-from utils import Commission
+from utils import Data, Stock, Commission, Account, StockQuote, StockTradeEntry
 from scripts import Strategy
 
 
@@ -82,18 +80,27 @@ class BackTester:
     """
     
     def __init__(self):
-        self.data: Data = Data()
         self.strategy: Strategy = Strategy()
+        self.account: Account = Account(self.strategy.capital)
+        self.data: Data = Data()
         
+        self.scale: str = self.strategy.scale
+        self.max_positions: int = self.strategy.max_positions
+        self.start_date: datetime.date = self.strategy.start_date
+        self.end_date: datetime.date = self.strategy.end_date
         
+
         
     
     def run(self):
         """ 執行 Backtest (目前只有全tick回測) """
         
+        print(f"* Start backtesting {self.strategy.strategy_name} strategy...")
+        
         # load backtest data
         data = self.data.QXData
         tick = self.data.Tick
         chip = self.data.Chip
+        
         
         

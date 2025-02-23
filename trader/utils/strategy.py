@@ -30,8 +30,8 @@ class Strategy(ABC):
             'Tick': True,
             'Chip': True
         }
-        self.start_time: datetime.date = None       # Optional: if is_backtest == True, then set start date in backtest
-        self.end_time: datetime.date = None         # Optional: if is_backtest == True, then set end date in backtest
+        self.start_date: datetime.date = None       # Optional: if is_backtest == True, then set start date in backtest
+        self.end_date: datetime.date = None         # Optional: if is_backtest == True, then set end date in backtest
 
     
     @abstractmethod

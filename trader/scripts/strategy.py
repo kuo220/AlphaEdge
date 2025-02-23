@@ -33,4 +33,10 @@ class Strategy(Strategy):
         
         super().open_position(stock)
         
+
+    def close_position(self, stock: StockQuote) -> StockQuote:
+        """ 平倉策略（Long & Short） """
+        
+        super().close_position(stock)
+        
         
