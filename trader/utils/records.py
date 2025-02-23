@@ -21,12 +21,12 @@ class StockQuote:
     """ 個股資訊 """
     
     def __init__(self, id: int=0, code: str="", date: datetime.datetime=None, 
-                 price: float=0.0, volume: float=0.0,
+                 cur_price: float=0.0, volume: float=0.0,
                  open: float=0.0, high: float=0.0, low: float=0.0, close: float=0.0):
         self.id: int = id                                   # QUote id
         self.code: str = code                               # Stock code
         self.date: datetime.datetime = date                 # Current date
-        self.price: float = price                           # Current price
+        self.cur_price: float = cur_price                   # Current price
         self.volume: float = volume                         # Shares
         self.open: float = open                             # Open price
         self.high: float = high                             # High price

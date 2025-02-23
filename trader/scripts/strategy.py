@@ -5,9 +5,10 @@ import requests
 import numpy as np
 import pandas as pd
 import datetime
+from typing import List, Dict, Tuple, Any
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from utils import Strategy
-
+from utils.records import Account, StockQuote, StockTradeEntry
 
 class Strategy(Strategy):
     """ Strategy """
@@ -25,4 +26,11 @@ class Strategy(Strategy):
         }
         self.start_time = datetime.date(2020, 4, 1)
         self.end_time = datetime.date(2024, 5, 10)
+    
+    
+    def open_position(self, stock: StockQuote) -> StockQuote:
+        """ 開倉策略（Long & Short） """
+        
+        super().open_position(stock)
+        
         

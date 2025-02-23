@@ -38,11 +38,11 @@ class Strategy(ABC):
     def open_position(self, stock: StockQuote):
         """ 開倉策略（Long & Short） """
         
-        pass
+        print(f"* Open Position: {stock.code}")
 
 
     @abstractmethod
     def close_position(self, stock: StockQuote):
         """ 平倉策略（Long & Short） """
         
-        pass
+        print(f"* Close Position: {stock.code}")

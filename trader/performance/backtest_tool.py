@@ -10,6 +10,7 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 from utils import Data
 from utils import Account, Stock, StockQuote, StockTradeEntry
 from utils import Commission
+from scripts import Strategy
 
 
 """ 
@@ -34,11 +35,11 @@ class Trade:
         """
         
         position: StockTradeEntry = StockTradeEntry()
-        stock_value = stock.price * stock.volume
+        stock_value = stock.cur_price * stock.volume
         buy_cost = max(stock_value * Commission.CommRate * Commission.Discount, Commission.MinFee)
         if account.balance >= buy_cost:
             account.balance -= (stock_value + buy_cost)
-            position = StockTradeEntry(id=stock.id, code=stock.code, volume=stock.volume, buy_date=stock.date, buy_price=stock.price)
+            position = StockTradeEntry(id=stock.id, code=stock.code, volume=stock.volume, buy_date=stock.date, buy_price=stock.cur_price)
             account.positions.append(position)
             account.stock_trade_history[position.id] = position
         return position
@@ -57,18 +58,18 @@ class Trade:
             - position: StockTradeEntry
         """
         
-        stock_value = stock.price * stock.volume
+        stock_value = stock.cur_price * stock.volume
         sell_cost = max(stock_value * Commission.CommRate * Commission.Discount, Commission.MinFee) + stock_value * Commission.TaxRate
-        account.balance += (stock_value - sell_cost)
         
         # 每一筆買入都記錄一個 id，因此這邊只會刪除對應到買入的 id
         account.positions = [entry for entry in account.positions if entry.id != stock.id]
         position = account.stock_trade_history.get(stock.id)
         if position:
             position.sell_date = stock.date
-            position.sell_price = stock.price
+            position.sell_price = stock.cur_price
             position.profit = Stock.get_net_profit(position.buy_price, position.sell_price, position.volume)
             position.ROI = Stock.get_roi(position.buy_price, position.sell_price, position.volume)
+            account.balance += (stock_value - sell_cost)
             account.stock_trade_history[stock.id] = position
         return position
     
@@ -82,6 +83,7 @@ class BackTester:
     
     def __init__(self):
         self.data: Data = Data()
+        self.strategy: Strategy = Strategy()
         
         
         
@@ -93,6 +95,5 @@ class BackTester:
         data = self.data.QXData
         tick = self.data.Tick
         chip = self.data.Chip
-        
         
         
