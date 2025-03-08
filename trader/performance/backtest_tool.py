@@ -34,7 +34,7 @@ class Trade:
         
         position: StockTradeEntry = StockTradeEntry()
         stock_value = stock.cur_price * stock.volume
-        buy_cost = max(stock_value * Commission.CommRate * Commission.Discount, Commission.MinFee)
+        buy_cost, _ = Stock.get_friction_cost(buy_price=stock.cur_price, volume=stock.volume)
         if account.balance >= buy_cost:
             account.balance -= (stock_value + buy_cost)
             position = StockTradeEntry(id=stock.id, code=stock.code, volume=stock.volume, buy_date=stock.date, buy_price=stock.cur_price)
@@ -57,8 +57,7 @@ class Trade:
         """
         
         stock_value = stock.cur_price * stock.volume
-        sell_cost = max(stock_value * Commission.CommRate * Commission.Discount, Commission.MinFee) + stock_value * Commission.TaxRate
-        
+        _, sell_cost = Stock.get_friction_cost(sell_price=stock.cur_price, volume=stock.volume) 
         # 每一筆買入都記錄一個 id，因此這邊只會刪除對應到買入的 id
         account.positions = [entry for entry in account.positions if entry.id != stock.id]
         position = account.stock_trade_history.get(stock.id)

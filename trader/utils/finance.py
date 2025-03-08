@@ -38,7 +38,7 @@ class Stock:
     
     
     @staticmethod
-    def get_friction_cost(buy_price: float, sell_price: float, volume: float) -> Tuple[float, float]:
+    def get_friction_cost(buy_price: float=0, sell_price: float=0, volume: float=0) -> Tuple[float, float]:
         """ 計算股票買賣的手續費、交易稅等摩擦成本 """
         """
         For long position, the friction costs should contains:
