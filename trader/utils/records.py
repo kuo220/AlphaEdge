@@ -1,3 +1,4 @@
+import pandas as pd
 import datetime
 from typing import List, Dict, Tuple, Any
 from utils.constant import Commission
@@ -17,13 +18,33 @@ class Account:
         self.stock_trade_history: Dict[int, StockTradeEntry] = {}
 
 
+class TickQuote:
+    """  Tick 資訊（即時報價） """
+    
+    def __init__(self, code: str="", time: pd.Timestamp=None,
+                 close: float=0.0, volume: int=0,
+                 bid_price: float=0.0, bid_volume: int=0, ask_price: float=0.0, ask_volume: int=0,
+                 tick_type: int=0
+                 ):
+        self.code: str = code                               # Stock code
+        self.time: pd.Timestamp = time                      # Quote timestamp
+        self.close: float = close                           # Current price
+        self.volume: int = volume                           # Current total volume
+        self.bid_price: float = bid_price                   # Bid price
+        self.bid_volume: int = bid_volume                   # Bid volume
+        self.ask_price: float = ask_price                   # Ask price
+        self.ask_volume: int = ask_volume                   # Ask volume
+        self.tick_type = tick_type                          # 內外盤別{1: 外盤, 2: 內盤, 0: 無法判定}
+
+
 class StockQuote:
     """ 個股資訊 """
     
     def __init__(self, id: int=0, code: str="", date: datetime.datetime=None, 
                  cur_price: float=0.0, volume: float=0.0,
-                 open: float=0.0, high: float=0.0, low: float=0.0, close: float=0.0):
-        self.id: int = id                                   # QUote id
+                 open: float=0.0, high: float=0.0, low: float=0.0, close: float=0.0,
+                 tick: TickQuote=None):
+        self.id: int = id                                   # Quote id
         self.code: str = code                               # Stock code
         self.date: datetime.datetime = date                 # Current date
         self.cur_price: float = cur_price                   # Current price
@@ -32,6 +53,7 @@ class StockQuote:
         self.high: float = high                             # High price
         self.low: float = low                               # Low price
         self.close: float = close                           # Close price
+        self.tick: TickQuote = tick                         # tick data
 
 
 class StockTradeEntry:

@@ -112,16 +112,6 @@ class Backtester:
             self.tick = self.data.Tick
             self.QXData = self.data.QXData
             
-
-    # def simulate_market_ticks(self, start_date: datetime.date, end_date: datetime.date) -> pd.DataFrame:
-    #     """ 
-    #     FULL-TICK: 
-    #     模擬盤中 tick-by-tick 報價（適用tick回測）
-    #     每次取出一個月份量且排序好的的 ticks
-    #     """
-        
-    #     ticks = self.tick.get_ordered_ticks(start_date, end_date)
-    #     return ticks
         
 
     def run(self):
@@ -139,6 +129,9 @@ class Backtester:
             
             if self.scale == Scale.TICK:
                 ticks = self.tick.get_ordered_ticks(cur_date, cur_date)
+                
+                for tick in ticks.itertuples(index=False):
+                    # stock_quote = StockQuote(tick.stock_id)
             
             
             
