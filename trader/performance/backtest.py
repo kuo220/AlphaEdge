@@ -72,7 +72,8 @@ class Trade:
     
     
 class Backtester:
-    """ Backtest Framework
+    """ 
+    Backtest Framework
     - Time Interval：
         1. Ticks
         2. Daily price
@@ -82,17 +83,38 @@ class Backtester:
         self.strategy: Strategy = Strategy()
         self.account: Account = Account(self.strategy.capital)
         self.data: Data = Data()
+        self.QXData: Data = None
+        self.tick: Data = None
+        self.chip: Data = None
         
         self.scale: str = self.strategy.scale
         self.max_positions: int = self.strategy.max_positions
         self.start_date: datetime.date = self.strategy.start_date
         self.end_date: datetime.date = self.strategy.end_date
+    
+    
+    def load_datasets(self):
+        """ 從資料庫取得資料 """
         
+        self.chip = self.data.Chip
+        if self.scale == 'Tick':
+            self.tick = self.data.Tick
+        elif self.scale == 'Day':
+            self.QXData = self.data.QXData
+        elif self.scale == 'ALL':
+            self.tick = self.data.Tick
+            self.QXData = self.data.QXData
+            
 
-    def simulate_market_ticks(self):
-        """ 模擬盤中 tick-by-tick 報價（適用tick回測）"""
-        """ 每次取出一個月份量且排序好的的 ticks """
-        pass
+    def simulate_market_ticks(self, start_date: datetime.date, end_date: datetime.date) -> pd.DataFrame:
+        """ 
+        FULL-TICK: 
+        模擬盤中 tick-by-tick 報價（適用tick回測）
+        每次取出一個月份量且排序好的的 ticks
+        """
+        
+        ticks = self.tick.get_ordered_ticks(start_date, end_date)
+        return ticks
         
 
     def run(self):
@@ -101,9 +123,7 @@ class Backtester:
         print(f"* Start backtesting {self.strategy.strategy_name} strategy...")
         
         # load backtest dataset
-        data = self.data.QXData
-        tick = self.data.Tick
-        chip = self.data.Chip
+        self.load_datasets()
         
         cur_date = self.start_date
         

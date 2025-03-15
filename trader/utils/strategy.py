@@ -24,7 +24,7 @@ class Strategy(ABC):
         
         """ === Backtest Setting === """
         self.is_backtest: bool = True               # Whether it's used for backtest or not
-        self.scale: str = 'Day'                     # Backtest scale: Day/Tick
+        self.scale: str = 'Day'                     # Backtest scale: Day/Tick/ALL
         self.dataset: Dict[str, bool] = {           # Dataset used in the strategy   
             'QXData': True,
             'Tick': True,
