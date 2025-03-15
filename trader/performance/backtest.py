@@ -8,7 +8,7 @@ import datetime
 from typing import List, Dict, Tuple, Any
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from utils import (Data, Stock, Commission, Market, Scale, 
-                   PositionType, Account, StockQuote, 
+                   PositionType, Account, TickQuote, StockQuote, 
                    StockTradeEntry)
 from scripts import Strategy
 
@@ -130,6 +130,7 @@ class Backtester:
         # load backtest dataset
         self.load_datasets()
         
+        id: int = 0 # Trade id
         cur_date = self.start_date
         
         while cur_date <= self.end_date:
@@ -139,7 +140,17 @@ class Backtester:
                 ticks = self.tick.get_ordered_ticks(cur_date, cur_date)
                 
                 for tick in ticks.itertuples(index=False):
-                    # stock_quote = StockQuote(tick.stock_id)
+                    id += 1
+                    tick_quote = TickQuote(code=tick.stock_id, time=tick.time, 
+                                           close=tick.close, volume=tick.volume,
+                                           bid_price=tick.bid_price, bid_volume=tick.bid_volume,
+                                           ask_price=tick.ask_price, ask_volume=tick.ask_volume,
+                                           tick_type=tick.tick_type)
+                    stock_quote = StockQuote(id=id, code=tick.stock_id, scale=self.scale, date=cur_date,
+                                             cur_price=tick.close, volume=tick.volume,
+                                             tick=tick_quote)
+                    
+                    # TODO: FULL-TICK Backtest
             
             
             
