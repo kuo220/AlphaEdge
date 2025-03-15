@@ -90,17 +90,24 @@ class BackTester:
         self.end_date: datetime.date = self.strategy.end_date
         
 
+    def simulate_market_ticks(self):
+        """ 模擬盤中 tick-by-tick 報價（適用tick回測）"""
+        """ 每次取出一個月份量且排序好的的 ticks """
+        pass
         
-    
+
     def run(self):
         """ 執行 Backtest (目前只有全tick回測) """
         
         print(f"* Start backtesting {self.strategy.strategy_name} strategy...")
         
-        # load backtest data
+        # load backtest dataset
         data = self.data.QXData
         tick = self.data.Tick
         chip = self.data.Chip
         
+        cur_date = self.start_date
         
-        
+        while cur_date <= self.end_date:
+            print(f"--- {cur_date.strftime('%Y/%m/%d')} ---")
+            cur_date += datetime.timedelta(days=1)
