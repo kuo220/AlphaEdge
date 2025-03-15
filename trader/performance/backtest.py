@@ -71,7 +71,7 @@ class Trade:
         return position
     
     
-class BackTester:
+class Backtester:
     """ Backtest Framework
     - Time Interval：
         1. Ticks
