@@ -138,7 +138,7 @@ class Backtester:
             print(f"--- {cur_date.strftime('%Y/%m/%d')} ---")
             
             if self.scale == Scale.TICK:
-                pass
+                ticks = self.tick.get_ordered_ticks(cur_date, cur_date)
             
             
             
