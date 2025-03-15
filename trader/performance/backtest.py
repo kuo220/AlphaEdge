@@ -7,8 +7,11 @@ import pandas as pd
 import datetime
 from typing import List, Dict, Tuple, Any
 sys.path.append(str(Path(__file__).resolve().parents[1]))
-from utils import Data, Stock, Commission, Account, StockQuote, StockTradeEntry
+from utils import (Data, Stock, Commission, Market, Scale, 
+                   PositionType, Account, StockQuote, 
+                   StockTradeEntry)
 from scripts import Strategy
+
 
 
 """ 
@@ -80,13 +83,17 @@ class Backtester:
     """
     
     def __init__(self):
+        # Strategy & Account information
         self.strategy: Strategy = Strategy()
         self.account: Account = Account(self.strategy.capital)
+        
+        # Datasets
         self.data: Data = Data()
         self.QXData: Data = None
         self.tick: Data = None
         self.chip: Data = None
         
+        # Backtest parameters
         self.scale: str = self.strategy.scale
         self.max_positions: int = self.strategy.max_positions
         self.start_date: datetime.date = self.strategy.start_date
@@ -97,24 +104,24 @@ class Backtester:
         """ 從資料庫取得資料 """
         
         self.chip = self.data.Chip
-        if self.scale == 'Tick':
+        if self.scale == Scale.TICK:
             self.tick = self.data.Tick
-        elif self.scale == 'Day':
+        elif self.scale == Scale.DAY:
             self.QXData = self.data.QXData
-        elif self.scale == 'ALL':
+        elif self.scale == Scale.ALL:
             self.tick = self.data.Tick
             self.QXData = self.data.QXData
             
 
-    def simulate_market_ticks(self, start_date: datetime.date, end_date: datetime.date) -> pd.DataFrame:
-        """ 
-        FULL-TICK: 
-        模擬盤中 tick-by-tick 報價（適用tick回測）
-        每次取出一個月份量且排序好的的 ticks
-        """
+    # def simulate_market_ticks(self, start_date: datetime.date, end_date: datetime.date) -> pd.DataFrame:
+    #     """ 
+    #     FULL-TICK: 
+    #     模擬盤中 tick-by-tick 報價（適用tick回測）
+    #     每次取出一個月份量且排序好的的 ticks
+    #     """
         
-        ticks = self.tick.get_ordered_ticks(start_date, end_date)
-        return ticks
+    #     ticks = self.tick.get_ordered_ticks(start_date, end_date)
+    #     return ticks
         
 
     def run(self):
@@ -129,4 +136,11 @@ class Backtester:
         
         while cur_date <= self.end_date:
             print(f"--- {cur_date.strftime('%Y/%m/%d')} ---")
+            
+            if self.scale == Scale.TICK:
+                pass
+            
+            
+            
             cur_date += datetime.timedelta(days=1)
+            

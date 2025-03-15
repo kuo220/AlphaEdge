@@ -80,3 +80,24 @@ class Commission(float, Enum):
     Discount = 0.3  # 券商手續費折扣（commission discount）
     MinFee = 20.0  # 券商最低手續費限制（minimum fee）
     TaxRate = 0.003 # 證券交易稅（Securities Transaction Tax Rate）
+
+
+class Market(str, Enum):
+    """ 市場類別 """
+    Stock = "Stock"
+    Future = "Future"
+    
+
+class Scale(str, Enum):
+    """ Kbar 級別 """
+    DAY = "DAY"
+    TICK = "TICK"
+    ALL = "ALL"
+    
+
+class PositionType(str, Enum):
+    """ 部位方向 """
+    LONG = "LONG"
+    SHORT = "SHORT"
+    
+    

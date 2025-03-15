@@ -9,6 +9,7 @@ from typing import List, Dict, Tuple, Any
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from utils import Strategy
 from utils import Account, StockQuote, StockTradeEntry
+from utils import Constant
 
 class Strategy(Strategy):
     """ Strategy """
