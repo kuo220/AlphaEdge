@@ -63,7 +63,7 @@ class Trade:
             - position: StockTradeEntry
         """
         
-        if stock.scale == Scale.Day:
+        if stock.scale == Scale.DAY:
             stock_value = stock.cur_price * stock.volume
             _, sell_cost = Stock.get_friction_cost(sell_price=stock.cur_price, volume=stock.volume) 
             # 每一筆買入都記錄一個 id，因此這邊只會刪除對應到買入的 id
