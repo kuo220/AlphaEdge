@@ -54,7 +54,7 @@ class Backtester:
             self.QXData = self.data.QXData
         elif self.scale == Scale.ALL:
             self.tick = self.data.Tick
-            self.QXData = self.data.QXData
+            self.QXData = self.data.QXData 
     
     
     def buy(self, stock: StockQuote, buy_price: float, buy_volume: int) -> StockTradeEntry:
@@ -86,7 +86,8 @@ class Backtester:
         elif stock.scale == Scale.TICK:
             pass
         return position
-    
+
+
     def sell(self, stock: StockQuote, sell_price: float, sell_volume: int) -> StockTradeEntry:
         """ 
         - Description: 賣出股票
