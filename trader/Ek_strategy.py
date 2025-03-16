@@ -148,7 +148,7 @@ class EnergyStrategy(Strategy):
                 else:
                     print(f"Stock ID: {stock} has no price at next trading day")
             
-            self.data.date = current_date
+            self.data.date = current_date 
             return stock_list[valid_stock_list]
 
         

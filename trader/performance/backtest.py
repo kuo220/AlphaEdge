@@ -57,8 +57,6 @@ class Backtester:
             self.QXData = self.data.QXData
     
     
-    # TODO: Method 前置操作(ex: 先篩選掉不需要訂閱的股票)
-    
     def buy(self, stock: StockQuote, buy_price: float, buy_volume: int) -> StockTradeEntry:
         """ 
         - Description: 買入股票
