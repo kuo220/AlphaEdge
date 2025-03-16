@@ -1,10 +1,12 @@
 # AlphaEdge
 
-AlphaEdge is a *trading framework* that primarily features backtesting trading strategies, generating backtest reports, and providing a *live trading framework* built on top of the [Shioaji API.](https://sinotrade.github.io/zh_TW/) AlphaEdge supports backtesting and trading for **stocks, futures, and options** (though currently, only stock trading has been developed). Users need to follow the instructions in [Strategy Instruction](trader/scripts/README.md) to provide:
+**AlphaEdge** is a *trading framework* designed for backtesting trading strategies, generating backtest reports, and enabling *live trading* through the [Shioaji API](https://sinotrade.github.io/zh_TW/). It supports backtesting and trading for **stocks, futures, and options** (though currently, only stock trading has been implemented).
 
-1. Familiarize yourself with the backtest dataset API.
+To get started, users should follow the instructions in [Strategy Instruction](trader/scripts/README.md) and complete the following steps:
+
+1. Familiarize themselves with the backtest Data API.
 2. Develop a trading strategy.
-2. Set various parameters for the strategy.
+3. Configure the strategy parameters.
 
 
 - [AlphaEdge](#alphaedge)
