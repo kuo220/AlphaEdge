@@ -54,7 +54,7 @@ class StockQuote:
         self.high: float = high                             # High price
         self.low: float = low                               # Low price
         self.close: float = close                           # Close price
-        self.tick: TickQuote = tick                         # tick data
+        self.tick_quote: TickQuote = tick                   # tick quote data
 
 
 class StockTradeEntry:

@@ -11,7 +11,7 @@ from utils.data import Data
 from utils.records import Account, StockQuote, StockTradeEntry
 from utils.constant import Market, Scale, PositionType
 
-class Strategy(ABC):
+class BaseStrategy(ABC):
     """ Strategy Framework (Base Template) """
     
     def __init__(self):

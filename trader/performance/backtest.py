@@ -13,7 +13,6 @@ from utils import (Data, Stock, Commission, Market, Scale,
 from scripts import Strategy
 
 
-
 """ 
 * This section mainly consists of tools used for backtesting.
 """
@@ -46,6 +45,7 @@ class Trade:
                 account.stock_trade_history[position.id] = position
                 
         elif stock.scale == Scale.TICK:
+            # stock_value = stock.tick_quote.ask_price * stock.
             pass
         return position
     
@@ -78,6 +78,7 @@ class Trade:
                 account.stock_trade_history[stock.id] = position
                 
         elif stock.scale == Scale.TICK:
+            # TODO: Tick 回測賣出
             pass
         return position
     
@@ -119,9 +120,17 @@ class Backtester:
         elif self.scale == Scale.ALL:
             self.tick = self.data.Tick
             self.QXData = self.data.QXData
-            
+    
+    
+    # TODO: 前置操作(ex: 先篩選掉不需要訂閱的股票)
+    
+    def buy(self):
+        pass
+    
+    
+    def sell(self):
+        pass
         
-
     def run(self):
         """ 執行 Backtest (目前只有全tick回測) """
         
@@ -141,18 +150,18 @@ class Backtester:
                 
                 for tick in ticks.itertuples(index=False):
                     id += 1
+                    # TODO: volume 是自己要買的量
                     tick_quote = TickQuote(code=tick.stock_id, time=tick.time, 
-                                           close=tick.close, volume=tick.volume,
+                                           close=tick.close, volume=1,
                                            bid_price=tick.bid_price, bid_volume=tick.bid_volume,
                                            ask_price=tick.ask_price, ask_volume=tick.ask_volume,
                                            tick_type=tick.tick_type)
                     stock_quote = StockQuote(id=id, code=tick.stock_id, scale=self.scale, date=cur_date,
-                                             cur_price=tick.close, volume=tick.volume,
+                                             cur_price=tick.close, volume=1,
                                              tick=tick_quote)
                     
                     # TODO: FULL-TICK Backtest
             
             
             
-            cur_date += datetime.timedelta(days=1)
-            
+            cur_date += datetime.timedelta(days=1) 

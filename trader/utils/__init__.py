@@ -10,4 +10,4 @@ from .constant import (Action, OrderType, StockPriceType, QuoteType,
 from .data import Data
 from .crawler import Crawler
 from .records import Account, TickQuote, StockQuote, StockTradeEntry
-from .strategy import Strategy
+from .strategy import BaseStrategy
