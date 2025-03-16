@@ -1,7 +1,7 @@
 import pandas as pd
 import datetime
 from typing import List, Dict, Tuple, Any
-from utils.constant import Commission, Scale
+from utils.constant import Commission, Scale, PositionType
 
 
 """ 
@@ -49,7 +49,7 @@ class StockQuote:
         self.scale: Scale = scale                           # Quote scale (DAY or TICK or ALL)
         self.date: datetime.datetime = date                 # Current date
         self.cur_price: float = cur_price                   # Current price
-        self.volume: float = volume                         # Shares
+        self.volume: int = volume                           # Trading volume
         self.open: float = open                             # Open price
         self.high: float = high                             # High price
         self.low: float = low                               # Low price
@@ -60,16 +60,17 @@ class StockQuote:
 class StockTradeEntry:
     """ 單筆股票交易紀錄 """
     
-    def __init__(self, id: int=0, code: str="", volume: float=0.0,
-                 buy_date: datetime.datetime=None, buy_price: float=0.0, 
-                 sell_date: datetime.datetime=None, sell_price: float=0.0, 
+    def __init__(self, id: int=0, code: str="", date: datetime.datetime=None,
+                 volume: float=0.0, buy_price: float=0.0, sell_price: float=0.0, 
+                 position_type: PositionType=None, position_value: float=0.0, 
                  profit: float=0.0, roi: float=0.0):
         self.id: int = id                                   # 每一筆買入就是一個id
-        self.code: str = code
-        self.volume: float = volume                         # 股數
-        self.buy_date: datetime.datetime = buy_date
-        self.buy_price: float = buy_price
-        self.sell_date: datetime.datetime = sell_date
-        self.sell_price: float = sell_price
-        self.profit: float = profit
-        self.ROI: float = roi
+        self.code: str = code                               # 股票代號
+        self.date: datetime.datetime = date                 # 交易日期
+        self.volume: float = volume                         # 交易股數
+        self.buy_price: float = buy_price                   # 買入價位
+        self.sell_price: float = sell_price                 # 賣出價位
+        self.position_type: PositionType = position_type    # 持倉方向（Long or Short）
+        self.position_value: float = position_value         # 股票市值（目前是買入才有）
+        self.profit: float = profit                         # 淨獲利
+        self.ROI: float = roi                               # 報酬率
