@@ -90,8 +90,8 @@ class Market(str, Enum):
 
 class Scale(str, Enum):
     """ Kbar 級別 """
-    DAY = "DAY"
     TICK = "TICK"
+    DAY = "DAY"
     ALL = "ALL"
     
 

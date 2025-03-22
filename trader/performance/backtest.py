@@ -37,12 +37,16 @@ class Backtester:
         self.tick: Data = None
         self.chip: Data = None
         
-        """ === Backtest parameters === """
+        """ === Backtest Parameters === """
         self.scale: str = self.strategy.scale                                   # 回測 KBar 級別
         self.max_positions: int = self.strategy.max_positions                   # 最大持倉檔數
         self.start_date: datetime.date = self.strategy.start_date               # 回測起始日
+        self.cur_date: datetime.date = self.strategy.start_date                 # 回測當前日
         self.end_date: datetime.date = self.strategy.end_date                   # 回測結束日
-    
+        
+        """ === Trading Record """
+        self.entry_id: int = 0                                                  # 單筆交易ID
+        
     
     def load_datasets(self):
         """ 從資料庫取得資料 """
@@ -122,7 +126,35 @@ class Backtester:
             return position
             
             
-    # TODO: Method 判斷買入賣出的量
+    # TODO: Method => 判斷買入賣出的量
+    
+    
+    # TODO: Method => run tick backtest
+    def run_tick_backtest(self):
+        """ Tick 級別的回測 """
+        
+        ticks = self.tick.get_ordered_ticks(self.cur_date, self.cur_date)
+        
+        for tick in ticks.itertuples(index=False):
+            # TODO: volume 是自己要買的量
+            tick_quote = TickQuote(code=tick.stock_id, time=tick.time, 
+                                    close=tick.close, volume=1,
+                                    bid_price=tick.bid_price, bid_volume=tick.bid_volume,
+                                    ask_price=tick.ask_price, ask_volume=tick.ask_volume,
+                                    tick_type=tick.tick_type)
+            stock_quote = StockQuote(id=self.entry_id, code=tick.stock_id, scale=self.scale, date=self.cur_date,
+                                        cur_price=tick.close, volume=1,
+                                        tick=tick_quote)
+            
+            # TODO: FULL-TICK Backtest(maybe another function)
+    
+    
+    def run_day_backtest(self):
+        pass
+    
+    
+    def run_all_backtest(self):
+        pass
     
         
     def run(self):
@@ -133,29 +165,17 @@ class Backtester:
         # load backtest dataset
         self.load_datasets()
         
-        id: int = 0 # Trade id
-        cur_date = self.start_date
         
-        while cur_date <= self.end_date:
-            print(f"--- {cur_date.strftime('%Y/%m/%d')} ---")
+        while self.cur_date <= self.end_date:
+            print(f"--- {self.cur_date.strftime('%Y/%m/%d')} ---")
             
             if self.scale == Scale.TICK:
-                ticks = self.tick.get_ordered_ticks(cur_date, cur_date)
-                
-                for tick in ticks.itertuples(index=False):
-                    id += 1
-                    # TODO: volume 是自己要買的量
-                    tick_quote = TickQuote(code=tick.stock_id, time=tick.time, 
-                                           close=tick.close, volume=1,
-                                           bid_price=tick.bid_price, bid_volume=tick.bid_volume,
-                                           ask_price=tick.ask_price, ask_volume=tick.ask_volume,
-                                           tick_type=tick.tick_type)
-                    stock_quote = StockQuote(id=id, code=tick.stock_id, scale=self.scale, date=cur_date,
-                                             cur_price=tick.close, volume=1,
-                                             tick=tick_quote)
-                    
-                    # TODO: FULL-TICK Backtest
+                self.run_tick_backtest()
+
+            elif self.scale == Scale.DAY:
+                self.run_day_backtest
             
+            elif self.scale == Scale.ALL:
+                self.run_all_backtest()
             
-            
-            cur_date += datetime.timedelta(days=1) 
+            self.cur_date += datetime.timedelta(days=1) 
