@@ -7,7 +7,7 @@ import pandas as pd
 import datetime
 from typing import List, Dict, Tuple, Any
 sys.path.append(str(Path(__file__).resolve().parents[1]))
-from utils import (Data, Stock, Commission, Market, Scale, 
+from utils import (Data, StockTool, Commission, Market, Scale, 
                    PositionType, Account, TickQuote, StockQuote, 
                    StockTradeEntry)
 from scripts import Strategy
@@ -78,7 +78,7 @@ class Backtester:
         position: StockTradeEntry = None
         
         stock_value = buy_price * buy_volume * 1000
-        buy_cost, _ = Stock.get_friction_cost(buy_price=buy_price, volume=buy_volume)
+        buy_cost, _ = StockTool.get_friction_cost(buy_price=buy_price, volume=buy_volume)
         if self.account.balance >= buy_cost:
             self.account.balance -= (stock_value + buy_cost)
             position = StockTradeEntry(id=stock.id, code=stock.code, date=stock.date,
@@ -106,15 +106,15 @@ class Backtester:
         position: StockTradeEntry = None
 
         stock_value = sell_price * sell_volume * 1000
-        _, sell_cost = Stock.get_friction_cost(sell_price=sell_price, volume=sell_volume)
+        _, sell_cost = StockTool.get_friction_cost(sell_price=sell_price, volume=sell_volume)
         # 每一筆買入都記錄一個 id，因此這邊只會刪除對應到買入的 id
         self.account.positions = [entry for entry in self.account.positions if entry.id != stock.id]
         position = self.account.stock_trade_history.get(stock.id)
         if position:
             position.date = stock.date
             position.sell_price = sell_price
-            position.profit = Stock.get_net_profit(position.buy_price, position.sell_price, position.volume)
-            position.ROI = Stock.get_roi(position.buy_price, position.sell_price, position.volume)
+            position.profit = StockTool.get_net_profit(position.buy_price, position.sell_price, position.volume)
+            position.ROI = StockTool.get_roi(position.buy_price, position.sell_price, position.volume)
             self.account.balance += (stock_value - sell_cost)
             self.account.stock_trade_history[stock.id] = position
 

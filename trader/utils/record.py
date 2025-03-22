@@ -19,7 +19,7 @@ class Account:
 
 
 class TickQuote:
-    """  Tick 資訊（即時報價） """
+    """  Tick 報價資訊（即時報價） """
     
     def __init__(self, code: str="", time: pd.Timestamp=None,
                  close: float=0.0, volume: int=0,
@@ -38,7 +38,7 @@ class TickQuote:
 
 
 class StockQuote:
-    """ 個股資訊 """
+    """ 個股報價資訊 """
     
     def __init__(self, id: int=0, code: str="", scale: Scale=None, date: datetime.datetime=None, 
                  cur_price: float=0.0, volume: float=0.0,
@@ -56,6 +56,12 @@ class StockQuote:
         self.close: float = close                           # Close price
         self.tick_quote: TickQuote = tick                   # tick quote data
 
+
+class StockOrder:
+    """ 個股買賣的訂單 """
+    
+    def __init__(self):
+        pass
 
 class StockTradeEntry:
     """ 單筆股票交易紀錄 """
