@@ -6,7 +6,7 @@ from utils.time import TimeTool
 from utils.constant import Commission
 
 
-class Stock:
+class StockTool:
     """ Stock Related Tool """
     
     @staticmethod
@@ -30,8 +30,8 @@ class Stock:
         last_trading_date = TimeTool.get_last_trading_date(api, date)
         
         # 計算指定交易日股票的漲幅
-        cur_close_price = Stock.get_close_price(api, stock_id, date)
-        prev_close_price = Stock.get_close_price(api, stock_id, last_trading_date)
+        cur_close_price = StockTool.get_close_price(api, stock_id, date)
+        prev_close_price = StockTool.get_close_price(api, stock_id, last_trading_date)
         
         # if cur_close_price or prev_close_price is np.nan, then function will return np.nan
         return round((cur_close_price / prev_close_price - 1) * 100, 2)
@@ -72,7 +72,7 @@ class Stock:
         sell_value = sell_price * volume
         
         # 買入 & 賣出手續費
-        buy_comm, sell_comm = Stock.get_friction_cost(buy_price, sell_price, volume)
+        buy_comm, sell_comm = StockTool.get_friction_cost(buy_price, sell_price, volume)
         
         profit = (sell_value - buy_value) - (buy_comm + sell_comm)
         return round(profit, 2)
@@ -95,12 +95,12 @@ class Stock:
         """
         
         buy_value = buy_price * volume
-        buy_comm, _ = Stock.get_friction_cost(buy_price, sell_price, volume)
+        buy_comm, _ = StockTool.get_friction_cost(buy_price, sell_price, volume)
         
         # 計算投資成本
         investment_cost = buy_value + buy_comm
         if investment_cost == 0:
             return 0.0
         
-        roi = (Stock.get_net_profit(buy_price, sell_price, volume) / investment_cost) * 100
+        roi = (StockTool.get_net_profit(buy_price, sell_price, volume) / investment_cost) * 100
         return round(roi, 2)
