@@ -37,13 +37,29 @@ class BaseStrategy(ABC):
     
     @abstractmethod
     def open_position(self, stock: StockQuote) -> StockOrder:
-        """ 開倉策略（Long & Short） """
+        """ 
+        - Description: 開倉策略（Long & Short） ，需要包含買賣的標的、價位和數量
+        - Parameter:
+            - stock: StockQuote
+                目標股票的報價資訊
+        - Return:
+            - position: StockOrder
+                開倉訂單
+        """
         
         print(f"* Open Position: {stock.code}")
 
 
     @abstractmethod
     def close_position(self, stock: StockQuote) -> StockOrder:
-        """ 平倉策略（Long & Short） """
+        """ 
+        - Description: 平倉策略（Long & Short） ，需要包含買賣的標的、價位和數量
+        - Parameter:
+            - stock: StockQuote
+                目標股票的報價資訊
+        - Return:
+            - position: StockOrder
+                平倉訂單
+        """
         
         print(f"* Close Position: {stock.code}")
