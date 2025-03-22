@@ -49,7 +49,7 @@ class StockQuote:
         self.scale: Scale = scale                           # Quote scale (DAY or TICK or ALL)
         self.date: datetime.datetime = date                 # Current date
         self.cur_price: float = cur_price                   # Current price
-        self.volume: int = volume                           # Trading volume
+        self.volume: int = volume                           # order's volume
         self.open: float = open                             # Open price
         self.high: float = high                             # High price
         self.low: float = low                               # Low price

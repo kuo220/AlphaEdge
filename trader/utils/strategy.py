@@ -8,7 +8,7 @@ import datetime
 from abc import ABC, abstractmethod
 from typing import List, Dict, Tuple, Any
 from utils.data import Data
-from utils.records import Account, StockQuote, StockTradeEntry
+from utils.record import Account, StockQuote, StockTradeEntry
 from utils.constant import Market, Scale, PositionType
 
 class BaseStrategy(ABC):

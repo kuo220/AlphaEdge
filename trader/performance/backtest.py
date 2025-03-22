@@ -76,19 +76,16 @@ class Backtester:
         """
         
         position: StockTradeEntry = None
-        if stock.scale == Scale.DAY:
-            stock_value = buy_price * buy_volume * 1000
-            buy_cost, _ = Stock.get_friction_cost(buy_price=buy_price, volume=buy_volume)
-            if self.account.balance >= buy_cost:
-                self.account.balance -= (stock_value + buy_cost)
-                position = StockTradeEntry(id=stock.id, code=stock.code, date=stock.date,
-                                           volume=buy_volume, buy_price=buy_price, 
-                                           position_type=PositionType.LONG, position_value=stock_value)
-                self.account.positions.append(position)
-                self.account.stock_trade_history[position.id] = position
         
-        elif stock.scale == Scale.TICK:
-            pass
+        stock_value = buy_price * buy_volume * 1000
+        buy_cost, _ = Stock.get_friction_cost(buy_price=buy_price, volume=buy_volume)
+        if self.account.balance >= buy_cost:
+            self.account.balance -= (stock_value + buy_cost)
+            position = StockTradeEntry(id=stock.id, code=stock.code, date=stock.date,
+                                        volume=buy_volume, buy_price=buy_price, 
+                                        position_type=PositionType.LONG, position_value=stock_value)
+            self.account.positions.append(position)
+            self.account.stock_trade_history[position.id] = position
         return position
 
 
@@ -107,44 +104,67 @@ class Backtester:
         """
         
         position: StockTradeEntry = None
-        if stock.scale == Scale.DAY:
-            stock_value = sell_price * sell_volume * 1000
-            _, sell_cost = Stock.get_friction_cost(sell_price=sell_price, volume=sell_volume)
-            # 每一筆買入都記錄一個 id，因此這邊只會刪除對應到買入的 id
-            self.account.positions = [entry for entry in self.account.positions if entry.id != stock.id]
-            position = self.account.stock_trade_history.get(stock.id)
-            if position:
-                position.date = stock.date
-                position.sell_price = sell_price
-                position.profit = Stock.get_net_profit(position.buy_price, position.sell_price, position.volume)
-                position.ROI = Stock.get_roi(position.buy_price, position.sell_price, position.volume)
-                self.account.balance += (stock_value - sell_cost)
-                self.account.stock_trade_history[stock.id] = position
-    
-            elif stock.scale == Scale.TICK:
-                pass
+
+        stock_value = sell_price * sell_volume * 1000
+        _, sell_cost = Stock.get_friction_cost(sell_price=sell_price, volume=sell_volume)
+        # 每一筆買入都記錄一個 id，因此這邊只會刪除對應到買入的 id
+        self.account.positions = [entry for entry in self.account.positions if entry.id != stock.id]
+        position = self.account.stock_trade_history.get(stock.id)
+        if position:
+            position.date = stock.date
+            position.sell_price = sell_price
+            position.profit = Stock.get_net_profit(position.buy_price, position.sell_price, position.volume)
+            position.ROI = Stock.get_roi(position.buy_price, position.sell_price, position.volume)
+            self.account.balance += (stock_value - sell_cost)
+            self.account.stock_trade_history[stock.id] = position
+
             return position
             
-            
-    # TODO: Method => 判斷買入賣出的量
+    
+    def get_buy_volume(self, stock: StockQuote) -> int:
+        """ 
+        - Description: 取得買入股票數量
+        - Parameters:
+            - stock: StockQuote
+                目標股票的報價資訊
+        - Return:
+            - volume: int
+        """
+        pass
+    
+    
+    def get_sell_volume(self, stock: StockQuote):
+        """ 
+        - Description: 取得賣出股票數量
+        - Parameters:
+            - stock: StockQuote
+                目標股票的報價資訊
+        - Return:
+            - volume: int
+        """
+        pass
+    
     
     
     # TODO: Method => run tick backtest
     def run_tick_backtest(self):
-        """ Tick 級別的回測 """
+        """ Tick 級別的回測架構 """
         
         ticks = self.tick.get_ordered_ticks(self.cur_date, self.cur_date)
         
         for tick in ticks.itertuples(index=False):
             # TODO: volume 是自己要買的量
+            
+            self.entry_id += 1
             tick_quote = TickQuote(code=tick.stock_id, time=tick.time, 
                                     close=tick.close, volume=1,
                                     bid_price=tick.bid_price, bid_volume=tick.bid_volume,
                                     ask_price=tick.ask_price, ask_volume=tick.ask_volume,
                                     tick_type=tick.tick_type)
-            stock_quote = StockQuote(id=self.entry_id, code=tick.stock_id, scale=self.scale, date=self.cur_date,
-                                        cur_price=tick.close, volume=1,
-                                        tick=tick_quote)
+            
+            
+            stock_quote = StockQuote(id=self.entry_id, code=tick.stock_id, scale=self.scale, 
+                                     date=self.cur_date, tick=tick_quote)
             
             # TODO: FULL-TICK Backtest(maybe another function)
     

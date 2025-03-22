@@ -1,7 +1,7 @@
 import shioaji as sj
 
 
-class Order:
+class OrderTool:
     """ 執行買入、賣出等下單操作 """
                 
     @staticmethod
