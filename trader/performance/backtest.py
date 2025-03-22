@@ -61,7 +61,7 @@ class Backtester:
             self.QXData = self.data.QXData 
     
     
-    def buy(self, stock: StockOrder) -> StockTradeEntry:
+    def open_position(self, stock: StockOrder) -> StockTradeEntry:
         """ 
         - Description: 買入股票
         - Parameters:
@@ -73,19 +73,22 @@ class Backtester:
         
         position: StockTradeEntry = None
         
-        stock_value = stock.price * stock.volume * 1000
-        buy_cost, _ = StockTool.get_friction_cost(buy_price=stock.price, volume=stock.volume)
-        if self.account.balance >= buy_cost:
-            self.account.balance -= (stock_value + buy_cost)
-            position = StockTradeEntry(id=stock.id, code=stock.code, date=stock.date,
-                                        volume=stock.volume, buy_price=stock.price, 
-                                        position_type=PositionType.LONG, position_value=stock_value)
-            self.account.positions.append(position)
-            self.account.stock_trade_history[position.id] = position
+        position_value = stock.price * stock.volume * 1000
+        open_cost, _ = StockTool.get_friction_cost(buy_price=stock.price, volume=stock.volume)
+        
+        if stock.position_type == PositionType.LONG:
+            if self.account.balance >= (position_value + open_cost):
+                self.account.balance -= (position_value + open_cost)
+                position = StockTradeEntry(id=stock.id, code=stock.code, date=stock.date,
+                                            volume=stock.volume, buy_price=stock.price, 
+                                            position_type=stock.position_type, position_value=position_value)
+                self.account.positions.append(position)
+                self.account.stock_trade_history[position.id] = position
+
         return position
 
 
-    def sell(self, stock: StockOrder) -> StockTradeEntry:
+    def close_position(self, stock: StockOrder) -> StockTradeEntry:
         """ 
         - Description: 賣出股票
         - Parameters:
@@ -94,24 +97,25 @@ class Backtester:
         - Return:
             - position: StockTradeEntry
         """
+
+        position_value = stock.price * stock.volume * 1000
+        _, close_cost = StockTool.get_friction_cost(sell_price=stock.price, volume=stock.volume)
         
-        position: StockTradeEntry = None
-
-        stock_value = stock.price * stock.volume * 1000
-        _, sell_cost = StockTool.get_friction_cost(sell_price=stock.price, volume=stock.volume)
-        # 每一筆買入都記錄一個 id，因此這邊只會刪除對應到買入的 id
-        self.account.positions = [entry for entry in self.account.positions if entry.id != stock.id]
-        position = self.account.stock_trade_history.get(stock.id)
+        position: StockTradeEntry = self.account.stock_trade_history.get(stock.id)
         if position:
-            position.date = stock.date
-            position.sell_price = stock.price
-            position.profit = StockTool.get_net_profit(position.buy_price, position.sell_price, position.volume)
-            position.ROI = StockTool.get_roi(position.buy_price, position.sell_price, position.volume)
-            self.account.balance += (stock_value - sell_cost)
-            self.account.stock_trade_history[stock.id] = position
+            if position.position_type == PositionType.LONG:
+                position.date = stock.date
+                position.sell_price = stock.price
+                position.profit = StockTool.get_net_profit(position.buy_price, position.sell_price, position.volume)
+                position.ROI = StockTool.get_roi(position.buy_price, position.sell_price, position.volume)
+                self.account.balance += (position_value - close_cost)
+                self.account.stock_trade_history[stock.id] = position
+                
+                # 每一筆買入都記錄一個 id，因此這邊只會刪除對應到買入的 id
+                self.account.positions = [entry for entry in self.account.positions if entry.id != stock.id]
 
-            return position
-    
+        return position
+
     
     # TODO: Method => run tick backtest
     def run_tick_backtest(self):
@@ -120,8 +124,6 @@ class Backtester:
         ticks = self.tick.get_ordered_ticks(self.cur_date, self.cur_date)
         
         for tick in ticks.itertuples(index=False):
-            # TODO: volume 是自己要買的量
-            
             self.entry_id += 1
             tick_quote = TickQuote(code=tick.stock_id, time=tick.time, 
                                     close=tick.close, volume=1,
@@ -129,11 +131,16 @@ class Backtester:
                                     ask_price=tick.ask_price, ask_volume=tick.ask_volume,
                                     tick_type=tick.tick_type)
             
-            
             stock_quote = StockQuote(id=self.entry_id, code=tick.stock_id, scale=self.scale, 
                                      date=self.cur_date, tick=tick_quote)
             
-            # TODO: FULL-TICK Backtest(maybe another function)
+            # Execute strategy of opening position
+            stock_order: StockOrder = self.strategy.open_position(stock_quote)
+            
+            if stock_order:
+                self.open_position(stock_order)
+            
+            
     
     
     def run_day_backtest(self):

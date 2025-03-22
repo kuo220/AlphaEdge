@@ -1,6 +1,6 @@
 import pandas as pd
 import datetime
-from typing import List, Dict, Tuple, Any, Union
+from typing import List, Dict
 from utils.constant import Commission, Scale, PositionType
 
 
@@ -60,30 +60,30 @@ class StockQuote:
 class StockOrder:
     """ 個股買賣的訂單 """
     
-    def __init__(self, id: int=0, code: str="", date: Union[pd.Timestamp, datetime.datetime]=None,
-                 price: float=0.0, volume: float=0.0):
-        self.id: int = id                                               # 每一筆買入就是一個id
-        self.code: str = code                                           # 股票代號
-        self.date: Union[pd.Timestamp, datetime.datetime] = date        # 交易日期
-        self.price: float = price                                       # 交易價位
-        self.volume: float = volume                                     # 交易數量
-    
+    def __init__(self, id: int=0, code: str="", date: datetime.datetime=None,
+                 price: float=0.0, volume: float=0.0, position_type: PositionType=None):
+        self.id: int = id                                   # 每一筆買入就是一個id
+        self.code: str = code                               # 股票代號
+        self.date: datetime.datetime = date                 # 交易日期（Tick會是Timestamp）
+        self.price: float = price                           # 交易價位
+        self.volume: float = volume                         # 交易數量
+        self.position_type: PositionType = position_type    # 持倉方向（Long or Short）
     
 
 class StockTradeEntry:
     """ 單筆股票交易紀錄 """
     
-    def __init__(self, id: int=0, code: str="", date: Union[pd.Timestamp, datetime.datetime]=None,
+    def __init__(self, id: int=0, code: str="", date: datetime.datetime=None,
                  volume: float=0.0, buy_price: float=0.0, sell_price: float=0.0, 
                  position_type: PositionType=None, position_value: float=0.0, 
                  profit: float=0.0, roi: float=0.0):
-        self.id: int = id                                               # 每一筆買入就是一個id
-        self.code: str = code                                           # 股票代號
-        self.date: Union[pd.Timestamp, datetime.datetime] = date        # 交易日期
-        self.volume: float = volume                                     # 交易股數
-        self.buy_price: float = buy_price                               # 買入價位
-        self.sell_price: float = sell_price                             # 賣出價位
-        self.position_type: PositionType = position_type                # 持倉方向（Long or Short）
-        self.position_value: float = position_value                     # 股票市值（目前是買入才有）
-        self.profit: float = profit                                     # 淨獲利
-        self.ROI: float = roi                                           # 報酬率
+        self.id: int = id                                    # 每一筆買入就是一個id
+        self.code: str = code                                # 股票代號
+        self.date: datetime.datetime = date                  # 交易日期（Tick會是Timestamp）
+        self.volume: float = volume                          # 交易股數
+        self.buy_price: float = buy_price                    # 買入價位
+        self.sell_price: float = sell_price                  # 賣出價位
+        self.position_type: PositionType = position_type     # 持倉方向（Long or Short）
+        self.position_value: float = position_value          # 股票市值（目前是買入才有）
+        self.profit: float = profit                          # 淨獲利
+        self.ROI: float = roi                                # 報酬率

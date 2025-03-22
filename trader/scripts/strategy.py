@@ -7,7 +7,7 @@ import pandas as pd
 import datetime
 from typing import List, Dict, Tuple, Any
 sys.path.append(str(Path(__file__).resolve().parents[1]))
-from utils import(Account, StockQuote, StockTradeEntry, BaseStrategy)
+from utils import(Account, StockQuote, StockOrder, StockTradeEntry, BaseStrategy)
 
 class Strategy(BaseStrategy):
     """ Strategy """
@@ -27,13 +27,13 @@ class Strategy(BaseStrategy):
         self.end_time = datetime.date(2024, 5, 10)
     
     
-    def open_position(self, stock: StockQuote) -> StockQuote:
+    def open_position(self, stock: StockQuote) -> StockOrder:
         """ 開倉策略（Long & Short） """
         
         super().open_position(stock)
         
 
-    def close_position(self, stock: StockQuote) -> StockQuote:
+    def close_position(self, stock: StockQuote) -> StockOrder:
         """ 平倉策略（Long & Short） """
         
         super().close_position(stock)
