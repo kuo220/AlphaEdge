@@ -43,7 +43,7 @@ class ShioajiAccount:
     def get_invest_capital(api: sj.Shioaji, capital: float) -> float:
         """ 計算預計投入的資金 """
         
-        total_capital = Account.get_settlement_capital(api) # 帳戶可用的總資金
+        total_capital = ShioajiAccount.get_settlement_capital(api) # 帳戶可用的總資金
         settlements = pd.DataFrame([s.__dict__ for s in api.settlements(api.stock_account)]) 
         capital_quota = capital + settlements.loc[2, 'amount'] # 目前剩餘的投資額度
         invest_capital = total_capital if total_capital <= capital_quota else capital_quota
