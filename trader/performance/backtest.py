@@ -9,7 +9,7 @@ from typing import List, Dict, Tuple, Any
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from utils import (Data, StockTool, Commission, Market, Scale, 
                    PositionType, Account, TickQuote, StockQuote, 
-                   StockTradeEntry)
+                   StockOrder, StockTradeEntry)
 from scripts import Strategy
 
 
@@ -61,89 +61,56 @@ class Backtester:
             self.QXData = self.data.QXData 
     
     
-    def buy(self, stock: StockQuote, buy_price: float, buy_volume: int) -> StockTradeEntry:
+    def buy(self, stock: StockOrder) -> StockTradeEntry:
         """ 
         - Description: 買入股票
         - Parameters:
-            - stock: StockQuote
-                目標股票的報價資訊
-            - buy_price: float
-                買入價位
-            - buy_volume: float
-                買入股數
+            - stock: StockOrder
+                目標股票的訂單資訊
         - Return:
             - position: StockTradeEntry
         """
         
         position: StockTradeEntry = None
         
-        stock_value = buy_price * buy_volume * 1000
-        buy_cost, _ = StockTool.get_friction_cost(buy_price=buy_price, volume=buy_volume)
+        stock_value = stock.price * stock.volume * 1000
+        buy_cost, _ = StockTool.get_friction_cost(buy_price=stock.price, volume=stock.volume)
         if self.account.balance >= buy_cost:
             self.account.balance -= (stock_value + buy_cost)
             position = StockTradeEntry(id=stock.id, code=stock.code, date=stock.date,
-                                        volume=buy_volume, buy_price=buy_price, 
+                                        volume=stock.volume, buy_price=stock.price, 
                                         position_type=PositionType.LONG, position_value=stock_value)
             self.account.positions.append(position)
             self.account.stock_trade_history[position.id] = position
         return position
 
 
-    def sell(self, stock: StockQuote, sell_price: float, sell_volume: int) -> StockTradeEntry:
+    def sell(self, stock: StockOrder) -> StockTradeEntry:
         """ 
         - Description: 賣出股票
         - Parameters:
-            - stock: StockQuote
-                目標股票的報價資訊
-            - sell_price: float
-                賣出價位
-            - sell_volume: float
-                賣出股數
+            - stock: StockOrder
+                目標股票的訂單資訊
         - Return:
             - position: StockTradeEntry
         """
         
         position: StockTradeEntry = None
 
-        stock_value = sell_price * sell_volume * 1000
-        _, sell_cost = StockTool.get_friction_cost(sell_price=sell_price, volume=sell_volume)
+        stock_value = stock.price * stock.volume * 1000
+        _, sell_cost = StockTool.get_friction_cost(sell_price=stock.price, volume=stock.volume)
         # 每一筆買入都記錄一個 id，因此這邊只會刪除對應到買入的 id
         self.account.positions = [entry for entry in self.account.positions if entry.id != stock.id]
         position = self.account.stock_trade_history.get(stock.id)
         if position:
             position.date = stock.date
-            position.sell_price = sell_price
+            position.sell_price = stock.price
             position.profit = StockTool.get_net_profit(position.buy_price, position.sell_price, position.volume)
             position.ROI = StockTool.get_roi(position.buy_price, position.sell_price, position.volume)
             self.account.balance += (stock_value - sell_cost)
             self.account.stock_trade_history[stock.id] = position
 
             return position
-            
-    
-    def get_buy_volume(self, stock: StockQuote) -> int:
-        """ 
-        - Description: 取得買入股票數量
-        - Parameters:
-            - stock: StockQuote
-                目標股票的報價資訊
-        - Return:
-            - volume: int
-        """
-        pass
-    
-    
-    def get_sell_volume(self, stock: StockQuote):
-        """ 
-        - Description: 取得賣出股票數量
-        - Parameters:
-            - stock: StockQuote
-                目標股票的報價資訊
-        - Return:
-            - volume: int
-        """
-        pass
-    
     
     
     # TODO: Method => run tick backtest

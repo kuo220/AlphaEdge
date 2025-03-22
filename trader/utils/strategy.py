@@ -8,7 +8,7 @@ import datetime
 from abc import ABC, abstractmethod
 from typing import List, Dict, Tuple, Any
 from utils.data import Data
-from utils.record import Account, StockQuote, StockTradeEntry
+from utils.record import Account, StockQuote, StockOrder, StockTradeEntry
 from utils.constant import Market, Scale, PositionType
 
 class BaseStrategy(ABC):
@@ -36,14 +36,14 @@ class BaseStrategy(ABC):
 
     
     @abstractmethod
-    def open_position(self, stock: StockQuote):
+    def open_position(self, stock: StockQuote) -> StockOrder:
         """ 開倉策略（Long & Short） """
         
         print(f"* Open Position: {stock.code}")
 
 
     @abstractmethod
-    def close_position(self, stock: StockQuote):
+    def close_position(self, stock: StockQuote) -> StockOrder:
         """ 平倉策略（Long & Short） """
         
         print(f"* Close Position: {stock.code}")
