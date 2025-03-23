@@ -92,7 +92,7 @@ class Scale(str, Enum):
     """ Kbar 級別 """
     TICK = "TICK"
     DAY = "DAY"
-    ALL = "ALL"
+    MIX = "MIX"
     
 
 class PositionType(str, Enum):

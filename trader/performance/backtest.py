@@ -56,7 +56,7 @@ class Backtester:
             self.tick = self.data.Tick
         elif self.scale == Scale.DAY:
             self.QXData = self.data.QXData
-        elif self.scale == Scale.ALL:
+        elif self.scale == Scale.MIX:
             self.tick = self.data.Tick
             self.QXData = self.data.QXData 
     
@@ -148,7 +148,7 @@ class Backtester:
         pass
     
     
-    def run_all_backtest(self):
+    def run_mix_backtest(self):
         pass
     
         
@@ -170,7 +170,7 @@ class Backtester:
             elif self.scale == Scale.DAY:
                 self.run_day_backtest
             
-            elif self.scale == Scale.ALL:
-                self.run_all_backtest()
+            elif self.scale == Scale.MIX:
+                self.run_mix_backtest()
             
             self.cur_date += datetime.timedelta(days=1) 
