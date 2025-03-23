@@ -27,13 +27,13 @@ class Strategy(BaseStrategy):
         self.end_time = datetime.date(2024, 5, 10)
     
     
-    def open_position(self, stock: StockQuote) -> StockOrder:
+    def check_open_position(self, stock: StockQuote) -> StockOrder:
         """ 開倉策略（Long & Short） """
         
         super().open_position(stock)
         
 
-    def close_position(self, stock: StockQuote) -> StockOrder:
+    def check_close_position(self, stock: StockQuote) -> StockOrder:
         """ 平倉策略（Long & Short） """
         
         super().close_position(stock)

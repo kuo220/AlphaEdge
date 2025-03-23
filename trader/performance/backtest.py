@@ -32,10 +32,10 @@ class Backtester:
         self.account: Account = Account(self.strategy.capital)                  # 虛擬帳戶資訊
         
         """ === Datasets === """
-        self.data: Data = Data()
-        self.QXData: Data = None
-        self.tick: Data = None
-        self.chip: Data = None
+        self.data: Data = Data()                                                
+        self.QXData: Data = None                                                # Day price data, Financial data, etc
+        self.tick: Data = None                                                  # Ticks data
+        self.chip: Data = None                                                  # Chips data
         
         """ === Backtest Parameters === """
         self.scale: str = self.strategy.scale                                   # 回測 KBar 級別
@@ -49,7 +49,7 @@ class Backtester:
         
     
     def load_datasets(self):
-        """ 從資料庫取得資料 """
+        """ 從資料庫載入資料 """
         
         self.chip = self.data.Chip
         if self.scale == Scale.TICK:
@@ -61,7 +61,7 @@ class Backtester:
             self.QXData = self.data.QXData 
     
     
-    def open_position(self, stock: StockOrder) -> StockTradeEntry:
+    def place_open_position(self, stock: StockOrder) -> StockTradeEntry:
         """ 
         - Description: 買入股票
         - Parameters:
@@ -88,7 +88,7 @@ class Backtester:
         return position
 
 
-    def close_position(self, stock: StockOrder) -> StockTradeEntry:
+    def place_close_position(self, stock: StockOrder) -> StockTradeEntry:
         """ 
         - Description: 賣出股票
         - Parameters:
@@ -136,10 +136,10 @@ class Backtester:
                                      date=self.cur_date, tick=tick_quote)
             
             # Execute strategy of opening position
-            stock_order: StockOrder = self.strategy.open_position(stock_quote)
+            stock_order: StockOrder = self.strategy.check_open_position(stock_quote)
             
             if stock_order:
-                self.open_position(stock_order)
+                self.place_open_position(stock_order)
             
             
     

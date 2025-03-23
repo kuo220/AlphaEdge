@@ -23,6 +23,12 @@ class BaseStrategy(ABC):
         self.capital: float = 0                         # Initial capital
         self.max_positions: int = 0                     # max limit numbers of positions
         
+        """ === Datasets === """
+        self.data: Data = Data()                        
+        self.QXData: Data = None                        # Day price data, Financial data, etc
+        self.tick: Data = None                          # Ticks data
+        self.chip: Data = None                          # Chips data
+        
         """ === Backtest Setting === """
         self.is_backtest: bool = True                   # Whether it's used for backtest or not
         self.scale: str = Scale.DAY                     # Backtest scale: Day/Tick/ALL
@@ -35,8 +41,16 @@ class BaseStrategy(ABC):
         self.end_date: datetime.date = None             # Optional: if is_backtest == True, then set end date in backtest
 
     
+    def load_datasets(self):
+        """ 從資料庫載入資料 """
+        
+        self.QXData = self.data.QXData
+        self.tick = self.data.Tick
+        self.chip = self.data.Chip
+    
+    
     @abstractmethod
-    def open_position(self, stock: StockQuote) -> StockOrder:
+    def check_open_signal(self, stock: StockQuote) -> StockOrder:
         """ 
         - Description: 開倉策略（Long & Short） ，需要包含買賣的標的、價位和數量
         - Parameter:
@@ -51,7 +65,7 @@ class BaseStrategy(ABC):
 
 
     @abstractmethod
-    def close_position(self, stock: StockQuote) -> StockOrder:
+    def check_close_signal(self, stock: StockQuote) -> StockOrder:
         """ 
         - Description: 平倉策略（Long & Short） ，需要包含買賣的標的、價位和數量
         - Parameter:
