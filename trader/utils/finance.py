@@ -2,6 +2,7 @@ import numpy as np
 import datetime
 import shioaji as sj
 from typing import Tuple
+from utils.data import Data
 from utils.time import TimeTool
 from utils.constant import Commission
 
@@ -104,3 +105,20 @@ class StockTool:
         
         roi = (StockTool.get_net_profit(buy_price, sell_price, volume) / investment_cost) * 100
         return round(roi, 2)
+    
+    
+    @staticmethod
+    def check_market_open(data: Data, date: datetime.date) -> bool:
+        """ 
+        - Description: 判斷是否指定日期是否開盤
+        - Parameters:
+            - data: QuantX Data
+            - date: 欲確認是否開盤之日期
+        -Return:
+            - bool
+        """
+        
+        data.date = date
+        close_price = data.get('price', '收盤價', 1)
+        
+        return True if close_price.index.date == date else False

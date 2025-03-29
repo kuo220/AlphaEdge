@@ -124,7 +124,6 @@ class Backtester:
         ticks = self.tick.get_ordered_ticks(self.cur_date, self.cur_date)
         
         for tick in ticks.itertuples(index=False):
-            # TODO: 回測要考慮沒開盤的情況
             self.entry_id += 1
             tick_quote = TickQuote(code=tick.stock_id, time=tick.time, 
                                     close=tick.close, volume=1,
@@ -163,6 +162,10 @@ class Backtester:
         
         while self.cur_date <= self.end_date:
             print(f"--- {self.cur_date.strftime('%Y/%m/%d')} ---")
+            
+            if not StockTool.check_market_open(self.QXData, self.cur_date):
+                print("* Stock Market Close\n")
+                continue
             
             if self.scale == Scale.TICK:
                 self.run_tick_backtest()
