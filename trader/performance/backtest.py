@@ -63,7 +63,7 @@ class Backtester:
     
     def place_open_position(self, stock: StockOrder) -> StockTradeEntry:
         """ 
-        - Description: 買入股票
+        - Description: 開倉下單股票
         - Parameters:
             - stock: StockOrder
                 目標股票的訂單資訊
@@ -90,7 +90,7 @@ class Backtester:
 
     def place_close_position(self, stock: StockOrder) -> StockTradeEntry:
         """ 
-        - Description: 賣出股票
+        - Description: 下單平倉股票
         - Parameters:
             - stock: StockOrder
                 目標股票的訂單資訊
