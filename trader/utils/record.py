@@ -16,6 +16,8 @@ class Account:
         self.balance: float = balance
         self.positions: List[StockTradeEntry] = []
         self.stock_trade_history: Dict[int, StockTradeEntry] = {}
+        
+    # TODO: implement update account balance, market value, etc
 
 
 class TickQuote:
