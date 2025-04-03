@@ -1,1 +1,3 @@
-from .stock.strategy import Strategy
+"""
+策略模組主入口，包含股票、期貨等子策略模組
+"""
