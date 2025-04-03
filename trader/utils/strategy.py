@@ -8,11 +8,11 @@ import datetime
 from abc import ABC, abstractmethod
 from typing import List, Dict, Tuple, Any
 from utils.data import Data
-from utils.record import Account, StockQuote, StockOrder, StockTradeEntry
+from utils.stock_objects import StockAccount, StockQuote, StockOrder, StockTradeEntry
 from utils.constant import Market, Scale, PositionType
 
-class BaseStrategy(ABC):
-    """ Strategy Framework (Base Template) """
+class BaseStockStrategy(ABC):
+    """ Stock Strategy Framework (Base Template) """
     
     def __init__(self):
         """ === Strategy Setting === """

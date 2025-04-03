@@ -9,24 +9,25 @@ from utils.constant import Commission, Scale, PositionType
 """
 
 
-class Account:
+class StockAccount:
     """ 庫存及餘額資訊 """
     
-    def __init__(self, balance: float=0.0):
-        self.balance: float = balance
-        self.stock_market_value = 0
-        self.positions: List[StockTradeEntry] = []
-        self.stock_trade_history: Dict[int, StockTradeEntry] = {}
+    def __init__(self, init_capital: float=0.0, balance: float=0.0):
+        # TODO: 添加整體成本、整體損益、整體ROI
+        self.init_capital: float = init_capital                         # 初始本金
+        self.balance: float = balance                                   # 餘額
+        self.market_value = 0                                           # 庫存股票市值
+        self.positions: List[StockTradeEntry] = []                      # 持有股票庫存
+        self.trade_history: Dict[int, StockTradeEntry] = {}             # 股票歷史交易紀錄
         
     
     def update_market_value(self):
         """ 更新庫存市值（目前只有股票） """
         
-        market_value = 0
+        self.market_value = 0
         for position in self.positions:
             if position.position_type == PositionType.LONG:
-                market_value += position.position_value
-        self.stock_market_value = market_value
+                self.market_value += position.position_value
 
 
 class TickQuote:

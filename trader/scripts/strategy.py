@@ -7,9 +7,9 @@ import pandas as pd
 import datetime
 from typing import List, Dict, Tuple, Any
 sys.path.append(str(Path(__file__).resolve().parents[1]))
-from utils import(Account, StockQuote, StockOrder, StockTradeEntry, BaseStrategy)
+from utils import(StockAccount, StockQuote, StockOrder, StockTradeEntry, BaseStockStrategy)
 
-class Strategy(BaseStrategy):
+class Strategy(BaseStockStrategy):
     """ Strategy """
     
     def __init__(self):

@@ -8,7 +8,7 @@ import datetime
 from typing import List, Dict, Tuple, Any
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from utils import (Data, StockTool, Commission, Market, Scale, 
-                   PositionType, Account, TickQuote, StockQuote, 
+                   PositionType, StockAccount, TickQuote, StockQuote, 
                    StockOrder, StockTradeEntry)
 from scripts import Strategy
 
@@ -29,7 +29,7 @@ class Backtester:
     def __init__(self):
         """ === Strategy & Account information === """
         self.strategy: Strategy = Strategy()                                    # 欲回測的策略
-        self.account: Account = Account(self.strategy.capital)                  # 虛擬帳戶資訊
+        self.account: StockAccount = StockAccount(self.strategy.capital)        # 虛擬帳戶資訊
         
         """ === Datasets === """
         self.data: Data = Data()                                                
@@ -83,7 +83,7 @@ class Backtester:
                                             volume=stock.volume, buy_price=stock.price, 
                                             position_type=stock.position_type, position_value=position_value)
                 self.account.positions.append(position)
-                self.account.stock_trade_history[position.id] = position
+                self.account.trade_history[position.id] = position
 
         return position
 
@@ -101,7 +101,7 @@ class Backtester:
         position_value = stock.price * stock.volume * 1000
         _, close_cost = StockTool.get_friction_cost(sell_price=stock.price, volume=stock.volume)
         
-        position: StockTradeEntry = self.account.stock_trade_history.get(stock.id)
+        position: StockTradeEntry = self.account.trade_history.get(stock.id)
         if position:
             if position.position_type == PositionType.LONG:
                 position.date = stock.date
@@ -109,7 +109,7 @@ class Backtester:
                 position.profit = StockTool.get_net_profit(position.buy_price, position.sell_price, position.volume)
                 position.ROI = StockTool.get_roi(position.buy_price, position.sell_price, position.volume)
                 self.account.balance += (position_value - close_cost)
-                self.account.stock_trade_history[stock.id] = position
+                self.account.trade_history[stock.id] = position
                 
                 # 每一筆買入都記錄一個 id，因此這邊只會刪除對應到買入的 id
                 self.account.positions = [entry for entry in self.account.positions if entry.id != stock.id]
