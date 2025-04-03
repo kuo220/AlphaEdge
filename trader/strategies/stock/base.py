@@ -8,7 +8,7 @@ import datetime
 from abc import ABC, abstractmethod
 from typing import List, Dict, Tuple, Any
 from utils.data import Data
-from utils.stock_objects import StockAccount, StockQuote, StockOrder, StockTradeEntry
+from models import StockAccount, StockQuote, StockOrder, StockTradeEntry
 from utils.constant import Market, Scale, PositionType
 
 class BaseStockStrategy(ABC):

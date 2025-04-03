@@ -8,9 +8,9 @@ import datetime
 from typing import List, Dict, Tuple, Any
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from utils import (Data, StockTool, Commission, Market, Scale, 
-                   PositionType, StockAccount, TickQuote, StockQuote, 
-                   StockOrder, StockTradeEntry)
-from scripts import Strategy
+                   PositionType)
+from models import (StockAccount, TickQuote, StockQuote, StockOrder, StockTradeEntry)
+from strategies.stock import Strategy
 
 
 """ 

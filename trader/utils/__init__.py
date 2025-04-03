@@ -9,5 +9,3 @@ from .constant import (Action, OrderType, StockPriceType, QuoteType,
                        Market, Scale, PositionType)
 from .data import Data
 from .crawler import Crawler
-from .stock_objects import StockAccount, TickQuote, StockQuote, StockOrder, StockTradeEntry
-from .strategy import BaseStockStrategy
