@@ -14,10 +14,19 @@ class Account:
     
     def __init__(self, balance: float=0.0):
         self.balance: float = balance
+        self.stock_market_value = 0
         self.positions: List[StockTradeEntry] = []
         self.stock_trade_history: Dict[int, StockTradeEntry] = {}
         
-    # TODO: implement update account balance, market value, etc
+    
+    def update_market_value(self):
+        """ 更新庫存市值（目前只有股票） """
+        
+        market_value = 0
+        for position in self.positions:
+            if position.position_type == PositionType.LONG:
+                market_value += position.position_value
+        self.stock_market_value = market_value
 
 
 class TickQuote:
