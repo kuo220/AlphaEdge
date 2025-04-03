@@ -77,3 +77,17 @@ class BaseStockStrategy(ABC):
         """
         
         print(f"* Close Position: {stock.code}")
+        
+        
+    @abstractmethod
+    def check_stop_loss_signal(self, stock: StockQuote) -> StockOrder:
+        """ 
+        - Description: 設定停損機制
+        - Parameter:
+            - stock: StockQuote
+                目標股票的報價資訊
+        - Return:
+            - position: StockOrder
+                停損（平倉）訂單
+        """
+        pass
