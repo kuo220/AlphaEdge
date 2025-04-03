@@ -1,1 +1,1 @@
-from .stock import StockAccount, TickQuote, StockQuote, StockOrder, StockTradeEntry
+from .stocks import StockAccount, TickQuote, StockQuote, StockOrder, StockTradeEntry

@@ -10,7 +10,7 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 from utils import (Data, StockTool, Commission, Market, Scale, 
                    PositionType)
 from models import (StockAccount, TickQuote, StockQuote, StockOrder, StockTradeEntry)
-from strategies.stock import Strategy
+from strategies.stocks import Strategy
 
 
 """ 
@@ -134,6 +134,7 @@ class Backtester:
             stock_quote = StockQuote(id=self.entry_id, code=tick.stock_id, scale=self.scale, 
                                      date=self.cur_date, tick=tick_quote)
             
+            #TODO: 判斷庫存是否有股票要停損 or 停利
             # Execute strategy of opening position
             stock_order: StockOrder = self.strategy.check_open_position(stock_quote)
             
