@@ -17,10 +17,17 @@ class StockAccount:
         
         self.init_capital: float = init_capital                         # 初始本金
         self.balance: float = init_capital                              # 餘額
-        self.market_value = 0                                           # 庫存股票市值
-        self.positions: List[StockTradeEntry] = []                      # 持有股票庫存
-        self.trade_records: Dict[int, StockTradeEntry] = {}             # 股票歷史交易紀錄
-        
+        self.market_value: float = 0.0                                  # 庫存股票市值
+        self.total_equity: float = 0.0                                  # 總資產 = 餘額 + 庫存市值
+        self.unrealized_profit: float = 0.0                             # 未實現損益
+        self.positions: List[StockTradeRecord] = []                      # 持有股票庫存
+        self.trade_records: Dict[int, StockTradeRecord] = {}             # 股票歷史交易紀錄
+
+         
+    def get_position_count(self):
+        """ 取得庫存股票檔數 """    
+        return len(self.positions)
+    
     
     def update_market_value(self):
         """ 更新庫存市值（目前只有股票） """
@@ -29,6 +36,14 @@ class StockAccount:
         for position in self.positions:
             if position.position_type == PositionType.LONG:
                 self.market_value += position.position_value
+                
+    
+    def update_total_equity(self):
+        """ 更新總資產 """
+        
+        self.update_market_value()
+        self.total_equity = self.balance + self.market_value
+        
 
 
 class TickQuote:
@@ -83,7 +98,7 @@ class StockOrder:
         self.position_type: PositionType = position_type    # 持倉方向（Long or Short）
     
 
-class StockTradeEntry:
+class StockTradeRecord:
     """ 單筆股票交易紀錄 """
     
     def __init__(self, id: int=0, code: str="", date: datetime.datetime=None,
@@ -97,6 +112,6 @@ class StockTradeEntry:
         self.buy_price: float = buy_price                    # 買入價位
         self.sell_price: float = sell_price                  # 賣出價位
         self.position_type: PositionType = position_type     # 持倉方向（Long or Short）
-        self.position_value: float = position_value          # 股票市值（目前是買入才有）
+        self.position_value: float = position_value          # 股票市值（目前是買入才有）（未扣除手續費及交易稅等摩擦成本）
         self.profit: float = profit                          # 淨獲利
         self.ROI: float = roi                                # 報酬率

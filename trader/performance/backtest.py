@@ -9,7 +9,7 @@ from typing import List, Dict, Tuple, Any
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from utils import (Data, StockTool, Commission, Market, Scale, 
                    PositionType, Units)
-from models import (StockAccount, TickQuote, StockQuote, StockOrder, StockTradeEntry)
+from models import (StockAccount, TickQuote, StockQuote, StockOrder, StockTradeRecord)
 from strategies.stocks import Strategy
 
 
@@ -61,17 +61,17 @@ class Backtester:
             self.QXData = self.data.QXData 
     
     
-    def place_open_position(self, stock: StockOrder) -> StockTradeEntry:
+    def place_open_position(self, stock: StockOrder) -> StockTradeRecord:
         """ 
         - Description: 開倉下單股票
         - Parameters:
             - stock: StockOrder
                 目標股票的訂單資訊
         - Return:
-            - position: StockTradeEntry
+            - position: StockTradeRecord
         """
         
-        position: StockTradeEntry = None
+        position: StockTradeRecord = None
         
         position_value = stock.price * stock.volume * Units.LOT
         open_cost, _ = StockTool.get_friction_cost(buy_price=stock.price, volume=stock.volume)
@@ -79,7 +79,7 @@ class Backtester:
         if stock.position_type == PositionType.LONG:
             if self.account.balance >= (position_value + open_cost):
                 self.account.balance -= (position_value + open_cost)
-                position = StockTradeEntry(id=stock.id, code=stock.code, date=stock.date,
+                position = StockTradeRecord(id=stock.id, code=stock.code, date=stock.date,
                                             volume=stock.volume, buy_price=stock.price, 
                                             position_type=stock.position_type, position_value=position_value)
                 self.account.positions.append(position)
@@ -88,20 +88,20 @@ class Backtester:
         return position
 
 
-    def place_close_position(self, stock: StockOrder) -> StockTradeEntry:
+    def place_close_position(self, stock: StockOrder) -> StockTradeRecord:
         """ 
         - Description: 下單平倉股票
         - Parameters:
             - stock: StockOrder
                 目標股票的訂單資訊
         - Return:
-            - position: StockTradeEntry
+            - position: StockTradeRecord
         """
 
         position_value = stock.price * stock.volume * Units.LOT
         _, close_cost = StockTool.get_friction_cost(sell_price=stock.price, volume=stock.volume)
         
-        position: StockTradeEntry = self.account.trade_records.get(stock.id)
+        position: StockTradeRecord = self.account.trade_records.get(stock.id)
         if position:
             if position.position_type == PositionType.LONG:
                 position.date = stock.date

@@ -10,7 +10,7 @@ from typing import List, Dict, Tuple, Any
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 from utils import (Data, Market, Scale, PositionType,
                    Market, Scale, PositionType)
-from models import StockAccount, StockQuote, StockOrder, StockTradeEntry
+from models import StockAccount, StockQuote, StockOrder, StockTradeRecord
 
 class BaseStockStrategy(ABC):
     """ Stock Strategy Framework (Base Template) """
