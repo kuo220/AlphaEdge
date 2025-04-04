@@ -65,7 +65,7 @@ class StockOrder:
     """ 個股買賣的訂單 """
     
     def __init__(self, code: str="", date: datetime.datetime=None,
-                 price: float=0.0, volume: float=0.0, position_type: PositionType=None):
+                 price: float=0.0, volume: float=0.0, position_type: PositionType=PositionType.LONG):
         # Basic Info
         self.code: str = code                               # 股票代號
         self.date: datetime.datetime = date                 # 交易日期（Tick會是Timestamp）
@@ -80,7 +80,7 @@ class StockTradeRecord:
     """ 單筆股票交易紀錄 """
     
     def __init__(self, id: int=0, code: str="", date: datetime.datetime=None, 
-                 is_closed: bool=False, position_type: PositionType=None, 
+                 is_closed: bool=False, position_type: PositionType=PositionType.LONG, 
                  buy_price: float=0.0, sell_price: float=0.0, volume: float=0.0, 
                  commission: float=0.0, tax: float=0.0, transaction_cost: float=0.0, 
                  position_value: float=0.0, realized_pnl: float=0.0, roi: float=0.0):
