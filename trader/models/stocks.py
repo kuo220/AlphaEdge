@@ -13,13 +13,15 @@ class StockAccount:
     """ 庫存及餘額資訊 """
     
     def __init__(self, init_capital: float=0.0):
-        # TODO: add total_cost, realized_profit, unrealized_profit, total_equity, cumulative_roi, total_commission 
+        # TODO: add total_cost, realized_pnl, unrealized_pnl, total_equity, cumulative_roi, total_commission 
         
-        self.init_capital: float = init_capital                         # 初始本金
-        self.balance: float = init_capital                              # 餘額
-        self.market_value: float = 0.0                                  # 庫存股票市值
-        self.total_equity: float = 0.0                                  # 總資產 = 餘額 + 庫存市值
-        self.unrealized_profit: float = 0.0                             # 未實現損益
+        self.init_capital: float = init_capital                          # 初始本金
+        self.balance: float = init_capital                               # 餘額
+        self.market_value: float = 0.0                                   # 庫存股票市值
+        self.total_equity: float = 0.0                                   # 總資產 = 餘額 + 庫存市值
+        self.realized_pnl: float = 0.0                                   # 總已實現損益（profit and loss）
+        self.unrealized_pnl: float = 0.0                                 # 總未實現損益
+        self.roi: float = 0.0                                            # 帳戶總報酬率
         self.positions: List[StockTradeRecord] = []                      # 持有股票庫存
         self.trade_records: Dict[int, StockTradeRecord] = {}             # 股票歷史交易紀錄
 
@@ -101,11 +103,13 @@ class StockOrder:
 class StockTradeRecord:
     """ 單筆股票交易紀錄 """
     
-    def __init__(self, id: int=0, code: str="", date: datetime.datetime=None,
+    def __init__(self, id: int=0, is_closed: bool=False, code: str="", date: datetime.datetime=None, 
                  volume: float=0.0, buy_price: float=0.0, sell_price: float=0.0, 
-                 position_type: PositionType=None, position_value: float=0.0, 
-                 profit: float=0.0, roi: float=0.0):
+                 position_type: PositionType=None, position_value: float=0.0,
+                 commission: float=0.0, tax: float=0.0,
+                 realized_pnl: float=0.0, roi: float=0.0):
         self.id: int = id                                    # 每一筆買入就是一個id
+        self.is_closed: bool = is_closed                     # 是否已經平倉
         self.code: str = code                                # 股票代號
         self.date: datetime.datetime = date                  # 交易日期（Tick會是Timestamp）
         self.volume: float = volume                          # 交易股數
@@ -113,5 +117,8 @@ class StockTradeRecord:
         self.sell_price: float = sell_price                  # 賣出價位
         self.position_type: PositionType = position_type     # 持倉方向（Long or Short）
         self.position_value: float = position_value          # 股票市值（目前是買入才有）（未扣除手續費及交易稅等摩擦成本）
-        self.profit: float = profit                          # 淨獲利
-        self.ROI: float = roi                                # 報酬率
+        self.commission: float = commission                  # 交易手續費
+        self.tax: float = tax                                # 交易稅
+        self.friction_cost: float = 0.0
+        self.realized_pnl: float = realized_pnl              # 已實現損益
+        self.roi: float = roi                                # 報酬率

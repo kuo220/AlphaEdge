@@ -39,7 +39,7 @@ class StockTool:
     
     
     @staticmethod
-    def get_friction_cost(buy_price: float=0, sell_price: float=0, volume: float=0) -> Tuple[float, float]:
+    def get_transaction_cost(buy_price: float=0, sell_price: float=0, volume: float=0) -> Tuple[float, float]:
         """ 計算股票買賣的手續費、交易稅等摩擦成本 """
         """
         For long position, the friction costs should contains:
@@ -73,7 +73,7 @@ class StockTool:
         sell_value = sell_price * volume
         
         # 買入 & 賣出手續費
-        buy_comm, sell_comm = StockTool.get_friction_cost(buy_price, sell_price, volume)
+        buy_comm, sell_comm = StockTool.get_transaction_cost(buy_price, sell_price, volume)
         
         profit = (sell_value - buy_value) - (buy_comm + sell_comm)
         return round(profit, 2)
@@ -96,7 +96,7 @@ class StockTool:
         """
         
         buy_value = buy_price * volume
-        buy_comm, _ = StockTool.get_friction_cost(buy_price, sell_price, volume)
+        buy_comm, _ = StockTool.get_transaction_cost(buy_price, sell_price, volume)
         
         # 計算投資成本
         investment_cost = buy_value + buy_comm

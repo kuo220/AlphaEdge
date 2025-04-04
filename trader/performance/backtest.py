@@ -74,7 +74,7 @@ class Backtester:
         position: StockTradeRecord = None
         
         position_value = stock.price * stock.volume * Units.LOT
-        open_cost, _ = StockTool.get_friction_cost(buy_price=stock.price, volume=stock.volume)
+        open_cost, _ = StockTool.get_transaction_cost(buy_price=stock.price, volume=stock.volume)
         
         if stock.position_type == PositionType.LONG:
             if self.account.balance >= (position_value + open_cost):
@@ -89,7 +89,7 @@ class Backtester:
 
 
     def place_close_position(self, stock: StockOrder) -> StockTradeRecord:
-        """ 
+        """ re
         - Description: 下單平倉股票
         - Parameters:
             - stock: StockOrder
@@ -99,15 +99,16 @@ class Backtester:
         """
 
         position_value = stock.price * stock.volume * Units.LOT
-        _, close_cost = StockTool.get_friction_cost(sell_price=stock.price, volume=stock.volume)
+        _, close_cost = StockTool.get_transaction_cost(sell_price=stock.price, volume=stock.volume)
         
         position: StockTradeRecord = self.account.trade_records.get(stock.id)
-        if position:
+        if position and not position.is_closed:
             if position.position_type == PositionType.LONG:
+                position.is_closed = True
                 position.date = stock.date
                 position.sell_price = stock.price
-                position.profit = StockTool.get_net_profit(position.buy_price, position.sell_price, position.volume)
-                position.ROI = StockTool.get_roi(position.buy_price, position.sell_price, position.volume)
+                position.realized_pnl = StockTool.get_net_profit(position.buy_price, position.sell_price, position.volume)
+                position.roi = StockTool.get_roi(position.buy_price, position.sell_price, position.volume)
                 self.account.balance += (position_value - close_cost)
                 self.account.trade_records[stock.id] = position
                 
