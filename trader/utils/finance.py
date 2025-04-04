@@ -69,7 +69,7 @@ class StockTool:
             - sell tax (券賣證交稅 = 成交價 x 成交股數 x 證交稅率)
         """
 
-        # 買入 & 賣出手續費
+        # 買入 & 賣出的交易成本
         buy_transaction_cost = StockTool.calculate_transaction_commission(buy_price, volume)
         sell_transaction_cost = StockTool.calculate_transaction_commission(sell_price, volume) + StockTool.calculate_transaction_tax(sell_price, volume)
         return (buy_transaction_cost, sell_transaction_cost)

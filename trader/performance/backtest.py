@@ -104,7 +104,7 @@ class Backtester:
         close_cost = StockTool.calculate_transaction_commission(sell_price=stock.price, volume=stock.volume)
         
         # 根據 stock.code 找出庫存中最早買進的該檔股票（FIFO）
-        position: Optional[StockTradeRecord] = self.account.get_fifo_position(stock.code)
+        position: Optional[StockTradeRecord] = self.account.get_first_open_position(stock.code)
         
         if position is not None and not position.is_closed:
             if position.position_type == PositionType.LONG:

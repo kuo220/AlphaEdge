@@ -125,7 +125,6 @@ class StockAccount:
         
         # Account Performance
         self.realized_pnl: float = 0.0                                   # 總已實現損益（profit and loss）
-        self.unrealized_pnl: float = 0.0                                 # 總未實現損益
         self.roi: float = 0.0                                            # 帳戶總報酬率
         
         # Transaction Costs
@@ -140,19 +139,28 @@ class StockAccount:
         self.positions: List[StockTradeRecord] = []                      # 持有股票庫存
         self.trade_records: Dict[int, StockTradeRecord] = {}             # 股票歷史交易紀錄
 
-         
+
     def get_position_count(self) -> int:
         """ 取得庫存股票檔數 """    
         return len(self.positions)
     
     
-    def get_fifo_position(self, code: str) -> Optional[StockTradeRecord]:
-        """ 根據股票代號取得 FIFO 順序下的第一筆尚未平倉的部位 """
+    def get_first_open_position(self, code: str) -> Optional[StockTradeRecord]:
+        """ 根據股票代號取得第一筆尚未平倉的部位（FIFO）"""
         
         for position in self.positions:
             if position.code == code and not position.is_closed:
                 return position
-            return None
+        return None
+        
+
+    def get_last_open_position(self, code: str) -> Optional[StockTradeRecord]:
+        """ 根據股票代號取得最後一筆尚未平倉的部位（LIFO） """
+        
+        for position in reversed(self.positions):
+            if position.code == code and not position.is_closed:
+                return position
+        return None
     
     
     def update_market_value(self):
@@ -170,3 +178,4 @@ class StockAccount:
         self.update_market_value()
         self.total_equity = self.balance + self.market_value
     
+    #TODO: add other updating method & add update_account_status to update all metrics
