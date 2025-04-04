@@ -10,7 +10,7 @@ sys.path.append(str(Path(__file__).resolve().parents[2]))
 from models import(StockAccount, StockQuote, StockOrder, StockTradeRecord)
 from utils import (Data, Market, Scale, PositionType,
                    Market, Scale, PositionType)
-from strategies.stocks import BaseStockStrategy
+from strategies.stock import BaseStockStrategy
 
 class Strategy(BaseStockStrategy):
     """ Strategy """

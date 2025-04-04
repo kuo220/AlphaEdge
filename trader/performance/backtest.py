@@ -5,12 +5,12 @@ import requests
 import numpy as np
 import pandas as pd
 import datetime
-from typing import List, Dict, Tuple, Any
+from typing import List, Dict, Tuple, Optional, Any 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from utils import (Data, StockTool, Commission, Market, Scale, 
                    PositionType, Units)
 from models import (StockAccount, TickQuote, StockQuote, StockOrder, StockTradeRecord)
-from strategies.stocks import Strategy
+from strategies.stock import Strategy
 
 
 """ 
@@ -44,9 +44,6 @@ class Backtester:
         self.cur_date: datetime.date = self.strategy.start_date                 # 回測當前日
         self.end_date: datetime.date = self.strategy.end_date                   # 回測結束日
         
-        """ === Trading Record """
-        self.entry_id: int = 0                                                  # 單筆交易ID
-        
     
     def load_datasets(self):
         """ 從資料庫載入資料 """
@@ -61,7 +58,7 @@ class Backtester:
             self.QXData = self.data.QXData 
     
     
-    def place_open_position(self, stock: StockOrder) -> StockTradeRecord:
+    def place_open_position(self, stock: StockOrder) -> Optional[StockTradeRecord]:
         """ 
         - Description: 開倉下單股票
         - Parameters:
@@ -71,27 +68,30 @@ class Backtester:
             - position: StockTradeRecord
         """
         
-        position: StockTradeRecord = None
+        position: Optional[StockTradeRecord] = None
         
         position_value = stock.price * stock.volume * Units.LOT
         open_cost = StockTool.calculate_transaction_commission(buy_price=stock.price, volume=stock.volume)
         
         if stock.position_type == PositionType.LONG:
             if self.account.balance >= (position_value + open_cost):
+                self.account.trade_id_counter += 1
                 self.account.balance -= (position_value + open_cost)
-                position = StockTradeRecord(id=stock.id, code=stock.code, date=stock.date,
+                
+                position = StockTradeRecord(id=self.account.trade_id_counter, code=stock.code, date=stock.date,
                                             position_type=stock.position_type,
-                                            volume=stock.volume, buy_price=stock.price,
+                                            buy_price=stock.price, volume=stock.volume, 
                                             commission=open_cost, transaction_cost=open_cost,
                                             position_value=position_value)
+                
                 self.account.positions.append(position)
                 self.account.trade_records[position.id] = position
 
         return position
 
 
-    def place_close_position(self, stock: StockOrder) -> StockTradeRecord:
-        """ re
+    def place_close_position(self, stock: StockOrder) -> Optional[StockTradeRecord]:
+        """
         - Description: 下單平倉股票
         - Parameters:
             - stock: StockOrder
@@ -103,8 +103,10 @@ class Backtester:
         position_value = stock.price * stock.volume * Units.LOT
         close_cost = StockTool.calculate_transaction_commission(sell_price=stock.price, volume=stock.volume)
         
-        position: StockTradeRecord = self.account.trade_records.get(stock.id)
-        if position and not position.is_closed:
+        # 根據 stock.code 找出庫存中最早買進的該檔股票（FIFO）
+        position: Optional[StockTradeRecord] = self.account.get_fifo_position(stock.code)
+        
+        if position is not None and not position.is_closed:
             if position.position_type == PositionType.LONG:
                 position.date = stock.date
                 position.is_closed = True
@@ -115,10 +117,11 @@ class Backtester:
                 position.realized_pnl = StockTool.calculate_net_profit(position.buy_price, position.sell_price, position.volume)
                 position.roi = StockTool.calculate_roi(position.buy_price, position.sell_price, position.volume)
                 
-                self.account.balance += (position_value - close_cost)                
-                self.account.trade_records[stock.id] = position                
+                self.account.balance += (position_value - close_cost)
+                # 根據 position.id 更新 trade_records 中對應到的 position                
+                self.account.trade_records[position.id] = position                
                 # 每一筆買入都記錄一個 id，因此這邊只會刪除對應到買入的 id
-                self.account.positions = [entry for entry in self.account.positions if entry.id != stock.id]
+                self.account.positions = [p for p in self.account.positions if p.id != position.id]
 
         return position
 
@@ -130,14 +133,13 @@ class Backtester:
         ticks = self.tick.get_ordered_ticks(self.cur_date, self.cur_date)
         
         for tick in ticks.itertuples(index=False):
-            self.entry_id += 1
             tick_quote = TickQuote(code=tick.stock_id, time=tick.time, 
                                     close=tick.close, volume=1,
                                     bid_price=tick.bid_price, bid_volume=tick.bid_volume,
                                     ask_price=tick.ask_price, ask_volume=tick.ask_volume,
                                     tick_type=tick.tick_type)
             
-            stock_quote = StockQuote(id=self.entry_id, code=tick.stock_id, scale=self.scale, 
+            stock_quote = StockQuote(code=tick.stock_id, scale=self.scale, 
                                      date=self.cur_date, tick=tick_quote)
             
             #TODO: 判斷庫存是否有股票要停損 or 停利
@@ -148,8 +150,6 @@ class Backtester:
                 self.place_open_position(stock_order)
             
             
-    
-    
     def run_day_backtest(self):
         pass
     
