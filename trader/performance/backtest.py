@@ -74,14 +74,16 @@ class Backtester:
         position: StockTradeRecord = None
         
         position_value = stock.price * stock.volume * Units.LOT
-        open_cost, _ = StockTool.get_transaction_cost(buy_price=stock.price, volume=stock.volume)
+        open_cost, _ = StockTool.calc_transaction_cost(buy_price=stock.price, volume=stock.volume)
         
         if stock.position_type == PositionType.LONG:
             if self.account.balance >= (position_value + open_cost):
                 self.account.balance -= (position_value + open_cost)
                 position = StockTradeRecord(id=stock.id, code=stock.code, date=stock.date,
-                                            volume=stock.volume, buy_price=stock.price, 
-                                            position_type=stock.position_type, position_value=position_value)
+                                            position_type=stock.position_type,
+                                            volume=stock.volume, buy_price=stock.price,
+                                            commission=open_cost, transaction_cost=open_cost,
+                                            position_value=position_value)
                 self.account.positions.append(position)
                 self.account.trade_records[position.id] = position
 
@@ -99,16 +101,17 @@ class Backtester:
         """
 
         position_value = stock.price * stock.volume * Units.LOT
-        _, close_cost = StockTool.get_transaction_cost(sell_price=stock.price, volume=stock.volume)
+        _, close_cost = StockTool.calculate_transaction_cost(sell_price=stock.price, volume=stock.volume)
         
         position: StockTradeRecord = self.account.trade_records.get(stock.id)
         if position and not position.is_closed:
             if position.position_type == PositionType.LONG:
-                position.is_closed = True
                 position.date = stock.date
+                position.is_closed = True
                 position.sell_price = stock.price
-                position.realized_pnl = StockTool.get_net_profit(position.buy_price, position.sell_price, position.volume)
-                position.roi = StockTool.get_roi(position.buy_price, position.sell_price, position.volume)
+                
+                position.realized_pnl = StockTool.calculate_net_profit(position.buy_price, position.sell_price, position.volume)
+                position.roi = StockTool.calculate_roi(position.buy_price, position.sell_price, position.volume)
                 self.account.balance += (position_value - close_cost)
                 self.account.trade_records[stock.id] = position
                 
