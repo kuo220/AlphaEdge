@@ -30,15 +30,20 @@ class Strategy(BaseStockStrategy):
         self.end_time = datetime.date(2024, 5, 10)
     
     
-    def check_open_position(self, stock: StockQuote) -> Optional[StockOrder]:
+    def check_open_signal(self, stock: StockQuote) -> Optional[StockOrder]:
         """ 開倉策略（Long & Short） """
         
-        super().open_position(stock)
-        
+        print(f"* Open Position: {stock.code}")
 
-    def check_close_position(self, stock: StockQuote) -> Optional[StockOrder]:
+
+    def check_close_signal(self, stock: StockQuote) -> Optional[StockOrder]:
         """ 平倉策略（Long & Short） """
         
-        super().close_position(stock)
+        print(f"* Close Position: {stock.code}")
+    
+    
+    def check_stop_loss_signal(self, stock: StockQuote) ->Optional[StockOrder]:
+        """ 停損策略 """
+        pass
         
         

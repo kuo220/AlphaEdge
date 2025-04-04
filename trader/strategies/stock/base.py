@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import datetime
 from abc import ABC, abstractmethod
-from typing import List, Dict, Tuple, Any
+from typing import List, Dict, Tuple, Optional, Any
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 from utils import (Data, Market, Scale, PositionType,
                    Market, Scale, PositionType)
@@ -51,7 +51,7 @@ class BaseStockStrategy(ABC):
     
     
     @abstractmethod
-    def check_open_signal(self, stock: StockQuote) -> StockOrder:
+    def check_open_signal(self, stock: StockQuote) -> Optional[StockOrder]:
         """ 
         - Description: 開倉策略（Long & Short） ，需要包含買賣的標的、價位和數量
         - Parameter:
@@ -61,12 +61,11 @@ class BaseStockStrategy(ABC):
             - position: StockOrder
                 開倉訂單
         """
-        
-        print(f"* Open Position: {stock.code}")
+        pass
 
 
     @abstractmethod
-    def check_close_signal(self, stock: StockQuote) -> StockOrder:
+    def check_close_signal(self, stock: StockQuote) -> Optional[StockOrder]:
         """ 
         - Description: 平倉策略（Long & Short） ，需要包含買賣的標的、價位和數量
         - Parameter:
@@ -76,12 +75,11 @@ class BaseStockStrategy(ABC):
             - position: StockOrder
                 平倉訂單
         """
-        
-        print(f"* Close Position: {stock.code}")
+        pass
         
         
     @abstractmethod
-    def check_stop_loss_signal(self, stock: StockQuote) -> StockOrder:
+    def check_stop_loss_signal(self, stock: StockQuote) -> Optional[StockOrder]:
         """ 
         - Description: 設定停損機制
         - Parameter:
