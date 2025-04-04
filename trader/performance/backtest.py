@@ -74,7 +74,7 @@ class Backtester:
         position: StockTradeRecord = None
         
         position_value = stock.price * stock.volume * Units.LOT
-        open_cost, _ = StockTool.calc_transaction_cost(buy_price=stock.price, volume=stock.volume)
+        open_cost = StockTool.calculate_transaction_commission(buy_price=stock.price, volume=stock.volume)
         
         if stock.position_type == PositionType.LONG:
             if self.account.balance >= (position_value + open_cost):
@@ -101,7 +101,7 @@ class Backtester:
         """
 
         position_value = stock.price * stock.volume * Units.LOT
-        _, close_cost = StockTool.calculate_transaction_cost(sell_price=stock.price, volume=stock.volume)
+        close_cost = StockTool.calculate_transaction_commission(sell_price=stock.price, volume=stock.volume)
         
         position: StockTradeRecord = self.account.trade_records.get(stock.id)
         if position and not position.is_closed:
@@ -109,12 +109,14 @@ class Backtester:
                 position.date = stock.date
                 position.is_closed = True
                 position.sell_price = stock.price
-                
+                position.commission += close_cost
+                position.tax = StockTool.calculate_transaction_tax(stock.price, stock.volume)
+                position.transaction_cost = position.commission + position.tax
                 position.realized_pnl = StockTool.calculate_net_profit(position.buy_price, position.sell_price, position.volume)
                 position.roi = StockTool.calculate_roi(position.buy_price, position.sell_price, position.volume)
-                self.account.balance += (position_value - close_cost)
-                self.account.trade_records[stock.id] = position
                 
+                self.account.balance += (position_value - close_cost)                
+                self.account.trade_records[stock.id] = position                
                 # 每一筆買入都記錄一個 id，因此這邊只會刪除對應到買入的 id
                 self.account.positions = [entry for entry in self.account.positions if entry.id != stock.id]
 
