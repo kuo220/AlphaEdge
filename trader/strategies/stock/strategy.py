@@ -5,7 +5,7 @@ import requests
 import numpy as np
 import pandas as pd
 import datetime
-from typing import List, Dict, Tuple, Any
+from typing import List, Dict, Tuple, Optional, Any
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 from models import(StockAccount, StockQuote, StockOrder, StockTradeRecord)
 from utils import (Data, Market, Scale, PositionType,
@@ -30,13 +30,13 @@ class Strategy(BaseStockStrategy):
         self.end_time = datetime.date(2024, 5, 10)
     
     
-    def check_open_position(self, stock: StockQuote) -> StockOrder:
+    def check_open_position(self, stock: StockQuote) -> Optional[StockOrder]:
         """ 開倉策略（Long & Short） """
         
         super().open_position(stock)
         
 
-    def check_close_position(self, stock: StockQuote) -> StockOrder:
+    def check_close_position(self, stock: StockQuote) -> Optional[StockOrder]:
         """ 平倉策略（Long & Short） """
         
         super().close_position(stock)
