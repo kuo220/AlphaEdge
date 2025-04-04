@@ -118,10 +118,8 @@ class Backtester:
                 position.roi = StockTool.calculate_roi(position.buy_price, position.sell_price, position.volume)
                 
                 self.account.balance += (position_value - close_cost)
-                # 根據 position.id 更新 trade_records 中對應到的 position                
-                self.account.trade_records[position.id] = position                
-                # 每一筆買入都記錄一個 id，因此這邊只會刪除對應到買入的 id
-                self.account.positions = [p for p in self.account.positions if p.id != position.id]
+                self.account.trade_records[position.id] = position                                     # 根據 position.id 更新 trade_records 中對應到的 position                
+                self.account.positions = [p for p in self.account.positions if p.id != position.id]    # 每一筆開倉的部位都會記錄一個 id，因此這邊只會刪除對應到 id 的部位
 
         return position
 
