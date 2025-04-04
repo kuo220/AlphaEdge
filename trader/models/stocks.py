@@ -12,13 +12,14 @@ from utils.constant import Commission, Scale, PositionType
 class StockAccount:
     """ 庫存及餘額資訊 """
     
-    def __init__(self, init_capital: float=0.0, balance: float=0.0):
-        # TODO: 添加整體成本、整體損益、整體ROI
+    def __init__(self, init_capital: float=0.0):
+        # TODO: add total_cost, realized_profit, unrealized_profit, total_equity, cumulative_roi, total_commission 
+        
         self.init_capital: float = init_capital                         # 初始本金
-        self.balance: float = balance                                   # 餘額
+        self.balance: float = init_capital                              # 餘額
         self.market_value = 0                                           # 庫存股票市值
         self.positions: List[StockTradeEntry] = []                      # 持有股票庫存
-        self.trade_history: Dict[int, StockTradeEntry] = {}             # 股票歷史交易紀錄
+        self.trade_records: Dict[int, StockTradeEntry] = {}             # 股票歷史交易紀錄
         
     
     def update_market_value(self):

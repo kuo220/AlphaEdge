@@ -75,7 +75,7 @@ class Status(str, Enum):
     
 
 class Commission(float, Enum):
-    """ 券商手續費相關常數 """
+    """ 券商手續費相關常數 """    
     CommRate = 0.001425  # 券商手續費率（commission rate）
     Discount = 0.3  # 券商手續費折扣（commission discount）
     MinFee = 20.0  # 券商最低手續費限制（minimum fee）
@@ -83,21 +83,27 @@ class Commission(float, Enum):
 
 
 class Market(str, Enum):
-    """ 市場類別 """
-    Stock = "Stock"
-    Future = "Future"
+    """ 市場類別 """    
+    STOCK = "Stock"
+    FUTURES = "Futures"
+    OPTIONS = "Options"
     
 
 class Scale(str, Enum):
-    """ Kbar 級別 """
+    """ Kbar 級別 """    
     TICK = "TICK"
     DAY = "DAY"
     MIX = "MIX"
     
 
 class PositionType(str, Enum):
-    """ 部位方向 """
+    """ 部位方向 """    
     LONG = "LONG"
     SHORT = "SHORT"
+
+
+class Units(int, Enum):
+    """ 股票張數單位 """
+    LOT = 1000      # 1 Lot = 1000 Shares
     
     

@@ -6,9 +6,11 @@ import numpy as np
 import pandas as pd
 import datetime
 from typing import List, Dict, Tuple, Any
-sys.path.append(str(Path(__file__).resolve().parents[1]))
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 from models import(StockAccount, StockQuote, StockOrder, StockTradeEntry)
-from .base import BaseStockStrategy
+from utils import (Data, Market, Scale, PositionType,
+                   Market, Scale, PositionType)
+from strategies.stocks import BaseStockStrategy
 
 class Strategy(BaseStockStrategy):
     """ Strategy """
@@ -16,9 +18,9 @@ class Strategy(BaseStockStrategy):
     def __init__(self):
         super().__init__()
         self.strategy_name = "Momentum"
-        self.capital = 1000000.0
+        self.init_capital = 1000000.0
         self.max_positions = 10
-        self.scale = 'Tick'
+        self.scale = Scale.TICK
         self.dataset = {
             'QXData': True,
             'Tick': True,

@@ -7,9 +7,10 @@ import pandas as pd
 import datetime
 from abc import ABC, abstractmethod
 from typing import List, Dict, Tuple, Any
-from utils.data import Data
+sys.path.append(str(Path(__file__).resolve().parents[2]))
+from utils import (Data, Market, Scale, PositionType,
+                   Market, Scale, PositionType)
 from models import StockAccount, StockQuote, StockOrder, StockTradeEntry
-from utils.constant import Market, Scale, PositionType
 
 class BaseStockStrategy(ABC):
     """ Stock Strategy Framework (Base Template) """
@@ -17,10 +18,10 @@ class BaseStockStrategy(ABC):
     def __init__(self):
         """ === Strategy Setting === """
         self.strategy_name: str = ""                    # Strategy name
-        self.market: str = Market.Stock                 # Stock or Future
+        self.market: str = Market.STOCK                 # Stock or Futures
         self.position_type: str = PositionType.LONG     # Long or Short
         self.day_trade: bool = True
-        self.capital: float = 0                         # Initial capital
+        self.init_capital: float = 0                    # Initial capital
         self.max_positions: int = 0                     # max limit numbers of positions
         
         """ === Datasets === """

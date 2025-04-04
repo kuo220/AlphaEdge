@@ -6,6 +6,6 @@ from .callback import Callback
 from .finance import StockTool
 from .constant import (Action, OrderType, StockPriceType, QuoteType, 
                        StockOrderLot, OrderState, Status, Commission, 
-                       Market, Scale, PositionType)
+                       Market, Scale, PositionType, Units)
 from .data import Data
 from .crawler import Crawler
