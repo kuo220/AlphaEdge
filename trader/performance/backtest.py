@@ -144,7 +144,7 @@ class Backtester:
             
             #TODO: 判斷庫存是否有股票要停損 or 停利
             # Execute strategy of opening position
-            stock_order: StockOrder = self.strategy.check_open_position(stock_quote)
+            stock_order: Optional[StockOrder] = self.strategy.check_open_position(stock_quote)
             
             if stock_order:
                 self.place_open_position(stock_order)
