@@ -13,8 +13,14 @@ from models import (StockAccount, TickQuote, StockQuote, StockOrder, StockTradeR
 from strategies.stock import Strategy
 
 
-""" 
-* This section mainly consists of tools used for backtesting.
+"""
+Backtesting engine that simulates trading based on strategy signals.
+
+Includes:
+- Tick/day backtest flow
+- Position and account management
+- Order execution logic
+- Strategy integration for various financial instruments
 """
 
 
