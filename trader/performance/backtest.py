@@ -39,7 +39,7 @@ class Backtester:
         
         """ === Backtest Parameters === """
         self.scale: str = self.strategy.scale                                   # 回測 KBar 級別
-        self.max_positions: int = self.strategy.max_positions                   # 最大持倉檔數
+        self.max_positions: Optional[int] = self.strategy.max_positions         # 最大持倉檔數
         self.start_date: datetime.date = self.strategy.start_date               # 回測起始日
         self.cur_date: datetime.date = self.strategy.start_date                 # 回測當前日
         self.end_date: datetime.date = self.strategy.end_date                   # 回測結束日
@@ -131,8 +131,8 @@ class Backtester:
         ticks = self.tick.get_ordered_ticks(self.cur_date, self.cur_date)
         
         for tick in ticks.itertuples(index=False):
-            tick_quote = TickQuote(code=tick.stock_id, time=tick.time, 
-                                    close=tick.close, volume=1,
+            tick_quote = TickQuote(code=tick.stock_id, time=tick.time,
+                                    close=tick.close, volume=tick.volume,
                                     bid_price=tick.bid_price, bid_volume=tick.bid_volume,
                                     ask_price=tick.ask_price, ask_volume=tick.ask_volume,
                                     tick_type=tick.tick_type)
@@ -140,12 +140,20 @@ class Backtester:
             stock_quote = StockQuote(code=tick.stock_id, scale=self.scale, 
                                      date=self.cur_date, tick=tick_quote)
             
-            #TODO: 判斷庫存是否有股票要停損 or 停利
-            # Execute strategy of opening position
-            stock_order: Optional[StockOrder] = self.strategy.check_open_signal(stock_quote)
+            stop_loss_order: Optional[StockOrder] = self.strategy.check_stop_loss_signal(stock_quote)
+            if stop_loss_order is not None:
+                self.place_close_position(stop_loss_order)
+                continue
             
-            if stock_order:
-                self.place_open_position(stock_order)
+            close_order: Optional[StockOrder] = self.strategy.check_close_signal(stock_quote)
+            if close_order is not None:
+                self.place_close_position(close_order)
+                continue
+                
+            # Execute strategy of opening position
+            open_order: Optional[StockOrder] = self.strategy.check_open_signal(stock_quote)
+            if open_order is not None:
+                self.place_open_position(open_order)
             
             
     def run_day_backtest(self):

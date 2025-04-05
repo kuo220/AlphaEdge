@@ -22,7 +22,7 @@ class BaseStockStrategy(ABC):
         self.position_type: str = PositionType.LONG     # Long or Short
         self.day_trade: bool = True
         self.init_capital: float = 0                    # Initial capital
-        self.max_positions: int = 0                     # max limit numbers of positions
+        self.max_positions: Optional[int] = 0           # max limit numbers of positions
         
         """ === Datasets === """
         self.data: Data = Data()                        

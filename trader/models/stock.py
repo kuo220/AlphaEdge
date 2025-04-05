@@ -163,6 +163,11 @@ class StockAccount:
         return None
     
     
+    def check_has_position(self, code: str) -> bool:
+        """ 檢查指定的股票是否有在庫存 """
+        return any(position.code == code for position in self.positions)
+
+
     def update_market_value(self):
         """ 更新庫存市值（目前只有股票） """
         
