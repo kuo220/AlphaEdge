@@ -178,4 +178,30 @@ class StockAccount:
         self.update_market_value()
         self.total_equity = self.balance + self.market_value
     
-    #TODO: add other updating method & add update_account_status to update all metrics
+
+    def update_realized_pnl(self):
+        """ 更新已實現損益 """
+        self.realized_pnl = sum(position.realized_pnl for position in self.positions if position.is_closed)
+    
+    
+    def update_roi(self):
+        """ 更新 ROI(Return On Investment) """
+        return (self.total_equity - self.total_transaction_cost) / self.init_capital - 1
+    
+    
+    def update_transaction_cost(self):
+        """ 更新交易成本 """
+        
+        self.total_commission = sum(position.commission for position in self.positions)
+        self.total_tax = sum(position.tax for position in self.positions)
+        self.total_transaction_cost = self.total_commission + self.total_tax
+    
+    
+    def update_account_status(self):
+        """ 更新帳戶資訊 """
+        
+        self.update_market_value()
+        self.update_total_equity()
+        self.update_realized_pnl()
+        self.update_roi()
+        self.update_transaction_cost()
