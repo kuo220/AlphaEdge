@@ -136,7 +136,7 @@ class StockAccount:
         self.trade_id_counter: int = 0                                   # 交易編號（每筆交易唯一編號）
         
         # Positions & Trading History
-        self.positions: List[StockTradeRecord] = []                      # 持有股票庫存
+        self.positions: List[StockTradeRecord] = []                      # 持有未平倉的股票庫存
         self.trade_records: Dict[int, StockTradeRecord] = {}             # 股票歷史交易紀錄
 
 

@@ -75,6 +75,8 @@ class Backtester:
         
         if stock.position_type == PositionType.LONG:
             if self.account.balance >= (position_value + open_cost):
+                print(f"* Place Open Order: {stock.code}")
+                
                 self.account.trade_id_counter += 1
                 self.account.balance -= (position_value + open_cost)
                 
@@ -107,6 +109,8 @@ class Backtester:
         position: Optional[StockTradeRecord] = self.account.get_first_open_position(stock.code)
         
         if position is not None and not position.is_closed:
+            print(f"* Place Close Order: {stock.code}")
+            
             if position.position_type == PositionType.LONG:
                 position.date = stock.date
                 position.is_closed = True
@@ -152,8 +156,7 @@ class Backtester:
                 return True
         return False
 
-    
-    # TODO: Method => run tick backtest
+
     def run_tick_backtest(self):
         """ Tick 級別的回測架構 """
         
@@ -171,9 +174,11 @@ class Backtester:
                                      date=self.cur_date, tick=tick_quote)
             
             if self.execute_close_signal(stock_quote):
+                print(f"* Close Position: {stock_quote.code}")
                 continue
             
-            self.execute_open_signal(stock_quote)
+            if self.execute_open_signal(stock_quote):
+                print(f"* Open Position: {stock_quote.code}")
             
             
     def run_day_backtest(self):
@@ -187,7 +192,11 @@ class Backtester:
     def run(self):
         """ 執行 Backtest (目前只有全tick回測) """
         
-        print(f"* Start backtesting {self.strategy.strategy_name} strategy...")
+        print("========== Backtest Start ==========")
+        print(f"* Strategy Name: {self.strategy.strategy_name}")
+        print(f"* {self.start_date.strftime('%Y/%m/%d')} ~ {self.end_date.strftime('%Y/%m/%d')}")
+        print(f"* Initial Capital: {self.strategy.init_capital}")
+        print(f"* Backtest Scale: {self.scale}")
         
         # load backtest dataset
         self.load_datasets()
