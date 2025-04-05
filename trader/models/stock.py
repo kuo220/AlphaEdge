@@ -146,7 +146,7 @@ class StockAccount:
     
     
     def get_first_open_position(self, code: str) -> Optional[StockTradeRecord]:
-        """ 根據股票代號取得第一筆尚未平倉的部位（FIFO）"""
+        """ 根據股票代號取得庫存中該股票最早開倉的部位（FIFO）"""
         
         for position in self.positions:
             if position.code == code and not position.is_closed:
@@ -155,7 +155,7 @@ class StockAccount:
         
 
     def get_last_open_position(self, code: str) -> Optional[StockTradeRecord]:
-        """ 根據股票代號取得最後一筆尚未平倉的部位（LIFO） """
+        """ 根據股票代號取得庫存中該股票最晚開倉的部位（LIFO） """
         
         for position in reversed(self.positions):
             if position.code == code and not position.is_closed:
