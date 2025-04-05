@@ -58,7 +58,7 @@ class Backtester:
             self.QXData = self.data.QXData 
     
     
-    def place_open_position(self, stock: StockOrder) -> Optional[StockTradeRecord]:
+    def place_open_order(self, stock: StockOrder) -> Optional[StockTradeRecord]:
         """ 
         - Description: 開倉下單股票
         - Parameters:
@@ -90,7 +90,7 @@ class Backtester:
         return position
 
 
-    def place_close_position(self, stock: StockOrder) -> Optional[StockTradeRecord]:
+    def place_close_order(self, stock: StockOrder) -> Optional[StockTradeRecord]:
         """
         - Description: 下單平倉股票
         - Parameters:
@@ -122,38 +122,58 @@ class Backtester:
                 self.account.positions = [p for p in self.account.positions if p.id != position.id]    # 每一筆開倉的部位都會記錄一個 id，因此這邊只會刪除對應到 id 的部位
 
         return position
+    
+    
+    def execute_open_signal(self, stock_quote: StockQuote) -> bool:
+        """ 若倉位數量未達到限制且有開倉訊號，則執行開倉 """
+        
+        if self.max_positions is None or self.account.get_position_count() < self.max_positions:
+            open_order: Optional[StockOrder] = self.strategy.check_open_signal(stock_quote)
+            
+            if open_order is not None:
+                self.place_open_order(open_order)
+                return True
+        return False
+        
+    
+    def execute_close_signal(self, stock_quote: StockQuote) -> bool:
+        """ 停損優先，然後是一般平倉；有平倉就回傳 True """
+        
+        if self.account.check_has_position(stock_quote.code):
+            stop_loss_order: Optional[StockOrder] = self.strategy.check_stop_loss_signal(stock_quote)
+            
+            if stop_loss_order is not None:
+                self.place_close_order(stop_loss_order)
+                return True
+            
+            close_order: Optional[StockOrder] = self.strategy.check_close_signal(stock_quote)
+            if close_order is not None:
+                self.place_close_order(close_order)
+                return True
+        return False
 
     
     # TODO: Method => run tick backtest
     def run_tick_backtest(self):
         """ Tick 級別的回測架構 """
         
+        # 一次取一天的 tick 資料，避免資料量太大 RAM 爆掉
         ticks = self.tick.get_ordered_ticks(self.cur_date, self.cur_date)
         
         for tick in ticks.itertuples(index=False):
-            tick_quote = TickQuote(code=tick.stock_id, time=tick.time,
+            tick_quote: TickQuote = TickQuote(code=tick.stock_id, time=tick.time,
                                     close=tick.close, volume=tick.volume,
                                     bid_price=tick.bid_price, bid_volume=tick.bid_volume,
                                     ask_price=tick.ask_price, ask_volume=tick.ask_volume,
                                     tick_type=tick.tick_type)
             
-            stock_quote = StockQuote(code=tick.stock_id, scale=self.scale, 
+            stock_quote: StockQuote = StockQuote(code=tick.stock_id, scale=self.scale, 
                                      date=self.cur_date, tick=tick_quote)
             
-            stop_loss_order: Optional[StockOrder] = self.strategy.check_stop_loss_signal(stock_quote)
-            if stop_loss_order is not None:
-                self.place_close_position(stop_loss_order)
+            if self.execute_close_signal(stock_quote):
                 continue
             
-            close_order: Optional[StockOrder] = self.strategy.check_close_signal(stock_quote)
-            if close_order is not None:
-                self.place_close_position(close_order)
-                continue
-                
-            # Execute strategy of opening position
-            open_order: Optional[StockOrder] = self.strategy.check_open_signal(stock_quote)
-            if open_order is not None:
-                self.place_open_position(open_order)
+            self.execute_open_signal(stock_quote)
             
             
     def run_day_backtest(self):
