@@ -3,7 +3,7 @@ from .notify import Notification
 from .time import TimeTool
 from .order import OrderTool
 from .callback import Callback
-from .finance import StockTool
+from .instrument import StockTool
 from .constant import (Action, OrderType, StockPriceType, QuoteType, 
                        StockOrderLot, OrderState, Status, Commission, 
                        Market, Scale, PositionType, Units)

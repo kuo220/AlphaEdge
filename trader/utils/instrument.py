@@ -7,6 +7,20 @@ from utils.time import TimeTool
 from utils.constant import Commission
 
 
+"""
+instrument.py
+
+Utility functions for asset trading calculations, including support for stocks, futures, and options.
+
+Features:
+- Retrieve close prices and price changes (via Shioaji API)
+- Calculate commission, tax, net profit, and ROI
+- Check if the market was open on a given date
+
+Designed for use in backtesting and trading performance analysis.
+"""
+
+
 class StockTool:
     """ Stock Related Tool """
     
