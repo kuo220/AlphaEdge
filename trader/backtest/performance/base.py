@@ -29,7 +29,7 @@ Classes:
 """
 
 
-class BaseBacktestAnalyzer:
+class BaseBacktestAnalyzer(ABC):
     """ Backtest Performance Analyzer Framework (Base Template) """
     
     def __init__(self, account: Any):
