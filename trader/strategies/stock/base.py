@@ -12,6 +12,7 @@ from utils import (Data, Market, Scale, PositionType,
                    Market, Scale, PositionType)
 from models import StockAccount, StockQuote, StockOrder, StockTradeRecord
 
+
 class BaseStockStrategy(ABC):
     """ Stock Strategy Framework (Base Template) """
     

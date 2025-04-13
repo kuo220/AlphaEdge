@@ -114,7 +114,6 @@ class StockAccount:
     """ 庫存及餘額資訊 """
     
     def __init__(self, init_capital: float=0.0):
-        # TODO: add total_cost, total_commission 
         # Initial Setup
         self.init_capital: float = init_capital                          # 初始本金
         
