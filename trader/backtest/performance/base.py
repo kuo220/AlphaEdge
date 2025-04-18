@@ -1,7 +1,6 @@
 import sys
 import os
 from pathlib import Path
-import requests
 import numpy as np
 import pandas as pd
 import datetime

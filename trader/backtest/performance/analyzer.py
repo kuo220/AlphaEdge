@@ -1,7 +1,6 @@
 import sys
 import os
 from pathlib import Path
-import requests
 import numpy as np
 import pandas as pd
 import datetime
@@ -12,7 +11,8 @@ sys.path.append(str(Path(__file__).resolve().parents[2]))
 from utils import (Data, Market, Scale, PositionType,
                    Market, Scale, PositionType)
 from models import StockAccount, StockQuote, StockOrder, StockTradeRecord
-
+# from performance.base import BaseBacktestAnalyzer
+from performance.base import BaseBacktestAnalyzer
 
 """
 analyzer.py
@@ -31,10 +31,10 @@ Intended for use in strategy evaluation, portfolio optimization, and performance
 """
 
 
-class StockBacktestAnalyzer:
+class StockBacktestAnalyzer(BaseBacktestAnalyzer):
     """ 
     Analyzes backtest results to compute key metrics like 
     equity curve, MDD, and ROI
     """
-    
+    pass
     
