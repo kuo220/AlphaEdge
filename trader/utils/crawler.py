@@ -324,7 +324,23 @@ class CrawlHTML:
         conn.close()
         shutil.rmtree(dir_path)
         print(f"Total file: {cnt}")
-         
+    
+    
+    def generate_date_range(self, start_date: datetime.datetime, end_date: datetime.datetime):
+        """ 產生起始日到終點日的日期 list """
+        return [dt.date() for dt in rrule(DAILY, dtstart=start_date, until=end_date)]
+    
+    
+    def update_chip_data(self):
+        """ 更新 Chip Data """
+        pass
+    
+    
+    def widget(self, conn, table_name: str, crawl_func):
+        pass
+    
+    
+    
 
 class CrawlQuantX:
     """ QuantX Crawler """

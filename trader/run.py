@@ -1,3 +1,5 @@
+from pathlib import Path
+
 """
 run.py
 
@@ -11,3 +13,7 @@ Example:
     python run.py          # default behavior (e.g., backtest)
     python run.py live     # switch to live trading mode
 """
+
+# 假設你是從某個 .py 執行檔所在位置開始找
+db_path = Path(__file__).resolve().parent / 'database'
+print(db_path)
