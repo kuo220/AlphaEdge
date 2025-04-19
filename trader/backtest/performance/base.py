@@ -13,7 +13,6 @@ from utils import (Data, Market, Scale, PositionType,
 from models import StockAccount, StockQuote, StockOrder, StockTradeRecord
 
 
-
 """
 base.py
 

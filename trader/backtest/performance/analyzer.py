@@ -11,8 +11,8 @@ sys.path.append(str(Path(__file__).resolve().parents[2]))
 from utils import (Data, Market, Scale, PositionType,
                    Market, Scale, PositionType)
 from models import StockAccount, StockQuote, StockOrder, StockTradeRecord
-# from performance.base import BaseBacktestAnalyzer
-from performance.base import BaseBacktestAnalyzer
+from .base import BaseBacktestAnalyzer
+
 
 """
 analyzer.py
