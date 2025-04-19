@@ -28,6 +28,7 @@ from dateutil.rrule import rrule, DAILY, MONTHLY
 from dateutil.relativedelta import relativedelta
 from .chip_crawler import CrawlStockChip
 from .html_crawler import CrawlHTML
+from .qx_crawler import CrawlQuantX
 from .shioaji_crawler import CrawlShioaji
 from .crawler_tools import CrawlerTools
 
@@ -48,4 +49,5 @@ class Crawler:
     def __init__(self):
         self.chip = CrawlStockChip()
         self.html = CrawlHTML()
+        self.quantx = CrawlQuantX()
         self.shioaji = CrawlShioaji()
