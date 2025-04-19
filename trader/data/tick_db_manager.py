@@ -7,7 +7,7 @@ except ModuleNotFoundError:
     print("Warning: dolphindb module is not installed.")
 
 
-class DolphinDB:
+class TickDBManager:
     
     def __init__(self, db_path: str, db_name: str, table_name: str):
         self.db_path = db_path          # ex: "dfs://tickDB"
@@ -32,7 +32,7 @@ class DolphinDB:
     
     
     @staticmethod
-    def format_ticks_data(df: pd.DataFrame, stock_id: str) -> pd.DataFrame:
+    def format_tick_data(df: pd.DataFrame, stock_id: str) -> pd.DataFrame:
         """ 統一 tick data 的格式 """
         
         df.rename(columns={'ts': 'time'}, inplace=True)
@@ -44,7 +44,7 @@ class DolphinDB:
 
 
     @staticmethod
-    def create_dolphinDB(db_name: str, table_name: str):
+    def create_tick_dolphinDB(db_name: str, table_name: str):
         """ 創建 dolphinDB """
     
         session = ddb.session()
