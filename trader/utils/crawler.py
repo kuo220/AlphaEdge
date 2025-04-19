@@ -1,9 +1,9 @@
-import datetime
-import time
 import os
 import shutil
 import numpy as np
 import pandas as pd
+import datetime
+import time
 import re
 import random
 import requests
@@ -311,8 +311,8 @@ class CrawlHTML:
         conn.close()
 
     
-    def add_chip_data_to_sql(self, db_path: str, dir_path: str, table_name: str='chip'):
-        """ 將三大法人盤後籌碼存入DB """
+    def add_to_sql(self, db_path: str, dir_path: str, table_name: str):
+        """ 將資料夾中的所有 CSV 檔存入指定 SQLite 資料庫中的指定資料表。 """
         
         conn = sqlite3.connect(db_path)
         cnt = 0

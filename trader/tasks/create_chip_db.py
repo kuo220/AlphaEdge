@@ -22,9 +22,11 @@ from utils import Data
     
 if __name__ == '__main__':
     db_path = os.path.join('..', 'Data', 'chip.db')
-    dir_path = os.path.join('..', 'Downloads', '三大法人盤後籌碼')
+    dir_name = '三大法人盤後籌碼'
+    dir_path = os.path.join('..', 'Downloads', dir_name)
+    table_name = '三大法人盤後籌碼'
     
     crawler = Crawler().FromHTML
     crawler.create_chip_db(db_path)
-    crawler.add_chip_data_to_sql(db_path, dir_path)
+    crawler.add_to_sql(db_path, dir_path, table_name)
     
