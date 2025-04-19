@@ -32,24 +32,31 @@ from .crawler_tools import CrawlerTools
 class CrawlStockChip:
     """ 爬取上市、上櫃股票三大法人盤後籌碼 """
     
-    def crawl_twse_chip(self, year: int, month: int, day: int, dir_path: str=os.path.join('..', 'tasks', '三大法人盤後籌碼')):
+    def __init__(self):
+        self.downloads_dir: str = str(Path(__file__).resolve().parent / 'downloads' / '三大法人盤後籌碼')
+        self.db_path: str = str(Path(__file__).resolve().parents[1] / 'database' / 'chip.db')
+        self.table_name: str = 'chip'
+        
+    
+    def crawl_twse_chip(self, date: datetime.datetime):
         """ TWSE 三大法人爬蟲 """
         """ 
         TWSE: 2012/5/2 開始提供（這邊從 2014/12/1 開始爬）
         TWSE 改制時間: 2014/12/1, 2017/12/18
         """
         
+        # The date that data format was reformed
         first_reform_date = datetime.datetime(2014, 12, 1)
         second_reform_date = datetime.datetime(2017, 12, 18)
 
-        start_date, end_date = datetime.datetime(year, month, day), datetime.datetime.now()
+        start_date, end_date = date, datetime.datetime.now()
         cur_date = start_date
         
         # if crawl_cnt == 100, then sleep
         crawl_cnt = 0
         
-        if not os.path.exists(dir_path):
-            os.makedirs(dir_path)
+        if not os.path.exists(self.downloads_dir):
+            os.makedirs(self.downloads_dir)
 
         print("* Start crawling TWSE institutional investors data...")
         while cur_date <= end_date:
@@ -98,7 +105,7 @@ class CrawlStockChip:
             
             twse_df = CrawlerTools.remove_redundant_col(twse_df, '三大法人買賣超股數')
             twse_df = CrawlerTools.fill_nan(twse_df, 0)
-            twse_df.to_csv(os.path.join(dir_path, f"twse_{cur_date.strftime('%Y%m%d')}.csv"), index=False)
+            twse_df.to_csv(os.path.join(self.downloads_dir, f"twse_{cur_date.strftime('%Y%m%d')}.csv"), index=False)
             cur_date += datetime.timedelta(days=1)
             
             crawl_cnt += 1
@@ -112,7 +119,7 @@ class CrawlStockChip:
                 time.sleep(delay)
             
               
-    def crawl_tpex_chip(self, year: int, month: int, day: int, dir_path: str=os.path.join('..', 'tasks', '三大法人盤後籌碼')):
+    def crawl_tpex_chip(self, date: datetime.datetime):
         """ TPEX 三大法人爬蟲 """
         """ 
         TPEX: 2007/4/20 開始提供 (這邊從 2014/12/1 開始爬)
@@ -120,14 +127,14 @@ class CrawlStockChip:
         """
         
         first_reform_date = datetime.datetime(2018, 1, 15)
-        start_date, end_date = datetime.datetime(year, month, day), datetime.datetime.now()
+        start_date, end_date = date, datetime.datetime.now()
         cur_date = start_date
         
         # if crawl_cnt == 100, then sleep
         crawl_cnt = 0
         
-        if not os.path.exists(dir_path):
-            os.makedirs(dir_path)
+        if not os.path.exists(self.downloads_dir):
+            os.makedirs(self.downloads_dir)
         
         print("* Start crawling TPEX institutional investors data...")
         while cur_date <= end_date:
@@ -189,7 +196,7 @@ class CrawlStockChip:
             CrawlerTools.move_col(tpex_df, "自營商買賣超股數", "自營商買賣超股數_避險")
             tpex_df = CrawlerTools.remove_redundant_col(tpex_df, '三大法人買賣超股數')
             tpex_df = CrawlerTools.fill_nan(tpex_df, 0)
-            tpex_df.to_csv(os.path.join(dir_path, f"tpex_{cur_date.strftime('%Y%m%d')}.csv"), index=False)
+            tpex_df.to_csv(os.path.join(self.downloads_dir, f"tpex_{cur_date.strftime('%Y%m%d')}.csv"), index=False)
             cur_date += datetime.timedelta(days=1)
             
             crawl_cnt += 1
@@ -203,14 +210,14 @@ class CrawlStockChip:
                 time.sleep(delay)
 
     
-    def create_chip_db(self, db_path: str, table_name: str='chip'):
+    def create_chip_db(self):
         """ 創建三大法人盤後籌碼db """
         
-        conn = sqlite3.connect(db_path)
+        conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
         create_table_query = f""" 
-        CREATE TABLE IF NOT EXISTS {table_name}(
+        CREATE TABLE IF NOT EXISTS {self.table_name}(
             日期 TEXT NOT NULL,
             證券代號 TEXT NOT NULL,
             證券名稱 TEXT NOT NULL,
@@ -233,26 +240,26 @@ class CrawlStockChip:
         cursor.execute(create_table_query)
         
         # 檢查是否成功建立 table
-        cursor.execute(f"PRAGMA table_info('{table_name}')")
+        cursor.execute(f"PRAGMA table_info('{self.table_name}')")
         if cursor.fetchall():
-            print(f"Table {table_name} create successfully!")
+            print(f"Table {self.table_name} create successfully!")
         else:
-            print(f"Table {table_name} create unsuccessfully!")
+            print(f"Table {self.table_name} create unsuccessfully!")
         
         conn.commit()
         conn.close()
 
     
-    def add_to_sql(self, db_path: str, dir_path: str, table_name: str):
+    def add_to_sql(self):
         """ 將資料夾中的所有 CSV 檔存入指定 SQLite 資料庫中的指定資料表。 """
         
-        conn = sqlite3.connect(db_path)
+        conn = sqlite3.connect(self.db_path)
         cnt = 0
-        for file_name in os.listdir(dir_path):
-            df = pd.read_csv(os.path.join(dir_path, file_name))
-            df.to_sql(table_name, conn, if_exists='append', index=False)
+        for file_name in os.listdir(self.downloads_dir):
+            df = pd.read_csv(os.path.join(self.downloads_dir, file_name))
+            df.to_sql(self.table_name, conn, if_exists='append', index=False)
             print(f"Save {file_name} into database.")
             cnt += 1
         conn.close()
-        shutil.rmtree(dir_path)
+        shutil.rmtree(self.downloads_dir)
         print(f"Total file: {cnt}")
