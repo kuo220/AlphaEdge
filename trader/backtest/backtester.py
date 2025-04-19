@@ -7,7 +7,7 @@ import pandas as pd
 import datetime
 from typing import List, Dict, Tuple, Optional, Any 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
-from utils import (Data, StockTool, Commission, Market, Scale, 
+from utils import (Data, StockTools, Commission, Market, Scale, 
                    PositionType, Units)
 from models import (StockAccount, TickQuote, StockQuote, StockOrder, StockTradeRecord)
 from strategies.stock import Strategy
@@ -77,7 +77,7 @@ class Backtester:
         position: Optional[StockTradeRecord] = None
         
         position_value = stock.price * stock.volume * Units.LOT
-        open_cost = StockTool.calculate_transaction_commission(buy_price=stock.price, volume=stock.volume)
+        open_cost = StockTools.calculate_transaction_commission(buy_price=stock.price, volume=stock.volume)
         
         if stock.position_type == PositionType.LONG:
             if self.account.balance >= (position_value + open_cost):
@@ -109,7 +109,7 @@ class Backtester:
         """
 
         position_value = stock.price * stock.volume * Units.LOT
-        close_cost = StockTool.calculate_transaction_commission(sell_price=stock.price, volume=stock.volume)
+        close_cost = StockTools.calculate_transaction_commission(sell_price=stock.price, volume=stock.volume)
         
         # 根據 stock.code 找出庫存中最早買進的該檔股票（FIFO）
         position: Optional[StockTradeRecord] = self.account.get_first_open_position(stock.code)
@@ -122,10 +122,10 @@ class Backtester:
                 position.is_closed = True
                 position.sell_price = stock.price
                 position.commission += close_cost
-                position.tax = StockTool.calculate_transaction_tax(stock.price, stock.volume)
+                position.tax = StockTools.calculate_transaction_tax(stock.price, stock.volume)
                 position.transaction_cost = position.commission + position.tax
-                position.realized_pnl = StockTool.calculate_net_profit(position.buy_price, position.sell_price, position.volume)
-                position.roi = StockTool.calculate_roi(position.buy_price, position.sell_price, position.volume)
+                position.realized_pnl = StockTools.calculate_net_profit(position.buy_price, position.sell_price, position.volume)
+                position.roi = StockTools.calculate_roi(position.buy_price, position.sell_price, position.volume)
                 
                 self.account.balance += (position_value - close_cost)
                 self.account.trade_records[position.id] = position                                     # 根據 position.id 更新 trade_records 中對應到的 position                
@@ -211,7 +211,7 @@ class Backtester:
         while self.cur_date <= self.end_date:
             print(f"--- {self.cur_date.strftime('%Y/%m/%d')} ---")
             
-            if not StockTool.check_market_open(self.QXData, self.cur_date):
+            if not StockTools.check_market_open(self.QXData, self.cur_date):
                 print("* Stock Market Close\n")
                 continue
             

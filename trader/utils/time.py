@@ -2,7 +2,7 @@ import shioaji as sj
 import datetime
 
 
-class  TimeTool:
+class  TimeTools:
     """ 處理各式關於時間問題的工具 """
     
     @staticmethod

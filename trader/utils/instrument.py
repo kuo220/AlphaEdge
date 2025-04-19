@@ -3,7 +3,7 @@ import datetime
 import shioaji as sj
 from typing import Tuple
 from utils.data import Data
-from utils.time import TimeTool
+from utils.time import TimeTools
 from utils.constant import Commission
 
 
@@ -21,8 +21,8 @@ Designed for use in backtesting and trading performance analysis.
 """
 
 
-class StockTool:
-    """ Stock Related Tool """
+class StockTools:
+    """ Stock Related Tools """
     
     @staticmethod
     def get_close_price(api: sj.Shioaji, stock_id: str, date: datetime.date) -> float:
@@ -42,11 +42,11 @@ class StockTool:
         """ Shioaji: 取得指定股票在指定日期的漲跌幅 """
         
         # 取得前一個交易日的日期
-        last_trading_date = TimeTool.get_last_trading_date(api, date)
+        last_trading_date = TimeTools.get_last_trading_date(api, date)
         
         # 計算指定交易日股票的漲幅
-        cur_close_price = StockTool.get_close_price(api, stock_id, date)
-        prev_close_price = StockTool.get_close_price(api, stock_id, last_trading_date)
+        cur_close_price = StockTools.get_close_price(api, stock_id, date)
+        prev_close_price = StockTools.get_close_price(api, stock_id, last_trading_date)
         
         # if cur_close_price or prev_close_price is np.nan, then function will return np.nan
         return round((cur_close_price / prev_close_price - 1) * 100, 2)
@@ -84,8 +84,8 @@ class StockTool:
         """
 
         # 買入 & 賣出的交易成本
-        buy_transaction_cost = StockTool.calculate_transaction_commission(buy_price, volume)
-        sell_transaction_cost = StockTool.calculate_transaction_commission(sell_price, volume) + StockTool.calculate_transaction_tax(sell_price, volume)
+        buy_transaction_cost = StockTools.calculate_transaction_commission(buy_price, volume)
+        sell_transaction_cost = StockTools.calculate_transaction_commission(sell_price, volume) + StockTools.calculate_transaction_tax(sell_price, volume)
         return (buy_transaction_cost, sell_transaction_cost)
     
 
@@ -108,7 +108,7 @@ class StockTool:
         sell_value = sell_price * volume
         
         # 買入 & 賣出手續費
-        buy_comm, sell_comm = StockTool.calculate_transaction_cost(buy_price, sell_price, volume)
+        buy_comm, sell_comm = StockTools.calculate_transaction_cost(buy_price, sell_price, volume)
         
         profit = (sell_value - buy_value) - (buy_comm + sell_comm)
         return round(profit, 2)
@@ -131,14 +131,14 @@ class StockTool:
         """
         
         buy_value = buy_price * volume
-        buy_comm, _ = StockTool.calculate_transaction_cost(buy_price, sell_price, volume)
+        buy_comm, _ = StockTools.calculate_transaction_cost(buy_price, sell_price, volume)
         
         # 計算投資成本
         investment_cost = buy_value + buy_comm
         if investment_cost == 0:
             return 0.0
         
-        roi = (StockTool.calculate_net_profit(buy_price, sell_price, volume) / investment_cost) * 100
+        roi = (StockTools.calculate_net_profit(buy_price, sell_price, volume) / investment_cost) * 100
         return round(roi, 2)
     
     
