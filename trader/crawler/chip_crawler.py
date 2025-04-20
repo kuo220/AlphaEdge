@@ -33,7 +33,7 @@ class CrawlStockChip:
     """ 爬取上市、上櫃股票三大法人盤後籌碼 """
     
     def __init__(self):
-        self.downloads_dir: str = str(Path(__file__).resolve().parent / 'downloads' / '三大法人盤後籌碼')
+        self.downloads_dir: str = str(Path(__file__).resolve().parent / 'downloads' / 'chip')
         self.db_path: str = str(Path(__file__).resolve().parents[1] / 'database' / 'chip.db')
         self.table_name: str = 'chip'
         
