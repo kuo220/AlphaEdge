@@ -238,6 +238,68 @@ class CrawlStockChip:
             else:
                 delay = random.randint(1, 5)
                 time.sleep(delay)
+        
+    
+    def update_table(self, dates: List[datetime.date]):
+        """ Chip Database 資料更新 """
+        
+        print(f'* Start updating chip data')
+        
+        df = pd.DataFrame()
+        dfs = {}
+        
+        progress = tqdm_notebook(dates)
+        
+        for date in progress:
+            print(f"Crawling {date}")
+        
+        
+    
+    
+    def widget(self):
+        """ Chip Database 資料更新的 UI """
+        
+        # Set update date
+        date_picker_from = widgets.DatePicker(description='from', disabled=False)
+        date_picker_to = widgets.DatePicker(description='to', disabled=False)
+
+        if SQLiteTools.check_table_exist(self.conn, self.table_name):
+            date_picker_from.value = SQLiteTools.get_table_latest_date(self.conn, self.table_name, '日期')
+        date_picker_to.value = datetime.datetime.now().date()
+        
+        # Set update button
+        btn = widgets.Button(description='update')
+        
+        # Define update button behavior
+        def onupdate(_):
+            start_date = date_picker_from.value
+            end_date = date_picker_to.value
+            
+            if not start_date or not end_date:
+                print("Please select both start and end dates.")
+                return
+            
+            dates = CrawlerTools.generate_date_range(start_date, end_date)
+            
+            if not dates:
+                print("Date range is empty. Please check if the start date is earlier than the end date.")
+                return
+            
+            print(f"Updating data for table '{self.table_name}' from {dates[0]} to {dates[-1]}...")
+            self.update_table()
+            
+        btn.on_click(onupdate)
+        
+        if SQLiteTools.check_table_exist(self.conn, self.table_name):
+            label = widgets.Label(f""" 
+                                  {self.table_name} (from {SQLiteTools.get_table_earliest_date(self.conn, self.table_name, '日期').strftime('%Y-%m-%d')} to 
+                                  {SQLiteTools.get_table_latest_date(self.conn, self.table_name, '日期').strftime('%Y-%m-%d')})
+                                  """)
+        else:
+            label = widgets.Label(f"{self.table_name} (No table found)")
+        
+        items = [date_picker_from, date_picker_to, btn]
+        display(widgets.VBox([label, widgets.HBox(items)]))
 
     
     def create_chip_db(self):
@@ -293,56 +355,3 @@ class CrawlStockChip:
         conn.close()
         shutil.rmtree(self.downloads_dir)
         print(f"Total file: {cnt}")
-        
-    
-    def update_table(self):
-        """ Chip Database 資料更新 """
-        
-        pass
-    
-    
-    def widget(self):
-        """ Chip Database 資料更新的 UI """
-        
-        # Set update date
-        date_picker_from = widgets.DatePicker(description='from', disabled=False)
-        date_picker_to = widgets.DatePicker(description='to', disabled=False)
-
-        if SQLiteTools.check_table_exist(self.conn, self.table_name):
-            date_picker_from.value = SQLiteTools.get_table_latest_date(self.conn, self.table_name, '日期')
-        date_picker_to.value = datetime.datetime.now().date()
-        
-        # Set update button
-        btn = widgets.Button(description='update')
-        
-        # Define update button behavior
-        def onupdate(_):
-            start_date = date_picker_from.value
-            end_date = date_picker_to.value
-            
-            if not start_date or not end_date:
-                print("Please select both start and end dates.")
-                return
-            
-            dates = CrawlerTools.generate_date_range(start_date, end_date)
-            
-            if not dates:
-                print("Date range is empty. Please check if the start date is earlier than the end date.")
-                return
-            
-            print(f"Updating data for table '{self.table_name}' from {dates[0]} to {dates[-1]}...")
-            self.update_table()
-            
-        btn.on_click(onupdate)
-        
-        if SQLiteTools.check_table_exist(self.conn, self.table_name):
-            label = widgets.Label(f""" 
-                                  {self.table_name} (from {SQLiteTools.get_table_earliest_date(self.conn, self.table_name, '日期').strftime('%Y-%m-%d')} to 
-                                  {SQLiteTools.get_table_latest_date(self.conn, self.table_name, '日期').strftime('%Y-%m-%d')})
-                                  """)
-        else:
-            label = widgets.Label(f"{self.table_name} (No table found)")
-        
-        items = [date_picker_from, date_picker_to, btn]
-        display(widgets.VBox([label, widgets.HBox(items)]))
-        
