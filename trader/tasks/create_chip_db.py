@@ -10,17 +10,17 @@ from fake_useragent import UserAgent
 import time
 from loguru import logger
 import random
-sys.path.append(str(Path.cwd().parents[0]))
-
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from crawler import CrawStockChip
     
     
 if __name__ == '__main__':
-    db_path = os.path.join('..', 'Data', 'chip.db')
-    dir_name = '三大法人盤後籌碼'
-    dir_path = os.path.join('..', 'Downloads', dir_name)
-    table_name = '三大法人盤後籌碼'
+    db_path = Path(__file__).resolve().parents[1] / 'database' / 'chip.db'
+    dir_name = 'chip'
+    dir_path = Path(__file__).resolve().parents[1] / 'crawler' / 'downloads' / dir_name
+    table_name = 'chip'
     
-    crawler = Crawler().FromHTML
+    crawler = CrawStockChip()
     crawler.create_chip_db(db_path)
     crawler.add_to_sql(db_path, dir_path, table_name)
     

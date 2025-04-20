@@ -13,7 +13,7 @@ from requests.exceptions import ConnectionError
 import shutil
 import sqlite3
 from io import StringIO
-from typing import List
+from typing import List, Optional
 import urllib.request
 import ipywidgets as widgets
 from IPython.display import display
@@ -52,14 +52,14 @@ class CrawlStockChip:
         self.conn = sqlite3.connect(self.db_path)
         
         # The date that TWSE chip data format was reformed
-        self.twse_first_reform_date = datetime.datetime(2014, 12, 1)
-        self.twse_second_reform_date = datetime.datetime(2017, 12, 18)
+        self.twse_first_reform_date = datetime.date(2014, 12, 1)
+        self.twse_second_reform_date = datetime.date(2017, 12, 18)
         
         # The date that TPEX chip data format was reformed
-        self.tpex_first_reform_date = datetime.datetime(2018, 1, 15)
+        self.tpex_first_reform_date = datetime.date(2018, 1, 15)
     
     
-    def crawl_twse_chip(self, date: datetime.datetime) -> pd.DataFrame:
+    def crawl_twse_chip(self, date: datetime.date) -> Optional[pd.DataFrame]:
         """ TWSE 三大法人單日爬蟲 """
         
         if not os.path.exists(self.downloads_dir):
@@ -77,7 +77,7 @@ class CrawlStockChip:
             twse_df = pd.read_html(StringIO(twse_response.text))[0]
         except Exception as e:
             print("It's Holiday!")
-            return
+            return None
         
         twse_df.columns = twse_df.columns.droplevel(0)
         twse_df.insert(0, '日期', date)
@@ -115,7 +115,7 @@ class CrawlStockChip:
         return twse_df
     
 
-    def crawl_tpex_chip(self, date: datetime.datetime) -> pd.DataFrame:
+    def crawl_tpex_chip(self, date: datetime.date) -> Optional[pd.DataFrame]:
         """ TPEX 三大法人單日爬蟲 """
         
         if not os.path.exists(self.downloads_dir):
@@ -133,7 +133,7 @@ class CrawlStockChip:
         # 檢查是否為假日
         if tpex_df.shape[0] == 1:
             print("It's Holiday!")
-            return
+            return None
 
         if isinstance(tpex_df.columns, pd.MultiIndex):
             tpex_df.columns = tpex_df.columns.droplevel(0)
@@ -186,7 +186,7 @@ class CrawlStockChip:
         return tpex_df
     
 
-    def crawl_twse_chip_range(self, start_date: datetime.datetime, end_date: datetime.datetime=datetime.datetime.now()):
+    def crawl_twse_chip_range(self, start_date: datetime.date, end_date: datetime.date=datetime.date.today()):
         """ TWSE 三大法人日期範圍爬蟲 """
         
         cur_date = start_date
@@ -213,7 +213,7 @@ class CrawlStockChip:
                 time.sleep(delay)
             
               
-    def crawl_tpex_chip_range(self, start_date: datetime.datetime, end_date:datetime.datetime=datetime.datetime.now()):
+    def crawl_tpex_chip_range(self, start_date: datetime.date, end_date: datetime.date=datetime.date.today()):
         """ TPEX 三大法人日期範圍爬蟲  """
         
         cur_date = start_date
@@ -244,18 +244,36 @@ class CrawlStockChip:
         """ Chip Database 資料更新 """
         
         print(f'* Start updating chip data')
+                
+        progress = tqdm_notebook(dates)        
+        crawl_cnt = 0
         
-        df = pd.DataFrame()
-        dfs = {}
-        
-        progress = tqdm_notebook(dates)
-        
+        # Crawl chip data
         for date in progress:
             print(f"Crawling {date}")
+            
+            progress.set_description(f"Crawl {self.table_name} {date}")
+
+            # Crawl Chip Data
+            twse_chip = self.crawl_twse_chip(date)
+            tpex_chip = self.crawl_tpex_chip(date)
+            
+            if twse_chip is None and tpex_chip is None:
+                print("No data found. It might be a holiday.")
+         
+            crawl_cnt += 1
+            if crawl_cnt == 100:
+                print("Sleep 2 minutes...")
+                crawl_cnt = 0
+                time.sleep(120)
+            else:
+                delay = random.randint(1, 5)
+                time.sleep(delay)
         
-        
-    
-    
+        # Save chip data to database
+        self.add_to_sql()
+
+                    
     def widget(self):
         """ Chip Database 資料更新的 UI """
         
@@ -286,7 +304,7 @@ class CrawlStockChip:
                 return
             
             print(f"Updating data for table '{self.table_name}' from {dates[0]} to {dates[-1]}...")
-            self.update_table()
+            self.update_table(dates)
             
         btn.on_click(onupdate)
         
@@ -345,13 +363,15 @@ class CrawlStockChip:
     def add_to_sql(self):
         """ 將資料夾中的所有 CSV 檔存入指定 SQLite 資料庫中的指定資料表。 """
         
-        conn = sqlite3.connect(self.db_path)
-        cnt = 0
+        file_cnt = 0
         for file_name in os.listdir(self.downloads_dir):
+            # Skip non-CSV files
+            if not file_name.endswith('.csv'):
+                continue
             df = pd.read_csv(os.path.join(self.downloads_dir, file_name))
-            df.to_sql(self.table_name, conn, if_exists='append', index=False)
+            df.to_sql(self.table_name, self.conn, if_exists='append', index=False)
             print(f"Save {file_name} into database.")
-            cnt += 1
-        conn.close()
+            file_cnt += 1
+        self.conn.close()
         shutil.rmtree(self.downloads_dir)
-        print(f"Total file: {cnt}")
+        print(f"Total file: {file_cnt}")
