@@ -41,7 +41,7 @@ class CrawlerTools:
                 'User-Agent': user_agent}
         return headers
     
-    
+
     @staticmethod
     def move_col(df: pd.DataFrame, col_name: str, ref_col_name: str):
         """ 移動 columns 位置"""

@@ -12,17 +12,10 @@ from loguru import logger
 import random
 
 crawler_path = Path.cwd().parent
-print(crawler_path)
 sys.path.append(str(crawler_path))
 
-from crawler import CrawlStockChip
+from crawler import (CrawlerTools, CrawlStockChip)
 
-def generate_random_header():
-    ua = UserAgent()
-    user_agent = ua.random
-    headers = {'Accept': '*/*', 'Connection': 'keep-alive',
-            'User-Agent': user_agent}
-    return headers
 
 if __name__ == '__main__':
     
@@ -38,7 +31,6 @@ if __name__ == '__main__':
     crawler = CrawlStockChip()
     
     # TWSE
-    # twse_dir_path = Path(__file__).resolve().parent.parent / 'Downloads' / '三大法人盤後籌碼' / 'TWSE'
     twse_start_date = datetime.datetime(2024, 4, 5)
     twse_end_date = datetime.datetime(2024, 4, 10)
     

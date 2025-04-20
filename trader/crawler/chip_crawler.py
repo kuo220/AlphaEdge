@@ -290,3 +290,18 @@ class CrawlStockChip:
         conn.close()
         shutil.rmtree(self.downloads_dir)
         print(f"Total file: {cnt}")
+        
+    
+    def update_table(self):
+        """ Chip Database 資料更新 """
+        
+        pass
+    
+    
+    def widget(self):
+        """ Chip Database 資料更新的 UI """
+        
+        date_picker_from = widgets.DatePicker(description='from', disabled=False)
+        
+
+    
