@@ -37,6 +37,13 @@ class CrawlStockChip:
         self.db_path: str = str(Path(__file__).resolve().parents[1] / 'database' / 'chip.db')
         self.table_name: str = 'chip'
         
+        # The date that TWSE chip data format was reformed
+        self.twse_first_reform_date = datetime.datetime(2014, 12, 1)
+        self.twse_second_reform_date = datetime.datetime(2017, 12, 18)
+        
+        # The date that TPEX chip data format was reformed
+        self.tpex_first_reform_date = datetime.datetime(2018, 1, 15)
+    
     
     def crawl_twse_chip(self, date: datetime.datetime):
         """ TWSE 三大法人爬蟲 """
@@ -45,10 +52,6 @@ class CrawlStockChip:
         TWSE 改制時間: 2014/12/1, 2017/12/18
         """
         
-        # The date that data format was reformed
-        first_reform_date = datetime.datetime(2014, 12, 1)
-        second_reform_date = datetime.datetime(2017, 12, 18)
-
         start_date, end_date = date, datetime.datetime.now()
         cur_date = start_date
         
@@ -84,10 +87,10 @@ class CrawlStockChip:
                             '自營商買進股數_避險', '自營商賣出股數_避險', '自營商買賣超股數_避險']
             
             # 第一次格式改制前
-            if cur_date < first_reform_date:
+            if cur_date < self.twse_first_reform_date:
                 CrawlerTools.move_col(twse_df, "自營商買賣超股數", "自營商賣出股數")
             # 第一次格式改制後，第二次格式改制前
-            elif first_reform_date <= cur_date < second_reform_date:
+            elif self.twse_first_reform_date <= cur_date < self.twse_second_reform_date:
                 CrawlerTools.move_col(twse_df, "自營商買賣超股數", "自營商買賣超股數(避險)")
                 twse_df.rename(columns=dict(zip(old_col_name, new_col_name)), inplace=True)
             # 第二次格式改制後
@@ -126,7 +129,6 @@ class CrawlStockChip:
         TPEX 改制時間: 2018/1/15
         """
         
-        first_reform_date = datetime.datetime(2018, 1, 15)
         start_date, end_date = date, datetime.datetime.now()
         cur_date = start_date
         
@@ -161,7 +163,7 @@ class CrawlStockChip:
             ]
             
             # 格式改制前
-            if cur_date < first_reform_date:
+            if cur_date < self.tpex_first_reform_date:
                 old_col_name = [
                     '代號', '名稱', '外資 及陸資 買股數', '外資 及陸資 賣股數', '外資 及陸資 淨買股數',
                     '投信 買股數', '投信 賣股數', '投信 淨買股數', '自營商 淨買股數',
