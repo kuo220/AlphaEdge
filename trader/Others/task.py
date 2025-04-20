@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 import shioaji as sj
 import pandas as pd
 from .shared_list import stock_not_for_quantx
-import yfinance as yf
+import yfinance as yf 
 from .mysqldb import Mysqldb
 import openai
 
