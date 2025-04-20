@@ -67,3 +67,15 @@ class CrawlerTools:
         if df.isnull().values.any():
             df.fillna(value, inplace=True)
         return df
+    
+    
+    @staticmethod
+    def generate_date_range(start_date: datetime.date, end_date: datetime.date) -> List[datetime.date]:
+        """ 產生從 start_date 到 end_date 的每日日期清單 """
+        return [dt.date() for dt in rrule(DAILY, dtstart=start_date, until=end_date)]
+    
+    
+    @staticmethod
+    def generate_month_range(start_date: datetime.date, end_date: datetime.date) -> List[datetime.date]:
+        """ 產生從 start_date 到 end_date 的每月清單（取每月的起始日） """
+        return [dt.date() for dt in rrule(MONTHLY, dtstart=start_date, until=end_date)]

@@ -10,13 +10,7 @@ from fake_useragent import UserAgent
 import time
 from loguru import logger
 import random
-
-crawler_path = Path.cwd().parents[0]
-sys.path.append(str(crawler_path))
-
-from utils import Crawler
-from utils import Data
-
+sys.path.append(str(Path.cwd().parents[0]))
 
     
     

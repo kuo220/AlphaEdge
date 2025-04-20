@@ -1,21 +1,17 @@
+import sys
 import os
 import shutil
 import numpy as np
 import pandas as pd
 import datetime
 import time
-import re
 import random
 import requests
 from pathlib import Path
 from requests.exceptions import ReadTimeout
 from requests.exceptions import ConnectionError
 import shutil
-import zipfile
-import pickle
-import warnings
 import sqlite3
-from bs4 import BeautifulSoup
 from io import StringIO
 from typing import List
 import urllib.request
@@ -26,7 +22,10 @@ from tqdm import tqdm
 from tqdm import tnrange, tqdm_notebook
 from dateutil.rrule import rrule, DAILY, MONTHLY
 from dateutil.relativedelta import relativedelta
-from .crawler_tools import CrawlerTools
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from crawler.crawler_tools import CrawlerTools
+from data import SQLiteTools
+
 
 
 """ 
@@ -44,9 +43,13 @@ class CrawlStockChip:
     """ 爬取上市、上櫃股票三大法人盤後籌碼 """
     
     def __init__(self):
+        # Database information
         self.downloads_dir: str = str(Path(__file__).resolve().parent / 'downloads' / 'chip')
         self.db_path: str = str(Path(__file__).resolve().parents[1] / 'database' / 'chip.db')
         self.table_name: str = 'chip'
+        
+        # SQLite Connection
+        self.conn = sqlite3.connect(self.db_path)
         
         # The date that TWSE chip data format was reformed
         self.twse_first_reform_date = datetime.datetime(2014, 12, 1)
@@ -301,7 +304,45 @@ class CrawlStockChip:
     def widget(self):
         """ Chip Database 資料更新的 UI """
         
+        # Set update date
         date_picker_from = widgets.DatePicker(description='from', disabled=False)
-        
+        date_picker_to = widgets.DatePicker(description='to', disabled=False)
 
-    
+        if SQLiteTools.check_table_exist(self.conn, self.table_name):
+            date_picker_from.value = SQLiteTools.get_table_latest_date(self.conn, self.table_name, '日期')
+        date_picker_to.value = datetime.datetime.now().date()
+        
+        # Set update button
+        btn = widgets.Button(description='update')
+        
+        # Define update button behavior
+        def onupdate(_):
+            start_date = date_picker_from.value
+            end_date = date_picker_to.value
+            
+            if not start_date or not end_date:
+                print("Please select both start and end dates.")
+                return
+            
+            dates = CrawlerTools.generate_date_range(start_date, end_date)
+            
+            if not dates:
+                print("Date range is empty. Please check if the start date is earlier than the end date.")
+                return
+            
+            print(f"Updating data for table '{self.table_name}' from {dates[0]} to {dates[-1]}...")
+            self.update_table()
+            
+        btn.on_click(onupdate)
+        
+        if SQLiteTools.check_table_exist(self.conn, self.table_name):
+            label = widgets.Label(f""" 
+                                  {self.table_name} (from {SQLiteTools.get_table_earliest_date(self.conn, self.table_name, '日期').strftime('%Y-%m-%d')} to 
+                                  {SQLiteTools.get_table_latest_date(self.conn, self.table_name, '日期').strftime('%Y-%m-%d')})
+                                  """)
+        else:
+            label = widgets.Label(f"{self.table_name} (No table found)")
+        
+        items = [date_picker_from, date_picker_to, btn]
+        display(widgets.VBox([label, widgets.HBox(items)]))
+        
