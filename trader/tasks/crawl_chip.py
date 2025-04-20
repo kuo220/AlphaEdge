@@ -11,11 +11,11 @@ import time
 from loguru import logger
 import random
 
-crawler_path = Path.cwd().parents[0]
+crawler_path = Path.cwd().parent
+print(crawler_path)
 sys.path.append(str(crawler_path))
 
-from utils import Crawler
-from utils import Data
+from crawler import CrawlStockChip
 
 def generate_random_header():
     ua = UserAgent()
@@ -35,21 +35,17 @@ if __name__ == '__main__':
     2. 2017/12/18
     """
     
-    crawler = Crawler().FromHTML
+    crawler = CrawlStockChip()
     
     # TWSE
     # twse_dir_path = Path(__file__).resolve().parent.parent / 'Downloads' / '三大法人盤後籌碼' / 'TWSE'
-    twse_dir_path = Path(__file__).resolve().parent / '三大法人盤後籌碼' / 'TWSE'
-    twse_start_year = 2016
-    twse_start_month = 8
-    twse_start_day = 26
+    twse_start_date = datetime.datetime(2024, 4, 5)
+    twse_end_date = datetime.datetime(2024, 4, 10)
     
-    crawler.crawl_twse_chip(twse_start_year, twse_start_month, twse_start_day, twse_dir_path)
+    crawler.crawl_twse_chip_range(twse_start_date, twse_end_date)
     
     # TPEX
-    tpex_dir_path = Path(__file__).resolve().parent.parent / 'Downloads' / '三大法人盤後籌碼' / 'TPEX'
-    tpex_start_year = 2014
-    tpex_start_month = 12
-    tpex_start_day = 1
+    tpex_start_date = datetime.datetime(2024, 4, 5)
+    tpex_end_date = datetime.datetime(2024, 4, 10)
     
-    crawler.crawl_tpex_chip(tpex_start_year, tpex_start_month, tpex_start_day, tpex_dir_path)  
+    crawler.crawl_tpex_chip_range(tpex_start_date, tpex_end_date)
