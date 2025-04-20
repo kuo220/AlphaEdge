@@ -10,10 +10,7 @@ from fake_useragent import UserAgent
 import time
 from loguru import logger
 import random
-
-crawler_path = Path.cwd().parent
-sys.path.append(str(crawler_path))
-
+sys.path.append(str(Path(__file__).resolve().parents[1]))
 from crawler import (CrawlerTools, CrawlStockChip)
 
 
