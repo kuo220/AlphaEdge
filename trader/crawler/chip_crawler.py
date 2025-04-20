@@ -323,8 +323,7 @@ class CrawlStockChip:
     def create_chip_db(self):
         """ 創建三大法人盤後籌碼db """
         
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        cursor = self.conn.cursor()
         
         create_table_query = f""" 
         CREATE TABLE IF NOT EXISTS {self.table_name}(
@@ -356,8 +355,8 @@ class CrawlStockChip:
         else:
             print(f"Table {self.table_name} create unsuccessfully!")
         
-        conn.commit()
-        conn.close()
+        self.conn.commit()
+        self.conn.close()
 
     
     def add_to_sql(self):
