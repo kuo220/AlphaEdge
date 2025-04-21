@@ -19,10 +19,14 @@ def get_resolved_path(env_key: str, default: str=None) -> Path:
 
 
 # === Absolute paths to directories ===
-CRAWLER_DOWNLOADS_PATH = get_resolved_path("CRAWLER_DOWNLOADS_PATH")
-CHIP_DOWNLOADS_PATH = get_resolved_path("CHIP_DOWNLOADS_PATH")
 DATABASE_DIR_PATH = get_resolved_path("DATABASE_DIR_PATH")
 BACKTEST_RESULT_DIR_PATH = get_resolved_path("BACKTEST_RESULT_DIR_PATH")
+
+
+# === Crawl Data Downloads Path ===
+CRAWLER_DOWNLOADS_PATH = get_resolved_path("CRAWLER_DOWNLOADS_PATH")
+CHIP_DOWNLOADS_PATH = get_resolved_path("CHIP_DOWNLOADS_PATH")
+TICK_DOWNLOADS_PATH = get_resolved_path("TICK_DOWNLOADS_PATH")
 
 
 # === Full paths to database files ===

@@ -11,10 +11,8 @@ from pathlib import Path
 from requests.exceptions import ReadTimeout
 from requests.exceptions import ConnectionError
 import shutil
-import zipfile
-import pickle
-import warnings
 import sqlite3
+import shioaji as sj
 from bs4 import BeautifulSoup
 from io import StringIO
 from typing import List
@@ -27,3 +25,15 @@ from tqdm import tnrange, tqdm_notebook
 from dateutil.rrule import rrule, DAILY, MONTHLY
 from dateutil.relativedelta import relativedelta
 from .crawler_tools import CrawlerTools
+
+
+""" 
+Shioaji 台股 ticks 資料時間表：
+From: 2020/03/02 ~ Today
+"""
+
+class CrawlStockTick:
+    """ 爬取上市櫃股票 ticks """
+    
+    def __init__(self):
+        pass
