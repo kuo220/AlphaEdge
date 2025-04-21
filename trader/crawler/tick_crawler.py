@@ -1,3 +1,4 @@
+import sys
 import os
 import shutil
 import numpy as np
@@ -24,7 +25,10 @@ from tqdm import tqdm
 from tqdm import tnrange, tqdm_notebook
 from dateutil.rrule import rrule, DAILY, MONTHLY
 from dateutil.relativedelta import relativedelta
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from utils import ShioajiAccount
 from .crawler_tools import CrawlerTools
+from config import *
 
 
 """ 
@@ -35,5 +39,5 @@ From: 2020/03/02 ~ Today
 class CrawlStockTick:
     """ 爬取上市櫃股票 ticks """
     
-    def __init__(self):
+    def __init__(self):        
         pass

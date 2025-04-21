@@ -40,51 +40,27 @@ class TickDBManager:
         df = df[new_columns_order]
 
         return df
-
-
-    @staticmethod
-    def create_tick_dolphinDB(db_name: str, table_name: str):
-        """ 創建 dolphinDB """
     
-        session = ddb.session()
-        session.connect(DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
+    
+    @staticmethod
+    def format_csv_time_to_microsec(csv_path: dir):
+        """ 將 tick csv 檔案時間格式格式化至微秒（才能存進 dolphinDB） """
         
-        start_time = '2020.03.01'
-        end_time = '2030.12.31'
+        df = pd.read_csv(csv_path)
         
-        if session.existsDatabase(f"dfs://{db_name}"):
-            print("Database exists!")
-        else:
-            print("Database doesn't exist!\nCreating a database...")
-            script = f"""
-            create database "dfs://{db_name}"
-            partitioned by VALUE({start_time}..{end_time}), HASH([SYMBOL, 25]) 
-            engine='TSDB'
-            create table "dfs://{db_name}"."{table_name}"(
-                stock_id SYMBOL
-                time NANOTIMESTAMP
-                close FLOAT
-                volume INT
-                bid_price FLOAT
-                bid_volume INT
-                ask_price FLOAT
-                ask_volume INT
-                tick_type INT
-            )
-            partitioned by time, stock_id,
-            sortColumns=[`stock_id, `time],
-            keepDuplicates=ALL
-            """
-            try:
-                session.run(script)
-                if session.existsDatabase(f"dfs://{db_name}"):
-                    print("dolphinDB create successfully!")
-                else:
-                    print("dolphinDB create unsuccessfully!")
-            except Exception as e:
-                print(f"dolphinDB create unsuccessfully!\n{e}")
+        # 若 time 欄位沒有精確到微秒則格式化
+        if not df['time'].astype(str).str.match(r'.*\.\d{6}$').all():
+            csv_name = Path(csv_path).name
+            print(f"{csv_name} start formatting...")
             
-       
+            # 將 'time' 欄位轉換為 datetime 格式，並補足到微秒，同時加上年月日
+            df['time'] = pd.to_datetime(df['time'], errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S.%f')
+            
+            # 將處理後的 DataFrame 保存回 CSV
+            df.to_csv(csv_path, index=False)
+            print(f"{csv_name} finish formatting!")
+    
+    
     def add_csv_to_dolphinDB(self, csv_path: str):
         """ 將單個 .csv 檔案存入創建好的 database """
         
@@ -150,7 +126,50 @@ class TickDBManager:
         except Exception as e:
             print(f"All csv files fail to save into database and table!\n{e}")
 
+
+    @staticmethod
+    def create_tick_dolphinDB(db_name: str, table_name: str):
+        """ 創建 dolphinDB """
     
+        session = ddb.session()
+        session.connect(DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
+        
+        start_time = '2020.03.01'
+        end_time = '2030.12.31'
+        
+        if session.existsDatabase(f"dfs://{db_name}"):
+            print("Database exists!")
+        else:
+            print("Database doesn't exist!\nCreating a database...")
+            script = f"""
+            create database "dfs://{db_name}"
+            partitioned by VALUE({start_time}..{end_time}), HASH([SYMBOL, 25]) 
+            engine='TSDB'
+            create table "dfs://{db_name}"."{table_name}"(
+                stock_id SYMBOL
+                time NANOTIMESTAMP
+                close FLOAT
+                volume INT
+                bid_price FLOAT
+                bid_volume INT
+                ask_price FLOAT
+                ask_volume INT
+                tick_type INT
+            )
+            partitioned by time, stock_id,
+            sortColumns=[`stock_id, `time],
+            keepDuplicates=ALL
+            """
+            try:
+                session.run(script)
+                if session.existsDatabase(f"dfs://{db_name}"):
+                    print("dolphinDB create successfully!")
+                else:
+                    print("dolphinDB create unsuccessfully!")
+            except Exception as e:
+                print(f"dolphinDB create unsuccessfully!\n{e}")
+            
+       
     @staticmethod
     def clear_all_cache():
         """ 清除 Cache Data """
@@ -184,22 +203,3 @@ class TickDBManager:
             print("Delete database unsuccessfully!")
         else:
             print("Delete database successfully!")
-            
-    
-    @staticmethod
-    def format_csv_time_to_microsec(csv_path: dir):
-        """ 將 tick csv 檔案時間格式格式化至微秒（才能存進 dolphinDB） """
-        
-        df = pd.read_csv(csv_path)
-        
-        # 若 time 欄位沒有精確到微秒則格式化
-        if not df['time'].astype(str).str.match(r'.*\.\d{6}$').all():
-            csv_name = Path(csv_path).name
-            print(f"{csv_name} start formatting...")
-            
-            # 將 'time' 欄位轉換為 datetime 格式，並補足到微秒，同時加上年月日
-            df['time'] = pd.to_datetime(df['time'], errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S.%f')
-            
-            # 將處理後的 DataFrame 保存回 CSV
-            df.to_csv(csv_path, index=False)
-            print(f"{csv_name} finish formatting!")
