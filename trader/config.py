@@ -3,23 +3,45 @@ from dotenv import load_dotenv
 import os
 
 
-config = {
-    # 執行模式
-    "execute_mode": "backtest",                 # {"execute", "backtest"} 兩種模式
-    "is_simulation": True,                      # 是否永豐api的模擬模式
-    
-    # 回測參數
-    "start_date": datetime.datetime.now(),      # 回測開始日期
-    "end_date": datetime.datetime.now(),        # 回測結束日期
-    
-    # 共同參數
-    "api_num": 1,                               # api數量
-    "api_key": [],                              # api_key在.env的變數名稱
-    "api_secret_key": [],                       # api_secret_key在.env的變數名稱
-    "line_token": "",                           # line_token在.env的變數名稱
-    "stock_buy_num": 1,                         # 買入股票檔數
-    "trade_record_path": "",                    # 交易紀錄存放路徑
-    
-    # 市場
-    "market": "stock"                           # {"stock", "future"} 股票 or 期貨
-}
+# Load environment variables from .env file
+load_dotenv()
+
+# Root Directory
+BASE_DIR = Path(__file__).resolve().parent
+
+
+# === Helper: Load and resolve path from .env ===
+def get_resolved_path(env_key: str, default: str=None) -> Path:
+    value = os.getenv(env_key, default)
+    if value is None:
+        raise ValueError(f"Missing required environment variable: {env_key}")
+    return (BASE_DIR / value).resolve()
+
+
+# === Absolute paths to directories ===
+CRAWLER_DOWNLOADS_PATH = get_resolved_path("CRAWLER_DOWNLOADS_PATH")
+DATABASE_DIR_PATH = get_resolved_path("DATABASE_DIR_PATH")
+BACKTEST_RESULT_DIR_PATH = get_resolved_path("BACKTEST_RESULT_DIR_PATH")
+
+
+# === Full paths to database files ===
+CHIP_DB_NAME = os.getenv("CHIP_DB_NAME", "chip.db")
+TICK_DB_NAME = os.getenv("TICK_DB_NAME", "tickDB")
+QUANTX_DB_NAME = os.getenv("QUANTX_DB_NAME", "data.db")
+
+
+CHIP_DB_PATH = (DATABASE_DIR_PATH / CHIP_DB_NAME).resolve()
+TICK_DB_PATH = (DATABASE_DIR_PATH / TICK_DB_NAME).resolve()
+QUANTX_DB_PATH = (DATABASE_DIR_PATH / QUANTX_DB_NAME).resolve()
+
+
+# === Table names ===
+CHIP_TABLE_NAME = os.getenv("CHIP_TABLE_NAME", "chip")
+TICK_TABLE_NAME = os.getenv("TICK_TABLE_NAME", "tick")
+
+
+# === DolphinDB server setting ===
+DDB_HOST = os.getenv("DDB_HOST")
+DDB_PORT = os.getenv("DDB_PORT")
+DDB_USER = os.getenv("DDB_USER")
+DDB_PASSWORD = os.getenv("DDB_PASSWORD")
