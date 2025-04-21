@@ -1,3 +1,4 @@
+import sys
 import sqlite3
 import os
 import pandas as pd
@@ -7,20 +8,17 @@ try:
     import dolphindb as ddb
 except ModuleNotFoundError:
     print("Warning: dolphindb module is not installed.")
-    
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from config import (TICK_DB_PATH, TICK_TABLE_NAME)
     
 class Tick:
     """ Tick data API """
     
-    def __init__(self, db_path: str="dfs://tickDB", db_name: str="tickDB", table_name: str="tick"):
-        self.db_path = db_path
-        self.db_name = db_name
-        self.table_name = table_name
-        
+    def __init__(self): 
         self.session = ddb.session() 
         self.session.connect("localhost", 8848, "admin", "123456")
         
-        if (self.session.existsDatabase(self.db_path)):
+        if (self.session.existsDatabase(TICK_DB_PATH)):
             print("* Database exists!")
             
             # set TSDBCacheEngineSize to 5GB (must < 8(maxMemSize) * 0.75 GB)
@@ -43,8 +41,8 @@ class Tick:
         start_date = start_date.strftime('%Y.%m.%d')
         end_date = (end_date + datetime.timedelta(days=1)).strftime('%Y.%m.%d')
         script = f""" 
-        db = database("{self.db_path}")
-        table = loadTable(db, "{self.table_name}")
+        db = database("{TICK_DB_PATH}")
+        table = loadTable(db, "{TICK_TABLE_NAME}")
         select * from table
         where time between nanotimestamp({start_date}):nanotimestamp({end_date})
         """
@@ -62,8 +60,8 @@ class Tick:
         start_date = start_date.strftime('%Y.%m.%d')
         end_date = (end_date + datetime.timedelta(days=1)).strftime('%Y.%m.%d')
         script = f""" 
-        db = database("{self.db_path}")
-        table = loadTable(db, "{self.table_name}")
+        db = database("{TICK_DB_PATH}")
+        table = loadTable(db, "{TICK_TABLE_NAME}")
         select * from table
         where time between nanotimestamp({start_date}):nanotimestamp({end_date}) order by time
         """
@@ -80,8 +78,8 @@ class Tick:
         start_date = start_date.strftime('%Y.%m.%d')
         end_date = (end_date + datetime.timedelta(days=1)).strftime('%Y.%m.%d')
         script = f""" 
-        db = database("{self.db_path}")
-        table = loadTable(db, "{self.table_name}")
+        db = database("{TICK_DB_PATH}")
+        table = loadTable(db, "{TICK_TABLE_NAME}")
         select * from table
         where stock_id=`{stock_id} and time between nanotimestamp({start_date}):nanotimestamp({end_date})
         """
