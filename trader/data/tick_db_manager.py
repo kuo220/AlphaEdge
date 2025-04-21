@@ -47,7 +47,7 @@ class TickDBManager:
         """ 創建 dolphinDB """
     
         session = ddb.session()
-        session.connect("localhost", 8848, "admin", "123456")
+        session.connect(DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
         
         start_time = '2020.03.01'
         end_time = '2030.12.31'
@@ -156,7 +156,7 @@ class TickDBManager:
         """ 清除 Cache Data """
         
         session = ddb.session()
-        session.connect("localhost", 8848, "admin", "123456")
+        session.connect(DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
         
         script = """ 
         clearAllCache()
@@ -171,7 +171,7 @@ class TickDBManager:
         print("Start deleting database...")
 
         session = ddb.session()
-        session.connect("localhost", 8848, "admin", "123456")
+        session.connect(DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
         
         script = f"""
         if (existsDatabase("{db_path}")) {{

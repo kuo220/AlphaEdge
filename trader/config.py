@@ -41,6 +41,7 @@ TICK_TABLE_NAME = os.getenv("TICK_TABLE_NAME", "tick")
 
 
 # === DolphinDB server setting ===
+DDB_PATH = os.getenv("DDB_PATH")
 DDB_HOST = os.getenv("DDB_HOST")
 DDB_PORT = int(os.getenv("DDB_PORT"))
 DDB_USER = os.getenv("DDB_USER")

@@ -9,14 +9,16 @@ try:
 except ModuleNotFoundError:
     print("Warning: dolphindb module is not installed.")
 sys.path.append(str(Path(__file__).resolve().parents[1]))
-from config import (TICK_DB_PATH, TICK_TABLE_NAME)
-    
+from config import (TICK_DB_PATH, TICK_TABLE_NAME, 
+                    DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
+
+
 class Tick:
     """ Tick data API """
     
     def __init__(self): 
         self.session = ddb.session() 
-        self.session.connect("localhost", 8848, "admin", "123456")
+        self.session.connect(DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
         
         if (self.session.existsDatabase(TICK_DB_PATH)):
             print("* Database exists!")
