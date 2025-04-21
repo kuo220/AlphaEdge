@@ -1,3 +1,4 @@
+import sys
 import os
 import shutil
 import numpy as np
@@ -27,6 +28,8 @@ from tqdm import tnrange, tqdm_notebook
 from dateutil.rrule import rrule, DAILY, MONTHLY
 from dateutil.relativedelta import relativedelta
 from .crawler_tools import CrawlerTools
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from config import QUANTX_DB_PATH
 
 
 class CrawlQuantX:
@@ -1193,8 +1196,7 @@ class FinanceDataHandler:
     """ 從 HTML 檔案中提取財務報表數據，清理、組合並將它們儲存到資料庫中 """
     
     def __init__(self):
-        # 取得 data.db 的路徑
-        self.db_path = str((Path(__file__).resolve().parents[1] / 'Data' / 'data.db').resolve())
+        pass
     
     def afterIFRS(self, year, season):
         season2date = [ datetime.datetime(year, 5, 15),
@@ -1434,7 +1436,7 @@ class FinanceDataHandler:
         
     def to_db(self, tbs):
         print('save table to db')
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(QUANTX_DB_PATH)
         for i, df in tbs.items():
             print('  ', i)
             df = df.reset_index().sort_values(['stock_id', 'date']).drop_duplicates(['stock_id', 'date']).set_index(['stock_id', 'date'])
