@@ -1,9 +1,11 @@
+import sys
 import sqlite3
 import os
 import pandas as pd
 import datetime
 from pathlib import Path
-
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from config import QUANTX_DB_PATH
 
 class QXData:
     """ QuantX Data API """
@@ -11,11 +13,8 @@ class QXData:
     def __init__(self, date = datetime.datetime.now().date()):
 
         self.macro_eco_db = ["tw_total_pmi", "tw_total_nmi", "tw_business_indicator", "benchmark_return", "margin_balance"]
-
-        # 開啟資料庫（data_path會根據data.py放置位置不同而改變）
-        data_path = str((Path(__file__).resolve().parents[1] / 'database' / 'data.db').resolve())
         
-        self.conn = sqlite3.connect(data_path)
+        self.conn = sqlite3.connect(QUANTX_DB_PATH)
         cursor = self.conn.execute('SELECT name FROM sqlite_master WHERE type = "table"')
 
         # 找到所有的table名稱
