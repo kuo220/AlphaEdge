@@ -25,6 +25,7 @@ from dateutil.relativedelta import relativedelta
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from crawler.crawler_tools import CrawlerTools
 from data import SQLiteTools
+from config import (CHIP_DOWNLOADS_PATH, CHIP_DB_PATH, CHIP_TABLE_NAME)
 
 
 
@@ -43,13 +44,9 @@ class CrawlStockChip:
     """ 爬取上市、上櫃股票三大法人盤後籌碼 """
     
     def __init__(self):
-        # Database information
-        self.downloads_dir: str = str((Path(__file__).resolve().parent / 'downloads' / 'chip').resolve())
-        self.db_path: str = str((Path(__file__).resolve().parents[1] / 'database' / 'chip.db').resolve())
-        self.table_name: str = 'chip'
         
         # SQLite Connection
-        self.conn = sqlite3.connect(self.db_path)
+        self.conn = sqlite3.connect(CHIP_DB_PATH)
         
         # The date that TWSE chip data format was reformed
         self.twse_first_reform_date = datetime.date(2014, 12, 1)
@@ -62,8 +59,8 @@ class CrawlStockChip:
     def crawl_twse_chip(self, date: datetime.date) -> Optional[pd.DataFrame]:
         """ TWSE 三大法人單日爬蟲 """
         
-        if not os.path.exists(self.downloads_dir):
-            os.makedirs(self.downloads_dir)
+        if not os.path.exists(CHIP_DOWNLOADS_PATH):
+            os.makedirs(CHIP_DOWNLOADS_PATH)
 
         print("* Start crawling TWSE institutional investors data...")
         print(date.strftime("%Y/%m/%d"))
@@ -110,7 +107,7 @@ class CrawlStockChip:
             
         twse_df = CrawlerTools.remove_redundant_col(twse_df, '三大法人買賣超股數')
         twse_df = CrawlerTools.fill_nan(twse_df, 0)
-        twse_df.to_csv(os.path.join(self.downloads_dir, f"twse_{date.strftime('%Y%m%d')}.csv"), index=False)
+        twse_df.to_csv(os.path.join(CHIP_DOWNLOADS_PATH, f"twse_{date.strftime('%Y%m%d')}.csv"), index=False)
         
         return twse_df
     
@@ -118,8 +115,8 @@ class CrawlStockChip:
     def crawl_tpex_chip(self, date: datetime.date) -> Optional[pd.DataFrame]:
         """ TPEX 三大法人單日爬蟲 """
         
-        if not os.path.exists(self.downloads_dir):
-            os.makedirs(self.downloads_dir)
+        if not os.path.exists(CHIP_DOWNLOADS_PATH):
+            os.makedirs(CHIP_DOWNLOADS_PATH)
         
         print("* Start crawling TPEX institutional investors data...")
         print(date.strftime("%Y/%m/%d"))
@@ -181,7 +178,7 @@ class CrawlStockChip:
         CrawlerTools.move_col(tpex_df, "自營商買賣超股數", "自營商買賣超股數_避險")
         tpex_df = CrawlerTools.remove_redundant_col(tpex_df, '三大法人買賣超股數')
         tpex_df = CrawlerTools.fill_nan(tpex_df, 0)
-        tpex_df.to_csv(os.path.join(self.downloads_dir, f"tpex_{date.strftime('%Y%m%d')}.csv"), index=False)
+        tpex_df.to_csv(os.path.join(CHIP_DOWNLOADS_PATH, f"tpex_{date.strftime('%Y%m%d')}.csv"), index=False)
         
         return tpex_df
     
@@ -194,8 +191,8 @@ class CrawlStockChip:
         # if crawl_cnt == 100, then sleep
         crawl_cnt = 0
         
-        if not os.path.exists(self.downloads_dir):
-            os.makedirs(self.downloads_dir)
+        if not os.path.exists(CHIP_DOWNLOADS_PATH):
+            os.makedirs(CHIP_DOWNLOADS_PATH)
 
         print("* Start crawling TWSE institutional investors data...")
         while cur_date <= end_date:
@@ -221,8 +218,8 @@ class CrawlStockChip:
         # if crawl_cnt == 100, then sleep
         crawl_cnt = 0
         
-        if not os.path.exists(self.downloads_dir):
-            os.makedirs(self.downloads_dir)
+        if not os.path.exists(CHIP_DOWNLOADS_PATH):
+            os.makedirs(CHIP_DOWNLOADS_PATH)
         
         print("* Start crawling TPEX institutional investors data...")
         while cur_date <= end_date:
@@ -252,7 +249,7 @@ class CrawlStockChip:
         for date in progress:
             print(f"Crawling {date}")
             
-            progress.set_description(f"Crawl {self.table_name} {date}")
+            progress.set_description(f"Crawl {CHIP_TABLE_NAME} {date}")
 
             # Crawl Chip Data
             twse_chip = self.crawl_twse_chip(date)
@@ -281,8 +278,8 @@ class CrawlStockChip:
         date_picker_from = widgets.DatePicker(description='from', disabled=False)
         date_picker_to = widgets.DatePicker(description='to', disabled=False)
 
-        if SQLiteTools.check_table_exist(self.conn, self.table_name):
-            date_picker_from.value = SQLiteTools.get_table_latest_date(self.conn, self.table_name, '日期')
+        if SQLiteTools.check_table_exist(self.conn, CHIP_TABLE_NAME):
+            date_picker_from.value = SQLiteTools.get_table_latest_date(self.conn, CHIP_TABLE_NAME, '日期')
         date_picker_to.value = datetime.datetime.now().date()
         
         # Set update button
@@ -303,18 +300,18 @@ class CrawlStockChip:
                 print("Date range is empty. Please check if the start date is earlier than the end date.")
                 return
             
-            print(f"Updating data for table '{self.table_name}' from {dates[0]} to {dates[-1]}...")
+            print(f"Updating data for table '{CHIP_TABLE_NAME}' from {dates[0]} to {dates[-1]}...")
             self.update_table(dates)
             
         btn.on_click(onupdate)
         
-        if SQLiteTools.check_table_exist(self.conn, self.table_name):
+        if SQLiteTools.check_table_exist(self.conn, CHIP_TABLE_NAME):
             label = widgets.Label(f""" 
-                                  {self.table_name} (from {SQLiteTools.get_table_earliest_date(self.conn, self.table_name, '日期').strftime('%Y-%m-%d')} to 
-                                  {SQLiteTools.get_table_latest_date(self.conn, self.table_name, '日期').strftime('%Y-%m-%d')})
+                                  {CHIP_TABLE_NAME} (from {SQLiteTools.get_table_earliest_date(self.conn, CHIP_TABLE_NAME, '日期').strftime('%Y-%m-%d')} to 
+                                  {SQLiteTools.get_table_latest_date(self.conn, CHIP_TABLE_NAME, '日期').strftime('%Y-%m-%d')})
                                   """)
         else:
-            label = widgets.Label(f"{self.table_name} (No table found)")
+            label = widgets.Label(f"{CHIP_TABLE_NAME} (No table found)")
         
         items = [date_picker_from, date_picker_to, btn]
         display(widgets.VBox([label, widgets.HBox(items)]))
@@ -326,7 +323,7 @@ class CrawlStockChip:
         cursor = self.conn.cursor()
         
         create_table_query = f""" 
-        CREATE TABLE IF NOT EXISTS {self.table_name}(
+        CREATE TABLE IF NOT EXISTS {CHIP_TABLE_NAME}(
             日期 TEXT NOT NULL,
             證券代號 TEXT NOT NULL,
             證券名稱 TEXT NOT NULL,
@@ -349,11 +346,11 @@ class CrawlStockChip:
         cursor.execute(create_table_query)
         
         # 檢查是否成功建立 table
-        cursor.execute(f"PRAGMA table_info('{self.table_name}')")
+        cursor.execute(f"PRAGMA table_info('{CHIP_TABLE_NAME}')")
         if cursor.fetchall():
-            print(f"Table {self.table_name} create successfully!")
+            print(f"Table {CHIP_TABLE_NAME} create successfully!")
         else:
-            print(f"Table {self.table_name} create unsuccessfully!")
+            print(f"Table {CHIP_TABLE_NAME} create unsuccessfully!")
         
         self.conn.commit()
         self.conn.close()
@@ -363,14 +360,14 @@ class CrawlStockChip:
         """ 將資料夾中的所有 CSV 檔存入指定 SQLite 資料庫中的指定資料表。 """
         
         file_cnt = 0
-        for file_name in os.listdir(self.downloads_dir):
+        for file_name in os.listdir(CHIP_DOWNLOADS_PATH):
             # Skip non-CSV files
             if not file_name.endswith('.csv'):
                 continue
-            df = pd.read_csv(os.path.join(self.downloads_dir, file_name))
-            df.to_sql(self.table_name, self.conn, if_exists='append', index=False)
+            df = pd.read_csv(os.path.join(CHIP_DOWNLOADS_PATH, file_name))
+            df.to_sql(CHIP_TABLE_NAME, self.conn, if_exists='append', index=False)
             print(f"Save {file_name} into database.")
             file_cnt += 1
         self.conn.close()
-        shutil.rmtree(self.downloads_dir)
+        shutil.rmtree(CHIP_DOWNLOADS_PATH)
         print(f"Total file: {file_cnt}")
