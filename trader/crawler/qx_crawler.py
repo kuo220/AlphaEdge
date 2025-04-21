@@ -852,7 +852,7 @@ class CrawlQuantX:
 
 
     def crawl_finance_statement(self, year, season, stock_ids):
-        directory = str(Path(__file__).resolve().parents[1] / 'Data' / 'financial_statement')
+        directory = str((Path(__file__).resolve().parents[1] / 'Data' / 'financial_statement').resolve())
         if not os.path.exists(directory):
             os.makedirs(directory)
 
@@ -1193,7 +1193,7 @@ class FinanceDataHandler:
     
     def __init__(self):
         # 取得 data.db 的路徑
-        self.db_path = str(Path(__file__).resolve().parents[1] / 'Data' / 'data.db')
+        self.db_path = str((Path(__file__).resolve().parents[1] / 'Data' / 'data.db').resolve())
     
     def afterIFRS(self, year, season):
         season2date = [ datetime.datetime(year, 5, 15),

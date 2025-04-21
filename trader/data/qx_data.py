@@ -13,7 +13,7 @@ class QXData:
         self.macro_eco_db = ["tw_total_pmi", "tw_total_nmi", "tw_business_indicator", "benchmark_return", "margin_balance"]
 
         # 開啟資料庫（data_path會根據data.py放置位置不同而改變）
-        data_path = str(Path(__file__).resolve().parents[1] / 'database' / 'data.db')
+        data_path = str((Path(__file__).resolve().parents[1] / 'database' / 'data.db').resolve())
         
         self.conn = sqlite3.connect(data_path)
         cursor = self.conn.execute('SELECT name FROM sqlite_master WHERE type = "table"')

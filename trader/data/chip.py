@@ -8,7 +8,7 @@ from pathlib import Path
 class Chip:
     """ Institutional investors chip API """
     
-    def __init__(self, db_path: str=str(Path(__file__).resolve().parents[1] / 'database'), db_name: str="chip.db", table_name: str="chip"):
+    def __init__(self, db_path: str=str((Path(__file__).resolve().parents[1] / 'database').resolve()), db_name: str="chip.db", table_name: str="chip"):
         self.db_path = db_path
         self.db_name = db_name
         self.table_name = table_name

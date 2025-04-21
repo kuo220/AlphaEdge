@@ -44,8 +44,8 @@ class CrawlStockChip:
     
     def __init__(self):
         # Database information
-        self.downloads_dir: str = str(Path(__file__).resolve().parent / 'downloads' / 'chip')
-        self.db_path: str = str(Path(__file__).resolve().parents[1] / 'database' / 'chip.db')
+        self.downloads_dir: str = str((Path(__file__).resolve().parent / 'downloads' / 'chip').resolve())
+        self.db_path: str = str((Path(__file__).resolve().parents[1] / 'database' / 'chip.db').resolve())
         self.table_name: str = 'chip'
         
         # SQLite Connection
