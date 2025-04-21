@@ -1,3 +1,4 @@
+import sys
 import pandas as pd
 import os
 from pathlib import Path
@@ -5,19 +6,17 @@ try:
     import dolphindb as ddb
 except ModuleNotFoundError:
     print("Warning: dolphindb module is not installed.")
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from config import (TICK_DB_PATH, TICK_TABLE_NAME, DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
 
 
 class TickDBManager:
     
-    def __init__(self, db_path: str, db_name: str, table_name: str):
-        self.db_path = db_path          # ex: "dfs://tickDB"
-        self.db_name = db_name          # ex: "tickDB"
-        self.table_name = table_name    # ex: "tick"
-        
+    def __init__(self):
         self.session = ddb.session()
-        self.session.connect("localhost", 8848, "admin", "123456")  
+        self.session.connect(DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)  
         
-        if (self.session.existsDatabase(self.db_path)):
+        if (self.session.existsDatabase(TICK_DB_PATH)):
             print("Database exists!")
             
             # set TSDBCacheEngineSize to 5GB (must < 8(maxMemSize) * 0.75 GB)
@@ -90,14 +89,14 @@ class TickDBManager:
         """ 將單個 .csv 檔案存入創建好的 database """
         
         script = f"""
-        db = database("{self.db_path}")
+        db = database("{TICK_DB_PATH}")
         schemaTable = table(
             ["stock_id", "time", "close", "volume", "bid_price", "bid_volume", "ask_price", "ask_volume", "tick_type"] as columnName,
             ["SYMBOL", "NANOTIMESTAMP", "FLOAT", "INT", "FLOAT", "INT", "FLOAT", "INT", "INT"] as columnType
         )
         loadTextEx(
             dbHandle=db,
-            tableName="{self.table_name}",
+            tableName="{TICK_TABLE_NAME}",
             partitionColumns=["time", "stock_id"], 
             filename="{csv_path}",
             delimiter=",",
@@ -121,7 +120,7 @@ class TickDBManager:
         print(f"* Total csv files: {len(csv_files)}")
         
         script = f""" 
-        db = database("{self.db_path}")
+        db = database("{TICK_DB_PATH}")
         schemaTable = table(
             ["stock_id", "time", "close", "volume", "bid_price", "bid_volume", "ask_price", "ask_volume", "tick_type"] as columnName,
             ["SYMBOL", "NANOTIMESTAMP", "FLOAT", "INT", "FLOAT", "INT", "FLOAT", "INT", "INT"] as columnType
@@ -133,7 +132,7 @@ class TickDBManager:
         for (csv_path in {csv_files}) {{
             loadTextEx(
                 dbHandle=db,
-                tableName="{self.table_name}",
+                tableName="{TICK_TABLE_NAME}",
                 partitionColumns=["time", "stock_id"],
                 filename=csv_path,
                 delimiter=",",
