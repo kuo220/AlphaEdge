@@ -1,19 +1,18 @@
+import sys
 import sqlite3
 import os
 import pandas as pd
 import datetime
 from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from config import (CHIP_DB_PATH, CHIP_TABLE_NAME)
 
 
 class Chip:
     """ Institutional investors chip API """
     
-    def __init__(self, db_path: str=str((Path(__file__).resolve().parents[1] / 'database').resolve()), db_name: str="chip.db", table_name: str="chip"):
-        self.db_path = db_path
-        self.db_name = db_name
-        self.table_name = table_name
-        
-        self.conn = sqlite3.connect(f'{db_path}/{db_name}')
+    def __init__(self):
+        self.conn = sqlite3.connect(CHIP_DB_PATH)
         
     
     def get(self, start_date: datetime.date, end_date: datetime.date) -> pd.DataFrame:
@@ -23,7 +22,7 @@ class Chip:
             return pd.DataFrame()
         
         query = f""" 
-        SELECT * FROM {self.table_name} WHERE 日期 BETWEEN '{start_date}' AND '{end_date}'
+        SELECT * FROM {CHIP_TABLE_NAME} WHERE 日期 BETWEEN '{start_date}' AND '{end_date}'
         """
         df = pd.read_sql_query(query, self.conn)
         return df
@@ -36,7 +35,7 @@ class Chip:
             return pd.DataFrame()
         
         query = f""" 
-        SELECT * FROM {self.table_name} WHERE 證券代號 = '{stock_id}' AND 日期 BETWEEN '{start_date}' AND '{end_date}'
+        SELECT * FROM {CHIP_TABLE_NAME} WHERE 證券代號 = '{stock_id}' AND 日期 BETWEEN '{start_date}' AND '{end_date}'
         """
         df = pd.read_sql_query(query, self.conn)
         return df

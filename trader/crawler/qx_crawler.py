@@ -28,6 +28,7 @@ from dateutil.rrule import rrule, DAILY, MONTHLY
 from dateutil.relativedelta import relativedelta
 from .crawler_tools import CrawlerTools
 
+
 class CrawlQuantX:
     """ QuantX Crawler """
     
