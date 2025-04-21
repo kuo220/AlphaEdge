@@ -29,7 +29,6 @@ CHIP_DB_NAME = os.getenv("CHIP_DB_NAME", "chip.db")
 TICK_DB_NAME = os.getenv("TICK_DB_NAME", "tickDB")
 QUANTX_DB_NAME = os.getenv("QUANTX_DB_NAME", "data.db")
 
-
 CHIP_DB_PATH = (DATABASE_DIR_PATH / CHIP_DB_NAME).resolve()
 TICK_DB_PATH = (DATABASE_DIR_PATH / TICK_DB_NAME).resolve()
 QUANTX_DB_PATH = (DATABASE_DIR_PATH / QUANTX_DB_NAME).resolve()
@@ -45,3 +44,8 @@ DDB_HOST = os.getenv("DDB_HOST")
 DDB_PORT = os.getenv("DDB_PORT")
 DDB_USER = os.getenv("DDB_USER")
 DDB_PASSWORD = os.getenv("DDB_PASSWORD")
+
+
+# === Shioaji API ===
+API_KEY = os.getenv("API_KEY")
+API_SECRET_KEY = os.getenv("API_SECRET_KEY")
