@@ -7,7 +7,8 @@ try:
 except ModuleNotFoundError:
     print("Warning: dolphindb module is not installed.")
 sys.path.append(str(Path(__file__).resolve().parents[1]))
-from config import (TICK_DB_PATH, TICK_TABLE_NAME, DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
+from config import (TICK_DOWNLOADS_PATH, TICK_DB_PATH, TICK_TABLE_NAME, 
+                    DDB_PATH, DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
 
 
 class TickDBManager:
@@ -43,7 +44,7 @@ class TickDBManager:
     
     
     @staticmethod
-    def format_csv_time_to_microsec(csv_path: dir):
+    def format_csv_time_to_microsec(csv_path: str):
         """ 將 tick csv 檔案時間格式格式化至微秒（才能存進 dolphinDB） """
         
         df = pd.read_csv(csv_path)
@@ -61,8 +62,8 @@ class TickDBManager:
             print(f"{csv_name} finish formatting!")
     
     
-    def add_csv_to_dolphinDB(self, csv_path: str):
-        """ 將單個 .csv 檔案存入創建好的 database """
+    def create_table_and_load_csv(self, csv_path: str):
+        """ 創建 table 並將單個 .csv 檔案存入創建好的 database """
         
         script = f"""
         db = database("{TICK_DB_PATH}")
@@ -88,8 +89,8 @@ class TickDBManager:
             print(f"The csv file fail to save into database and table!\n{e}")    
     
 
-    def add_all_csv_to_dolphinDB(self, dir_path: str):
-        """ 將多個 .csv 檔案存入建好的 database """
+    def create_table_and_load_all_csv(self, dir_path: str):
+        """ 創建 table 並將多個 .csv 檔案存入建好的 database """
         
         # read all csv files in dir_path (.replace is for windows os)
         csv_files = [str(dir_path / csv).replace('\\', '/') for csv in os.listdir(dir_path)]
@@ -137,15 +138,15 @@ class TickDBManager:
         start_time = '2020.03.01'
         end_time = '2030.12.31'
         
-        if session.existsDatabase(f"dfs://{db_name}"):
+        if session.existsDatabase(f"{DDB_PATH}{db_name}"):
             print("Database exists!")
         else:
             print("Database doesn't exist!\nCreating a database...")
             script = f"""
-            create database "dfs://{db_name}"
+            create database "{DDB_PATH}{db_name}"
             partitioned by VALUE({start_time}..{end_time}), HASH([SYMBOL, 25]) 
             engine='TSDB'
-            create table "dfs://{db_name}"."{table_name}"(
+            create table "{DDB_PATH}{db_name}"."{table_name}"(
                 stock_id SYMBOL
                 time NANOTIMESTAMP
                 close FLOAT
@@ -162,7 +163,7 @@ class TickDBManager:
             """
             try:
                 session.run(script)
-                if session.existsDatabase(f"dfs://{db_name}"):
+                if session.existsDatabase(f"{DDB_PATH}{db_name}"):
                     print("dolphinDB create successfully!")
                 else:
                     print("dolphinDB create unsuccessfully!")
