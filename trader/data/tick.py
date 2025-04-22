@@ -96,3 +96,24 @@ class Tick:
         if len(tick) > 0:
             return tick.iloc[-1:]
         return pd.DataFrame
+    
+    
+    def get_table_earliest_date(self) -> datetime.date:
+        """ 取得 tick 資料表中最早的日期（DolphinDB）"""
+        
+        try:
+            script = f"""
+            select top 1 time from loadTable("{TICK_DB_PATH}", "{TICK_TABLE_NAME}") order by time asc
+            """
+            result = self.session.run(script)
+            if result.empty:
+                raise ValueError("Tick table is empty.")
+            return pd.to_datetime(result["time"][0]).date()
+        except Exception as e:
+            print(f"Failed to get earliest tick time: {e}")
+        return None
+    
+    
+    def get_table_latest_date(self) -> datetime.date:
+        """ 取得 tick 資料表中最新的日期（DolphinDB）"""
+        pass

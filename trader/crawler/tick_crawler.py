@@ -28,7 +28,9 @@ from dateutil.relativedelta import relativedelta
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from utils import ShioajiAccount
 from .crawler_tools import CrawlerTools
-from config import *
+from .html_crawler import CrawlHTML
+from config import (TICK_DOWNLOADS_PATH, TICK_DB_PATH, TICK_DB_NAME, TICK_TABLE_NAME,
+                    ShioajiAPI, API_LIST)
 
 
 """ 
@@ -40,4 +42,7 @@ class CrawlStockTick:
     """ 爬取上市櫃股票 ticks """
     
     def __init__(self):        
-        pass
+        self.api_list: List[ShioajiAPI] = API_LIST
+        self.stock_list: List[str] = CrawlHTML.crawl_stock_list()
+        
+    

@@ -30,8 +30,9 @@ from dateutil.relativedelta import relativedelta
 
 class CrawlHTML:
     """ HTML Crawler """
-        
-    def crawl_stock_list(self) -> List[str]:
+    
+    @staticmethod
+    def crawl_stock_list() -> List[str]:
         """ 爬取上市櫃公司的股票代號 """
         
         # 取得上市公司代號

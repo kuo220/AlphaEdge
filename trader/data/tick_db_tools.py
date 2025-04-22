@@ -10,6 +10,7 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 from config import (TICK_DOWNLOADS_PATH, TICK_DB_PATH, TICK_TABLE_NAME, 
                     DDB_PATH, DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
 
+
 class TickDBTools:
     """ Tick DolphinDB Tools """
     

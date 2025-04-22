@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import List
 from dotenv import load_dotenv
 import os
 
@@ -55,3 +56,22 @@ DDB_PASSWORD = os.getenv("DDB_PASSWORD")
 # === Shioaji API ===
 API_KEY = os.getenv("API_KEY")
 API_SECRET_KEY = os.getenv("API_SECRET_KEY")
+
+
+# === API list for crawling tick data ===
+class ShioajiAPI:
+    """ Contains Shioaji API_KEY and API_SECRET_KEY """
+    
+    def __init__(self, api_key: str, api_secret_key: str):
+        self.api_key = api_key
+        self.api_secret_key = api_secret_key
+        
+API_LIST: List[ShioajiAPI] = []
+
+# Add API from 11 ~ 17 and add API_1 (Mine)
+for num in range(8):
+    if num == 0:
+        api = ShioajiAPI(os.getenv(f"API_KEY_{num + 1}"), os.getenv(f"API_SECRET_KEY_{num + 1}"))
+        continue
+    api = ShioajiAPI(os.getenv(f"API_KEY_{num + 10}"), os.getenv(f"API_SECRET_KEY_{num + 10}"))
+    API_LIST.append(api)
