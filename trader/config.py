@@ -19,7 +19,7 @@ def get_resolved_path(env_key: str, default: str=None) -> Path:
     return (BASE_DIR / value).resolve()
 
 
-# === Absolute paths to directories ===
+# === General Directory Path ===
 DATABASE_DIR_PATH = get_resolved_path("DATABASE_DIR_PATH")
 BACKTEST_RESULT_DIR_PATH = get_resolved_path("BACKTEST_RESULT_DIR_PATH")
 
@@ -28,6 +28,12 @@ BACKTEST_RESULT_DIR_PATH = get_resolved_path("BACKTEST_RESULT_DIR_PATH")
 CRAWLER_DOWNLOADS_PATH = get_resolved_path("CRAWLER_DOWNLOADS_PATH")
 CHIP_DOWNLOADS_PATH = get_resolved_path("CHIP_DOWNLOADS_PATH")
 TICK_DOWNLOADS_PATH = get_resolved_path("TICK_DOWNLOADS_PATH")
+
+
+# === Metadata Directory Path ===
+METADATA_DIR_PATH = get_resolved_path("METADATA_DIR_PATH")
+TICK_METADATA_NAME= os.getenv("TICK_METADATA_NAME")
+TICK_METADATA_PATH = (METADATA_DIR_PATH / TICK_METADATA_NAME).resolve()
 
 
 # === Full paths to database files ===
@@ -43,6 +49,7 @@ QUANTX_DB_PATH = (DATABASE_DIR_PATH / QUANTX_DB_NAME).resolve()
 # === Table names ===
 CHIP_TABLE_NAME = os.getenv("CHIP_TABLE_NAME", "chip")
 TICK_TABLE_NAME = os.getenv("TICK_TABLE_NAME", "tick")
+TICK_METADATA_TABLE_NAME=os.getenv("TICK_METADATA_TABLE_NAME", "tick_metadata")
 
 
 # === DolphinDB server setting ===

@@ -1,13 +1,14 @@
 import sys
 import pandas as pd
 import os
+import datetime
 from pathlib import Path
 try:
     import dolphindb as ddb
 except ModuleNotFoundError:
     print("Warning: dolphindb module is not installed.")
 sys.path.append(str(Path(__file__).resolve().parents[1]))
-from config import (TICK_DOWNLOADS_PATH, TICK_DB_PATH, TICK_DB_NAME, TICK_TABLE_NAME, 
+from config import (TICK_DOWNLOADS_PATH, TICK_DB_PATH, TICK_DB_NAME, TICK_TABLE_NAME, TICK_METADATA_TABLE_NAME, 
                     DDB_PATH, DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
 
     
@@ -105,7 +106,7 @@ class TickDBManager:
     def append_all_csv_to_dolphinDB(self, dir_path: str):
         """ 將資料夾內所有 CSV 檔案附加到已建立的 DolphinDB 資料表 """
         pass
-    
+
     
     def create_tick_dolphinDB(self):
         """ 創建 dolphinDB """
@@ -145,42 +146,29 @@ class TickDBManager:
             except Exception as e:
                 print(f"dolphinDB create unsuccessfully!\n{e}")
     
-    
-    @staticmethod
-    def create_tick_db_metadata():
-        """ 建立 tickDB 的 metatdata 以記錄 table 中資料的最早和最新的日期 """
-        pass
-       
-    @staticmethod
-    def clear_all_cache():
+
+    def clear_all_cache(self):
         """ 清除 Cache Data """
-        
-        session = ddb.session()
-        session.connect(DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
         
         script = """ 
         clearAllCache()
         """
-        session.run(script)
+        self.session.run(script)
     
     
-    @staticmethod
-    def delete_dolphinDB(db_path: str):
+    def delete_dolphinDB(self, db_path: str):
         """ 刪除資料庫 """
         
         print("Start deleting database...")
-
-        session = ddb.session()
-        session.connect(DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
         
         script = f"""
         if (existsDatabase("{db_path}")) {{
             dropDatabase("{db_path}")
         }}
         """
-        session.run(script)
+        self.session.run(script)
 
-        if (session.existsDatabase(db_path)):
+        if (self.session.existsDatabase(db_path)):
             print("Delete database unsuccessfully!")
         else:
             print("Delete database successfully!")
