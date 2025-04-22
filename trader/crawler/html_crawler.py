@@ -44,17 +44,17 @@ class CrawlHTML:
         print(f"* Len of listed company in TWSE: {len(twse_list)}")
 
         # 取得上櫃公司代號
-        otc_code_url = "https://isin.twse.com.tw/isin/class_main.jsp?owncode=&stockname=&isincode=&market=2&issuetype=4&industry_code=&Page=1&chklike=Y"
+        tpex_code_url = "https://isin.twse.com.tw/isin/class_main.jsp?owncode=&stockname=&isincode=&market=2&issuetype=4&industry_code=&Page=1&chklike=Y"
 
-        response = requests.get(otc_code_url)
-        otc_list = pd.read_html(StringIO(response.text))[0]
-        otc_list.columns = otc_list.iloc[0, :]
-        otc_list = otc_list.iloc[1:]['有價證券代號'].tolist()
+        response = requests.get(tpex_code_url)
+        tpex_list = pd.read_html(StringIO(response.text))[0]
+        tpex_list.columns = tpex_list.iloc[0, :]
+        tpex_list = tpex_list.iloc[1:]['有價證券代號'].tolist()
 
-        print(f"* Len of listed company in OTC: {len(otc_list)}")
+        print(f"* Len of listed company in OTC: {len(tpex_list)}")
 
         # Combine two list and sort
-        stock_list = sorted(twse_list + otc_list)
+        stock_list = sorted(twse_list + tpex_list)
         
         print(f"* Len of listed company in market: {len(stock_list)}")
         return stock_list
