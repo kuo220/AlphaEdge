@@ -1,9 +1,6 @@
 import sys
-import sqlite3
-import os
 import pandas as pd
 import datetime
-import json
 from typing import Optional
 from pathlib import Path
 try:
@@ -102,22 +99,3 @@ class Tick:
         if len(tick) > 0:
             return tick.iloc[-1:]
         return pd.DataFrame
-    
-    
-    def get_table_earliest_date(self) -> datetime.date:
-        """ 從 tick_time_range.json 中取得 tick table 的最早日期 """
-        
-        with open(TICK_METADATA_PATH, "r", encoding="utf-8") as data:
-            time_data = json.load(data)
-            earliest_date = datetime.date.fromisoformat(time_data["earliest_date"])
-        return earliest_date
-    
-    
-    def get_table_latest_date(self) -> datetime.date:
-        """ 從 tick_time_range.json 中取得 tick table 的最新日期 """
-        
-        with open(TICK_METADATA_PATH, "r", encoding="utf-8") as data:
-            time_data = json.load(data)
-            latest_date = datetime.date.fromisoformat(time_data["latest_date"])
-        return latest_date
-        

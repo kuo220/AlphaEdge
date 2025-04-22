@@ -1,14 +1,15 @@
 import sys
 import pandas as pd
 import os
+import datetime
+import json
 from pathlib import Path
 try:
     import dolphindb as ddb
 except ModuleNotFoundError:
     print("Warning: dolphindb module is not installed.")
 sys.path.append(str(Path(__file__).resolve().parents[1]))
-from config import (TICK_DOWNLOADS_PATH, TICK_DB_PATH, TICK_DB_NAME, TICK_TABLE_NAME, 
-                    DDB_PATH, DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
+from config import TICK_METADATA_PATH
 
 
 class TickDBTools:
@@ -43,3 +44,24 @@ class TickDBTools:
             # 將處理後的 DataFrame 保存回 CSV
             df.to_csv(csv_path, index=False)
             print(f"{csv_name} finish formatting!")
+    
+    
+    @staticmethod
+    def get_table_earliest_date() -> datetime.date:
+        """ 從 tick_time_range.json 中取得 tick table 的最早日期 """
+        
+        with open(TICK_METADATA_PATH, "r", encoding="utf-8") as data:
+            time_data = json.load(data)
+            earliest_date = datetime.date.fromisoformat(time_data["earliest_date"])
+        return earliest_date
+    
+    
+    @staticmethod
+    def get_table_latest_date() -> datetime.date:
+        """ 從 tick_time_range.json 中取得 tick table 的最新日期 """
+        
+        with open(TICK_METADATA_PATH, "r", encoding="utf-8") as data:
+            time_data = json.load(data)
+            latest_date = datetime.date.fromisoformat(time_data["latest_date"])
+        return latest_date
+        
