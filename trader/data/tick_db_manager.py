@@ -7,7 +7,7 @@ try:
 except ModuleNotFoundError:
     print("Warning: dolphindb module is not installed.")
 sys.path.append(str(Path(__file__).resolve().parents[1]))
-from config import (TICK_DOWNLOADS_PATH, TICK_DB_PATH, TICK_TABLE_NAME, 
+from config import (TICK_DOWNLOADS_PATH, TICK_DB_PATH, TICK_DB_NAME, TICK_TABLE_NAME, 
                     DDB_PATH, DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
 
     
@@ -107,25 +107,21 @@ class TickDBManager:
         pass
     
     
-    @staticmethod
-    def create_tick_dolphinDB(db_name: str, table_name: str):
+    def create_tick_dolphinDB(self):
         """ 創建 dolphinDB """
-    
-        session = ddb.session()
-        session.connect(DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
         
         start_time = '2020.03.01'
         end_time = '2030.12.31'
         
-        if session.existsDatabase(f"{DDB_PATH}{db_name}"):
+        if self.session.existsDatabase(TICK_DB_PATH):
             print("Database exists!")
         else:
             print("Database doesn't exist!\nCreating a database...")
             script = f"""
-            create database "{DDB_PATH}{db_name}"
+            create database "{DDB_PATH}{TICK_DB_NAME}"
             partitioned by VALUE({start_time}..{end_time}), HASH([SYMBOL, 25]) 
             engine='TSDB'
-            create table "{DDB_PATH}{db_name}"."{table_name}"(
+            create table "{DDB_PATH}{TICK_DB_NAME}"."{TICK_TABLE_NAME}"(
                 stock_id SYMBOL
                 time NANOTIMESTAMP
                 close FLOAT
@@ -141,8 +137,8 @@ class TickDBManager:
             keepDuplicates=ALL
             """
             try:
-                session.run(script)
-                if session.existsDatabase(f"{DDB_PATH}{db_name}"):
+                self.session.run(script)
+                if self.session.existsDatabase(TICK_DB_PATH):
                     print("dolphinDB create successfully!")
                 else:
                     print("dolphinDB create unsuccessfully!")
