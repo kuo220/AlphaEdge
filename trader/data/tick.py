@@ -3,6 +3,7 @@ import sqlite3
 import os
 import pandas as pd
 import datetime
+from typing import Optional
 from pathlib import Path
 try:
     import dolphindb as ddb
@@ -16,8 +17,12 @@ from config import (TICK_DB_PATH, TICK_TABLE_NAME,
 class Tick:
     """ Tick data API """
     
-    def __init__(self): 
-        self.session = ddb.session() 
+    def __init__(self):
+        self.default_stock_id: str = "2330"
+        self.query_start_date: str = "2024.05.10"
+        self.query_end_date: str = "2024.05.10"
+        
+        self.session: ddb.session = ddb.session() 
         self.session.connect(DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
         
         if (self.session.existsDatabase(TICK_DB_PATH)):
@@ -98,22 +103,52 @@ class Tick:
         return pd.DataFrame
     
     
-    def get_table_earliest_date(self) -> datetime.date:
+    def get_table_earliest_date(self) -> Optional[datetime.date]:
         """ 取得 tick 資料表中最早的日期（DolphinDB）"""
         
         try:
             script = f"""
-            select top 1 time from loadTable("{TICK_DB_PATH}", "{TICK_TABLE_NAME}") order by time asc
+            db = database("{TICK_DB_PATH}")
+            table = loadTable(db, "{TICK_TABLE_NAME}")
+            select min(date(time)) as start 
+            from table 
+            where stock_id=`{self.default_stock_id} and date(time) between {self.query_start_date}:{self.query_end_date}
             """
             result = self.session.run(script)
-            if result.empty:
-                raise ValueError("Tick table is empty.")
-            return pd.to_datetime(result["time"][0]).date()
+
+            if result.empty or pd.isnull(result["start"][0]):
+                raise ValueError("No data found in tick table.")
+
+            return pd.to_datetime(result["start"][0]).date()
+
         except Exception as e:
-            print(f"Failed to get earliest tick time: {e}")
-        return None
+            print(f"Failed to get earliest tick date: {e}")
+            return None
     
     
-    def get_table_latest_date(self) -> datetime.date:
+    def get_table_latest_date(self) -> Optional[datetime.date]:
         """ 取得 tick 資料表中最新的日期（DolphinDB）"""
-        pass
+        
+        start_ts = f"{self.query_start_date}T00:00:00"
+        end_ts = f"{self.query_end_date}T23:59:59.999999999"
+        
+        try:
+            script = f"""
+            db = database("{TICK_DB_PATH}")
+            table = loadTable(db, "{TICK_TABLE_NAME}")
+            select top 1 date(time) as end 
+            from table 
+            where stock_id=`{self.default_stock_id} 
+            and date(time) between nanotimestamp("{start_ts}") : nanotimestamp("{end_ts}")
+            order by time desc
+            """
+            result = self.session.run(script)
+
+            if result.empty or pd.isnull(result["end"][0]):
+                raise ValueError("No data found in tick table.")
+
+            return pd.to_datetime(result["end"][0]).date()
+
+        except Exception as e:
+            print(f"Failed to get latest tick date: {e}")
+            return None

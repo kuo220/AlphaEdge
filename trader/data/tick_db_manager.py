@@ -148,7 +148,12 @@ class TickDBManager:
                     print("dolphinDB create unsuccessfully!")
             except Exception as e:
                 print(f"dolphinDB create unsuccessfully!\n{e}")
-            
+    
+    
+    @staticmethod
+    def create_tick_db_metadata():
+        """ 建立 tickDB 的 metatdata 以記錄 table 中資料的最早和最新的日期 """
+        pass
        
     @staticmethod
     def clear_all_cache():

@@ -279,7 +279,7 @@ class CrawlStockChip:
         date_picker_to = widgets.DatePicker(description='to', disabled=False)
 
         if SQLiteTools.check_table_exist(self.conn, CHIP_TABLE_NAME):
-            date_picker_from.value = SQLiteTools.get_table_latest_date(self.conn, CHIP_TABLE_NAME, '日期')
+            date_picker_from.value = SQLiteTools.get_table_latest_date(self.conn, CHIP_TABLE_NAME, '日期') + datetime.timedelta(days=1)
         date_picker_to.value = datetime.datetime.now().date()
         
         # Set update button
