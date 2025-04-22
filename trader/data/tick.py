@@ -3,6 +3,7 @@ import sqlite3
 import os
 import pandas as pd
 import datetime
+import json
 from typing import Optional
 from pathlib import Path
 try:
@@ -10,7 +11,7 @@ try:
 except ModuleNotFoundError:
     print("Warning: dolphindb module is not installed.")
 sys.path.append(str(Path(__file__).resolve().parents[1]))
-from config import (TICK_DB_PATH, TICK_TABLE_NAME, TICK_METADATA_TABLE_NAME, TICK_METADATA_PATH,
+from config import (TICK_DB_PATH, TICK_TABLE_NAME, TICK_METADATA_PATH,
                     DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
 
 
@@ -103,7 +104,20 @@ class Tick:
         return pd.DataFrame
     
     
-    def get_tick_metadata_time_range(self) -> Optional[tuple[datetime.date, datetime.date]]:
-        """ 從 tick_time_range.json 中取得整體 tick 資料的起訖日期 """
+    def get_table_earliest_date(self) -> datetime.date:
+        """ 從 tick_time_range.json 中取得 tick table 的最早日期 """
         
-        pass
+        with open(TICK_METADATA_PATH, "r", encoding="utf-8") as data:
+            time_data = json.load(data)
+            earliest_date = datetime.date.fromisoformat(time_data["earliest_date"])
+        return earliest_date
+    
+    
+    def get_table_latest_date(self) -> datetime.date:
+        """ 從 tick_time_range.json 中取得 tick table 的最新日期 """
+        
+        with open(TICK_METADATA_PATH, "r", encoding="utf-8") as data:
+            time_data = json.load(data)
+            latest_date = datetime.date.fromisoformat(time_data["latest_date"])
+        return latest_date
+        
