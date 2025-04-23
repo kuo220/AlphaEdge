@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import os
+from typing import Optional
 import shioaji as sj
 from utils.constant import Action, Status
 
@@ -10,12 +11,17 @@ class ShioajiAccount:
     
     # API login
     @staticmethod
-    def API_login(api: sj.Shioaji, api_key: str, api_secret_key: str):
+    def API_login(api: sj.Shioaji, api_key: str, api_secret_key: str) -> Optional[sj.Shioaji]:
         """ API 登入 """
         
-        print("API logging in...")
-        api.login(api_key=api_key, secret_key=api_secret_key, contracts_timeout=30000)
-        print("API logging in successfully!")
+        try:
+            print("API logging in...")
+            api.login(api_key=api_key, secret_key=api_secret_key, contracts_timeout=30000)
+            print("API logging in successfully!")
+            return api
+        except Exception as e:
+            print(f"API logging failed: {e}")
+            return None
 
 
     # API logout

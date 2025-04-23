@@ -49,3 +49,7 @@ class CrawlStockTick:
         for api_key in API_LIST:
             api = sj.Shioaji()
             self.api_list.append(ShioajiAccount.API_login(api, api_key.api_key, api_key.api_secret_key))
+            
+    
+    def crawl_tick_data(self):
+        """ 透過 Shioaji 爬取個股 tick data """
