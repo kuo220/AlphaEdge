@@ -91,7 +91,7 @@ for i in range(len(stockList)):
     empty_df_count = 0 
     for date in pd.date_range(start=start_date, end=end_date):
         date = date.strftime("%Y-%m-%d")
-
+ 
         time.sleep(0.11)
 
         #print every 10 days

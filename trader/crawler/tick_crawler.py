@@ -49,12 +49,30 @@ class CrawlStockTick:
         self.api_list: List[sj.Shioaji] =[]
         self.stock_list: List[str] = CrawlHTML.crawl_stock_list()
         
-        for api_key in API_LIST:
+        for sj_api in API_LIST:
             api = sj.Shioaji()
-            self.api_list.append(ShioajiAccount.API_login(api, api_key.api_key, api_key.api_secret_key))
+            self.api_list.append(ShioajiAccount.API_login(api, sj_api.api_key, sj_api.api_secret_key))
             
     
     def crawl_tick_data(self, start_date: datetime.date, end_date: datetime.date):
         """ 透過 Shioaji 爬取個股 tick-level data """
         
-        pass
+        # TODO: 判斷 api 用量並選擇還能使用的 api
+        
+        for code in self.stock_list:
+            # TODO: 先暫定使用 api_list[0]
+            api = self.api_list[0]
+            cur_date = start_date
+            
+            while cur_date <= end_date:
+                
+                try:
+                    ticks = api.ticks(contract=api.Contracts.Stocks[code], date=cur_date.isoformat())
+                    tick_df = pd.DataFrame({**ticks})
+                    tick_df.ts = pd.to_datetime(tick_df.ts)
+
+                    if tick_df.empty:
+                        continue
+                except Exception as e:
+                    print(f"Error Crawling Tick Data: {code}\n{e}")
+        
