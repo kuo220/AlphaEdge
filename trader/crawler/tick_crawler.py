@@ -26,11 +26,12 @@ from tqdm import tnrange, tqdm_notebook
 from dateutil.rrule import rrule, DAILY, MONTHLY
 from dateutil.relativedelta import relativedelta
 sys.path.append(str(Path(__file__).resolve().parents[1]))
-from utils import ShioajiAccount
+from utils import ShioajiAccount, ShioajiAPI
 from .crawler_tools import CrawlerTools
 from .html_crawler import CrawlHTML
-from config import (TICK_DOWNLOADS_PATH, TICK_DB_PATH, TICK_DB_NAME, TICK_TABLE_NAME,
-                    ShioajiAPI, API_LIST)
+from data import TickDBTools
+from config import ( TICK_DOWNLOADS_PATH, TICK_DB_PATH, TICK_DB_NAME, TICK_TABLE_NAME, 
+                    API_LIST)
 
 
 """ 
@@ -42,7 +43,9 @@ class CrawlStockTick:
     """ 爬取上市櫃股票 ticks """
     
     def __init__(self):        
-        self.api_list: List[ShioajiAPI] = API_LIST
+        self.api_list: List[sj.Shioaji] =[]
         self.stock_list: List[str] = CrawlHTML.crawl_stock_list()
         
-    
+        for api_key in API_LIST:
+            api = sj.Shioaji()
+            self.api_list.append(ShioajiAccount.API_login(api, api_key.api_key, api_key.api_secret_key))

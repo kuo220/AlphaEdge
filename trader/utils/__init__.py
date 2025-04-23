@@ -1,4 +1,4 @@
-from .account import ShioajiAccount
+from .account import (ShioajiAccount, ShioajiAPI)
 from .notify import Notification
 from .time import TimeTools
 from .order import OrderTools

@@ -106,3 +106,11 @@ class ShioajiAccount:
 
         # Store the record to csv file
         exist_trade_record.to_csv(trade_record_path, index=False)
+
+
+class ShioajiAPI:
+    """ Shioaji API_KEY and API_SECRET_KEY """
+    
+    def __init__(self, api_key: str, api_secret_key: str):
+        self.api_key = api_key
+        self.api_secret_key = api_secret_key
