@@ -48,7 +48,7 @@ class TickDBTools:
     
     @staticmethod
     def get_table_earliest_date() -> datetime.date:
-        """ 從 tick_time_range.json 中取得 tick table 的最早日期 """
+        """ 從 tick_metadata.json 中取得 tick table 的最早日期 """
         
         with open(TICK_METADATA_PATH, "r", encoding="utf-8") as data:
             time_data = json.load(data)
@@ -58,10 +58,41 @@ class TickDBTools:
     
     @staticmethod
     def get_table_latest_date() -> datetime.date:
-        """ 從 tick_time_range.json 中取得 tick table 的最新日期 """
+        """ 從 tick_metadata.json 中取得 tick table 的最新日期 """
         
         with open(TICK_METADATA_PATH, "r", encoding="utf-8") as data:
             time_data = json.load(data)
             latest_date = datetime.date.fromisoformat(time_data["latest_date"])
         return latest_date
+    
+    
+    @staticmethod
+    def update_tick_table_latest_date(date: datetime.date):
+        """ 更新 tick_metadata.json 中的 table 最新時間 """
         
+        # Time range for updating
+        metadata = {
+            "earliest_date": TickDBTools.get_table_earliest_date().isoformat(),
+            "latest_date": date.isoformat()
+        }
+        
+        # Write in new dates
+        with open(TICK_METADATA_PATH, "w", encoding="utf-8") as data:
+            json.dump(metadata, data, ensure_ascii=False, indent=4)
+            
+            
+    @staticmethod
+    def update_tick_table_date_range(start_date: datetime.date, end_date: datetime.date):
+        """ 更新 tick_metadata.json 中的 table 日期區間 """
+        
+        # Time range for updating
+        metadata = {
+            "earliest_date": start_date.isoformat(),
+            "latest_date": end_date.isoformat()
+        }
+
+        # Write in new dates
+        with open(TICK_METADATA_PATH, "w", encoding="utf-8") as data:
+            json.dump(metadata, data, ensure_ascii=False, indent=4)
+            
+            

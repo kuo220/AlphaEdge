@@ -37,6 +37,9 @@ from config import ( TICK_DOWNLOADS_PATH, TICK_DB_PATH, TICK_DB_NAME, TICK_TABLE
 """ 
 Shioaji 台股 ticks 資料時間表：
 From: 2020/03/02 ~ Today
+
+目前資料庫資料時間：
+From 2020/04/01 ~ 2024/05/10
 """
 
 class CrawlStockTick:
@@ -51,5 +54,7 @@ class CrawlStockTick:
             self.api_list.append(ShioajiAccount.API_login(api, api_key.api_key, api_key.api_secret_key))
             
     
-    def crawl_tick_data(self):
-        """ 透過 Shioaji 爬取個股 tick data """
+    def crawl_tick_data(self, start_date: datetime.date, end_date: datetime.date):
+        """ 透過 Shioaji 爬取個股 tick-level data """
+        
+        pass
