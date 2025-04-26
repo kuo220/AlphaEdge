@@ -56,7 +56,7 @@ class CrawlStockTick:
     def split_list(self, target_list: List[Any], n_parts: int) -> List[List[str]]:
         """ 將 list 均分成 n 個 list """
         
-        num_list, rem = divmod(target_list, n_parts)
+        num_list, rem = divmod(len(target_list), n_parts)
         return [target_list[i * num_list + min(i, rem) : (i + 1) * num_list + min(i + 1, rem)] for i in range(n_parts)]
     
     
@@ -81,28 +81,22 @@ class CrawlStockTick:
                     tick_df = pd.DataFrame({**ticks})
                     tick_df.ts = pd.to_datetime(tick_df.ts)
 
-                    if tick_df.empty:
-                        continue
-                
-                    df_list.append(tick_df)
+                    if not tick_df.empty:
+                        df_list.append(tick_df)
+
                 except Exception as e:
                     print(f"Error Crawling Tick Data: {code}\n{e}")
+                cur_date += datetime.timedelta(days=1)
                 
             # Save df to csv file
             merged_df = pd.concat(df_list, ignore_index=True)
             formatted_df = TickDBTools.format_tick_data(merged_df, code)
             formatted_df = TickDBTools.format_csv_time_to_microsec(formatted_df)
-            formatted_df.to_csv(f"{TICK_DOWNLOADS_PATH}/{code}.csv", index=False)   
+            formatted_df.to_csv(os.path.join(TICK_DOWNLOADS_PATH, f"{code}.csv"), index=False)
             
-    
-    def _init_crawling_threads(self):
-        """ 初始化 Crawling threads 的設定 """
-        
-        self.split_stock_list = self.split_stock_list(self.all_stock_list, self.num_threads)
-        
-        
-
     
     def crawl_tick_data_multithreaded(self):
         """ 使用 Multi-threading 的方式 Crawl Tick Data """
-        pass
+        
+        # 將 Stock list 均分給各個 thread 進行爬蟲
+        self.split_stock_list = self.split_list(self.all_stock_list, self.num_threads)
