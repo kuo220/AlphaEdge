@@ -28,22 +28,15 @@ class TickDBTools:
     
     
     @staticmethod
-    def format_csv_time_to_microsec(csv_path: str):
+    def format_csv_time_to_microsec(df: pd.DataFrame) -> pd.DataFrame:
         """ 將 tick csv 檔案時間格式格式化至微秒（才能存進 dolphinDB） """
-        
-        df = pd.read_csv(csv_path)
-        
+
         # 若 time 欄位沒有精確到微秒則格式化
         if not df['time'].astype(str).str.match(r'.*\.\d{6}$').all():
-            csv_name = Path(csv_path).name
-            print(f"{csv_name} start formatting...")
-            
             # 將 'time' 欄位轉換為 datetime 格式，並補足到微秒，同時加上年月日
             df['time'] = pd.to_datetime(df['time'], errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S.%f')
             
-            # 將處理後的 DataFrame 保存回 CSV
-            df.to_csv(csv_path, index=False)
-            print(f"{csv_name} finish formatting!")
+        return df
     
     
     @staticmethod

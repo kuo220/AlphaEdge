@@ -4,19 +4,16 @@ import shutil
 import numpy as np
 import pandas as pd
 import datetime
+import threading
 import time
-import re
 import random
 import requests
 from pathlib import Path
 from requests.exceptions import ReadTimeout
 from requests.exceptions import ConnectionError
 import shutil
-import sqlite3
 import shioaji as sj
-from bs4 import BeautifulSoup
-from io import StringIO
-from typing import List
+from typing import List, Any
 import urllib.request
 import ipywidgets as widgets
 from IPython.display import display
@@ -46,26 +43,39 @@ class CrawlStockTick:
     """ 爬取上市櫃股票 ticks """
     
     def __init__(self):        
-        self.api_list: List[sj.Shioaji] =[]
-        self.stock_list: List[str] = CrawlHTML.crawl_stock_list()
+        self.api_list: List[sj.Shioaji] =[]                                     # Shioaji API List
+        self.all_stock_list: List[str] = CrawlHTML.crawl_stock_list()           # List contains TWSE, TPEX stocks' code
+        self.split_stock_list: List[List[str]] = []                             # List splitted for threading to crawl data
+        self.num_threads = 0                                                    # Number of threads
         
         for sj_api in API_LIST:
             api = sj.Shioaji()
             self.api_list.append(ShioajiAccount.API_login(api, sj_api.api_key, sj_api.api_secret_key))
-            
     
-    def crawl_tick_data(self, start_date: datetime.date, end_date: datetime.date):
+    
+    def split_list(self, target_list: List[Any], n_parts: int) -> List[List[str]]:
+        """ 將 list 均分成 n 個 list """
+        
+        num_list, rem = divmod(target_list, n_parts)
+        return [target_list[i * num_list + min(i, rem) : (i + 1) * num_list + min(i + 1, rem)] for i in range(n_parts)]
+    
+    
+    def crawl_tick_data(self, api: sj.Shioaji, stock_list: List[str], start_date: datetime.date, end_date: datetime.date):
         """ 透過 Shioaji 爬取個股 tick-level data """
         
-        # TODO: 判斷 api 用量並選擇還能使用的 api
+        # 判斷 api 用量
+        remaining_mb = api.usage().remaining_bytes / 1024 ** 2
+        if remaining_mb < 20:
+            return
         
-        for code in self.stock_list:
-            # TODO: 先暫定使用 api_list[0]
-            api = self.api_list[0]
+        if not os.path.exists(TICK_DOWNLOADS_PATH):
+            os.makedirs(TICK_DOWNLOADS_PATH)
+        
+        for code in stock_list:   
+            df_list: List[pd.DataFrame] = []   
             cur_date = start_date
             
             while cur_date <= end_date:
-                
                 try:
                     ticks = api.ticks(contract=api.Contracts.Stocks[code], date=cur_date.isoformat())
                     tick_df = pd.DataFrame({**ticks})
@@ -73,6 +83,26 @@ class CrawlStockTick:
 
                     if tick_df.empty:
                         continue
+                
+                    df_list.append(tick_df)
                 except Exception as e:
                     print(f"Error Crawling Tick Data: {code}\n{e}")
+                
+            # Save df to csv file
+            merged_df = pd.concat(df_list, ignore_index=True)
+            formatted_df = TickDBTools.format_tick_data(merged_df, code)
+            formatted_df = TickDBTools.format_csv_time_to_microsec(formatted_df)
+            formatted_df.to_csv(f"{TICK_DOWNLOADS_PATH}/{code}.csv", index=False)   
+            
+    
+    def _init_crawling_threads(self):
+        """ 初始化 Crawling threads 的設定 """
         
+        self.split_stock_list = self.split_stock_list(self.all_stock_list, self.num_threads)
+        
+        
+
+    
+    def crawl_tick_data_multithreaded(self):
+        """ 使用 Multi-threading 的方式 Crawl Tick Data """
+        pass
