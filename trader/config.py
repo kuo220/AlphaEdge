@@ -67,10 +67,11 @@ API_SECRET_KEY = os.getenv("API_SECRET_KEY")
 
 
 # === API list for crawling tick data ===
+NUM_THREADS: int = 4
 API_LIST: List[ShioajiAPI] = []
 
 # Add API from 11 ~ 17 and add API_1 (Mine)
-for num in range(8):
+for num in range(NUM_THREADS):
     if num == 0:
         api = ShioajiAPI(os.getenv(f"API_KEY_{num + 1}"), os.getenv(f"API_SECRET_KEY_{num + 1}"))
         continue

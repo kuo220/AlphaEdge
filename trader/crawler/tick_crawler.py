@@ -4,7 +4,9 @@ import shutil
 import numpy as np
 import pandas as pd
 import datetime
+from loguru import logger
 import threading
+from concurrent.futures import ThreadPoolExecutor
 import time
 import random
 import requests
@@ -43,15 +45,17 @@ class CrawlStockTick:
     """ 爬取上市櫃股票 ticks """
     
     def __init__(self):        
-        self.api_list: List[sj.Shioaji] =[]                                     # Shioaji API List
-        self.all_stock_list: List[str] = CrawlHTML.crawl_stock_list()           # List contains TWSE, TPEX stocks' code
-        self.split_stock_list: List[List[str]] = []                             # List splitted for threading to crawl data
-        self.num_threads = 0                                                    # Number of threads
+        """ 初始化爬蟲設定 """
         
-        for sj_api in API_LIST:
-            api = sj.Shioaji()
-            self.api_list.append(ShioajiAccount.API_login(api, sj_api.api_key, sj_api.api_secret_key))
-    
+        self.api_list: List[sj.Shioaji] = [                                     # Shioaji API List
+            api_instance
+            for sj_api in API_LIST
+            if (api_instance := ShioajiAccount.API_login(sj.Shioaji(), sj_api.api_key, sj_api.api_secret_key)) is not None
+        ]
+        self.num_threads: int = len(self.api_list)                              # 可用的 API 數量 = 可開的 thread 數
+        self.all_stock_list: List[str] = CrawlHTML.crawl_stock_list()           # 爬取所有上市櫃股票清單
+        self.split_stock_list: List[List[str]] = []                             # 股票清單分組（後續給多線程用）
+
     
     def split_list(self, target_list: List[Any], n_parts: int) -> List[List[str]]:
         """ 將 list 均分成 n 個 list """
@@ -102,3 +106,8 @@ class CrawlStockTick:
         
         # 將 Stock list 均分給各個 thread 進行爬蟲
         self.split_stock_list = self.split_list(self.all_stock_list, self.num_threads)
+        
+        # Multi-threading
+        with ThreadPoolExecutor(max_workers=self.num_threads) as executor:
+            for stock_list in self.split_stock_list:
+                pass
