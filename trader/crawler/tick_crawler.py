@@ -26,6 +26,7 @@ from dateutil.rrule import rrule, DAILY, MONTHLY
 from dateutil.relativedelta import relativedelta
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from utils import ShioajiAccount, ShioajiAPI
+from utils import log_thread
 from .crawler_tools import CrawlerTools
 from .html_crawler import CrawlHTML
 from data import TickDBTools
@@ -57,6 +58,7 @@ class CrawlStockTick:
         self.num_threads: int = len(self.api_list)                              # 可用的 API 數量 = 可開的 thread 數
         self.all_stock_list: List[str] = CrawlHTML.crawl_stock_list()           # 爬取所有上市櫃股票清單
         self.split_stock_list: List[List[str]] = []                             # 股票清單分組（後續給多線程用）
+        self.table_latest_date: datetime.date = None
         
         # Set logger
         logger.add(f"{LOGS_DIR_PATH}/crawl_stock_tick.log")
@@ -67,8 +69,9 @@ class CrawlStockTick:
         
         num_list, rem = divmod(len(target_list), n_parts)
         return [target_list[i * num_list + min(i, rem) : (i + 1) * num_list + min(i + 1, rem)] for i in range(n_parts)]
-    
-    
+
+
+    @log_thread
     def crawl_tick_data(self, api: sj.Shioaji, stock_list: List[str]):
         """ 透過 Shioaji 爬取個股 tick-level data """
         
@@ -78,7 +81,7 @@ class CrawlStockTick:
         for code in stock_list:
             # 判斷 api 用量
             if api.usage().remaining_bytes / 1024**2 < 20:
-                logger.warning(f"API quota low for {api}. Stopping thread.")
+                logger.warning(f"API quota low for {api}. Stopped crawling at stock {code}.")
                 break
             
             logger.info(f"Start crawling stock: {code}")
@@ -93,6 +96,7 @@ class CrawlStockTick:
 
                     if not tick_df.empty:
                         tick_df.ts = pd.to_datetime(tick_df.ts)
+                        self.table_latest_date = tick_df.ts.max().date()
                         df_list.append(tick_df)
 
                 except Exception as e:
@@ -113,8 +117,9 @@ class CrawlStockTick:
         """ 使用 Multi-threading 的方式 Crawl Tick Data """
         
         logger.info(f"Start multi-thread crawling. Total stocks: {len(self.all_stock_list)}, Threads: {self.num_threads}")
-        # 將 Stock list 均分給各個 thread 進行爬蟲
+        start_time = time.time()  # 🔥 開始計時
         
+        # 將 Stock list 均分給各個 thread 進行爬蟲
         self.split_stock_list = self.split_list(self.all_stock_list, self.num_threads)
         
         # Multi-threading
@@ -122,3 +127,16 @@ class CrawlStockTick:
             futures = []
             for api, stock_list in zip(self.api_list, self.split_stock_list):
                 futures.append(executor.submit(self.crawl_tick_data, api=api, stock_list=stock_list))
+
+            # 確保執行完所有的 threads 才往下執行其餘程式碼
+            for future in futures:
+                try:
+                    future.result()
+                except Exception as e:
+                    logger.error(f"Thread execution failed with exception: {e}")
+
+        # Update tick table latest date
+        TickDBTools.update_tick_table_latest_date(self.table_latest_date)
+        
+        total_time = time.time() - start_time
+        logger.info(f"All crawling tasks completed and metadata updated. Total time: {total_time:.2f} seconds.")
