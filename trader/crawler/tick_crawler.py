@@ -88,10 +88,12 @@ class CrawlStockTick:
                     print(f"Error Crawling Tick Data: {code}\n{e}")
                 cur_date += datetime.timedelta(days=1)
                 
-            # Save df to csv file
+            # Format tick data
             merged_df = pd.concat(df_list, ignore_index=True)
             formatted_df = TickDBTools.format_tick_data(merged_df, code)
-            formatted_df = TickDBTools.format_csv_time_to_microsec(formatted_df)
+            formatted_df = TickDBTools.format_time_to_microsec(formatted_df)
+            
+            # Save df to csv file
             formatted_df.to_csv(os.path.join(TICK_DOWNLOADS_PATH, f"{code}.csv"), index=False)
             
     

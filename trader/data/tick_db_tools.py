@@ -28,8 +28,8 @@ class TickDBTools:
     
     
     @staticmethod
-    def format_csv_time_to_microsec(df: pd.DataFrame) -> pd.DataFrame:
-        """ 將 tick csv 檔案時間格式格式化至微秒（才能存進 dolphinDB） """
+    def format_time_to_microsec(df: pd.DataFrame) -> pd.DataFrame:
+        """ 將 tick dataframe 時間格式格式化至微秒（才能存進 dolphinDB） """
 
         # 若 time 欄位沒有精確到微秒則格式化
         if not df['time'].astype(str).str.match(r'.*\.\d{6}$').all():
