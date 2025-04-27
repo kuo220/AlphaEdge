@@ -9,7 +9,7 @@ from utils import ShioajiAPI
 load_dotenv()
 
 # Root Directory
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent # trader
 
 
 # === Helper: Load and resolve path from .env ===
@@ -23,6 +23,7 @@ def get_resolved_path(env_key: str, default: str=None) -> Path:
 # === General Directory Path ===
 DATABASE_DIR_PATH = get_resolved_path("DATABASE_DIR_PATH")
 BACKTEST_RESULT_DIR_PATH = get_resolved_path("BACKTEST_RESULT_DIR_PATH")
+LOGS_DIR_PATH = (BASE_DIR / 'logs').resolve()
 
 
 # === Crawl Data Downloads Path ===
@@ -72,8 +73,5 @@ API_LIST: List[ShioajiAPI] = []
 
 # Add API from 11 ~ 17 and add API_1 (Mine)
 for num in range(NUM_API):
-    if num == 0:
-        api = ShioajiAPI(os.getenv(f"API_KEY_{num + 1}"), os.getenv(f"API_SECRET_KEY_{num + 1}"))
-        continue
-    api = ShioajiAPI(os.getenv(f"API_KEY_{num + 10}"), os.getenv(f"API_SECRET_KEY_{num + 10}"))
+    api = ShioajiAPI(os.getenv(f"API_KEY_{num + 1}"), os.getenv(f"API_SECRET_KEY_{num + 1}"))
     API_LIST.append(api)

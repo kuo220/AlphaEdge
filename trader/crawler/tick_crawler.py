@@ -29,7 +29,7 @@ from utils import ShioajiAccount, ShioajiAPI
 from .crawler_tools import CrawlerTools
 from .html_crawler import CrawlHTML
 from data import TickDBTools
-from config import ( TICK_DOWNLOADS_PATH, TICK_DB_PATH, TICK_DB_NAME, TICK_TABLE_NAME, 
+from config import (LOGS_DIR_PATH, TICK_DOWNLOADS_PATH, TICK_DB_PATH, TICK_DB_NAME, TICK_TABLE_NAME, 
                     API_LIST)
 
 
@@ -44,9 +44,11 @@ From 2020/04/01 ~ 2024/05/10
 class CrawlStockTick:
     """ 爬取上市櫃股票 ticks """
     
-    def __init__(self):        
+    def __init__(self, start_date: datetime.date, end_date: datetime.date):        
         """ 初始化爬蟲設定 """
         
+        self.start_date: datetime.date = start_date                             # 爬蟲開始日期
+        self.end_date: datetime.date = end_date                                 # 爬蟲結束日期
         self.api_list: List[sj.Shioaji] = [                                     # Shioaji API List
             api_instance
             for sj_api in API_LIST
@@ -64,28 +66,28 @@ class CrawlStockTick:
         return [target_list[i * num_list + min(i, rem) : (i + 1) * num_list + min(i + 1, rem)] for i in range(n_parts)]
     
     
-    def crawl_tick_data(self, api: sj.Shioaji, stock_list: List[str], start_date: datetime.date, end_date: datetime.date):
+    def crawl_tick_data(self, api: sj.Shioaji, stock_list: List[str]):
         """ 透過 Shioaji 爬取個股 tick-level data """
-        
-        # 判斷 api 用量
-        remaining_mb = api.usage().remaining_bytes / 1024 ** 2
-        if remaining_mb < 20:
-            return
         
         if not os.path.exists(TICK_DOWNLOADS_PATH):
             os.makedirs(TICK_DOWNLOADS_PATH)
         
-        for code in stock_list:   
-            df_list: List[pd.DataFrame] = []   
-            cur_date = start_date
+        for code in stock_list:
+            # 判斷 api 用量
+            if api.usage().remaining_bytes / 1024**2 < 20:
+                logger.warning(f"API quota low for {api}. Stopping thread.")
+                break
             
-            while cur_date <= end_date:
+            df_list: List[pd.DataFrame] = []   
+            cur_date = self.start_date
+            
+            while cur_date <= self.end_date:
                 try:
                     ticks = api.ticks(contract=api.Contracts.Stocks[code], date=cur_date.isoformat())
                     tick_df = pd.DataFrame({**ticks})
-                    tick_df.ts = pd.to_datetime(tick_df.ts)
 
                     if not tick_df.empty:
+                        tick_df.ts = pd.to_datetime(tick_df.ts)
                         df_list.append(tick_df)
 
                 except Exception as e:
@@ -109,5 +111,6 @@ class CrawlStockTick:
         
         # Multi-threading
         with ThreadPoolExecutor(max_workers=self.num_threads) as executor:
-            for stock_list in self.split_stock_list:
-                pass
+            futures = []
+            for api, stock_list in zip(self.api_list, self.split_stock_list):
+                futures.append(executor.submit(self.crawl_tick_data, api=api, stock_list=stock_list))
