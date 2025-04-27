@@ -23,7 +23,7 @@ def get_resolved_path(env_key: str, default: str=None) -> Path:
 # === General Directory Path ===
 DATABASE_DIR_PATH = get_resolved_path("DATABASE_DIR_PATH")
 BACKTEST_RESULT_DIR_PATH = get_resolved_path("BACKTEST_RESULT_DIR_PATH")
-LOGS_DIR_PATH = (BASE_DIR / 'logs').resolve()
+LOGS_DIR_PATH = get_resolved_path("LOGS_DIR_PATH")
 
 
 # === Crawl Data Downloads Path ===

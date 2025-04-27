@@ -57,6 +57,9 @@ class CrawlStockTick:
         self.num_threads: int = len(self.api_list)                              # 可用的 API 數量 = 可開的 thread 數
         self.all_stock_list: List[str] = CrawlHTML.crawl_stock_list()           # 爬取所有上市櫃股票清單
         self.split_stock_list: List[List[str]] = []                             # 股票清單分組（後續給多線程用）
+        
+        # Set logger
+        logger.add(f"{LOGS_DIR_PATH}/crawl_stock_tick.log")
 
     
     def split_list(self, target_list: List[Any], n_parts: int) -> List[List[str]]:
@@ -78,6 +81,8 @@ class CrawlStockTick:
                 logger.warning(f"API quota low for {api}. Stopping thread.")
                 break
             
+            logger.info(f"Start crawling stock: {code}")
+            
             df_list: List[pd.DataFrame] = []   
             cur_date = self.start_date
             
@@ -91,7 +96,7 @@ class CrawlStockTick:
                         df_list.append(tick_df)
 
                 except Exception as e:
-                    print(f"Error Crawling Tick Data: {code}\n{e}")
+                    logger.error(f"Error Crawling Tick Data: {code} {cur_date} | {e}")
                 cur_date += datetime.timedelta(days=1)
                 
             # Format tick data
@@ -101,12 +106,15 @@ class CrawlStockTick:
             
             # Save df to csv file
             formatted_df.to_csv(os.path.join(TICK_DOWNLOADS_PATH, f"{code}.csv"), index=False)
+            logger.info(f"Saved {code}.csv to {TICK_DOWNLOADS_PATH}")
             
     
     def crawl_tick_data_multithreaded(self):
         """ 使用 Multi-threading 的方式 Crawl Tick Data """
         
+        logger.info(f"Start multi-thread crawling. Total stocks: {len(self.all_stock_list)}, Threads: {self.num_threads}")
         # 將 Stock list 均分給各個 thread 進行爬蟲
+        
         self.split_stock_list = self.split_list(self.all_stock_list, self.num_threads)
         
         # Multi-threading
