@@ -63,10 +63,12 @@ class CrawlStockTick:
         # Set logger
         logger.add(f"{LOGS_DIR_PATH}/crawl_stock_tick.log")
         
-        # Create downloads directory
+        # Generate downloads directory
         if not os.path.exists(TICK_DOWNLOADS_PATH):
             os.makedirs(TICK_DOWNLOADS_PATH)
-
+        
+        # Generate tick_metadata backup
+        TickDBTools.generate_tick_metadata_backup()
 
     
     def split_list(self, target_list: List[Any], n_parts: int) -> List[List[str]]:

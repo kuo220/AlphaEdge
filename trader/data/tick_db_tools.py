@@ -1,6 +1,7 @@
 import sys
 import pandas as pd
 import os
+import shutil
 import datetime
 import json
 from pathlib import Path
@@ -58,6 +59,15 @@ class TickDBTools:
             latest_date = datetime.date.fromisoformat(time_data["latest_date"])
         return latest_date
     
+    
+    @staticmethod
+    def generate_tick_metadata_backup():
+        """ 建立 tick_metadata 的備份檔案 """
+        
+        backup_suffix = "_backup"
+        backup_name = TICK_METADATA_PATH.with_name(TICK_METADATA_PATH.stem + backup_suffix + TICK_METADATA_PATH.suffix)
+        shutil.copy2(TICK_METADATA_PATH, backup_name)
+
     
     @staticmethod
     def update_tick_table_latest_date(date: datetime.date):
