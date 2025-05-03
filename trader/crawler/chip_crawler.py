@@ -54,13 +54,14 @@ class CrawlStockChip:
         
         # The date that TPEX chip data format was reformed
         self.tpex_first_reform_date = datetime.date(2018, 1, 15)
+        
+        # Create downloads directory
+        if not os.path.exists(CHIP_DOWNLOADS_PATH):
+            os.makedirs(CHIP_DOWNLOADS_PATH)
     
     
     def crawl_twse_chip(self, date: datetime.date) -> Optional[pd.DataFrame]:
         """ TWSE 三大法人單日爬蟲 """
-        
-        if not os.path.exists(CHIP_DOWNLOADS_PATH):
-            os.makedirs(CHIP_DOWNLOADS_PATH)
 
         print("* Start crawling TWSE institutional investors data...")
         print(date.strftime("%Y/%m/%d"))
@@ -114,9 +115,6 @@ class CrawlStockChip:
 
     def crawl_tpex_chip(self, date: datetime.date) -> Optional[pd.DataFrame]:
         """ TPEX 三大法人單日爬蟲 """
-        
-        if not os.path.exists(CHIP_DOWNLOADS_PATH):
-            os.makedirs(CHIP_DOWNLOADS_PATH)
         
         print("* Start crawling TPEX institutional investors data...")
         print(date.strftime("%Y/%m/%d"))
@@ -190,9 +188,6 @@ class CrawlStockChip:
         
         # if crawl_cnt == 100, then sleep
         crawl_cnt = 0
-        
-        if not os.path.exists(CHIP_DOWNLOADS_PATH):
-            os.makedirs(CHIP_DOWNLOADS_PATH)
 
         print("* Start crawling TWSE institutional investors data...")
         while cur_date <= end_date:
@@ -217,9 +212,6 @@ class CrawlStockChip:
         
         # if crawl_cnt == 100, then sleep
         crawl_cnt = 0
-        
-        if not os.path.exists(CHIP_DOWNLOADS_PATH):
-            os.makedirs(CHIP_DOWNLOADS_PATH)
         
         print("* Start crawling TPEX institutional investors data...")
         while cur_date <= end_date:

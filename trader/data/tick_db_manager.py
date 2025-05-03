@@ -32,8 +32,8 @@ class TickDBManager:
             print("Database doesn't exist!")
     
     
-    def create_table_and_load_csv(self, csv_path: str):
-        """ 創建 table 並將單個 .csv 檔案存入創建好的 database """
+    def append_csv_to_dolphinDB(self, csv_path: str):
+        """ 將單一 CSV 資料添加到已建立的 DolphinDB 資料表 """
         
         script = f"""
         db = database("{TICK_DB_PATH}")
@@ -59,8 +59,8 @@ class TickDBManager:
             print(f"The csv file fail to save into database and table!\n{e}")    
     
 
-    def create_table_and_load_all_csv(self, dir_path: Path):
-        """ 創建 table 並將多個 .csv 檔案存入建好的 database """
+    def append_all_csv_to_dolphinDB(self, dir_path: Path):
+        """ 將資料夾內所有 CSV 檔案附加到已建立的 DolphinDB 資料表 """
         
         # read all csv files in dir_path (.as_posix => replace \\ with / (for windows os))
         csv_files = [str(csv.as_posix()) for csv in dir_path.glob("*.csv")]
@@ -96,16 +96,6 @@ class TickDBManager:
 
         except Exception as e:
             print(f"All csv files fail to save into database and table!\n{e}")
-
-
-    def append_csv_to_dolphinDB(self, csv_path: str):
-        """ 將單一 CSV 資料添加到已建立的 DolphinDB 資料表 """
-        pass
-    
-    
-    def append_all_csv_to_dolphinDB(self, dir_path: str):
-        """ 將資料夾內所有 CSV 檔案附加到已建立的 DolphinDB 資料表 """
-        pass
 
     
     def create_tick_dolphinDB(self):

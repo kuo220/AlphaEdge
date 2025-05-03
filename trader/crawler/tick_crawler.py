@@ -6,7 +6,7 @@ import pandas as pd
 import datetime
 from loguru import logger
 import threading
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 import random
 import requests
@@ -20,8 +20,7 @@ import urllib.request
 import ipywidgets as widgets
 from IPython.display import display
 from fake_useragent import UserAgent
-from tqdm import tqdm
-from tqdm import tnrange, tqdm_notebook
+from tqdm import tqdm, tnrange, tqdm_notebook
 from dateutil.rrule import rrule, DAILY, MONTHLY
 from dateutil.relativedelta import relativedelta
 sys.path.append(str(Path(__file__).resolve().parents[1]))
@@ -29,9 +28,11 @@ from utils import ShioajiAccount, ShioajiAPI
 from utils import log_thread
 from .crawler_tools import CrawlerTools
 from .html_crawler import CrawlHTML
-from data import TickDBTools
-from config import (LOGS_DIR_PATH, TICK_DOWNLOADS_PATH, TICK_DB_PATH, TICK_DB_NAME, TICK_TABLE_NAME, 
-                    API_LIST)
+from data import TickDBTools, TickDBManager
+from config import (LOGS_DIR_PATH, 
+                    TICK_DOWNLOADS_PATH, TICK_DB_PATH, TICK_DB_NAME, TICK_TABLE_NAME, 
+                    API_LIST,
+                    DDB_PATH, DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
 
 
 """ 
@@ -48,6 +49,7 @@ class CrawlStockTick:
     def __init__(self):
         """ 初始化爬蟲設定 """
         
+        self.tick_db_manager: TickDBManager = TickDBManager()                   # Tick DolphinDB Manager
         self.api_list: List[sj.Shioaji] = [                                     # Shioaji API List
             api_instance
             for sj_api in API_LIST
@@ -61,7 +63,7 @@ class CrawlStockTick:
         # Set logger
         logger.add(f"{LOGS_DIR_PATH}/crawl_stock_tick.log")
         
-        # Set downloads directory
+        # Create downloads directory
         if not os.path.exists(TICK_DOWNLOADS_PATH):
             os.makedirs(TICK_DOWNLOADS_PATH)
 
@@ -110,8 +112,8 @@ class CrawlStockTick:
     
     
     @log_thread
-    def crawl_ticks_for_stock_list(self, api: sj.Shioaji, stock_list: List[str], start_date: datetime.date, end_date: datetime.date):
-        """ 透過 Shioaji 爬取個股 tick data """
+    def crawl_ticks_for_stock_list(self, api: sj.Shioaji, stock_list: List[str], dates: List[datetime.date]):
+        """ 透過 Shioaji 爬取 stock_list 中的個股 tick data """
         
         for code in stock_list:
             # 判斷 api 用量
@@ -122,11 +124,10 @@ class CrawlStockTick:
             logger.info(f"Start crawling stock: {code}")
             
             df_list: List[pd.DataFrame] = []   
-            cur_date = start_date
             
-            while cur_date <= end_date:
+            for date in dates:
                 try:
-                    ticks = api.ticks(contract=api.Contracts.Stocks[code], date=cur_date.isoformat())
+                    ticks = api.ticks(contract=api.Contracts.Stocks[code], date=date.isoformat())
                     tick_df = pd.DataFrame({**ticks})
 
                     if not tick_df.empty:
@@ -135,11 +136,10 @@ class CrawlStockTick:
                         df_list.append(tick_df)
 
                 except Exception as e:
-                    logger.error(f"Error Crawling Tick Data: {code} {cur_date} | {e}")
-                cur_date += datetime.timedelta(days=1)
+                    logger.error(f"Error Crawling Tick Data: {code} {date} | {e}")
         
             if not df_list:
-                logger.warning(f"No tick data found for stock {code} from {start_date} to {end_date}. Skipping.")
+                logger.warning(f"No tick data found for stock {code} from {dates[0]} to {dates[-1]}. Skipping.")
                 continue
 
             # Format tick data
@@ -156,11 +156,11 @@ class CrawlStockTick:
                 logger.error(f"Error processing or saving tick data for stock {code} | {e}")
             
     
-    def crawl_tick_data_multithreaded(self, start_date: datetime.date, end_date: datetime.date):
+    def crawl_ticks_multithreaded(self, dates: List[datetime.date]):
         """ 使用 Multi-threading 的方式 Crawl Tick Data """
         
         logger.info(f"Start multi-thread crawling. Total stocks: {len(self.all_stock_list)}, Threads: {self.num_threads}")
-        start_time = time.time()  # 🔥 開始計時
+        start_time = time.time()  # 開始計時
         
         # 將 Stock list 均分給各個 thread 進行爬蟲
         self.split_stock_list = self.split_list(self.all_stock_list, self.num_threads)
@@ -169,10 +169,10 @@ class CrawlStockTick:
         with ThreadPoolExecutor(max_workers=self.num_threads) as executor:
             futures = []
             for api, stock_list in zip(self.api_list, self.split_stock_list):
-                futures.append(executor.submit(self.crawl_ticks_for_stock_list, api=api, stock_list=stock_list, start_date=start_date, end_date=end_date))
+                futures.append(executor.submit(self.crawl_ticks_for_stock_list, api=api, stock_list=stock_list, dates=dates))
 
             # 確保執行完所有的 threads 才往下執行其餘程式碼
-            for future in futures:
+            for future in tqdm(as_completed(futures), total=len(futures), desc="Thread progress"):
                 try:
                     future.result()
                 except Exception as e:
@@ -183,8 +183,21 @@ class CrawlStockTick:
         
         total_time = time.time() - start_time
         logger.info(f"All crawling tasks completed and metadata updated. Total time: {total_time:.2f} seconds.")
+    
+    
+    def update_table(self, dates: List[datetime.date]):
+        """ Tick Database 資料更新（Multi-threading） """
         
+        self.crawl_ticks_multithreaded(dates)
+        self.add_to_sql()
+    
+    
+    def widget(self):
+        """ Tick Database 資料更新 UI """
+        pass
+    
     
     def add_to_sql(self):
         """ 將資料夾中的所有 CSV 檔存入 tick 的 DolphinDB 中 """
-        pass
+        
+        self.tick_db_manager.append_all_csv_to_dolphinDB(TICK_DOWNLOADS_PATH)
