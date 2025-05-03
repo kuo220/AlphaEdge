@@ -186,13 +186,13 @@ class CrawlStockTick:
         total_time = time.time() - start_time
         total_file = len(list(TICK_DOWNLOADS_PATH.glob("*.csv")))
         logger.info(f"All crawling tasks completed and metadata updated. Total file: {total_file}, Total time: {total_time:.2f} seconds")
-    
-    
+        
+
     def update_table(self, dates: List[datetime.date]):
         """ Tick Database 資料更新（Multi-threading） """
         
         self.crawl_ticks_multithreaded(dates)
-        # self.add_to_sql()
+        self.add_to_sql()
     
     
     def widget(self):
