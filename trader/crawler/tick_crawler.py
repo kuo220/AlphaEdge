@@ -184,22 +184,59 @@ class CrawlStockTick:
         TickDBTools.update_tick_table_latest_date(self.table_latest_date)
         
         total_time = time.time() - start_time
-        logger.info(f"All crawling tasks completed and metadata updated. Total time: {total_time:.2f} seconds.")
+        total_file = len(list(TICK_DOWNLOADS_PATH.glob("*.csv")))
+        logger.info(f"All crawling tasks completed and metadata updated. Total file: {total_file}, Total time: {total_time:.2f} seconds")
     
     
     def update_table(self, dates: List[datetime.date]):
         """ Tick Database 資料更新（Multi-threading） """
         
         self.crawl_ticks_multithreaded(dates)
-        self.add_to_sql()
+        # self.add_to_sql()
     
     
     def widget(self):
         """ Tick Database 資料更新 UI """
-        pass
+        
+        # Set update date
+        date_picker_from = widgets.DatePicker(description='from', disabled=False)
+        date_picker_to = widgets.DatePicker(description='to', disabled=False)
+        
+        date_picker_from.value = TickDBTools.get_table_latest_date() + datetime.timedelta(days=1)
+        date_picker_to.value = datetime.date.today()
+        
+        # Set update button
+        btn = widgets.Button(description='update')
+        
+        # Define update button behavior
+        def onupdate(_):
+            start_date = date_picker_from.value
+            end_date = date_picker_to.value
+            
+            if not start_date or not end_date:
+                print("Please select both start and end dates.")
+                return
+            
+            dates = CrawlerTools.generate_date_range(start_date, end_date)
+            
+            if not dates:
+                print("Date range is empty. Please check if the start date is earlier than the end date.")
+                return
+            
+            print(f"Updating data for table '{TICK_TABLE_NAME}' from {dates[0]} to {dates[-1]}...")
+            self.update_table(dates)
+        
+        btn.on_click(onupdate)
+        
+        label = widgets.Label(f"""{TICK_TABLE_NAME} (from {TickDBTools.get_table_earliest_date()} to 
+                              {TickDBTools.get_table_latest_date()})
+                              """)
+        items = [date_picker_from, date_picker_to, btn]
+        display(widgets.VBox([label, widgets.HBox(items)]))
     
     
     def add_to_sql(self):
         """ 將資料夾中的所有 CSV 檔存入 tick 的 DolphinDB 中 """
         
         self.tick_db_manager.append_all_csv_to_dolphinDB(TICK_DOWNLOADS_PATH)
+        shutil.rmtree(TICK_DOWNLOADS_PATH)

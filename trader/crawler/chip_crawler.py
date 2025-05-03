@@ -55,7 +55,7 @@ class CrawlStockChip:
         # The date that TPEX chip data format was reformed
         self.tpex_first_reform_date = datetime.date(2018, 1, 15)
         
-        # Create downloads directory
+        # Generate downloads directory
         if not os.path.exists(CHIP_DOWNLOADS_PATH):
             os.makedirs(CHIP_DOWNLOADS_PATH)
     

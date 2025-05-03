@@ -58,15 +58,6 @@ class TickDBTools:
             time_data = json.load(data)
             latest_date = datetime.date.fromisoformat(time_data["latest_date"])
         return latest_date
-    
-    
-    @staticmethod
-    def generate_tick_metadata_backup():
-        """ 建立 tick_metadata 的備份檔案 """
-        
-        backup_suffix = "_backup"
-        backup_name = TICK_METADATA_PATH.with_name(TICK_METADATA_PATH.stem + backup_suffix + TICK_METADATA_PATH.suffix)
-        shutil.copy2(TICK_METADATA_PATH, backup_name)
 
     
     @staticmethod
@@ -98,4 +89,11 @@ class TickDBTools:
         with open(TICK_METADATA_PATH, "w", encoding="utf-8") as data:
             json.dump(metadata, data, ensure_ascii=False, indent=4)
             
-            
+    
+    @staticmethod
+    def generate_tick_metadata_backup():
+        """ 建立 tick_metadata 的備份檔案 """
+        
+        backup_suffix = "_backup"
+        backup_name = TICK_METADATA_PATH.with_name(TICK_METADATA_PATH.stem + backup_suffix + TICK_METADATA_PATH.suffix)
+        shutil.copy2(TICK_METADATA_PATH, backup_name)

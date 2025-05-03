@@ -27,6 +27,7 @@ from tqdm import tnrange, tqdm_notebook
 from dateutil.rrule import rrule, DAILY, MONTHLY
 from dateutil.relativedelta import relativedelta
 from .chip_crawler import CrawlStockChip
+from .tick_crawler import CrawlStockTick
 from .html_crawler import CrawlHTML
 from .qx_crawler import CrawlQuantX
 from .shioaji_crawler import CrawlShioaji
@@ -48,6 +49,7 @@ class Crawler:
 
     def __init__(self):
         self.chip = CrawlStockChip()
+        self.tick = CrawlStockTick()
         self.html = CrawlHTML()
         self.quantx = CrawlQuantX()
         self.shioaji = CrawlShioaji()
