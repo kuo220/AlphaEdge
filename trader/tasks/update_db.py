@@ -15,7 +15,7 @@ from dateutil.rrule import rrule, DAILY, MONTHLY
 from dateutil.relativedelta import relativedelta
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from utils import ShioajiAccount
-from data import (Data, SQLiteTools, TickDBManager)
+from data import (Data, SQLiteTools, TickDBTools, TickDBManager)
 from crawler import (Crawler, CrawlStockChip, CrawlStockTick, CrawlQuantX)
 from config import QUANTX_DB_PATH
 
