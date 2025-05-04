@@ -23,5 +23,15 @@ from config import QUANTX_DB_PATH
 """ 
 This script is used to update the Chip, Tick, and QuantX databases all at once. 
 """
+
+# TODO: 設定各資料庫更新的日期區間
+
 if __name__ == "__main__":
     crawler = Crawler()
+    
+    chip_crawler = crawler.chip
+    tick_crawler = crawler.tick
+    qx_crawler = crawler.quantx
+    
+    # update chip database
+    
