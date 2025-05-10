@@ -7,7 +7,8 @@ import pandas as pd
 import datetime
 from typing import List, Dict, Tuple, Optional, Any 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
-from utils import (Data, StockTools, Commission, Market, Scale, 
+from data import Data, Chip, Tick, QXData
+from utils import (StockTools, Commission, Market, Scale, 
                    PositionType, Units)
 from models import (StockAccount, TickQuote, StockQuote, StockOrder, StockTradeRecord)
 from strategies.stock import Strategy
@@ -39,9 +40,9 @@ class Backtester:
         
         """ === Datasets === """
         self.data: Data = Data()                                                
-        self.QXData: Data = None                                                # Day price data, Financial data, etc
-        self.tick: Data = None                                                  # Ticks data
-        self.chip: Data = None                                                  # Chips data
+        self.tick: Tick = None                                                  # Ticks data
+        self.chip: Chip = None                                                  # Chips data
+        self.QXData: QXData = None                                              # Day price data, Financial data, etc
         
         """ === Backtest Parameters === """
         self.scale: str = self.strategy.scale                                   # 回測 KBar 級別
@@ -207,7 +208,6 @@ class Backtester:
         # load backtest dataset
         self.load_datasets()
         
-        
         while self.cur_date <= self.end_date:
             print(f"--- {self.cur_date.strftime('%Y/%m/%d')} ---")
             
@@ -224,4 +224,11 @@ class Backtester:
             elif self.scale == Scale.MIX:
                 self.run_mix_backtest()
             
-            self.cur_date += datetime.timedelta(days=1) 
+            self.cur_date += datetime.timedelta(days=1)
+    
+        self.account.update_account_status()
+        
+        
+    def generate_backtest_report(self):
+        """ 生產回測報告 """
+        pass

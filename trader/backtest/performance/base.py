@@ -51,43 +51,61 @@ class BaseBacktestAnalyzer(ABC):
     
     # ===== Risk-Adjusted Metrics =====
     @abstractmethod
-    def compute_volatility(self):
+    def compute_volatility(self) -> float:
         """ 計算報酬率的標準差（可視為風險程度）"""
         pass
     
     
     @abstractmethod
-    def compute_sharpe_ratio(self):
+    def compute_sharpe_ratio(self) -> Optional[float]:
         """ 計算 Sharpe Ratio """
+        pass
+    
+    
+    @abstractmethod
+    def compute_sortino_ratio(self) -> Optional[float]:
+        """ 計算 Sortino Ratio"""
         pass
     
     
     # ===== Trade Statistics =====
     @abstractmethod
-    def compute_win_rate(self):
+    def compute_win_rate(self) -> float:
         """ 計算勝率（獲利交易次數/總交易次數）"""
         pass
     
     
     @abstractmethod
-    def compute_profit_factor(self):
+    def compute_win_lose_rate(self) -> float:
+        """ 計算勝敗比（獲利交易次數/虧損交易次數） """
+        pass
+    
+    
+    @abstractmethod
+    def compute_profit_factor(self) -> float:
         """ 計算利潤因子（總獲利/總虧損）"""
         pass
     
     
     @abstractmethod
-    def compute_average_return(self):
+    def compute_average_return(self) -> float:
         """ 計算每筆交易平均報酬 """
         pass
     
     
     @abstractmethod
-    def compute_num_trades(self):
+    def compute_num_trades(self) -> int:
         """ 計算總交易次數（開倉+平倉 = 1次交易）"""
         pass
     
     
     @abstractmethod
-    def compute_num_winning_trades(self):
+    def compute_num_winning_trades(self) -> int:
         """ 計算獲利筆數（可用於 win rate）"""
+        pass
+    
+    
+    @abstractmethod
+    def compute_num_losing_trades(self) -> int:
+        """ 計算虧損筆數（可用於 win rate）"""
         pass

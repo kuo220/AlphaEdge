@@ -16,12 +16,12 @@ class Data:
     """ 股市資料 API """
     
     def __init__(self):
-        self.chip = Chip()
+        self.chip: Chip = Chip()
         
         """ Ensure dolphinDB server has been opened """
         try:
-            self.tick = Tick()
+            self.tick: Tick = Tick()
         except Exception as e:
             print(e)
             
-        self.quantx = QXData()
+        self.quantx: QXData = QXData()
