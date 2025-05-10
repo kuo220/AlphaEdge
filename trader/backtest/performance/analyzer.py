@@ -43,9 +43,6 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
         # Account
         super().__init__(account)
         
-        # Data
-        self.QXData: QXData = QXData()
-        
         # Trade Record List
         self.trade_records: List[StockTradeRecord] = [record for record in self.account.trade_records.values() if record.is_closed]
         
