@@ -64,7 +64,7 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
         roi_mean = np.mean([record.roi for record in self.trade_records])
         
         if std_dev > 0:
-            sharpe_ratio = (roi_mean - self.risk_free_rate) / std_dev
+            return (roi_mean - self.risk_free_rate) / std_dev
         return None
     
     
