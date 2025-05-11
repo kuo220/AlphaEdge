@@ -40,9 +40,15 @@ class StockBacktestReporter:
         self.benchmark: str = '0050'           # Benchmark stock
     
     
+    def set_figure_config(self):
+        """ 設置繪圖配置 """
+        pass
+    
+    
     def plot_equity_curve(self):
         """ 繪製權益曲線圖圖（淨資產隨時間變化）"""
         pass
+    
     
     def plot_equity_and_benchmark_curve(self):
         """ 繪製權益 & benchmark 曲線圖 """
@@ -51,4 +57,4 @@ class StockBacktestReporter:
     
     def plot_mdd(self):
         """ 繪製 Max Drawdown """
-        
+        pass
