@@ -1,6 +1,6 @@
 import pandas as pd
 import datetime
-from typing import List, Dict, Optional
+from typing import List, Dict, Union, Optional
 from utils.constant import Commission, Scale, PositionType
 
 
@@ -43,9 +43,9 @@ class StockQuote:
                  open: float=0.0, high: float=0.0, low: float=0.0, close: float=0.0,
                  tick: TickQuote=None):
         # Basic Info
-        self.code: str = code                               # Stock code
-        self.scale: Scale = scale                           # Quote scale (DAY or TICK or ALL)
-        self.date: datetime.datetime = date                 # Current date
+        self.code: str = code                                            # Stock code
+        self.scale: Scale = scale                                        # Quote scale (DAY or TICK or ALL)
+        self.date: Union[datetime.date, datetime.datetime] = date        # Current date
         
         # Current Price & Volume
         self.cur_price: float = cur_price                   # Current price
@@ -84,11 +84,11 @@ class StockTradeRecord:
                  buy_price: float=0.0, sell_price: float=0.0, volume: float=0.0, 
                  commission: float=0.0, tax: float=0.0, transaction_cost: float=0.0, 
                  position_value: float=0.0, realized_pnl: float=0.0, roi: float=0.0):
-    
+
         # Basic Info
-        self.id: int = id                                    # 每一筆買入就是一個id
-        self.code: str = code                                # 股票代號
-        self.date: datetime.datetime = date                  # 交易日期（Tick會是Timestamp）
+        self.id: int = id                                                # 每一筆買入就是一個id
+        self.code: str = code                                            # 股票代號
+        self.date: Union[datetime.date, datetime.datetime] = date        # 交易日期（Tick會是Timestamp）
         
         # Position Status
         self.is_closed: bool = is_closed                     # 是否已經平倉
@@ -116,7 +116,7 @@ class StockAccount:
     def __init__(self, init_capital: float=0.0):
         # Initial Setup
         self.init_capital: float = init_capital                          # 初始本金
-        
+
         # Account Balances
         self.balance: float = init_capital                               # 餘額
         self.market_value: float = 0.0                                   # 庫存股票市值
