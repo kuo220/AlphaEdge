@@ -7,7 +7,7 @@ from typing import Tuple
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from utils.time import TimeTools
 from utils.constant import Commission
-from data import Data
+from data import Data, QXData
 
 """
 instrument.py
@@ -145,7 +145,7 @@ class StockTools:
     
     
     @staticmethod
-    def check_market_open(data: Data, date: datetime.date) -> bool:
+    def check_market_open(data: QXData, date: datetime.date) -> bool:
         """ 
         - Description: 判斷是否指定日期是否開盤
         - Parameters:

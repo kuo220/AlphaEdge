@@ -6,6 +6,7 @@ import pandas as pd
 import datetime
 import plotly.express as px
 from plotly.graph_objs import Figure
+import plotly.graph_objects as go
 from abc import ABC, abstractmethod
 from typing import List, Dict, Tuple, Optional, Any
 sys.path.append(str(Path(__file__).resolve().parents[2]))
@@ -15,6 +16,7 @@ from utils import (Market, Scale, PositionType,
 from models import StockAccount, StockQuote, StockOrder, StockTradeRecord
 from .base import BaseBacktestAnalyzer
 from config import BACKTEST_RESULT_DIR_PATH
+from strategies.stock import Strategy
 
 
 """
@@ -38,24 +40,39 @@ Intended for use in strategy evaluation and performance review.
 class StockBacktestReporter:
     """ Generates visual reports based on backtest results. """
     
-    def __init__(self, account: StockAccount, start_date: datetime.date, end_date: datetime.date):
-        self.account: StockAccount = account                # Account
-        self.start_date: datetime.date = start_date         # Backtest start date
-        self.end_date: datetime.date = end_date             # Backtest end date
-        self.benchmark: str = '0050'                        # Benchmark stock
-        self.qxData = QXData()                              # QuantX data (for benchmark)
+    def __init__(self, account: StockAccount, strategy: Strategy):
+        self.account: StockAccount = account                                # Account
+        self.strategy: Strategy = strategy                                  # Backtest strategy
+        
+        self.start_date: datetime.date = self.strategy.start_date           # Backtest start date
+        self.end_date: datetime.date = self.strategy.end_date               # Backtest end date
+         
+        self.benchmark: str = '0050'                                        # Benchmark stock
+        self.qxData = QXData()                                              # QuantX data (for benchmark)
         
     
     def plot_equity_curve(self):
         """ 繪製權益曲線圖圖（淨資產隨時間變化）"""
-        cumulative_capital: List[float] = [self.account.init_capital]
+        
         dates: List[datetime.datetime] = [self.start_date]
+        cumulative_equity: List[float] = [self.account.init_capital]
+        fig_title: str = "Equity Curve"
         
         for record in self.account.trade_records:
-            cumulative_capital.append(cumulative_capital[-1] + record.realized_pnl)
-            
+            dates.append(record.date)
+            cumulative_equity.append(cumulative_equity[-1] + record.realized_pnl)
         
+        # TODO: 需處理日期顯示過於密集的問題
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=dates,
+            y=cumulative_equity,
+            mode='lines',
+            line=dict(color='blue', width=2)
+        ))
         
+        self._set_fig_config(fig, title = fig_title,
+                                xaxis_title='Date', yaxis_title='Equity')
     
     
     def plot_equity_and_benchmark_curve(self):
@@ -70,35 +87,52 @@ class StockBacktestReporter:
     
     def _set_figure_config(self, fig: Figure, title: str="", 
                           xaxis_title: str="", yaxis_title: str="",
-                          info_context: str=""):
+                          fig_text: str=""):
         """ 設置繪圖配置 """
         
+        # Layout setting
         fig.update_layout(
             title = title,
             xaxis_title = xaxis_title,
-            yaxis_title = yaxis_title
-        )
-        
-        fig.add_annotation(
-            xref = 'paper',
-            yref = 'paper',
-            x = 1,
-            y = 1,
-            text = info_context.replace("\n", "<br>"),
-            showarrow = False,
-            font = dict(
-                size = 15,
-                color = 'white',
+            yaxis_title = yaxis_title,
+            xaxis=dict(
+                showgrid=True,
+                gridcolor='lightgrey',      # 黑色格線
+                gridwidth=0.5,              # 可微調線條粗細
+                zeroline=False
             ),
-            align = 'left',
-            bordercolor = 'black',
-            borderwidth = 1,
-            borderpad = 5,
-            bgcolor = 'black',
-            opacity = 0.5
+            yaxis=dict(
+                showgrid=True,
+                gridcolor='lightgrey',
+                gridwidth=0.5,
+                zeroline=False
+            ),
+            plot_bgcolor='#f9f9f9',
+            paper_bgcolor='white',
         )
         
+        # Annotation setting
+        if fig_text != "":
+            fig.add_annotation(
+                xref = 'paper',
+                yref = 'paper',
+                x = 1,
+                y = 1,
+                text = fig_text.replace("\n", "<br>"),
+                showarrow = False,
+                font = dict(
+                    size = 15,
+                    color = 'white',
+                ),
+                align = 'left',
+                bordercolor = 'black',
+                borderwidth = 1,
+                borderpad = 5,
+                bgcolor = 'black',
+                opacity = 0.5 
+            )
         
-    def _save_figure_to_dir(self, file_name: str=""):
+        
+    def _save_figure(self, file_name: str=""):
         """ 儲存回測報告 """
         pass

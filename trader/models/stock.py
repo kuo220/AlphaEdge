@@ -49,7 +49,7 @@ class StockQuote:
         
         # Current Price & Volume
         self.cur_price: float = cur_price                   # Current price
-        self.volume: int = volume                           # order's volume
+        self.volume: int = volume                           # order's volume (Unit: shares)
         
         # OHLC Info
         self.open: float = open                             # Open price

@@ -33,16 +33,17 @@ class Backtester:
         2. Daily price
     """
     
-    def __init__(self):
+    # === Init & Data Loading ===
+    def __init__(self, strategy: Strategy):
         """ === Strategy & Account information === """
-        self.strategy: Strategy = Strategy()                                    # 欲回測的策略
-        self.account: StockAccount = StockAccount(self.strategy.init_capital)    # 虛擬帳戶資訊
+        self.strategy: Strategy = strategy                                      # 欲回測的策略
+        self.account: StockAccount = StockAccount(self.strategy.init_capital)   # 虛擬帳戶資訊
         
         """ === Datasets === """
         self.data: Data = Data()                                                
         self.tick: Tick = None                                                  # Ticks data
         self.chip: Chip = None                                                  # Chips data
-        self.QXData: QXData = None                                              # Day price data, Financial data, etc
+        self.qx_data: QXData = None                                              # Day price data, Financial data, etc
         
         """ === Backtest Parameters === """
         self.scale: str = self.strategy.scale                                   # 回測 KBar 級別
@@ -59,12 +60,134 @@ class Backtester:
         if self.scale == Scale.TICK:
             self.tick = self.data.Tick
         elif self.scale == Scale.DAY:
-            self.QXData = self.data.QXData
+            self.qx_data = self.data.QXData
         elif self.scale == Scale.MIX:
             self.tick = self.data.Tick
-            self.QXData = self.data.QXData 
+            self.qx_data = self.data.QXData
+            
+    
+    # === Main Backtest Loop ===
+    def run(self):
+        """ 執行 Backtest (目前只有全tick回測) """
+        
+        print("========== Backtest Start ==========")
+        print(f"* Strategy Name: {self.strategy.strategy_name}")
+        print(f"* {self.start_date.strftime('%Y/%m/%d')} ~ {self.end_date.strftime('%Y/%m/%d')}")
+        print(f"* Initial Capital: {self.strategy.init_capital}")
+        print(f"* Backtest Scale: {self.scale}")
+        
+        # load backtest dataset
+        self.load_datasets()
+        
+        while self.cur_date <= self.end_date:
+            print(f"--- {self.cur_date.strftime('%Y/%m/%d')} ---")
+            
+            if not StockTools.check_market_open(self.qx_data, self.cur_date):
+                print("* Stock Market Close\n")
+                continue
+            
+            if self.scale == Scale.TICK:
+                self.run_tick_backtest()
+
+            elif self.scale == Scale.DAY:
+                self.run_day_backtest()
+            
+            elif self.scale == Scale.MIX:
+                self.run_mix_backtest()
+            
+            self.cur_date += datetime.timedelta(days=1)
+    
+        self.account.update_account_status()
     
     
+    def run_tick_backtest(self):
+        """ Tick 級別的回測架構 """
+        
+        # 一次取一天的 tick 資料，避免資料量太大 RAM 爆掉
+        ticks = self.tick.get_ordered_ticks(self.cur_date, self.cur_date)
+        
+        for tick in ticks.itertuples(index=False):
+            tick_quote: TickQuote = TickQuote(code=tick.stock_id, time=tick.time,
+                                    close=tick.close, volume=tick.volume,
+                                    bid_price=tick.bid_price, bid_volume=tick.bid_volume,
+                                    ask_price=tick.ask_price, ask_volume=tick.ask_volume,
+                                    tick_type=tick.tick_type)
+            
+            stock_quote: StockQuote = StockQuote(code=tick.stock_id, scale=self.scale, date=self.cur_date, 
+                                                 tick=tick_quote)
+            
+            if self.execute_close_signal(stock_quote):
+                print(f"* Close Position: {stock_quote.code}")
+                continue
+            
+            if self.execute_open_signal(stock_quote):
+                print(f"* Open Position: {stock_quote.code}")
+            
+            
+    def run_day_backtest(self):
+        """ Day 級別的回測架構 """
+        
+        self.qx_data.date = self.cur_date
+        open_df: pd.DataFrame = self.qx_data.get('price', '開盤價', 1)
+        high_df: pd.DataFrame = self.qx_data.get('price', '最高價', 1)
+        low_df: pd.DataFrame = self.qx_data.get('price', '最低價', 1)
+        close_df: pd.DataFrame = self.qx_data.get('price', '收盤價', 1)
+        volume_df: pd.DataFrame = self.qx_data.get('price', '成交股數', 1)
+        
+        codes: List = open_df.columns
+
+        for code in codes:
+            open: float = open_df.iloc[0][code]
+            high: float = high_df.iloc[0][code]
+            low: float = low_df.iloc[0][code]
+            close: float = close_df.iloc[0][code]
+            volume: float = volume_df.iloc[0][code]
+            stock_quote: StockQuote = StockQuote(code=code, scale=self.scale, date=self.cur_date, 
+                                                 volume=volume, open=open, high=high, low=low, close=close)
+        
+            if self.execute_close_signal(stock_quote):
+                print(f"* Close Position: {stock_quote.code}")
+                continue
+            if self.execute_open_signal(stock_quote):
+                print(f"* Open Position: {stock_quote.code}")
+            
+            
+    def run_mix_backtest(self):
+        """ Tick & Day 級別的回測架構 """
+        pass
+    
+    
+    # === Signal Execution ===
+    def execute_open_signal(self, stock_quote: StockQuote) -> bool:
+        """ 若倉位數量未達到限制且有開倉訊號，則執行開倉 """
+        
+        if self.max_positions is None or self.account.get_position_count() < self.max_positions:
+            open_order: Optional[StockOrder] = self.strategy.check_open_signal(stock_quote)
+            
+            if open_order is not None:
+                self.place_open_order(open_order)
+                return True
+        return False
+        
+    
+    def execute_close_signal(self, stock_quote: StockQuote) -> bool:
+        """ 停損優先，然後是一般平倉；有平倉就回傳 True """
+        
+        if self.account.check_has_position(stock_quote.code):
+            stop_loss_order: Optional[StockOrder] = self.strategy.check_stop_loss_signal(stock_quote)
+            
+            if stop_loss_order is not None:
+                self.place_close_order(stop_loss_order)
+                return True
+            
+            close_order: Optional[StockOrder] = self.strategy.check_close_signal(stock_quote)
+            if close_order is not None:
+                self.place_close_order(close_order)
+                return True
+        return False
+    
+    
+    # === Order Placement ===
     def place_open_order(self, stock: StockOrder) -> Optional[StockTradeRecord]:
         """ 
         - Description: 開倉下單股票
@@ -135,100 +258,7 @@ class Backtester:
         return position
     
     
-    def execute_open_signal(self, stock_quote: StockQuote) -> bool:
-        """ 若倉位數量未達到限制且有開倉訊號，則執行開倉 """
-        
-        if self.max_positions is None or self.account.get_position_count() < self.max_positions:
-            open_order: Optional[StockOrder] = self.strategy.check_open_signal(stock_quote)
-            
-            if open_order is not None:
-                self.place_open_order(open_order)
-                return True
-        return False
-        
-    
-    def execute_close_signal(self, stock_quote: StockQuote) -> bool:
-        """ 停損優先，然後是一般平倉；有平倉就回傳 True """
-        
-        if self.account.check_has_position(stock_quote.code):
-            stop_loss_order: Optional[StockOrder] = self.strategy.check_stop_loss_signal(stock_quote)
-            
-            if stop_loss_order is not None:
-                self.place_close_order(stop_loss_order)
-                return True
-            
-            close_order: Optional[StockOrder] = self.strategy.check_close_signal(stock_quote)
-            if close_order is not None:
-                self.place_close_order(close_order)
-                return True
-        return False
-
-
-    def run_tick_backtest(self):
-        """ Tick 級別的回測架構 """
-        
-        # 一次取一天的 tick 資料，避免資料量太大 RAM 爆掉
-        ticks = self.tick.get_ordered_ticks(self.cur_date, self.cur_date)
-        
-        for tick in ticks.itertuples(index=False):
-            tick_quote: TickQuote = TickQuote(code=tick.stock_id, time=tick.time,
-                                    close=tick.close, volume=tick.volume,
-                                    bid_price=tick.bid_price, bid_volume=tick.bid_volume,
-                                    ask_price=tick.ask_price, ask_volume=tick.ask_volume,
-                                    tick_type=tick.tick_type)
-            
-            stock_quote: StockQuote = StockQuote(code=tick.stock_id, scale=self.scale, 
-                                     date=self.cur_date, tick=tick_quote)
-            
-            if self.execute_close_signal(stock_quote):
-                print(f"* Close Position: {stock_quote.code}")
-                continue
-            
-            if self.execute_open_signal(stock_quote):
-                print(f"* Open Position: {stock_quote.code}")
-            
-            
-    def run_day_backtest(self):
-        pass
-    
-    
-    def run_mix_backtest(self):
-        pass
-    
-        
-    def run(self):
-        """ 執行 Backtest (目前只有全tick回測) """
-        
-        print("========== Backtest Start ==========")
-        print(f"* Strategy Name: {self.strategy.strategy_name}")
-        print(f"* {self.start_date.strftime('%Y/%m/%d')} ~ {self.end_date.strftime('%Y/%m/%d')}")
-        print(f"* Initial Capital: {self.strategy.init_capital}")
-        print(f"* Backtest Scale: {self.scale}")
-        
-        # load backtest dataset
-        self.load_datasets()
-        
-        while self.cur_date <= self.end_date:
-            print(f"--- {self.cur_date.strftime('%Y/%m/%d')} ---")
-            
-            if not StockTools.check_market_open(self.QXData, self.cur_date):
-                print("* Stock Market Close\n")
-                continue
-            
-            if self.scale == Scale.TICK:
-                self.run_tick_backtest()
-
-            elif self.scale == Scale.DAY:
-                self.run_day_backtest
-            
-            elif self.scale == Scale.MIX:
-                self.run_mix_backtest()
-            
-            self.cur_date += datetime.timedelta(days=1)
-    
-        self.account.update_account_status()
-        
-        
+    # === Report ===
     def generate_backtest_report(self):
         """ 生產回測報告 """
         pass

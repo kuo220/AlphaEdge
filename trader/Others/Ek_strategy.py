@@ -69,7 +69,7 @@ class EnergyStrategy(Strategy):
             current_date += datetime.timedelta(days=1)
             
             close_price = self.data.get('price', '收盤價', 1)
-            
+             
             # Stock market closure
             if close_price.index.date != self.data.date:
                 print("Stock Market Close\n")
@@ -458,7 +458,7 @@ class EnergyStrategy(Strategy):
                 borderwidth = 1,
                 borderpad = 5,
                 bgcolor = 'black',
-                opacity = 0.5
+                opacity = 0.5 
             )
 
         # make directory
