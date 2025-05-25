@@ -96,8 +96,8 @@ class ShioajiAccount:
                                               trade.order.action, 
                                               trade.order.seqno, 
                                               trade.order.quantity, 
-                                              ave_deal_price if trade.order.action == Action.Buy else np.nan, 
-                                              ave_deal_price if trade.order.action == Action.Sell else np.nan, 
+                                              ave_deal_price if trade.order.action == Action.BUY else np.nan, 
+                                              ave_deal_price if trade.order.action == Action.SELL else np.nan, 
                                               0]],
                                             columns=columns_name)
                 trade_record_df = pd.concat([trade_record_df, trade_record], ignore_index=True)

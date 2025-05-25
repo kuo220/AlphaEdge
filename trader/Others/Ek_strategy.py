@@ -82,7 +82,7 @@ class EnergyStrategy(Strategy):
             # Buy stocks
             # TODO: limit up
             if len(self.stocks_inventory) < self.buy_stock_num:
-                stock_list = self.run()
+                 
                 if len(stock_list.columns) > 0:
                     _, _ = self.produce_portfolio(stock_list, self.accumulated_capital)
                 else:

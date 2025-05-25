@@ -72,7 +72,7 @@ class StockOrder:
         
         # Order Info
         self.price: float = price                           # 交易價位
-        self.volume: float = volume                         # 交易數量
+        self.volume: float = volume                         # 交易數量（Unit: Lot）
         self.position_type: PositionType = position_type    # 持倉方向（Long or Short）
         
 

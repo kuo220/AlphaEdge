@@ -7,11 +7,10 @@ import pandas as pd
 import datetime
 from typing import List, Dict, Tuple, Optional, Any
 sys.path.append(str(Path(__file__).resolve().parents[2]))
-from data import Data, Chip, Tick, QXData
 from models import(StockAccount, StockQuote, StockOrder, StockTradeRecord)
-from utils import Market, Scale, PositionType
+from utils import (Data, Market, Scale, PositionType,
+                   Market, Scale, PositionType)
 from strategies.stock import BaseStockStrategy
-
 
 class Strategy(BaseStockStrategy):
     """ Strategy """
@@ -21,8 +20,12 @@ class Strategy(BaseStockStrategy):
         self.strategy_name = "Momentum"
         self.init_capital = 1000000.0
         self.max_positions = 10
-        self.scale = Scale.DAY 
-        
+        self.scale = Scale.TICK
+        self.dataset = {
+            'QXData': True,
+            'Tick': True,
+            'Chip': False
+        }
         self.start_time = datetime.date(2020, 4, 1)
         self.end_time = datetime.date(2024, 5, 10)
     
@@ -31,21 +34,6 @@ class Strategy(BaseStockStrategy):
         """ 開倉策略（Long & Short） """
         
         print(f"* Open Position: {stock.code}")
-        
-        if self.max_positions == 0:
-            return None
-        
-        # Condition 1: 當日漲 > 9% 的股票
-        yesterday = stock.date - datetime.timedelta(days=1)
-        self.qx_data.date = yesterday
-        close_price_yesterday = self.qx_data.get('price', '收盤價', 1)
-        price_chg = (stock.close / close_price_yesterday[stock.code][0] - 1) * 100
-        
-        if price_chg < 9:
-            return None
-        return 
-        
-        
 
 
     def check_close_signal(self, stock: StockQuote) -> Optional[StockOrder]:
@@ -54,7 +42,8 @@ class Strategy(BaseStockStrategy):
         print(f"* Close Position: {stock.code}")
     
     
-    def check_stop_loss_signal(self, stock: StockQuote) -> Optional[StockOrder]:
+    def check_stop_loss_signal(self, stock: StockQuote) ->Optional[StockOrder]:
         """ 停損策略 """
         pass
+        
         

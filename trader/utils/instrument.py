@@ -3,7 +3,7 @@ import numpy as np
 from pathlib import Path
 import datetime
 import shioaji as sj
-from typing import Tuple
+from typing import Tuple, List, Optional
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from utils.time import TimeTools
 from utils.constant import Commission
@@ -159,3 +159,16 @@ class StockTools:
         close_price = data.get('price', '收盤價', 1)
         
         return True if close_price.index.date == date else False
+    
+    
+    @staticmethod
+    def filter_common_stocks(codes: List[str]) -> List[str]:
+        """ 
+        - Description: 過濾出一般股票（排除 ETF、權證等），僅保留 4 位數且在 1001~9958 間的股票代號
+        - Parameters:
+            - codes: 所有股票代號的 List[str]
+        - Return:
+            - List[str]：符合條件的一般股票代號清單
+        """
+        return [code for code in codes if code.isdigit() and len(code) == 4 and 1001 <= int(code) <= 9958]
+        

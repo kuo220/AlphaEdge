@@ -8,9 +8,9 @@ import datetime
 from abc import ABC, abstractmethod
 from typing import List, Dict, Tuple, Optional, Any
 sys.path.append(str(Path(__file__).resolve().parents[2]))
-from utils import (Data, Market, Scale, PositionType,
-                   Market, Scale, PositionType)
+from data import Data, Chip, Tick, QXData
 from models import StockAccount, StockQuote, StockOrder, StockTradeRecord
+from utils import Action, Market, Scale, PositionType
 
 
 class BaseStockStrategy(ABC):
@@ -26,30 +26,17 @@ class BaseStockStrategy(ABC):
         self.max_positions: Optional[int] = 0           # max limit numbers of positions
         
         """ === Datasets === """
-        self.data: Data = Data()                        
-        self.QXData: Data = None                        # Day price data, Financial data, etc
-        self.tick: Data = None                          # Ticks data
-        self.chip: Data = None                          # Chips data
-        
+        self.data: Data = Data()         
+        self.chip: Chip = self.data.chip                # Chips data
+        self.tick: Tick = self.data.tick                # Ticks data
+        self.qx_data: QXData = self.data.qx_data        # Day price data, Financial data, etc
+                
         """ === Backtest Setting === """
         self.is_backtest: bool = True                   # Whether it's used for backtest or not
         self.scale: str = Scale.DAY                     # Backtest scale: Day/Tick/ALL
-        self.dataset: Dict[str, bool] = {               # Dataset used in the strategy   
-            'QXData': True,
-            'Tick': True,
-            'Chip': True
-        }
         self.start_date: datetime.date = None           # Optional: if is_backtest == True, then set start date in backtest
         self.end_date: datetime.date = None             # Optional: if is_backtest == True, then set end date in backtest
 
-    
-    def load_datasets(self):
-        """ 從資料庫載入資料 """
-        
-        self.QXData = self.data.QXData
-        self.tick = self.data.Tick
-        self.chip = self.data.Chip
-    
     
     @abstractmethod
     def check_open_signal(self, stock: StockQuote) -> Optional[StockOrder]:
@@ -89,5 +76,21 @@ class BaseStockStrategy(ABC):
         - Return:
             - position: StockOrder
                 停損（平倉）訂單
+        """
+        pass
+    
+    
+    @abstractmethod
+    def calculate_position_size(self, action: Action, stock: StockQuote) -> int:
+        """ 
+        - Description: 計算下單股數，依據當前資金、價格、風控規則決定部位大小
+        - Parameters:
+            - action: Action
+                動作類型，例如 Action.OPEN 或 Action.CLOSE
+            - stock: StockQuote
+                目標股票的報價資訊
+        - Return:
+            - size: int
+                建議下單的股數
         """
         pass

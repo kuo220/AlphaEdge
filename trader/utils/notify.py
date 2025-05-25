@@ -33,7 +33,7 @@ class Notification:
             'volume': 3,
             'price': 0,
             'price_change': 5%,
-            'action': Action.Buy,
+            'action': Action.BUY,
             'price_type': StockPriceType.MKT,
             'order_type': OrderType.IOC,
             'order_lot': StockOrderLot.Common,
@@ -45,7 +45,7 @@ class Notification:
         msg += f"Stock ID: {order['code']}\n"
         msg += f"Volume: {order['volume']}\n"
         msg += f"Stock Price: {order['price_type'] if order['price_type'] == StockPriceType.MKT else order['price']}\n"
-        msg += f"Price Change: {order['price_change']}%" if order['action'] == Action.Buy else "" # 只有買單才會輸出
+        msg += f"Price Change: {order['price_change']}%" if order['action'] == Action.BUY else "" # 只有買單才會輸出
 
         Notification.post_line_notify(token, msg)
     

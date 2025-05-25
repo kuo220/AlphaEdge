@@ -3,6 +3,8 @@ from enum import Enum
 # 定義動作類型常量
 ACTION_BUY = "Buy"
 ACTION_SELL = "Sell"
+ACTION_OPEN = "Open"
+ACTION_CLOSE = "Close"
 
 # 定義價格類型常量
 STOCK_PRICE_TYPE_LIMITPRICE = "LMT"
@@ -28,8 +30,10 @@ STOCK_ORDER_LOT_INTRADAY_ODD = "IntradayOdd"  # 零股
 
 
 class Action(str, Enum):
-    Buy = ACTION_BUY
-    Sell = ACTION_SELL
+    BUY = ACTION_BUY
+    SELL = ACTION_SELL
+    OPEN = ACTION_OPEN
+    CLOSE = ACTION_CLOSE
     
 class StockPriceType(str, Enum):
     LMT = STOCK_PRICE_TYPE_LIMITPRICE

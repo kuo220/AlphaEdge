@@ -8,9 +8,9 @@ import datetime
 from typing import List, Dict, Tuple, Optional, Any 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from data import Data, Chip, Tick, QXData
+from models import (StockAccount, TickQuote, StockQuote, StockOrder, StockTradeRecord)
 from utils import (StockTools, Commission, Market, Scale, 
                    PositionType, Units)
-from models import (StockAccount, TickQuote, StockQuote, StockOrder, StockTradeRecord)
 from strategies.stock import Strategy
 
 
@@ -134,16 +134,19 @@ class Backtester:
         close_df: pd.DataFrame = self.qx_data.get('price', '收盤價', 1)
         volume_df: pd.DataFrame = self.qx_data.get('price', '成交股數', 1)
         
-        codes: List = open_df.columns
+        open_row = open_df.iloc[0]
+        high_row = high_df.iloc[0]
+        low_row = low_df.iloc[0]
+        close_row = close_df.iloc[0]
+        volume_row = volume_df.iloc[0]
+        
+        # 篩選出 ETF、權證外的股票代號
+        codes: List[str] = StockTools.filter_common_stocks(list(open_df.columns))
 
         for code in codes:
-            open: float = open_df.iloc[0][code]
-            high: float = high_df.iloc[0][code]
-            low: float = low_df.iloc[0][code]
-            close: float = close_df.iloc[0][code]
-            volume: float = volume_df.iloc[0][code]
             stock_quote: StockQuote = StockQuote(code=code, scale=self.scale, date=self.cur_date, 
-                                                 volume=volume, open=open, high=high, low=low, close=close)
+                                                 cur_price=close_row[code], volume=volume_row[code], 
+                                                 open=open_row[code], high=high_row[code], low=low_row[code], close=close_row[code])
         
             if self.execute_close_signal(stock_quote):
                 print(f"* Close Position: {stock_quote.code}")

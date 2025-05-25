@@ -15,7 +15,7 @@ class OrderTools:
             'volume': 3,
             'price': 0,                         # 市價單價格為0
             'price_type': StockPriceType.MKT,   # 市價單 or 限價單
-            'action': Action.Buy,               # 買入 or 賣出
+            'action': Action.BUY,               # 買入 or 賣出
             'order_type': OrderType.IOC,        # 下單類型
             'order_lot': StockOrderLot.Common,  # 下單單位
         }

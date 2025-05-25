@@ -24,4 +24,4 @@ class Data:
         except Exception as e:
             print(e)
             
-        self.quantx: QXData = QXData()
+        self.qx_data: QXData = QXData()
