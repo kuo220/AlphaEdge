@@ -39,6 +39,22 @@ class BaseStockStrategy(ABC):
 
     
     @abstractmethod
+    def calculate_position_size(self, action: Action, stock: StockQuote) -> int:
+        """ 
+        - Description: 計算下單股數，依據當前資金、價格、風控規則決定部位大小
+        - Parameters:
+            - action: Action
+                動作類型，例如 Action.OPEN 或 Action.CLOSE
+            - stock: StockQuote
+                目標股票的報價資訊
+        - Return:
+            - size: int
+                建議下單的股數
+        """
+        pass
+    
+    
+    @abstractmethod
     def check_open_signal(self, stock: StockQuote) -> Optional[StockOrder]:
         """ 
         - Description: 開倉策略（Long & Short） ，需要包含買賣的標的、價位和數量
@@ -76,21 +92,5 @@ class BaseStockStrategy(ABC):
         - Return:
             - position: StockOrder
                 停損（平倉）訂單
-        """
-        pass
-    
-    
-    @abstractmethod
-    def calculate_position_size(self, action: Action, stock: StockQuote) -> int:
-        """ 
-        - Description: 計算下單股數，依據當前資金、價格、風控規則決定部位大小
-        - Parameters:
-            - action: Action
-                動作類型，例如 Action.OPEN 或 Action.CLOSE
-            - stock: StockQuote
-                目標股票的報價資訊
-        - Return:
-            - size: int
-                建議下單的股數
         """
         pass

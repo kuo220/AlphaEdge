@@ -9,7 +9,7 @@ from typing import List, Dict, Tuple, Optional, Any
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 from data import Data, Chip, Tick, QXData
 from models import(StockAccount, StockQuote, StockOrder, StockTradeRecord)
-from utils import Market, Scale, PositionType
+from utils import Action, Market, Scale, PositionType
 from strategies.stock import BaseStockStrategy
 
 
@@ -25,6 +25,11 @@ class Strategy(BaseStockStrategy):
         
         self.start_time = datetime.date(2020, 4, 1)
         self.end_time = datetime.date(2024, 5, 10)
+    
+    
+    def calculate_position_size(self, action: Action, stock: StockQuote) -> int:
+        """ 計算 Open or Close 的部位大小 """
+        pass
     
     
     def check_open_signal(self, stock: StockQuote) -> Optional[StockOrder]:
