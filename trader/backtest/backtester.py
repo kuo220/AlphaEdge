@@ -116,12 +116,8 @@ class Backtester:
             stock_quote: StockQuote = StockQuote(code=tick.stock_id, scale=self.scale, date=self.cur_date, 
                                                  tick=tick_quote)
             
-            if self.execute_close_signal(stock_quote):
-                print(f"* Close Position: {stock_quote.code}")
-                continue
-            
-            if self.execute_open_signal(stock_quote):
-                print(f"* Open Position: {stock_quote.code}")
+            self.execute_close_signal(stock_quote)
+            self.execute_open_signal(stock_quote)
             
             
     def run_day_backtest(self):
@@ -147,13 +143,10 @@ class Backtester:
             stock_quote: StockQuote = StockQuote(code=code, scale=self.scale, date=self.cur_date, 
                                                  cur_price=close_row[code], volume=volume_row[code], 
                                                  open=open_row[code], high=high_row[code], low=low_row[code], close=close_row[code])
-        
-            if self.execute_close_signal(stock_quote):
-                print(f"* Close Position: {stock_quote.code}")
-                continue
-            if self.execute_open_signal(stock_quote):
-                print(f"* Open Position: {stock_quote.code}")
-            
+
+            self.execute_close_signal(stock_quote)
+            self.execute_open_signal(stock_quote)
+                
             
     def run_mix_backtest(self):
         """ Tick & Day 級別的回測架構 """
@@ -161,33 +154,30 @@ class Backtester:
     
     
     # === Signal Execution ===
-    def execute_open_signal(self, stock_quote: StockQuote) -> bool:
+    def execute_open_signal(self, stock_quote: StockQuote):
         """ 若倉位數量未達到限制且有開倉訊號，則執行開倉 """
         
         if self.max_positions is None or self.account.get_position_count() < self.max_positions:
-            open_order: Optional[StockOrder] = self.strategy.check_open_signal(stock_quote)
+            print(f"* Open Position: {stock_quote.code}")
+            open_orders: List[StockOrder] = self.strategy.check_open_signal(stock_quote)
             
-            if open_order is not None:
-                self.place_open_order(open_order)
-                return True
-        return False
+            for order in open_orders:
+                self.place_open_order(order)
         
     
-    def execute_close_signal(self, stock_quote: StockQuote) -> bool:
+    def execute_close_signal(self, stock_quote: StockQuote):
         """ 停損優先，然後是一般平倉；有平倉就回傳 True """
         
         if self.account.check_has_position(stock_quote.code):
-            stop_loss_order: Optional[StockOrder] = self.strategy.check_stop_loss_signal(stock_quote)
+            print(f"* Close Position: {stock_quote.code}")
+            stop_loss_orders: List[StockOrder] = self.strategy.check_stop_loss_signal(stock_quote)
             
-            if stop_loss_order is not None:
-                self.place_close_order(stop_loss_order)
-                return True
+            for order in stop_loss_orders:
+                self.place_close_order(order)
             
-            close_order: Optional[StockOrder] = self.strategy.check_close_signal(stock_quote)
-            if close_order is not None:
-                self.place_close_order(close_order)
-                return True
-        return False
+            close_orders: List[StockOrder] = self.strategy.check_close_signal(stock_quote)
+            for order in close_orders:
+                self.place_close_order(order)
     
     
     # === Order Placement ===

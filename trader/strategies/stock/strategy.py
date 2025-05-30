@@ -32,7 +32,7 @@ class Strategy(BaseStockStrategy):
         pass
     
     
-    def check_open_signal(self, stock: StockQuote) -> Optional[StockOrder]:
+    def check_open_signal(self, stock: StockQuote) -> List[StockOrder]:
         """ 開倉策略（Long & Short） """
         
         print(f"* Open Position: {stock.code}")
@@ -47,19 +47,19 @@ class Strategy(BaseStockStrategy):
         price_chg = (stock.close / close_price_yesterday[stock.code][0] - 1) * 100
         
         if price_chg < 9:
-            return None
+            return []
         return 
         
         
 
 
-    def check_close_signal(self, stock: StockQuote) -> Optional[StockOrder]:
+    def check_close_signal(self, stock: StockQuote) -> List[StockOrder]:
         """ 平倉策略（Long & Short） """
         
         print(f"* Close Position: {stock.code}")
+     
     
-    
-    def check_stop_loss_signal(self, stock: StockQuote) -> Optional[StockOrder]:
+    def check_stop_loss_signal(self, stock: StockQuote) -> List[StockOrder]:
         """ 停損策略 """
         pass
         

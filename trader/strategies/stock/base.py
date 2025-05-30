@@ -55,7 +55,7 @@ class BaseStockStrategy(ABC):
     
     
     @abstractmethod
-    def check_open_signal(self, stock: StockQuote) -> Optional[StockOrder]:
+    def check_open_signal(self, stock: StockQuote) -> List[StockOrder]:
         """ 
         - Description: 開倉策略（Long & Short） ，需要包含買賣的標的、價位和數量
         - Parameter:
@@ -69,7 +69,7 @@ class BaseStockStrategy(ABC):
 
 
     @abstractmethod
-    def check_close_signal(self, stock: StockQuote) -> Optional[StockOrder]:
+    def check_close_signal(self, stock: StockQuote) -> List[StockOrder]:
         """ 
         - Description: 平倉策略（Long & Short） ，需要包含買賣的標的、價位和數量
         - Parameter:
@@ -83,7 +83,7 @@ class BaseStockStrategy(ABC):
         
         
     @abstractmethod
-    def check_stop_loss_signal(self, stock: StockQuote) -> Optional[StockOrder]:
+    def check_stop_loss_signal(self, stock: StockQuote) -> List[StockOrder]:
         """ 
         - Description: 設定停損機制
         - Parameter:
