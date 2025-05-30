@@ -1,16 +1,30 @@
-import sys
-import os
 from pathlib import Path
-import requests
+import datetime
 import numpy as np
 import pandas as pd
-import datetime
-from typing import List, Dict, Tuple, Optional, Any 
+from typing import List, Dict, Tuple, Optional, Any
+
+# Add parent directory to path
+import sys
 sys.path.append(str(Path(__file__).resolve().parents[1]))
+
+# Local imports
 from data import Data, Chip, Tick, QXData
-from models import (StockAccount, TickQuote, StockQuote, StockOrder, StockTradeRecord)
-from utils import (StockTools, Commission, Market, Scale, 
-                   PositionType, Units)
+from models import (
+    StockAccount, 
+    TickQuote,
+    StockQuote, 
+    StockOrder,
+    StockTradeRecord
+)
+from utils import (
+    StockTools,
+    Commission,
+    Market,
+    Scale,
+    PositionType, 
+    Units
+)
 from strategies.stock import Strategy
 
 
@@ -41,9 +55,9 @@ class Backtester:
         
         """ === Datasets === """
         self.data: Data = Data()                                                
-        self.tick: Tick = None                                                  # Ticks data
-        self.chip: Chip = None                                                  # Chips data
-        self.qx_data: QXData = None                                              # Day price data, Financial data, etc
+        self.tick: Optional[Tick] = None                                                  # Ticks data
+        self.chip: Optional[Chip] = None                                                  # Chips data
+        self.qx_data: Optional[QXData] = None                                              # Day price data, Financial data, etc
         
         """ === Backtest Parameters === """
         self.scale: str = self.strategy.scale                                   # 回測 KBar 級別
