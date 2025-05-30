@@ -1,15 +1,27 @@
+# Standard library imports
 import sys
-import pandas as pd
 import datetime
-from typing import Optional
 from pathlib import Path
+from typing import Optional
+
+# Third party imports
+import pandas as pd
 try:
     import dolphindb as ddb
 except ModuleNotFoundError:
     print("Warning: dolphindb module is not installed.")
+
+# Local imports
 sys.path.append(str(Path(__file__).resolve().parents[1]))
-from config import (TICK_DB_PATH, TICK_TABLE_NAME, TICK_METADATA_PATH,
-                    DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
+from config import (
+    TICK_DB_PATH,
+    TICK_TABLE_NAME, 
+    TICK_METADATA_PATH,
+    DDB_HOST,
+    DDB_PORT,
+    DDB_USER,
+    DDB_PASSWORD
+)
 
 
 class Tick:

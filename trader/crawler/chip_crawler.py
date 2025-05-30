@@ -1,31 +1,36 @@
+# Standard library imports
 import sys
 import os
 import shutil
-import numpy as np
-import pandas as pd
+import random
+import sqlite3
 import datetime
 import time
-import random
-import requests
 from pathlib import Path
-from requests.exceptions import ReadTimeout
-from requests.exceptions import ConnectionError
-import shutil
-import sqlite3
-from io import StringIO
 from typing import List, Optional
-import urllib.request
+from io import StringIO
+
+# Third party imports
+import numpy as np
+import pandas as pd
+import requests
 import ipywidgets as widgets
 from IPython.display import display
 from fake_useragent import UserAgent
-from tqdm import tqdm
-from tqdm import tnrange, tqdm_notebook
+from tqdm import tqdm, tnrange, tqdm_notebook
 from dateutil.rrule import rrule, DAILY, MONTHLY
 from dateutil.relativedelta import relativedelta
+from requests.exceptions import ReadTimeout, ConnectionError
+
+# Local imports
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from crawler.crawler_tools import CrawlerTools
 from data import SQLiteTools
-from config import (CHIP_DOWNLOADS_PATH, CHIP_DB_PATH, CHIP_TABLE_NAME)
+from config import (
+    CHIP_DOWNLOADS_PATH,
+    CHIP_DB_PATH, 
+    CHIP_TABLE_NAME
+)
 
 
 

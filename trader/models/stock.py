@@ -1,7 +1,12 @@
-import pandas as pd
+# Standard library imports
 import datetime
-from typing import List, Dict, Union, Optional
-from utils.constant import Commission, Scale, PositionType
+from typing import Dict, List, Optional, Union
+
+# Third party imports
+import pandas as pd
+
+# Local imports 
+from utils.constant import Commission, PositionType, Scale
 
 
 """ 

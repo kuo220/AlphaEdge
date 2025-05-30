@@ -1,11 +1,19 @@
-import sys
-import sqlite3
-import os
-import pandas as pd
+# Standard library imports
 import datetime
+import os
+import sqlite3
+import sys
 from pathlib import Path
+
+# Third party imports
+import pandas as pd
+
+# Local imports
 sys.path.append(str(Path(__file__).resolve().parents[1]))
-from config import (CHIP_DB_PATH, CHIP_TABLE_NAME)
+from config import (
+    CHIP_DB_PATH,
+    CHIP_TABLE_NAME
+)
 
 
 class Chip:

@@ -1,12 +1,17 @@
-import sqlite3
-import os
-import pandas as pd
+# Standard library imports
 import datetime
+import os
+import sqlite3
 from pathlib import Path
+
+# Third party imports
+import pandas as pd
 try:
     import dolphindb as ddb
 except ModuleNotFoundError:
     print("Warning: dolphindb module is not installed.")
+
+# Local imports
 from .chip import Chip
 from .tick import Tick
 from .qx_data import QXData

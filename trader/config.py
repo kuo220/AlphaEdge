@@ -1,7 +1,12 @@
+# Standard library imports
+import os
 from pathlib import Path
 from typing import List
+
+# Third-party packages
 from dotenv import load_dotenv
-import os
+
+# Local imports 
 from utils import ShioajiAPI
 
 

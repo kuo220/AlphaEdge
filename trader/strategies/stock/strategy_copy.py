@@ -1,15 +1,31 @@
+# Standard library imports
 import sys
 import os
+import datetime
 from pathlib import Path
-import requests
+from typing import List, Dict, Tuple, Optional, Any
+
+# Third-party packages
 import numpy as np
 import pandas as pd
-import datetime
-from typing import List, Dict, Tuple, Optional, Any
+import requests
+
+# Add project root to path
 sys.path.append(str(Path(__file__).resolve().parents[2]))
-from models import(StockAccount, StockQuote, StockOrder, StockTradeRecord)
-from utils import (Data, Market, Scale, PositionType,
-                   Market, Scale, PositionType)
+
+# Local imports
+from models import (
+    StockAccount,
+    StockQuote, 
+    StockOrder,
+    StockTradeRecord
+)
+from utils import (
+    Data,
+    Market,
+    Scale,
+    PositionType
+)
 from strategies.stock import BaseStockStrategy
 
 class Strategy(BaseStockStrategy):

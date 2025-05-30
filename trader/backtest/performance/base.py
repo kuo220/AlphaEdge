@@ -1,16 +1,32 @@
+# Standard library imports
 import sys
 import os
+import datetime
+from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import List, Dict, Tuple, Optional, Any
+
+# Third party imports
 import numpy as np
 import pandas as pd
-import datetime
 import plotly.express as px
-from abc import ABC, abstractmethod
-from typing import List, Dict, Tuple, Optional, Any
+
+# Add project root to path
 sys.path.append(str(Path(__file__).resolve().parents[2]))
-from utils import (Data, Market, Scale, PositionType,
-                   Market, Scale, PositionType)
-from models import StockAccount, StockQuote, StockOrder, StockTradeRecord
+
+# Local imports
+from data import Data, Chip, Tick, QXData
+from utils import (
+    Market,
+    Scale,
+    PositionType
+)
+from models import (
+    StockAccount,
+    StockQuote,
+    StockOrder,
+    StockTradeRecord
+)
 
 
 """

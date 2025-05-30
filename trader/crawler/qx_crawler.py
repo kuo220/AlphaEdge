@@ -1,32 +1,34 @@
-import sys
+# Standard library imports
+import datetime
 import os
+import pickle
+import random
+import re
 import shutil
+import sqlite3
+import sys
+import time
+import urllib.request
+import warnings
+import zipfile
+from io import StringIO
+from pathlib import Path
+from typing import List
+
+# Third party imports
+import ipywidgets as widgets
 import numpy as np
 import pandas as pd
-import datetime
-import time
-import re
-import random
 import requests
-from pathlib import Path
-from requests.exceptions import ReadTimeout
-from requests.exceptions import ConnectionError
-import shutil
-import zipfile
-import pickle
-import warnings
-import sqlite3
 from bs4 import BeautifulSoup
-from io import StringIO
-from typing import List
-import urllib.request
-import ipywidgets as widgets
-from IPython.display import display
-from fake_useragent import UserAgent
-from tqdm import tqdm
-from tqdm import tnrange, tqdm_notebook
-from dateutil.rrule import rrule, DAILY, MONTHLY
 from dateutil.relativedelta import relativedelta
+from dateutil.rrule import DAILY, MONTHLY, rrule
+from fake_useragent import UserAgent
+from IPython.display import display
+from requests.exceptions import ConnectionError, ReadTimeout
+from tqdm import tqdm, tnrange, tqdm_notebook
+
+# Local imports
 from .crawler_tools import CrawlerTools
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from config import QUANTX_DB_PATH

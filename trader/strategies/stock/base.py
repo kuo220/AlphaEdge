@@ -1,16 +1,31 @@
+# Standard library imports
 import sys
-import os
-from pathlib import Path
-import requests
-import numpy as np
-import pandas as pd
 import datetime
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import List, Dict, Tuple, Optional, Any
+
+# Third party imports
+import numpy as np
+import pandas as pd
+
+# Add project root to path
 sys.path.append(str(Path(__file__).resolve().parents[2]))
+
+# Local imports
 from data import Data, Chip, Tick, QXData
-from models import StockAccount, StockQuote, StockOrder, StockTradeRecord
-from utils import Action, Market, Scale, PositionType
+from models import (
+    StockAccount,
+    StockQuote,
+    StockOrder,
+    StockTradeRecord
+)
+from utils import (
+    Action,
+    Market,
+    Scale,
+    PositionType
+)
 
 
 class BaseStockStrategy(ABC):

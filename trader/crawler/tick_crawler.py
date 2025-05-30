@@ -1,38 +1,49 @@
-import sys
+# Standard library imports
+import datetime
 import os
+import random
 import shutil
+import sys
+import threading
+import time
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
+from typing import List, Optional, Any
+
+# Third party imports
+import ipywidgets as widgets
 import numpy as np
 import pandas as pd
-import datetime
-from loguru import logger
-import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import time
-import random
 import requests
-from pathlib import Path
-from requests.exceptions import ReadTimeout
-from requests.exceptions import ConnectionError
-import shutil
 import shioaji as sj
-from typing import List, Optional, Any
-import urllib.request
-import ipywidgets as widgets
-from IPython.display import display
-from fake_useragent import UserAgent
-from tqdm import tqdm, tnrange, tqdm_notebook
-from dateutil.rrule import rrule, DAILY, MONTHLY
 from dateutil.relativedelta import relativedelta
+from dateutil.rrule import DAILY, MONTHLY, rrule
+from fake_useragent import UserAgent
+from IPython.display import display
+from loguru import logger
+from requests.exceptions import ConnectionError, ReadTimeout
+from tqdm import tqdm, tnrange, tqdm_notebook
+
+# Local imports
 sys.path.append(str(Path(__file__).resolve().parents[1]))
-from utils import ShioajiAccount, ShioajiAPI
-from utils import log_thread
+from utils import ShioajiAccount, ShioajiAPI, log_thread
 from .crawler_tools import CrawlerTools
 from .html_crawler import CrawlHTML
 from data import TickDBTools, TickDBManager
-from config import (LOGS_DIR_PATH, 
-                    TICK_DOWNLOADS_PATH, TICK_DB_PATH, TICK_DB_NAME, TICK_TABLE_NAME, 
-                    API_LIST,
-                    DDB_PATH, DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
+from config import (
+    LOGS_DIR_PATH,
+    TICK_DOWNLOADS_PATH,
+    TICK_DB_PATH,
+    TICK_DB_NAME,
+    TICK_TABLE_NAME,
+    API_LIST,
+    DDB_PATH,
+    DDB_HOST,
+    DDB_PORT,
+    DDB_USER,
+    DDB_PASSWORD
+)
 
 
 """ 
