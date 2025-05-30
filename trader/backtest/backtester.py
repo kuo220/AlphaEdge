@@ -157,21 +157,24 @@ class Backtester:
     def execute_open_signal(self, stock_quote: StockQuote):
         """ 若倉位數量未達到限制且有開倉訊號，則執行開倉 """
         
-        if self.max_positions is None or self.account.get_position_count() < self.max_positions:
-            print(f"* Open Position: {stock_quote.code}")
-            open_orders: List[StockOrder] = self.strategy.check_open_signal(stock_quote)
-            
-            for order in open_orders:
-                self.place_open_order(order)
+        print(f"* Open Position: {stock_quote.code}")
         
+        open_orders: List[StockOrder] = self.strategy.check_open_signal(stock_quote)
+        if self.max_positions is not None:
+            remaining_positions: int = max(0, self.max_positions - self.account.get_position_count())
+            open_orders = open_orders[:remaining_positions]
+            
+        for order in open_orders:
+            self.place_open_order(order)
+            
     
     def execute_close_signal(self, stock_quote: StockQuote):
-        """ 停損優先，然後是一般平倉；有平倉就回傳 True """
+        """ 執行平倉邏輯：先判斷停損訊號，後判斷一般平倉 """
         
         if self.account.check_has_position(stock_quote.code):
             print(f"* Close Position: {stock_quote.code}")
-            stop_loss_orders: List[StockOrder] = self.strategy.check_stop_loss_signal(stock_quote)
             
+            stop_loss_orders: List[StockOrder] = self.strategy.check_stop_loss_signal(stock_quote)
             for order in stop_loss_orders:
                 self.place_close_order(order)
             
