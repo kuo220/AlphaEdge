@@ -28,6 +28,7 @@ from utils import (
 )
 from strategies.stock import BaseStockStrategy
 
+
 class Strategy(BaseStockStrategy):
     """ Strategy """
     
