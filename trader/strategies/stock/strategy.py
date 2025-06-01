@@ -48,15 +48,15 @@ class Strategy(BaseStockStrategy):
     def check_open_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
         """ 開倉策略（Long & Short） """
         
-        for stock_quote in stock_quotes:
-            print(f"* Open Position: {stock_quote.code}")
-            
-            if self.max_positions == 0:
+        if self.max_positions == 0:
                 return None
-            
+                
+        for stock_quote in stock_quotes:
+           
             # Condition 1: 當日漲 > 9% 的股票
             yesterday = stock_quote.date - datetime.timedelta(days=1)
             self.qx_data.date = yesterday
+            
             close_price_yesterday = self.qx_data.get('price', '收盤價', 1)
             price_chg = (stock_quote.close / close_price_yesterday[stock_quote.code][0] - 1) * 100
             

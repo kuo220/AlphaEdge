@@ -254,7 +254,7 @@ class Backtester:
 
         return position
     
-    
+    # TODO: 獨立出一個class (adapter)
     def generate_valid_stock_quotes(self, data: Union[Dict[str, pd.Series], pd.DataFrame]) -> List[StockQuote]:
         """ 
         根據當日資料建立有效的 StockQuote 清單
