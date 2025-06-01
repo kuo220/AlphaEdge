@@ -2,7 +2,7 @@ from pathlib import Path
 import datetime
 import numpy as np
 import pandas as pd
-from typing import List, Dict, Tuple, Optional, Any
+from typing import List, Dict, Tuple, Optional, Any, Union
 
 # Add parent directory to path
 import sys
@@ -118,17 +118,10 @@ class Backtester:
         """ Tick 級別的回測架構 """
         
         # 一次取一天的 tick 資料，避免資料量太大 RAM 爆掉
-        ticks = self.tick.get_ordered_ticks(self.cur_date, self.cur_date)
+        ticks: pd.DataFrame = self.tick.get_ordered_ticks(self.cur_date, self.cur_date)
         
         for tick in ticks.itertuples(index=False):
-            tick_quote: TickQuote = TickQuote(code=tick.stock_id, time=tick.time,
-                                    close=tick.close, volume=tick.volume,
-                                    bid_price=tick.bid_price, bid_volume=tick.bid_volume,
-                                    ask_price=tick.ask_price, ask_volume=tick.ask_volume,
-                                    tick_type=tick.tick_type)
-            
-            stock_quote: StockQuote = StockQuote(code=tick.stock_id, scale=self.scale, date=self.cur_date, 
-                                                 tick=tick_quote)
+            stock_quote: StockQuote = self.generate_stock_quote(tick.stock_id, tick)
             
             self.execute_close_signal(stock_quote)
             self.execute_open_signal(stock_quote)
@@ -138,25 +131,19 @@ class Backtester:
         """ Day 級別的回測架構 """
         
         self.qx_data.date = self.cur_date
-        open_df: pd.DataFrame = self.qx_data.get('price', '開盤價', 1)
-        high_df: pd.DataFrame = self.qx_data.get('price', '最高價', 1)
-        low_df: pd.DataFrame = self.qx_data.get('price', '最低價', 1)
-        close_df: pd.DataFrame = self.qx_data.get('price', '收盤價', 1)
-        volume_df: pd.DataFrame = self.qx_data.get('price', '成交股數', 1)
-        
-        open_row = open_df.iloc[0]
-        high_row = high_df.iloc[0]
-        low_row = low_df.iloc[0]
-        close_row = close_df.iloc[0]
-        volume_row = volume_df.iloc[0]
-        
+        price_data = {
+            'open': self.qx_data.get('price', '開盤價', 1).iloc[0],
+            'high': self.qx_data.get('price', '最高價', 1).iloc[0],
+            'low': self.qx_data.get('price', '最低價', 1).iloc[0],
+            'close': self.qx_data.get('price', '收盤價', 1).iloc[0],
+            'volume': self.qx_data.get('price', '成交股數', 1).iloc[0]
+        }
+            
         # 篩選出 ETF、權證外的股票代號
-        codes: List[str] = StockTools.filter_common_stocks(list(open_df.columns))
+        codes: List[str] = StockTools.filter_common_stocks(list(price_data['open'].index))
 
         for code in codes:
-            stock_quote: StockQuote = StockQuote(code=code, scale=self.scale, date=self.cur_date, 
-                                                 cur_price=close_row[code], volume=volume_row[code], 
-                                                 open=open_row[code], high=high_row[code], low=low_row[code], close=close_row[code])
+            stock_quote: StockQuote = self.generate_stock_quote(code, price_data)
 
             self.execute_close_signal(stock_quote)
             self.execute_open_signal(stock_quote)
@@ -267,6 +254,42 @@ class Backtester:
 
         return position
     
+    
+    def generate_stock_quote(self, code: str, data: Union[Dict[str, pd.Series], Any]) -> StockQuote:
+        """ 生成 Stock Quote """
+        
+        if self.scale == Scale.DAY:
+            return StockQuote(
+                code=code,
+                scale=self.scale,
+                date=self.cur_date,
+                cur_price=data['close'][code],
+                volume=data['volume'][code],
+                open=data['open'][code],
+                high=data['high'][code],
+                low=data['low'][code],
+                close=data['close'][code]
+            )
+
+        elif self.scale == Scale.TICK:
+            tick_quote: TickQuote = TickQuote(
+                code=data.stock_id,
+                time=data.time,
+                close=data.close,
+                volume=data.volume,
+                bid_price=data.bid_price,
+                bid_volume=data.bid_volume,
+                ask_price=data.ask_price,
+                ask_volume=data.ask_volume,
+                tick_type=data.tick_type
+            )
+            return StockQuote(
+                code=data.stock_id,
+                scale=self.scale,
+                date=self.cur_date,
+                tick=tick_quote
+            )            
+            
     
     # === Report ===
     def generate_backtest_report(self):

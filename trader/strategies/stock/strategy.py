@@ -58,7 +58,8 @@ class Strategy(BaseStockStrategy):
         
         if price_chg < 9:
             return []
-        return 
+        
+        
         
         
 
@@ -72,4 +73,7 @@ class Strategy(BaseStockStrategy):
     def check_stop_loss_signal(self, stock: StockQuote) -> List[StockOrder]:
         """ 停損策略 """
         pass
-        
+    
+    
+    # Open Conditions
+    def check_is_strong_momentum(self, )
