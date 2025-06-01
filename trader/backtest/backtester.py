@@ -120,36 +120,26 @@ class Backtester:
         # 一次取一天的 tick 資料，避免資料量太大 RAM 爆掉
         ticks: pd.DataFrame = self.tick.get_ordered_ticks(self.cur_date, self.cur_date)
         
-        for tick in ticks.itertuples(index=False):
-            stock_quote: StockQuote = self.generate_stock_quote(tick.stock_id, tick)
+        stock_quotes: List[StockQuote] = self.generate_valid_stock_quotes(ticks)
             
-            self.execute_close_signal(stock_quote)
-            self.execute_open_signal(stock_quote)
+        self.execute_close_signal(stock_quotes)
+        self.execute_open_signal(stock_quotes)
             
             
     def run_day_backtest(self):
         """ Day 級別的回測架構 """
         
         self.qx_data.date = self.cur_date
-        price_data = {
+        data = {
             'open': self.qx_data.get('price', '開盤價', 1).iloc[0],
             'high': self.qx_data.get('price', '最高價', 1).iloc[0],
             'low': self.qx_data.get('price', '最低價', 1).iloc[0],
             'close': self.qx_data.get('price', '收盤價', 1).iloc[0],
             'volume': self.qx_data.get('price', '成交股數', 1).iloc[0]
         }
-            
-        # 篩選出 ETF、權證外的股票代號
-        codes: List[str] = StockTools.filter_common_stocks(list(price_data['open'].index))
         
         # Stock Quotes
-        stock_quotes: List[StockQuote] = []
-
-        for code in codes:
-            stock_quote: StockQuote = self.generate_stock_quote(code, price_data)
-
-            if stock_quote is not None:
-                stock_quotes.append(stock_quote)
+        stock_quotes: List[StockQuote] = self.get_valid_stock_quotes(data)
     
         self.execute_close_signal(stock_quotes)
         self.execute_open_signal(stock_quotes)
@@ -265,23 +255,36 @@ class Backtester:
         return position
     
     
-    def generate_stock_quote(self, code: str, data: Union[Dict[str, pd.Series], Any]) -> Optional[StockQuote]:
-        """ 生成 Stock Quote """
+    def generate_valid_stock_quotes(self, data: Union[Dict[str, pd.Series], pd.DataFrame]) -> List[StockQuote]:
+        """ 
+        根據當日資料建立有效的 StockQuote 清單
+        - 支援 Scale.DAY（從價格欄位 Dict 建立）
+        - 支援 Scale.TICK（從 tick dataframe 建立）
+        """
         
-        if self.scale == Scale.DAY:
-            return StockQuote(
-                code=code,
-                scale=self.scale,
-                date=self.cur_date,
-                cur_price=data['close'][code],
-                volume=data['volume'][code],
-                open=data['open'][code],
-                high=data['high'][code],
-                low=data['low'][code],
-                close=data['close'][code]
-            )
+        if self.scale == Scale.TICK:
+            if data.empty:
+                return []
+            
+            return [
+                self.generate_stock_quote(tick.stock_id, tick) 
+                for tick in data.itertuples(index=False)
+            ]
+        
+        elif self.scale == Scale.DAY:
+            codes: List[str] = StockTools.filter_common_stocks(list(data['open'].index))
+            
+            return [
+                self.generate_stock_quote(code, data)
+                for code in codes
+                if code in data['close']  # 保險
+            ]
 
-        elif self.scale == Scale.TICK:
+    
+    def generate_stock_quote(self, code: str, data: Union[Dict[str, pd.Series], Any]) -> StockQuote:
+        """ 建立個股的 Stock Quote """
+        
+        if self.scale == Scale.TICK:
             tick_quote: TickQuote = TickQuote(
                 code=data.stock_id,
                 time=data.time,
@@ -298,9 +301,22 @@ class Backtester:
                 scale=self.scale,
                 date=self.cur_date,
                 tick=tick_quote
-            )            
-        
-        return None
+            )
+                        
+        elif self.scale == Scale.DAY:
+            return StockQuote(
+                code=code,
+                scale=self.scale,
+                date=self.cur_date,
+                cur_price=data['close'][code],
+                volume=data['volume'][code],
+                open=data['open'][code],
+                high=data['high'][code],
+                low=data['low'][code],
+                close=data['close'][code]
+            )
+
+        raise ValueError(f"Unsupported scale: {self.scale}")
     
     
     # === Report ===
