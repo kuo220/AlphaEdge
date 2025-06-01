@@ -33,10 +33,11 @@ class BaseStockStrategy(ABC):
     
     def __init__(self):
         """ === Strategy Setting === """
+        self.account: StockAccount = StockAccount()     # Stock Account
         self.strategy_name: str = ""                    # Strategy name
         self.market: str = Market.STOCK                 # Stock or Futures
         self.position_type: str = PositionType.LONG     # Long or Short
-        self.day_trade: bool = True
+        self.enable_intraday: bool = True               # Allow day trade or not
         self.init_capital: float = 0                    # Initial capital
         self.max_positions: Optional[int] = 0           # max limit numbers of positions
         
@@ -54,13 +55,13 @@ class BaseStockStrategy(ABC):
 
     
     @abstractmethod
-    def calculate_position_size(self, action: Action, stock: StockQuote) -> int:
+    def calculate_position_size(self, action: Action, stock_quotes: List[StockQuote]) -> List[StockOrder]:
         """ 
         - Description: 計算下單股數，依據當前資金、價格、風控規則決定部位大小
         - Parameters:
             - action: Action
                 動作類型，例如 Action.OPEN 或 Action.CLOSE
-            - stock: StockQuote
+            - stock_quotes: List[StockQuote]
                 目標股票的報價資訊
         - Return:
             - size: int
@@ -70,11 +71,11 @@ class BaseStockStrategy(ABC):
     
     
     @abstractmethod
-    def check_open_signal(self, stock: StockQuote) -> List[StockOrder]:
+    def check_open_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
         """ 
         - Description: 開倉策略（Long & Short） ，需要包含買賣的標的、價位和數量
         - Parameter:
-            - stock: StockQuote
+            - stock_quotes: List[StockQuote]
                 目標股票的報價資訊
         - Return:
             - position: StockOrder
@@ -84,11 +85,11 @@ class BaseStockStrategy(ABC):
 
 
     @abstractmethod
-    def check_close_signal(self, stock: StockQuote) -> List[StockOrder]:
+    def check_close_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
         """ 
         - Description: 平倉策略（Long & Short） ，需要包含買賣的標的、價位和數量
         - Parameter:
-            - stock: StockQuote
+            - stock_quotes: List[StockQuote]
                 目標股票的報價資訊
         - Return:
             - position: StockOrder
@@ -98,11 +99,11 @@ class BaseStockStrategy(ABC):
         
         
     @abstractmethod
-    def check_stop_loss_signal(self, stock: StockQuote) -> List[StockOrder]:
+    def check_stop_loss_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
         """ 
         - Description: 設定停損機制
         - Parameter:
-            - stock: StockQuote
+            - stock_quotes: List[StockQuote]
                 目標股票的報價資訊
         - Return:
             - position: StockOrder

@@ -50,14 +50,14 @@ class Backtester:
     # === Init & Data Loading ===
     def __init__(self, strategy: Strategy):
         """ === Strategy & Account information === """
-        self.strategy: Strategy = strategy                                      # 欲回測的策略
-        self.account: StockAccount = StockAccount(self.strategy.init_capital)   # 虛擬帳戶資訊
+        self.strategy: Strategy = strategy                                      # 要回測的策略
+        self.account: StockAccount = self.account                               # 虛擬帳戶資訊
         
         """ === Datasets === """
         self.data: Data = Data()                                                
-        self.tick: Optional[Tick] = None                                                  # Ticks data
-        self.chip: Optional[Chip] = None                                                  # Chips data
-        self.qx_data: Optional[QXData] = None                                              # Day price data, Financial data, etc
+        self.tick: Optional[Tick] = None                                        # Ticks data
+        self.chip: Optional[Chip] = None                                        # Chips data
+        self.qx_data: Optional[QXData] = None                                   # Day price data, Financial data, etc
         
         """ === Backtest Parameters === """
         self.scale: str = self.strategy.scale                                   # 回測 KBar 級別
@@ -141,12 +141,18 @@ class Backtester:
             
         # 篩選出 ETF、權證外的股票代號
         codes: List[str] = StockTools.filter_common_stocks(list(price_data['open'].index))
+        
+        # Stock Quotes
+        stock_quotes: List[StockQuote] = []
 
         for code in codes:
             stock_quote: StockQuote = self.generate_stock_quote(code, price_data)
 
-            self.execute_close_signal(stock_quote)
-            self.execute_open_signal(stock_quote)
+            if stock_quote is not None:
+                stock_quotes.append(stock_quote)
+    
+        self.execute_close_signal(stock_quotes)
+        self.execute_open_signal(stock_quotes)
                 
             
     def run_mix_backtest(self):
@@ -155,12 +161,10 @@ class Backtester:
     
     
     # === Signal Execution ===
-    def execute_open_signal(self, stock_quote: StockQuote):
+    def execute_open_signal(self, stock_quotes: List[StockQuote]):
         """ 若倉位數量未達到限制且有開倉訊號，則執行開倉 """
         
-        print(f"* Open Position: {stock_quote.code}")
-        
-        open_orders: List[StockOrder] = self.strategy.check_open_signal(stock_quote)
+        open_orders: List[StockOrder] = self.strategy.check_open_signal(stock_quotes)
         if self.max_positions is not None:
             remaining_positions: int = max(0, self.max_positions - self.account.get_position_count())
             open_orders = open_orders[:remaining_positions]
@@ -169,20 +173,26 @@ class Backtester:
             self.place_open_order(order)
             
     
-    def execute_close_signal(self, stock_quote: StockQuote):
+    def execute_close_signal(self, stock_quotes: List[StockQuote]):
         """ 執行平倉邏輯：先判斷停損訊號，後判斷一般平倉 """
         
-        if self.account.check_has_position(stock_quote.code):
-            print(f"* Close Position: {stock_quote.code}")
+        # 先找出有持倉的股票
+        positions: List[StockQuote] = [sq for sq in stock_quotes if self.account.check_has_position(sq.code)]
+        
+        if not positions:
+            return
             
-            stop_loss_orders: List[StockOrder] = self.strategy.check_stop_loss_signal(stock_quote)
-            for order in stop_loss_orders:
-                self.place_close_order(order)
-            
-            close_orders: List[StockOrder] = self.strategy.check_close_signal(stock_quote)
-            for order in close_orders:
-                self.place_close_order(order)
-    
+        stop_loss_orders: List[StockOrder] = self.strategy.check_stop_loss_signal(positions)
+        for order in stop_loss_orders:
+            self.place_close_order(order)
+        
+        # 停損執行後重新確認剩下的持倉
+        remaining_positions: List[StockQuote] = [sq for sq in stock_quotes if self.account.check_has_position(sq.code)]
+        
+        close_orders: List[StockOrder] = self.strategy.check_close_signal(remaining_positions)
+        for order in close_orders:
+            self.place_close_order(order)
+
     
     # === Order Placement ===
     def place_open_order(self, stock: StockOrder) -> Optional[StockTradeRecord]:
@@ -255,7 +265,7 @@ class Backtester:
         return position
     
     
-    def generate_stock_quote(self, code: str, data: Union[Dict[str, pd.Series], Any]) -> StockQuote:
+    def generate_stock_quote(self, code: str, data: Union[Dict[str, pd.Series], Any]) -> Optional[StockQuote]:
         """ 生成 Stock Quote """
         
         if self.scale == Scale.DAY:
@@ -289,7 +299,9 @@ class Backtester:
                 date=self.cur_date,
                 tick=tick_quote
             )            
-            
+        
+        return None
+    
     
     # === Report ===
     def generate_backtest_report(self):
