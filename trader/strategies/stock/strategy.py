@@ -34,11 +34,6 @@ class Strategy(BaseStockStrategy):
         self.account.init_capital = self.init_capital
 
     
-    def calculate_position_size(self, action: Action, stock_quotes: List[StockQuote]) -> List[StockOrder]:
-        """ 計算 Open or Close 的部位大小 """
-        pass
-    
-    
     def check_open_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
         """ 開倉策略（Long & Short） """
         
@@ -57,10 +52,6 @@ class Strategy(BaseStockStrategy):
             if price_chg < 9:
                 pass
         
-        
-        
-        
-
 
     def check_close_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
         """ 平倉策略（Long & Short） """
@@ -71,4 +62,11 @@ class Strategy(BaseStockStrategy):
     def check_stop_loss_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
         """ 停損策略 """
         return []
+    
+    
+    def calculate_position_size(self, action: Action, stock_quotes: List[StockQuote]) -> List[StockOrder]:
+        """ 計算 Open or Close 的部位大小 """
+        pass
+    
+    
     

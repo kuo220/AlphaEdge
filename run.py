@@ -1,9 +1,7 @@
 from pathlib import Path
 
 # from trader.backtest import Backtester
-from trader.utils.constant import Scale
-
-print(Scale.DAY.name)
+from trader.backtest import Backtester
 
 """
 run.py
@@ -19,24 +17,3 @@ Example:
     python run.py live     # switch to live trading mode
 """
 
-import threading
-import time
-
-# def worker(name):
-#     print(f"{name} 開始工作")
-#     time.sleep(2)  # 模擬 I/O 延遲
-#     print(f"{name} 完成工作")
-
-# # 建立兩個 Thread
-# t1 = threading.Thread(target=worker, args=("線程1",))
-# t2 = threading.Thread(target=worker, args=("線程2",))
-
-# # 啟動線程
-# t1.start()
-# t2.start()
-
-# # 等待線程結束（可選）
-# t1.join()
-# t2.join()
-
-# print("主程式結束")

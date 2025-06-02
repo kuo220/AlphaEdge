@@ -59,10 +59,11 @@ class StockQuoteAdapter:
         
     
     @staticmethod
-    def generate_stock_quotes(data: Union[Dict[str, pd.Series], pd.DataFrame], 
-                              date: datetime.date, 
-                              scale: Scale, 
-                              ) -> List[StockQuote]:
+    def generate_stock_quotes(
+        data: Union[Dict[str, pd.Series], pd.DataFrame], 
+        date: datetime.date, 
+        scale: Scale, 
+    ) -> List[StockQuote]:
         """ 
         根據當日資料建立有效的 StockQuote 清單
         - 支援 Scale.DAY（從價格欄位 Dict 建立）
@@ -89,11 +90,12 @@ class StockQuoteAdapter:
     
     
     @staticmethod
-    def generate_stock_quote(data: Union[Dict[str, pd.Series], Any], 
-                             code: str,
-                             date: datetime.date,
-                             scale: Scale
-                             ) -> StockQuote:
+    def generate_stock_quote(
+        data: Union[Dict[str, pd.Series], Any], 
+        code: str,
+        date: datetime.date,
+        scale: Scale
+    ) -> StockQuote:
         """ 建立個股的 Stock Quote """
         
         if scale == Scale.TICK:

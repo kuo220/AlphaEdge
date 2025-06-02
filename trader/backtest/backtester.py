@@ -47,7 +47,7 @@ class Backtester:
     def __init__(self, strategy: Strategy):
         """ === Strategy & Account information === """
         self.strategy: Strategy = strategy                                      # 要回測的策略
-        self.account: StockAccount = self.account                               # 虛擬帳戶資訊
+        self.account: StockAccount = StockAccount(self.strategy.init_capital)   # 虛擬帳戶資訊
         
         """ === Datasets === """
         self.data: Data = Data()                                                
@@ -115,6 +115,9 @@ class Backtester:
         
         # Stock Quotes
         stock_quotes: List[StockQuote] = StockQuoteAdapter.get_tick_data(self.tick, self.cur_date)
+        
+        if not stock_quotes:
+            return
             
         self.execute_close_signal(stock_quotes)
         self.execute_open_signal(stock_quotes)
@@ -125,6 +128,9 @@ class Backtester:
         
         # Stock Quotes
         stock_quotes: List[StockQuote] = StockQuoteAdapter.get_day_data(self.qx_data, self.cur_date)
+        
+        if not stock_quotes:
+            return
     
         self.execute_close_signal(stock_quotes)
         self.execute_open_signal(stock_quotes)

@@ -27,7 +27,6 @@ class BaseStockStrategy(ABC):
     
     def __init__(self):
         """ === Strategy Setting === """
-        self.account: StockAccount = StockAccount()     # Stock Account
         self.strategy_name: str = ""                    # Strategy name
         self.market: str = Market.STOCK                 # Stock or Futures
         self.position_type: str = PositionType.LONG     # Long or Short
@@ -47,22 +46,6 @@ class BaseStockStrategy(ABC):
         self.start_date: datetime.date = None           # Optional: if is_backtest == True, then set start date in backtest
         self.end_date: datetime.date = None             # Optional: if is_backtest == True, then set end date in backtest
 
-    
-    @abstractmethod
-    def calculate_position_size(self, action: Action, stock_quotes: List[StockQuote]) -> List[StockOrder]:
-        """ 
-        - Description: 計算下單股數，依據當前資金、價格、風控規則決定部位大小
-        - Parameters:
-            - action: Action
-                動作類型，例如 Action.OPEN 或 Action.CLOSE
-            - stock_quotes: List[StockQuote]
-                目標股票的報價資訊
-        - Return:
-            - size: int
-                建議下單的股數
-        """
-        pass
-    
     
     @abstractmethod
     def check_open_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
@@ -104,3 +87,26 @@ class BaseStockStrategy(ABC):
                 停損（平倉）訂單
         """
         pass
+
+    
+    @abstractmethod
+    def calculate_position_size(
+        self, 
+        account: StockAccount, 
+        stock_quotes: List[StockQuote],
+        action: Action
+    ) -> List[StockOrder]:
+        """ 
+        - Description: 計算下單股數，依據當前資金、價格、風控規則決定部位大小
+        - Parameters:
+            - action: Action
+                動作類型，例如 Action.OPEN 或 Action.CLOSE
+            - stock_quotes: List[StockQuote]
+                目標股票的報價資訊
+        - Return:
+            - size: int
+                建議下單的股數
+        """
+        pass
+    
+    
