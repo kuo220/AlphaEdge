@@ -63,10 +63,14 @@ class Strategy(BaseStockStrategy):
         """ 停損策略 """
         return []
     
-    
-    def calculate_position_size(self, action: Action, stock_quotes: List[StockQuote]) -> List[StockOrder]:
-        """ 計算 Open or Close 的部位大小 """
-        pass
-    
+
+    def calculate_position_size(
+            self, 
+            account: StockAccount, 
+            stock_quotes: List[StockQuote],
+            action: Action
+        ) -> List[StockOrder]:
+            """ 計算 Open or Close 的部位大小 """
+            pass
     
     
