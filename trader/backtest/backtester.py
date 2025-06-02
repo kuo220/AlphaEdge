@@ -92,7 +92,7 @@ class Backtester:
         while self.cur_date <= self.end_date:
             print(f"--- {self.cur_date.strftime('%Y/%m/%d')} ---")
             
-            if not StockTools.check_market_open(self.qx_data, self.cur_date):
+            if not self.qx_data.check_market_open(self.cur_date):
                 print("* Stock Market Close\n")
                 continue
             

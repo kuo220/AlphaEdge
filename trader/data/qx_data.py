@@ -217,3 +217,18 @@ class QXData:
             return True
         
         return False
+    
+    
+    def check_market_open(self, date: datetime.date) -> bool:
+        """ 
+        - Description: 判斷是否指定日期是否開盤
+        - Parameters:
+            - date: 要確認是否開盤的日期
+        -Return:
+            - bool
+        """
+        
+        self.date = date
+        close_price = self.get('price', '收盤價', 1)
+        
+        return True if close_price.index.date == date else False
