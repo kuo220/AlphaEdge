@@ -15,7 +15,6 @@ from io import StringIO
 from pathlib import Path
 from typing import List
 
-# Third party imports
 import ipywidgets as widgets
 import numpy as np
 import pandas as pd
@@ -28,10 +27,8 @@ from IPython.display import display
 from requests.exceptions import ConnectionError, ReadTimeout
 from tqdm import tqdm, tnrange, tqdm_notebook
 
-# Local imports
 from .crawler_tools import CrawlerTools
-sys.path.append(str(Path(__file__).resolve().parents[1]))
-from config import QUANTX_DB_PATH
+from trader.config import QUANTX_DB_PATH
 
 
 class CrawlQuantX:

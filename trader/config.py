@@ -2,16 +2,13 @@
 import os
 from pathlib import Path
 from typing import List
-
-# Third-party packages
 from dotenv import load_dotenv
 
-# Local imports 
-from utils import ShioajiAPI
-
+from trader.utils import ShioajiAPI
 
 # Load environment variables from .env file
 load_dotenv()
+
 
 # Root Directory
 BASE_DIR = Path(__file__).resolve().parent # trader

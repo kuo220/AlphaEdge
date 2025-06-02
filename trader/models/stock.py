@@ -1,12 +1,8 @@
 # Standard library imports
 import datetime
 from typing import Dict, List, Optional, Union
-
-# Third party imports
 import pandas as pd
-
-# Local imports 
-from utils.constant import Commission, PositionType, Scale
+from trader.utils import Commission, PositionType, Scale
 
 
 """ 

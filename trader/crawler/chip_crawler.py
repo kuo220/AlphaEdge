@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import List, Optional
 from io import StringIO
 
-# Third party imports
 import numpy as np
 import pandas as pd
 import requests
@@ -22,11 +21,9 @@ from dateutil.rrule import rrule, DAILY, MONTHLY
 from dateutil.relativedelta import relativedelta
 from requests.exceptions import ReadTimeout, ConnectionError
 
-# Local imports
-sys.path.append(str(Path(__file__).resolve().parents[1]))
-from crawler.crawler_tools import CrawlerTools
-from data import SQLiteTools
-from config import (
+from .crawler_tools import CrawlerTools
+from trader.data import SQLiteTools
+from trader.config import (
     CHIP_DOWNLOADS_PATH,
     CHIP_DB_PATH, 
     CHIP_TABLE_NAME

@@ -5,19 +5,13 @@ import datetime
 from pathlib import Path
 from abc import ABC, abstractmethod
 from typing import List, Dict, Tuple, Optional, Any
-
-# Third party imports
 import numpy as np
 import pandas as pd
 import plotly.express as px
 
-# Add project root to path
-sys.path.append(str(Path(__file__).resolve().parents[2]))
-
-# Local imports
-from data import Data, Chip, Tick, QXData
-from utils import Market, Scale, PositionType
-from models import (
+from trader.data import Data, Chip, Tick, QXData
+from trader.utils import Market, Scale, PositionType
+from trader.models import (
     StockAccount,
     StockQuote,
     StockOrder,
@@ -25,7 +19,7 @@ from models import (
 )
 from .base import BaseBacktestAnalyzer
 from .report import StockBacktestReporter
-from config import BACKTEST_RESULT_DIR_PATH
+from trader.config import BACKTEST_RESULT_DIR_PATH
 
 
 """

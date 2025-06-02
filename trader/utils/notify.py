@@ -1,8 +1,9 @@
 import pandas as pd
 import requests
 import shioaji as sj
-from utils.account import ShioajiAccount
-from utils.constant import Action, StockPriceType
+
+from .account import ShioajiAccount
+from .constant import Action, StockPriceType
 
 
 class Notification:

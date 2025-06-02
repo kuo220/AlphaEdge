@@ -4,23 +4,17 @@ import datetime
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional, Any
-
-# Third party imports
 import numpy as np
 import pandas as pd
 
-# Add project root to path
-sys.path.append(str(Path(__file__).resolve().parents[2]))
-
-# Local imports
-from data import Data, Chip, Tick, QXData
-from models import (
+from trader.data import Data, Chip, Tick, QXData
+from trader.models import (
     StockAccount,
     StockQuote,
     StockOrder,
     StockTradeRecord
 )
-from utils import (
+from trader.utils import (
     Action,
     Market,
     Scale,

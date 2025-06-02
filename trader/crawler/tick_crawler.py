@@ -10,8 +10,6 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import List, Optional, Any
-
-# Third party imports
 import ipywidgets as widgets
 import numpy as np
 import pandas as pd
@@ -25,13 +23,11 @@ from loguru import logger
 from requests.exceptions import ConnectionError, ReadTimeout
 from tqdm import tqdm, tnrange, tqdm_notebook
 
-# Local imports
-sys.path.append(str(Path(__file__).resolve().parents[1]))
-from utils import ShioajiAccount, ShioajiAPI, log_thread
+from trader.data import TickDBTools, TickDBManager
+from trader.utils import ShioajiAccount, ShioajiAPI, log_thread
 from .crawler_tools import CrawlerTools
 from .html_crawler import CrawlHTML
-from data import TickDBTools, TickDBManager
-from config import (
+from trader.config import (
     LOGS_DIR_PATH,
     TICK_DOWNLOADS_PATH,
     TICK_DB_PATH,

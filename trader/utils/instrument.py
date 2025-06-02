@@ -4,10 +4,11 @@ from pathlib import Path
 import datetime
 import shioaji as sj
 from typing import Tuple, List, Optional
-sys.path.append(str(Path(__file__).resolve().parents[1]))
-from utils.time import TimeTools
-from utils.constant import Commission
-from data import Data, QXData
+
+from trader.data import Data, QXData
+from .time import TimeTools
+from .constant import Commission
+
 
 """
 instrument.py

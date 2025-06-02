@@ -13,11 +13,11 @@ from tqdm import tqdm
 from tqdm import tnrange, tqdm_notebook
 from dateutil.rrule import rrule, DAILY, MONTHLY
 from dateutil.relativedelta import relativedelta
-sys.path.append(str(Path(__file__).resolve().parents[1]))
-from utils import ShioajiAccount
-from data import (Data, SQLiteTools, TickDBTools, TickDBManager)
-from crawler import (Crawler, CrawlStockChip, CrawlStockTick, CrawlQuantX)
-from config import QUANTX_DB_PATH
+
+from trader.utils import ShioajiAccount
+from trader.data import (Data, SQLiteTools, TickDBTools, TickDBManager)
+from trader.crawler import (Crawler, CrawlStockChip, CrawlStockTick, CrawlQuantX)
+from trader.config import QUANTX_DB_PATH
 
 
 """ 

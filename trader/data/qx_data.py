@@ -4,9 +4,9 @@ import sqlite3
 import datetime
 import pandas as pd
 from pathlib import Path
-from config import QUANTX_DB_PATH
 
-sys.path.append(str(Path(__file__).resolve().parents[1]))
+from trader.config import QUANTX_DB_PATH
+
 
 class QXData:
     """ QuantX Data API """

@@ -3,7 +3,8 @@ import numpy as np
 import os
 from typing import Optional
 import shioaji as sj
-from utils.constant import Action, Status
+
+from .constant import Action, Status
 
 
 class ShioajiAccount:

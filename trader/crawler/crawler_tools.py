@@ -12,8 +12,6 @@ import warnings
 from io import StringIO
 from pathlib import Path
 from typing import List
-
-# Third party imports
 import numpy as np
 import pandas as pd
 import requests

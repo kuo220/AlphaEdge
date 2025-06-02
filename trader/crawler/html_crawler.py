@@ -11,8 +11,6 @@ import urllib.request
 from io import StringIO
 from pathlib import Path
 from typing import List
-
-# Third party imports
 import ipywidgets as widgets
 import numpy as np
 import pandas as pd

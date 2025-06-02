@@ -4,16 +4,13 @@ import os
 import shutil
 import sys
 from pathlib import Path
-
 import pandas as pd
-
 try:
     import dolphindb as ddb
 except ModuleNotFoundError:
     print("Warning: dolphindb module is not installed.")
 
-sys.path.append(str(Path(__file__).resolve().parents[1]))
-from config import TICK_METADATA_PATH
+from trader.config import TICK_METADATA_PATH
 
 
 class TickDBTools:

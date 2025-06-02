@@ -12,8 +12,6 @@ import warnings
 from io import StringIO
 from pathlib import Path
 from typing import List
-
-# Third party imports
 import numpy as np
 import pandas as pd
 import requests
@@ -27,7 +25,6 @@ from requests.exceptions import ConnectionError, ReadTimeout
 from tqdm import tqdm, tnrange, tqdm_notebook
 import zipfile
 
-# Local imports
 from .chip_crawler import CrawlStockChip
 from .tick_crawler import CrawlStockTick
 from .html_crawler import CrawlHTML
