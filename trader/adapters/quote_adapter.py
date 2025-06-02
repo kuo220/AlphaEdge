@@ -31,8 +31,19 @@ class StockQuoteAdapter:
     - 適用於回測框架中資料與策略之間的適配轉換
     """
     
+    
     @staticmethod
-    def get_day_data(data: QXData, date: datetime.date) -> List[StockQuote]:
+    def convert_to_tick_quotes(data: Tick, date: datetime.date) -> List[StockQuote]:
+        """ 將指定日期的 Tick 資料轉換為 StockQuote 物件列表，用於 Tick 級回測 """
+        
+        # 一次取一天的 tick 資料，避免資料量太大 RAM 爆掉    
+        ticks: pd.DataFrame = data.get_ordered_ticks(date, date)
+    
+        return StockQuoteAdapter.generate_stock_quotes(ticks, date, Scale.TICK)
+    
+    
+    @staticmethod
+    def convert_to_day_quotes(data: QXData, date: datetime.date) -> List[StockQuote]:
         """ 將指定日期的 QXData 日資料轉換為 StockQuote 物件列表，用於日級回測 """
         
         data.date = date
@@ -47,17 +58,7 @@ class StockQuoteAdapter:
         
         return StockQuoteAdapter.generate_stock_quotes(day_data, date, Scale.DAY)
         
-    
-    @staticmethod
-    def get_tick_data(data: Tick, date: datetime.date) -> List[StockQuote]:
-        """ 將指定日期的 Tick 資料轉換為 StockQuote 物件列表，用於Tick級回測 """
         
-        # 一次取一天的 tick 資料，避免資料量太大 RAM 爆掉    
-        ticks: pd.DataFrame = data.get_ordered_ticks(date, date)
-    
-        return StockQuoteAdapter.generate_stock_quotes(ticks, date, Scale.TICK)
-        
-    
     @staticmethod
     def generate_stock_quotes(
         data: Union[Dict[str, pd.Series], pd.DataFrame], 

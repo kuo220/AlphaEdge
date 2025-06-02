@@ -114,7 +114,7 @@ class Backtester:
         """ Tick 級別的回測架構 """
         
         # Stock Quotes
-        stock_quotes: List[StockQuote] = StockQuoteAdapter.get_tick_data(self.tick, self.cur_date)
+        stock_quotes: List[StockQuote] = StockQuoteAdapter.convert_to_tick_quotes(self.tick, self.cur_date)
         
         if not stock_quotes:
             return
@@ -127,7 +127,7 @@ class Backtester:
         """ Day 級別的回測架構 """
         
         # Stock Quotes
-        stock_quotes: List[StockQuote] = StockQuoteAdapter.get_day_data(self.qx_data, self.cur_date)
+        stock_quotes: List[StockQuote] = StockQuoteAdapter.convert_to_day_quotes(self.qx_data, self.cur_date)
         
         if not stock_quotes:
             return
