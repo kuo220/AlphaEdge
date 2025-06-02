@@ -5,6 +5,7 @@ import pandas as pd
 from typing import List, Dict, Tuple, Optional, Any, Union
 
 from trader.data import Data, Chip, Tick, QXData
+from trader.adapters import StockQuoteAdapter
 from trader.models import (
     StockAccount, 
     TickQuote,
@@ -112,10 +113,8 @@ class Backtester:
     def run_tick_backtest(self):
         """ Tick 級別的回測架構 """
         
-        # 一次取一天的 tick 資料，避免資料量太大 RAM 爆掉
-        ticks: pd.DataFrame = self.tick.get_ordered_ticks(self.cur_date, self.cur_date)
-        
-        stock_quotes: List[StockQuote] = self.generate_valid_stock_quotes(ticks)
+        # Stock Quotes
+        stock_quotes: List[StockQuote] = StockQuoteAdapter.get_tick_data(self.tick, self.cur_date)
             
         self.execute_close_signal(stock_quotes)
         self.execute_open_signal(stock_quotes)
@@ -124,17 +123,8 @@ class Backtester:
     def run_day_backtest(self):
         """ Day 級別的回測架構 """
         
-        self.qx_data.date = self.cur_date
-        data = {
-            'open': self.qx_data.get('price', '開盤價', 1).iloc[0],
-            'high': self.qx_data.get('price', '最高價', 1).iloc[0],
-            'low': self.qx_data.get('price', '最低價', 1).iloc[0],
-            'close': self.qx_data.get('price', '收盤價', 1).iloc[0],
-            'volume': self.qx_data.get('price', '成交股數', 1).iloc[0]
-        }
-        
         # Stock Quotes
-        stock_quotes: List[StockQuote] = self.get_valid_stock_quotes(data)
+        stock_quotes: List[StockQuote] = StockQuoteAdapter.get_day_data(self.qx_data, self.cur_date)
     
         self.execute_close_signal(stock_quotes)
         self.execute_open_signal(stock_quotes)
@@ -248,70 +238,6 @@ class Backtester:
                 self.account.positions = [p for p in self.account.positions if p.id != position.id]    # 每一筆開倉的部位都會記錄一個 id，因此這邊只會刪除對應到 id 的部位
 
         return position
-    
-    # TODO: 獨立出一個class (adapter)
-    def generate_valid_stock_quotes(self, data: Union[Dict[str, pd.Series], pd.DataFrame]) -> List[StockQuote]:
-        """ 
-        根據當日資料建立有效的 StockQuote 清單
-        - 支援 Scale.DAY（從價格欄位 Dict 建立）
-        - 支援 Scale.TICK（從 tick dataframe 建立）
-        """
-        
-        if self.scale == Scale.TICK:
-            if data.empty:
-                return []
-            
-            return [
-                self.generate_stock_quote(tick.stock_id, tick) 
-                for tick in data.itertuples(index=False)
-            ]
-        
-        elif self.scale == Scale.DAY:
-            codes: List[str] = StockTools.filter_common_stocks(list(data['open'].index))
-            
-            return [
-                self.generate_stock_quote(code, data)
-                for code in codes
-                if code in data['close']  # 保險
-            ]
-
-    
-    def generate_stock_quote(self, code: str, data: Union[Dict[str, pd.Series], Any]) -> StockQuote:
-        """ 建立個股的 Stock Quote """
-        
-        if self.scale == Scale.TICK:
-            tick_quote: TickQuote = TickQuote(
-                code=data.stock_id,
-                time=data.time,
-                close=data.close,
-                volume=data.volume,
-                bid_price=data.bid_price,
-                bid_volume=data.bid_volume,
-                ask_price=data.ask_price,
-                ask_volume=data.ask_volume,
-                tick_type=data.tick_type
-            )
-            return StockQuote(
-                code=data.stock_id,
-                scale=self.scale,
-                date=self.cur_date,
-                tick=tick_quote
-            )
-                        
-        elif self.scale == Scale.DAY:
-            return StockQuote(
-                code=code,
-                scale=self.scale,
-                date=self.cur_date,
-                cur_price=data['close'][code],
-                volume=data['volume'][code],
-                open=data['open'][code],
-                high=data['high'][code],
-                low=data['low'][code],
-                close=data['close'][code]
-            )
-
-        raise ValueError(f"Unsupported scale: {self.scale}")
     
     
     # === Report ===
