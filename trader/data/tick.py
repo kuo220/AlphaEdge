@@ -103,7 +103,7 @@ class Tick:
     def get_last_tick(self, stock_id: str, date: datetime.date) -> pd.DataFrame:
         """ 取得當日最後一筆 tick """
         
-        tick = self.get_stock_tick(stock_id, date, date)
+        tick = self.get_stock_ticks(stock_id, date, date)
         if len(tick) > 0:
             return tick.iloc[-1:]
         return pd.DataFrame

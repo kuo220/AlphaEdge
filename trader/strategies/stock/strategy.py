@@ -50,7 +50,10 @@ class Strategy(BaseStockStrategy):
             price_chg = (stock_quote.close / close_price_yesterday[stock_quote.code][0] - 1) * 100
             
             if price_chg < 9:
-                pass
+                continue
+            
+            # Condition 2: Volume > 5000
+            
         
 
     def check_close_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:

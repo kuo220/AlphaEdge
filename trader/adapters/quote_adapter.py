@@ -53,7 +53,7 @@ class StockQuoteAdapter:
             'high': data.get('price', '最高價', 1).iloc[0],
             'low': data.get('price', '最低價', 1).iloc[0],
             'close': data.get('price', '收盤價', 1).iloc[0],
-            'volume': data.get('price', '成交股數', 1).iloc[0],
+            'volume': data.get('price', '成交股數', 1).iloc[0] / Units.LOT,     # 將股數轉為張數
         }
         
         return StockQuoteAdapter.generate_stock_quotes(day_data, date, Scale.DAY)

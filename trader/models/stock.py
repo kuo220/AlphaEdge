@@ -2,6 +2,7 @@
 import datetime
 from typing import Dict, List, Optional, Union
 import pandas as pd
+
 from trader.utils import Commission, PositionType, Scale
 
 
@@ -24,7 +25,7 @@ class TickQuote:
         
         # Current Price & Volume
         self.close: float = close                           # 成交價
-        self.volume: int = volume                           # 成交量
+        self.volume: float = volume                         # 成交量（Unit: Lot）
         
         # Bid & Ask Price & Volume
         self.bid_price: float = bid_price                   # 委買價
@@ -50,7 +51,7 @@ class StockQuote:
         
         # Current Price & Volume
         self.cur_price: float = cur_price                   # Current price
-        self.volume: int = volume                           # order's volume (Unit: shares)
+        self.volume: float = volume                         # order's volume (Unit: Lots)
         
         # OHLC Info
         self.open: float = open                             # Open price
