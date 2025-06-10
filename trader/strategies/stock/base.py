@@ -26,7 +26,6 @@ class BaseStockStrategy(ABC):
     """ Stock Strategy Framework (Base Template) """
     
     def __init__(self):
-        
         """ === Strategy Setting === """
         self.strategy_name: str = ""                    # Strategy name
         self.market: str = Market.STOCK                 # Stock or Futures
