@@ -20,8 +20,8 @@ from trader.strategies.stock import BaseStockStrategy
 class Strategy(BaseStockStrategy):
     """ Strategy """
     
-    def __init__(self):
-        super().__init__()
+    def __init__(self, account: StockAccount):
+        super().__init__(account)
         self.strategy_name = "Momentum"
         self.init_capital = 1000000.0
         self.max_positions = 10
@@ -30,12 +30,11 @@ class Strategy(BaseStockStrategy):
         self.start_time = datetime.date(2020, 4, 1)
         self.end_time = datetime.date(2024, 5, 10)
 
-        # init account
-        self.account.init_capital = self.init_capital
-
     
     def check_open_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
         """ 開倉策略（Long & Short） """
+        
+        open_positions: List[StockQuote] = []
         
         if self.max_positions == 0:
                 return None
@@ -53,6 +52,16 @@ class Strategy(BaseStockStrategy):
                 continue
             
             # Condition 2: Volume > 5000
+            self.qx_data.date = stock_quote.date
+            volume = self.qx_data.get('volume', '成交量', 1)
+            
+            if volume[stock_quote.code][0] < 5000:
+                continue
+            
+            open_positions.append(stock_quote)
+            
+        return self.calculate_position_size(open_positions, Action.OPEN)
+        
             
         
 
@@ -67,12 +76,7 @@ class Strategy(BaseStockStrategy):
         return []
     
 
-    def calculate_position_size(
-            self, 
-            account: StockAccount, 
-            stock_quotes: List[StockQuote],
-            action: Action
-        ) -> List[StockOrder]:
+    def calculate_position_size(self, stock_quotes: List[StockQuote], action: Action) -> List[StockOrder]:
             """ 計算 Open or Close 的部位大小 """
             pass
     

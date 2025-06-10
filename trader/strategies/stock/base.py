@@ -25,7 +25,10 @@ from trader.utils import (
 class BaseStockStrategy(ABC):
     """ Stock Strategy Framework (Base Template) """
     
-    def __init__(self):
+    def __init__(self, account: StockAccount):
+        """ === Account Setting ==="""
+        self.account: StockAccount = account
+        
         """ === Strategy Setting === """
         self.strategy_name: str = ""                    # Strategy name
         self.market: str = Market.STOCK                 # Stock or Futures
@@ -90,12 +93,7 @@ class BaseStockStrategy(ABC):
 
     
     @abstractmethod
-    def calculate_position_size(
-        self, 
-        account: StockAccount, 
-        stock_quotes: List[StockQuote],
-        action: Action
-    ) -> List[StockOrder]:
+    def calculate_position_size(self, stock_quotes: List[StockQuote], action: Action) -> List[StockOrder]:
         """ 
         - Description: 計算下單股數，依據當前資金、價格、風控規則決定部位大小
         - Parameters:
