@@ -25,9 +25,7 @@ from trader.utils import (
 class BaseStockStrategy(ABC):
     """ Stock Strategy Framework (Base Template) """
     
-    def __init__(self, account: StockAccount):
-        """ === Account Setting ==="""
-        self.account: StockAccount = account
+    def __init__(self):
         
         """ === Strategy Setting === """
         self.strategy_name: str = ""                    # Strategy name
@@ -51,7 +49,11 @@ class BaseStockStrategy(ABC):
 
     
     @abstractmethod
-    def check_open_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
+    def check_open_signal(
+        self, 
+        account: StockAccount, 
+        stock_quotes: List[StockQuote]
+    ) -> List[StockOrder]:
         """ 
         - Description: 開倉策略（Long & Short） ，需要包含買賣的標的、價位和數量
         - Parameter:
@@ -65,7 +67,11 @@ class BaseStockStrategy(ABC):
 
 
     @abstractmethod
-    def check_close_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
+    def check_close_signal(
+        self, 
+        account: StockAccount,
+        stock_quotes: List[StockQuote]
+    ) -> List[StockOrder]:
         """ 
         - Description: 平倉策略（Long & Short） ，需要包含買賣的標的、價位和數量
         - Parameter:
@@ -79,7 +85,11 @@ class BaseStockStrategy(ABC):
         
         
     @abstractmethod
-    def check_stop_loss_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
+    def check_stop_loss_signal(
+        self, 
+        account: StockAccount, 
+        stock_quotes: List[StockQuote]
+    ) -> List[StockOrder]:
         """ 
         - Description: 設定停損機制
         - Parameter:
@@ -93,7 +103,12 @@ class BaseStockStrategy(ABC):
 
     
     @abstractmethod
-    def calculate_position_size(self, stock_quotes: List[StockQuote], action: Action) -> List[StockOrder]:
+    def calculate_position_size(
+        self, 
+        account: StockAccount, 
+        stock_quotes: List[StockQuote], 
+        action: Action
+    ) -> List[StockOrder]:
         """ 
         - Description: 計算下單股數，依據當前資金、價格、風控規則決定部位大小
         - Parameters:
