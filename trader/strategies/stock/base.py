@@ -54,12 +54,15 @@ class BaseStockStrategy(ABC):
         stock_quotes: List[StockQuote]
     ) -> List[StockOrder]:
         """ 
-        - Description: 開倉策略（Long & Short） ，需要包含買賣的標的、價位和數量
+        - Description: 
+            開倉策略（Long & Short） ，需要包含買賣的標的、價位和數量
         - Parameter:
+            - account: StockAccount
+                交易帳戶資訊
             - stock_quotes: List[StockQuote]
                 目標股票的報價資訊
         - Return:
-            - position: StockOrder
+            - position: List[StockQuote]
                 開倉訂單
         """
         pass
@@ -72,12 +75,15 @@ class BaseStockStrategy(ABC):
         stock_quotes: List[StockQuote]
     ) -> List[StockOrder]:
         """ 
-        - Description: 平倉策略（Long & Short） ，需要包含買賣的標的、價位和數量
+        - Description: 
+            平倉策略（Long & Short） ，需要包含買賣的標的、價位和數量
         - Parameter:
+            - account: StockAccount
+                交易帳戶資訊
             - stock_quotes: List[StockQuote]
                 目標股票的報價資訊
         - Return:
-            - position: StockOrder
+            - position: List[StockQuote]
                 平倉訂單
         """
         pass
@@ -90,12 +96,15 @@ class BaseStockStrategy(ABC):
         stock_quotes: List[StockQuote]
     ) -> List[StockOrder]:
         """ 
-        - Description: 設定停損機制
+        - Description: 
+            設定停損機制
         - Parameter:
+            - account: StockAccount
+                交易帳戶資訊
             - stock_quotes: List[StockQuote]
                 目標股票的報價資訊
         - Return:
-            - position: StockOrder
+            - position: List[StockOrder]
                 停損（平倉）訂單
         """
         pass
@@ -109,14 +118,17 @@ class BaseStockStrategy(ABC):
         action: Action
     ) -> List[StockOrder]:
         """ 
-        - Description: 計算下單股數，依據當前資金、價格、風控規則決定部位大小
+        - Description: 
+            計算下單股數，依據當前資金、價格、風控規則決定部位大小
         - Parameters:
-            - action: Action
-                動作類型，例如 Action.OPEN 或 Action.CLOSE
+            - account: StockAccount
+                交易帳戶資訊
             - stock_quotes: List[StockQuote]
                 目標股票的報價資訊
+            - action: Action
+                動作類型，例如 Action.OPEN 或 Action.CLOSE
         - Return:
-            - size: int
+            - List[StockOrder]
                 建議下單的股數
         """
         pass
