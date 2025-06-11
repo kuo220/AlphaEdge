@@ -30,12 +30,13 @@ class Strategy(BaseStockStrategy):
         self.start_time = datetime.date(2020, 4, 1)
         self.end_time = datetime.date(2024, 5, 10)
 
-    
-    def check_open_signal(
-        self, 
-        account: StockAccount, 
-        stock_quotes: List[StockQuote]
-    ) -> List[StockOrder]:
+
+    def set_account(self, account: StockAccount):
+        """ 設置虛擬帳戶資訊 """
+        self.account = account
+
+
+    def check_open_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
         """ 開倉策略（Long & Short） """
         
         open_positions: List[StockQuote] = []
@@ -69,31 +70,18 @@ class Strategy(BaseStockStrategy):
             
         
 
-    def check_close_signal(
-        self, 
-        account: StockAccount, 
-        stock_quotes: List[StockQuote]
-    ) -> List[StockOrder]:
+    def check_close_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
         """ 平倉策略（Long & Short） """
         
         pass
      
     
-    def check_stop_loss_signal(
-        self, 
-        account: StockAccount, 
-        stock_quotes: List[StockQuote]
-    ) -> List[StockOrder]:
+    def check_stop_loss_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
         """ 停損策略 """
         return []
     
 
-    def calculate_position_size(
-        self, 
-        account: StockAccount, 
-        stock_quotes: List[StockQuote], 
-        action: Action
-    ) -> List[StockOrder]:
+    def calculate_position_size(self, stock_quotes: List[StockQuote], action: Action) -> List[StockOrder]:
             """ 計算 Open or Close 的部位大小 """
             pass
     

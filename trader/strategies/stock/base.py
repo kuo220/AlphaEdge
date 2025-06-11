@@ -26,6 +26,9 @@ class BaseStockStrategy(ABC):
     """ Stock Strategy Framework (Base Template) """
     
     def __init__(self):
+        """ === Account Setting === """
+        self.account: StockAccount = None               # 虛擬帳戶資訊
+        
         """ === Strategy Setting === """
         self.strategy_name: str = ""                    # Strategy name
         self.market: str = Market.STOCK                 # Stock or Futures
@@ -48,11 +51,16 @@ class BaseStockStrategy(ABC):
 
     
     @abstractmethod
-    def check_open_signal(
-        self, 
-        account: StockAccount, 
-        stock_quotes: List[StockQuote]
-    ) -> List[StockOrder]:
+    def set_account(self, account: StockAccount):
+        """ 
+        - Description: 
+            載入虛擬帳戶資訊
+        """
+        pass
+    
+    
+    @abstractmethod
+    def check_open_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
         """ 
         - Description: 
             開倉策略（Long & Short） ，需要包含買賣的標的、價位和數量
@@ -69,11 +77,7 @@ class BaseStockStrategy(ABC):
 
 
     @abstractmethod
-    def check_close_signal(
-        self, 
-        account: StockAccount,
-        stock_quotes: List[StockQuote]
-    ) -> List[StockOrder]:
+    def check_close_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
         """ 
         - Description: 
             平倉策略（Long & Short） ，需要包含買賣的標的、價位和數量
@@ -90,11 +94,7 @@ class BaseStockStrategy(ABC):
         
         
     @abstractmethod
-    def check_stop_loss_signal(
-        self, 
-        account: StockAccount, 
-        stock_quotes: List[StockQuote]
-    ) -> List[StockOrder]:
+    def check_stop_loss_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
         """ 
         - Description: 
             設定停損機制
@@ -113,7 +113,6 @@ class BaseStockStrategy(ABC):
     @abstractmethod
     def calculate_position_size(
         self, 
-        account: StockAccount, 
         stock_quotes: List[StockQuote], 
         action: Action
     ) -> List[StockOrder]:
