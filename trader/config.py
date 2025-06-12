@@ -27,6 +27,9 @@ DATABASE_DIR_PATH = get_resolved_path("DATABASE_DIR_PATH")
 BACKTEST_RESULT_DIR_PATH = get_resolved_path("BACKTEST_RESULT_DIR_PATH")
 LOGS_DIR_PATH = get_resolved_path("LOGS_DIR_PATH")
 
+# === Strategy Directory Path ===
+STOCK_STRATEGY_DIR_PATH = get_resolved_path("STOCK_STRATEGY_DIR_PATH")
+
 
 # === Crawl Data Downloads Path ===
 CRAWLER_DOWNLOADS_PATH = get_resolved_path("CRAWLER_DOWNLOADS_PATH")
