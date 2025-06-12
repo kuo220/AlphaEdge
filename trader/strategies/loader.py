@@ -15,7 +15,7 @@ class StrategyLoader:
     def load_all_stock_strategies() -> Dict[str, Type[BaseStockStrategy]]:
         """ 載入所有 stock 策略 """
         
-        stock_strategies = {}
+        stock_strategies: Dict[str, Type[BaseStockStrategy]] = {}
         
         for _, module_name, _ in pkgutil.iter_modules(stock_strategies_pkg.__path__):
             full_module_path = f"{stock_strategies_pkg.__name__}.{module_name}"
