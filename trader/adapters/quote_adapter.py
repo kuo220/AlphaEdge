@@ -76,7 +76,7 @@ class StockQuoteAdapter:
                 return []
             
             return [
-                StockQuoteAdapter.generate_stock_quote(tick.stock_id, scale, date, tick) 
+                StockQuoteAdapter.generate_stock_quote(tick, tick.stock_id, date, scale) 
                 for tick in data.itertuples(index=False)
             ]
         
@@ -84,7 +84,7 @@ class StockQuoteAdapter:
             codes: List[str] = StockTools.filter_common_stocks(list(data['open'].index))
             
             return [
-                StockQuoteAdapter.generate_stock_quote(code, scale, date, data)
+                StockQuoteAdapter.generate_stock_quote(data, code, date, scale)
                 for code in codes
                 if code in data['open'].index
             ]
