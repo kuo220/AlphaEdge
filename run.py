@@ -20,7 +20,7 @@ Example:
 """
 
 
-def add_parser_arguments():
+def parse_arguments():
     parser = argparse.ArgumentParser(description="Trading System")
     
     parser.add_argument('--mode', choices=["backtest", "live"], default="backtest")
@@ -30,7 +30,7 @@ def add_parser_arguments():
 
 
 def main():
-    args = add_parser_arguments()
+    args = parse_arguments()
     strategy_name = args.strategy
     
     strategies: Dict[str, Type[BaseStockStrategy]] = StrategyLoader.load_all_stock_strategies()
@@ -42,24 +42,14 @@ def main():
 
     # Initialize strategy
     strategy = strategies[strategy_name]()
-    print(list(strategies.keys()))
     
     # Backtest or Live Trading
     if args.mode == "backtest":
-        # backtester = Backtester(strategy)
-        # backtester.run()
-        pass
+        backtester = Backtester(strategy)
+        backtester.run()
     elif args.mode == "live":
         pass
 
 
 if __name__ == "__main__":
     main()
-    
-    
-    
-    
-    
-    
-    
-    

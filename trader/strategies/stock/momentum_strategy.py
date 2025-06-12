@@ -17,7 +17,7 @@ from trader.utils import Action, Market, Scale, PositionType
 from trader.strategies.stock import BaseStockStrategy
 
 
-class Strategy(BaseStockStrategy):
+class MomentumStrategy(BaseStockStrategy):
     """ Strategy """
     
     def __init__(self):
