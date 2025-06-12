@@ -37,18 +37,21 @@ class BaseStockStrategy(ABC):
         self.init_capital: float = 0                    # Initial capital
         self.max_positions: Optional[int] = 0           # max limit numbers of positions
         
-        """ === Datasets === """
-        self.data: Data = Data()         
-        self.chip: Chip = self.data.chip                # Chips data
-        self.tick: Tick = self.data.tick                # Ticks data
-        self.qx_data: QXData = self.data.qx_data        # Day price data, Financial data, etc
-                
         """ === Backtest Setting === """
         self.is_backtest: bool = True                   # Whether it's used for backtest or not
         self.scale: str = Scale.DAY                     # Backtest scale: Day/Tick/ALL
         self.start_date: datetime.date = None           # Optional: if is_backtest == True, then set start date in backtest
         self.end_date: datetime.date = None             # Optional: if is_backtest == True, then set end date in backtest
+        
+        """ === Datasets Setting=== """
+        self.data: Data = Data()         
+        self.chip: Chip = self.data.chip                # Chips data
+        self.tick: Optional[Tick] = None                # Ticks data
+        self.qx_data: QXData = self.data.qx_data        # Day price data, Financial data, etc
 
+        if self.scale in (Scale.TICK, Scale.MIX):
+            self.tick: Tick = self.data.tick 
+    
     
     @abstractmethod
     def set_account(self, account: StockAccount):
