@@ -82,7 +82,7 @@ class Strategy(BaseStockStrategy):
     
 
     def calculate_position_size(self, stock_quotes: List[StockQuote], action: Action) -> List[StockOrder]:
-            """ 計算 Open or Close 的部位大小 """
-            pass
+        """ 計算 Open or Close 的部位大小 """
+        pass
     
     

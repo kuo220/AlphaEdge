@@ -20,7 +20,6 @@ from trader.utils import (
     PositionType, 
     Units
 )
-from trader.strategies.stock import Strategy
 
 
 class StockQuoteAdapter:

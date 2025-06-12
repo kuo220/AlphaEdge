@@ -1,6 +1,8 @@
-from pathlib import Path
+import argparse
+from typing import Dict, Type
 
-# from trader.backtest import Backtester
+from trader.strategies.stock import BaseStockStrategy
+from trader.strategies import StrategyLoader
 from trader.backtest import Backtester
 
 """
@@ -17,3 +19,47 @@ Example:
     python run.py live     # switch to live trading mode
 """
 
+
+def add_parser_arguments():
+    parser = argparse.ArgumentParser(description="Trading System")
+    
+    parser.add_argument('--mode', choices=["backtest", "live"], default="backtest")
+    parser.add_argument('--strategy', type=str, required=True, help='Name of the strategy class')
+    
+    return parser.parse_args()
+
+
+def main():
+    args = add_parser_arguments()
+    strategy_name = args.strategy
+    
+    strategies: Dict[str, Type[BaseStockStrategy]] = StrategyLoader.load_all_stock_strategies()
+    
+    if strategy_name not in strategies:
+        print(f"Strategy '{strategy_name}' not found. Please check the spelling or ensure it is registered.")
+        print(f"Available strategies: {list(strategies.keys())}")
+        return
+
+    # Initialize strategy
+    strategy = strategies[strategy_name]()
+    print(list(strategies.keys()))
+    
+    # Backtest or Live Trading
+    if args.mode == "backtest":
+        # backtester = Backtester(strategy)
+        # backtester.run()
+        pass
+    elif args.mode == "live":
+        pass
+
+
+if __name__ == "__main__":
+    main()
+    
+    
+    
+    
+    
+    
+    
+    

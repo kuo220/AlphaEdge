@@ -21,7 +21,7 @@ from trader.models import (
 )
 from .base import BaseBacktestAnalyzer
 from trader.config import BACKTEST_RESULT_DIR_PATH
-from trader.strategies.stock import Strategy
+from trader.strategies.stock import BaseStockStrategy
 
 
 """
@@ -45,9 +45,9 @@ Intended for use in strategy evaluation and performance review.
 class StockBacktestReporter:
     """ Generates visual reports based on backtest results. """
     
-    def __init__(self, account: StockAccount, strategy: Strategy):
+    def __init__(self, account: StockAccount, strategy: BaseStockStrategy):
         self.account: StockAccount = account                                # Account
-        self.strategy: Strategy = strategy                                  # Backtest strategy
+        self.strategy: BaseStockStrategy = strategy                        # Backtest strategy
         
         self.start_date: datetime.date = self.strategy.start_date           # Backtest start date
         self.end_date: datetime.date = self.strategy.end_date               # Backtest end date

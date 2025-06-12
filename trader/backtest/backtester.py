@@ -21,7 +21,7 @@ from trader.utils import (
     PositionType, 
     Units
 )
-from trader.strategies.stock import Strategy
+from trader.strategies.stock import BaseStockStrategy
 
 
 """
@@ -44,10 +44,10 @@ class Backtester:
     """
     
     # === Init & Data Loading ===
-    def __init__(self, strategy: Strategy):
+    def __init__(self, strategy: BaseStockStrategy):
         
         """ === Strategy & Account Information === """
-        self.strategy: Strategy = strategy                                      # 要回測的策略
+        self.strategy: BaseStockStrategy = strategy                                      # 要回測的策略
         self.account: StockAccount = StockAccount(self.strategy.init_capital)   # 虛擬帳戶資訊
         self.strategy.set_account(self.account)                                 # 設置虛擬帳戶資訊
         
