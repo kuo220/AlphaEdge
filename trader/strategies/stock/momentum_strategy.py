@@ -27,8 +27,8 @@ class MomentumStrategy(BaseStockStrategy):
         self.max_positions = 10
         self.scale = Scale.DAY 
         
-        self.start_time = datetime.date(2020, 4, 1)
-        self.end_time = datetime.date(2024, 5, 10)
+        self.start_date = datetime.date(2020, 4, 1)
+        self.end_date = datetime.date(2024, 5, 10)
 
 
     def set_account(self, account: StockAccount):

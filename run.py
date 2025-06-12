@@ -13,10 +13,6 @@ It is responsible for executing either backtesting or live trading based on the 
 
 Modules and strategy logic are imported from the internal package structure.
 Make sure to run this file from the project root to ensure all relative imports work correctly.
-
-Example:
-    python run.py          # default behavior (e.g., backtest)
-    python run.py live     # switch to live trading mode
 """
 
 

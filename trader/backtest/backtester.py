@@ -68,14 +68,16 @@ class Backtester:
     def load_datasets(self):
         """ 從資料庫載入資料 """
         
-        self.chip = self.data.Chip
+        self.chip = self.data.chip
         if self.scale == Scale.TICK:
-            self.tick = self.data.Tick
+            self.tick = self.data.tick
+            
         elif self.scale == Scale.DAY:
-            self.qx_data = self.data.QXData
+            self.qx_data = self.data.qx_data
+            
         elif self.scale == Scale.MIX:
-            self.tick = self.data.Tick
-            self.qx_data = self.data.QXData
+            self.tick = self.data.tick
+            self.qx_data = self.data.qx_data
             
     
     # === Main Backtest Loop ===
@@ -84,7 +86,7 @@ class Backtester:
         
         print("========== Backtest Start ==========")
         print(f"* Strategy Name: {self.strategy.strategy_name}")
-        print(f"* {self.start_date.strftime('%Y/%m/%d')} ~ {self.end_date.strftime('%Y/%m/%d')}")
+        print(f"* Backtest Period: {self.start_date.strftime('%Y/%m/%d')} ~ {self.end_date.strftime('%Y/%m/%d')}")
         print(f"* Initial Capital: {self.strategy.init_capital}")
         print(f"* Backtest Scale: {self.scale}")
         
