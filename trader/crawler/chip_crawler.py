@@ -72,9 +72,12 @@ class CrawlStockChip:
         headers = CrawlerTools.generate_random_header()
         twse_response = requests.get(twse_url, headers=headers)
         
-        # 檢查是否為假日
+        # 檢查是否為假日 or 單純網站還未更新
         try:
             twse_df = pd.read_html(StringIO(twse_response.text))[0]
+            if twse_df.empty:
+                print("No data in table. Possibly not yet updated.")
+                return None
         except Exception as e:
             print("It's Holiday!")
             return None
@@ -124,10 +127,23 @@ class CrawlStockChip:
         tpex_url = f'https://www.tpex.org.tw/www/zh-tw/insti/dailyTrade?type=Daily&sect=EW&date={date.strftime("%Y/%m/%d")}&id=&response=html'
         headers = CrawlerTools.generate_random_header()
         tpex_response = requests.get(tpex_url, headers=headers)
-        tpex_df = pd.read_html(StringIO(tpex_response.text))[0]
-        tpex_df.drop(index=tpex_df.index[0], columns=tpex_df.columns[-1], inplace=True)
+        
+        try:
+            tpex_df = pd.read_html(StringIO(tpex_response.text))[0]
+        except Exception as e:
+            print(f"Error crawling TPEX table: {e}")
+            return None
+        
+        try:
+            tpex_df.drop(index=tpex_df.index[0], columns=tpex_df.columns[-1], inplace=True)
+        except Exception:
+            print("TPEX table structure unexpected.")
+            return None
     
         # 檢查是否為假日
+        if tpex_df.empty:
+            print("No data in TPEX table. Possibly not updated yet.")
+            return None
         if tpex_df.shape[0] == 1:
             print("It's Holiday!")
             return None
