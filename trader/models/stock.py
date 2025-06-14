@@ -14,11 +14,18 @@ from trader.utils import Commission, PositionType, Scale
 class TickQuote:
     """  Tick 報價資訊（即時報價） """
     
-    def __init__(self, code: str="", time: pd.Timestamp=None,
-                 close: float=0.0, volume: int=0,
-                 bid_price: float=0.0, bid_volume: int=0, ask_price: float=0.0, ask_volume: int=0,
-                 tick_type: int=0
-                 ):
+    def __init__(
+        self, 
+        code: str="", 
+        time: pd.Timestamp=None,
+        close: float=0.0, 
+        volume: int=0,
+        bid_price: float=0.0, 
+        bid_volume: int=0, 
+        ask_price: float=0.0, 
+        ask_volume: int=0,
+        tick_type: int=0
+    ):
         # Basic Info
         self.code: str = code                               # Stock code
         self.time: pd.Timestamp = time                      # Quote timestamp
@@ -34,40 +41,55 @@ class TickQuote:
         self.ask_volume: int = ask_volume                   # 委賣量
         
         # Tick Info
-        self.tick_type = tick_type                          # 內外盤別{1: 外盤, 2: 內盤, 0: 無法判定}
+        self.tick_type: int = tick_type                     # 內外盤別{1: 外盤, 2: 內盤, 0: 無法判定}
 
 
 class StockQuote:
     """ 個股報價資訊 """
     
-    def __init__(self, code: str="", scale: Scale=None, date: datetime.datetime=None, 
-                 cur_price: float=0.0, volume: float=0.0,
-                 open: float=0.0, high: float=0.0, low: float=0.0, close: float=0.0,
-                 tick: TickQuote=None):
+    def __init__(
+        self, 
+        code: str="", 
+        scale: Scale=None, 
+        date: datetime.datetime=None, 
+        cur_price: float=0.0, 
+        volume: float=0.0,
+        open: float=0.0, 
+        high: float=0.0, 
+        low: float=0.0, 
+        close: float=0.0,
+        tick: TickQuote=None
+    ):
         # Basic Info
         self.code: str = code                                            # Stock code
         self.scale: Scale = scale                                        # Quote scale (DAY or TICK or ALL)
         self.date: Union[datetime.date, datetime.datetime] = date        # Current date
         
         # Current Price & Volume
-        self.cur_price: float = cur_price                   # Current price
-        self.volume: float = volume                         # order's volume (Unit: Lots)
+        self.cur_price: float = cur_price                                # Current price
+        self.volume: float = volume                                      # order's volume (Unit: Lots)
         
         # OHLC Info
-        self.open: float = open                             # Open price
-        self.high: float = high                             # High price
-        self.low: float = low                               # Low price
-        self.close: float = close                           # Close price
+        self.open: float = open                                          # Open price
+        self.high: float = high                                          # High price
+        self.low: float = low                                            # Low price
+        self.close: float = close                                        # Close price
         
         # Tick Data
-        self.tick_quote: TickQuote = tick                   # tick quote data
+        self.tick_quote: TickQuote = tick                                # tick quote data
 
 
 class StockOrder:
     """ 個股買賣的訂單 """
     
-    def __init__(self, code: str="", date: datetime.datetime=None,
-                 price: float=0.0, volume: float=0.0, position_type: PositionType=PositionType.LONG):
+    def __init__(
+        self, 
+        code: str="", 
+        date: datetime.datetime=None,
+        price: float=0.0, 
+        volume: float=0.0, 
+        position_type: PositionType=PositionType.LONG
+     ):
         # Basic Info
         self.code: str = code                               # 股票代號
         self.date: datetime.datetime = date                 # 交易日期（Tick會是Timestamp）
@@ -81,11 +103,23 @@ class StockOrder:
 class StockTradeRecord:
     """ 單筆股票交易紀錄 """
     
-    def __init__(self, id: int=0, code: str="", date: datetime.datetime=None, 
-                 is_closed: bool=False, position_type: PositionType=PositionType.LONG, 
-                 buy_price: float=0.0, sell_price: float=0.0, volume: float=0.0, 
-                 commission: float=0.0, tax: float=0.0, transaction_cost: float=0.0, 
-                 position_value: float=0.0, realized_pnl: float=0.0, roi: float=0.0):
+    def __init__(
+        self, 
+        id: int=0, 
+        code: str="", 
+        date: datetime.datetime=None, 
+        is_closed: bool=False, 
+        position_type: PositionType=PositionType.LONG, 
+        buy_price: float=0.0, 
+        sell_price: float=0.0, 
+        volume: float=0.0, 
+        commission: float=0.0, 
+        tax: float=0.0, 
+        transaction_cost: float=0.0, 
+        position_value: float=0.0, 
+        realized_pnl: float=0.0, 
+        roi: float=0.0
+    ):
 
         # Basic Info
         self.id: int = id                                                # 每一筆買入就是一個id

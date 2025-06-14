@@ -4,7 +4,7 @@ import os
 import datetime
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import List, Dict, Tuple, Optional, Any
+from typing import List, Dict, Tuple, Optional, Any, Union
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -42,8 +42,8 @@ class BaseBacktestAnalyzer(ABC):
     """ Backtest Performance Analyzer Framework (Base Template) """
     #TODO: 計算 Cumulative Capital (Equity Curve), MDD, ROI, Sharpe Ratio
     
-    def __init__(self, account: Any):
-        self.account: Any = account                 # 帳戶資訊
+    def __init__(self, account: Union[StockAccount]):
+        self.account: Union[StockAccount] = account                 # 帳戶資訊
     
     
     # ===== Equity-based Metrics =====

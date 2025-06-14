@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 import requests
 import shioaji as sj
+from shioaji.data import Ticks
 from dateutil.relativedelta import relativedelta
 from dateutil.rrule import DAILY, MONTHLY, rrule
 from fake_useragent import UserAgent
@@ -105,7 +106,7 @@ class CrawlStockTick:
             return None
         
         try:
-            ticks: sj.Shioaji.data.Ticks = api.ticks(contract=api.Contracts.Stocks[code], date=date.isoformat())
+            ticks: Ticks = api.ticks(contract=api.Contracts.Stocks[code], date=date.isoformat())
             tick_df: pd.DataFrame = pd.DataFrame({**ticks})
             
             if not tick_df.empty:
@@ -152,7 +153,7 @@ class CrawlStockTick:
             
             for date in dates:
                 try:
-                    ticks: sj.Shioaji.data.Ticks = api.ticks(contract=api.Contracts.Stocks[code], date=date.isoformat())
+                    ticks: Ticks = api.ticks(contract=api.Contracts.Stocks[code], date=date.isoformat())
                     tick_df: pd.DataFrame = pd.DataFrame({**ticks})
 
                     if not tick_df.empty:

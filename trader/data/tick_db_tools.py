@@ -4,6 +4,7 @@ import os
 import shutil
 import sys
 from pathlib import Path
+from typing import List, Dict
 import pandas as pd
 try:
     import dolphindb as ddb
@@ -22,7 +23,11 @@ class TickDBTools:
         
         df.rename(columns={'ts': 'time'}, inplace=True)
         df['stock_id'] = stock_id
-        new_columns_order = ['stock_id','time', 'close', 'volume', 'bid_price', 'bid_volume', 'ask_price', 'ask_volume', 'tick_type']
+        new_columns_order: List[str] = [
+            'stock_id','time', 'close', 
+            'volume', 'bid_price', 'bid_volume', 
+            'ask_price', 'ask_volume', 'tick_type'
+        ]
         df = df[new_columns_order]
 
         return df
@@ -45,8 +50,8 @@ class TickDBTools:
         """ 從 tick_metadata.json 中取得 tick table 的最早日期 """
         
         with open(TICK_METADATA_PATH, "r", encoding="utf-8") as data:
-            time_data = json.load(data)
-            earliest_date = datetime.date.fromisoformat(time_data["earliest_date"])
+            time_data: Dict[str, str] = json.load(data)
+            earliest_date: datetime.date = datetime.date.fromisoformat(time_data["earliest_date"])
         return earliest_date
     
     
@@ -55,17 +60,17 @@ class TickDBTools:
         """ 從 tick_metadata.json 中取得 tick table 的最新日期 """
         
         with open(TICK_METADATA_PATH, "r", encoding="utf-8") as data:
-            time_data = json.load(data)
-            latest_date = datetime.date.fromisoformat(time_data["latest_date"])
+            time_data: Dict[str, str] = json.load(data)
+            latest_date: datetime.date = datetime.date.fromisoformat(time_data["latest_date"])
         return latest_date
 
     
     @staticmethod
-    def update_tick_table_latest_date(date: datetime.date):
+    def update_tick_table_latest_date(date: datetime.date) -> None:
         """ 更新 tick_metadata.json 中的 table 最新時間 """
         
         # Time range for updating
-        metadata = {
+        metadata: Dict[str, str] = {
             "earliest_date": TickDBTools.get_table_earliest_date().isoformat(),
             "latest_date": date.isoformat()
         }
@@ -76,11 +81,11 @@ class TickDBTools:
             
             
     @staticmethod
-    def update_tick_table_date_range(start_date: datetime.date, end_date: datetime.date):
+    def update_tick_table_date_range(start_date: datetime.date, end_date: datetime.date) -> None:
         """ 更新 tick_metadata.json 中的 table 日期區間 """
         
         # Time range for updating
-        metadata = {
+        metadata: Dict[str, str] = {
             "earliest_date": start_date.isoformat(),
             "latest_date": end_date.isoformat()
         }
@@ -91,9 +96,9 @@ class TickDBTools:
             
     
     @staticmethod
-    def generate_tick_metadata_backup():
+    def generate_tick_metadata_backup() -> None:
         """ 建立 tick_metadata 的備份檔案 """
         
-        backup_suffix = "_backup"
-        backup_name = TICK_METADATA_PATH.with_name(TICK_METADATA_PATH.stem + backup_suffix + TICK_METADATA_PATH.suffix)
+        backup_suffix: str = "_backup"
+        backup_name: Path = TICK_METADATA_PATH.with_name(TICK_METADATA_PATH.stem + backup_suffix + TICK_METADATA_PATH.suffix)
         shutil.copy2(TICK_METADATA_PATH, backup_name)

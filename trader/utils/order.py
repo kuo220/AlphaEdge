@@ -1,4 +1,7 @@
+from typing import Any
 import shioaji as sj
+from shioaji.contracts import Contract
+from shioaji.order import Order
 
 
 class OrderTools:
@@ -6,7 +9,7 @@ class OrderTools:
                 
     @staticmethod
     # place buy or sell order
-    def place_order(api: sj.Shioaji, order: dict):
+    def place_order(api: sj.Shioaji, order: dict) -> None:
         """ 
         下單操作  
         order 格式
@@ -22,10 +25,10 @@ class OrderTools:
         """
 
         # 商品檔
-        contract = api.Contracts.Stocks.TSE.get(order['code']) or api.Contracts.Stocks.OTC.get(order['code'])
+        contract: Contract = api.Contracts.Stocks.TSE.get(order['code']) or api.Contracts.Stocks.OTC.get(order['code'])
 
         # 委託單
-        order = api.Order(
+        order: Order = api.Order(
             price=order['price'],
             quantity=order['volume'],
             action=order['action'],

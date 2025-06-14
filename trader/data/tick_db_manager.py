@@ -4,6 +4,7 @@ import sys
 import datetime
 from pathlib import Path
 import pandas as pd
+from typing import List
 try:
     import dolphindb as ddb
 except ModuleNotFoundError:
@@ -26,14 +27,14 @@ from trader.config import (
 class TickDBManager:
     
     def __init__(self):
-        self.session = ddb.session()
+        self.session: ddb.session = ddb.session()
         self.session.connect(DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)  
         
         if (self.session.existsDatabase(TICK_DB_PATH)):
             print("Database exists!")
             
             # set TSDBCacheEngineSize to 5GB (must < 8(maxMemSize) * 0.75 GB)
-            script = """ 
+            script: str = """ 
             memSize = 2
             setTSDBCacheEngineSize(memSize)
             print("TSDBCacheEngineSize: " + string(getTSDBCacheEngineSize() / pow(1024, 3)) + "GB")
@@ -43,10 +44,10 @@ class TickDBManager:
             print("Database doesn't exist!")
     
     
-    def append_csv_to_dolphinDB(self, csv_path: str):
+    def append_csv_to_dolphinDB(self, csv_path: str) -> None:
         """ 將單一 CSV 資料添加到已建立的 DolphinDB 資料表 """
         
-        script = f"""
+        script: str = f"""
         db = database("{TICK_DB_PATH}")
         schemaTable = table(
             ["stock_id", "time", "close", "volume", "bid_price", "bid_volume", "ask_price", "ask_volume", "tick_type"] as columnName,
@@ -70,14 +71,14 @@ class TickDBManager:
             print(f"The csv file fail to save into database and table!\n{e}")    
     
 
-    def append_all_csv_to_dolphinDB(self, dir_path: Path):
+    def append_all_csv_to_dolphinDB(self, dir_path: Path) -> None:
         """ 將資料夾內所有 CSV 檔案附加到已建立的 DolphinDB 資料表 """
         
         # read all csv files in dir_path (.as_posix => replace \\ with / (for windows os))
-        csv_files = [str(csv.as_posix()) for csv in dir_path.glob("*.csv")]
+        csv_files: List[str] = [str(csv.as_posix()) for csv in dir_path.glob("*.csv")]
         print(f"* Total csv files: {len(csv_files)}")
         
-        script = f""" 
+        script: str = f""" 
         db = database("{TICK_DB_PATH}")
         schemaTable = table(
             ["stock_id", "time", "close", "volume", "bid_price", "bid_volume", "ask_price", "ask_volume", "tick_type"] as columnName,
@@ -109,17 +110,17 @@ class TickDBManager:
             print(f"All csv files fail to save into database and table!\n{e}")
 
     
-    def create_tick_dolphinDB(self):
+    def create_tick_dolphinDB(self) -> None:
         """ 創建 dolphinDB """
         
-        start_time = '2020.03.01'
-        end_time = '2030.12.31'
+        start_time: str = '2020.03.01'
+        end_time: str = '2030.12.31'
         
         if self.session.existsDatabase(TICK_DB_PATH):
             print("Database exists!")
         else:
             print("Database doesn't exist!\nCreating a database...")
-            script = f"""
+            script: str = f"""
             create database "{DDB_PATH}{TICK_DB_NAME}"
             partitioned by VALUE({start_time}..{end_time}), HASH([SYMBOL, 25]) 
             engine='TSDB'
@@ -148,21 +149,21 @@ class TickDBManager:
                 print(f"dolphinDB create unsuccessfully!\n{e}")
     
 
-    def clear_all_cache(self):
+    def clear_all_cache(self) -> None:
         """ 清除 Cache Data """
         
-        script = """ 
+        script: str = """ 
         clearAllCache()
         """
         self.session.run(script)
     
     
-    def delete_dolphinDB(self, db_path: str):
+    def delete_dolphinDB(self, db_path: str) -> None:
         """ 刪除資料庫 """
         
         print("Start deleting database...")
         
-        script = f"""
+        script: str = f"""
         if (existsDatabase("{db_path}")) {{
             dropDatabase("{db_path}")
         }}

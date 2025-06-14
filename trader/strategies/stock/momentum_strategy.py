@@ -22,13 +22,13 @@ class MomentumStrategy(BaseStockStrategy):
     
     def __init__(self):
         super().__init__()
-        self.strategy_name = "Momentum"
-        self.init_capital = 1000000.0
-        self.max_holdings = 10
-        self.scale = Scale.DAY 
+        self.strategy_name: str = "Momentum"
+        self.init_capital: float = 1000000.0
+        self.max_holdings: int = 10
+        self.scale: Scale = Scale.DAY 
         
-        self.start_date = datetime.date(2020, 4, 1)
-        self.end_date = datetime.date(2024, 5, 10)
+        self.start_date: datetime.date = datetime.date(2020, 4, 1)
+        self.end_date: datetime.date = datetime.date(2024, 5, 10)
 
 
     def set_account(self, account: StockAccount):
@@ -47,11 +47,11 @@ class MomentumStrategy(BaseStockStrategy):
         for stock_quote in stock_quotes:
            
             # Condition 1: 當日漲 > 9% 的股票
-            yesterday = stock_quote.date - datetime.timedelta(days=1)
+            yesterday: datetime.date = stock_quote.date - datetime.timedelta(days=1)
             self.qx_data.date = yesterday
             
-            close_price_yesterday = self.qx_data.get('price', '收盤價', 1)
-            price_chg = (stock_quote.close / close_price_yesterday[stock_quote.code][0] - 1) * 100
+            close_price_yesterday: pd.DataFrame = self.qx_data.get('price', '收盤價', 1)
+            price_chg: float = (stock_quote.close / close_price_yesterday[stock_quote.code][0] - 1) * 100
             
             if price_chg < 9:
                 continue

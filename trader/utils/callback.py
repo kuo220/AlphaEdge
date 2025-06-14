@@ -1,4 +1,6 @@
 import shioaji as sj
+from shioaji.constant import OrderState
+from typing import Dict, Any
 
 from .notify import Notification
 from .constant import OrderState
@@ -8,7 +10,7 @@ class Callback:
     """ Order callback """
     
     @staticmethod
-    def order_callback(api: sj.Shioaji, token: str):
+    def order_callback(api: sj.Shioaji, token: str) -> None:
         """ 
         設置委託 or 成交回報的輸出格式
         
@@ -18,12 +20,12 @@ class Callback:
         """
         print("* Setting order callback...")
         
-        def order_cb(stat, msg):
+        def order_cb(stat: OrderState, msg: Dict[str, Any]) -> None:
             if stat == OrderState.StockDeal:
                 print(f"【Order Deal】 Stock: {msg['code']} | Volume: {msg['quantity']} | Price: {msg['price']} | Action: {msg['action']}")
                 
                 # Notify
-                deal_info = {
+                deal_info: Dict[str, Any] = {
                     'code': msg['code'],
                     'volume': msg['quantity'],
                     'price': msg['price'],

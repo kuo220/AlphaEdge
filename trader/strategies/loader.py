@@ -2,6 +2,7 @@ import importlib
 import pkgutil
 import inspect
 from typing import Dict, Type
+from types import ModuleType
 
 from trader.strategies.stock import BaseStockStrategy
 import trader.strategies.stock as stock_strategies_pkg
@@ -18,8 +19,8 @@ class StrategyLoader:
         stock_strategies: Dict[str, Type[BaseStockStrategy]] = {}
         
         for _, module_name, _ in pkgutil.iter_modules(stock_strategies_pkg.__path__):
-            full_module_path = f"{stock_strategies_pkg.__name__}.{module_name}"
-            module = importlib.import_module(full_module_path)
+            full_module_path: str = f"{stock_strategies_pkg.__name__}.{module_name}"
+            module: ModuleType = importlib.import_module(full_module_path)
 
             for name, obj in inspect.getmembers(module, inspect.isclass):
                 if issubclass(obj, BaseStockStrategy) and obj is not BaseStockStrategy:

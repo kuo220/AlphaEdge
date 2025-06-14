@@ -3,6 +3,7 @@ import sys
 import sqlite3
 import datetime
 import pandas as pd
+from typing import List, Dict
 from pathlib import Path
 
 from trader.config import QUANTX_DB_PATH
@@ -13,13 +14,13 @@ class QXData:
     
     def __init__(self, date = datetime.datetime.now().date()):
 
-        self.macro_eco_db = ["tw_total_pmi", "tw_total_nmi", "tw_business_indicator", "benchmark_return", "margin_balance"]
+        self.macro_eco_db: List[str] = ["tw_total_pmi", "tw_total_nmi", "tw_business_indicator", "benchmark_return", "margin_balance"]
         
-        self.conn = sqlite3.connect(QUANTX_DB_PATH)
-        cursor = self.conn.execute('SELECT name FROM sqlite_master WHERE type = "table"')
+        self.conn: sqlite3.Connection = sqlite3.connect(QUANTX_DB_PATH)
+        cursor: sqlite3.Cursor = self.conn.execute('SELECT name FROM sqlite_master WHERE type = "table"')
 
         # 找到所有的table名稱
-        table_names = [t[0] for t in list(cursor)]
+        table_names: List[str] = [t[0] for t in list(cursor)]
 
         # 找到所有的column名稱，對應到的table名稱
         self.col2table = {}
@@ -40,7 +41,7 @@ class QXData:
         # 假如self.cache是true的話，
         # 使用data.get的資料，會被儲存在self.data中，之後再呼叫data.get時，就不需要從資料庫裡面找，
         # 直接調用self.data中的資料即可
-        self.cache = False
+        self.cache: bool = False
         self.data = {}
         
         # 先將每個table的所有日期都拿出來

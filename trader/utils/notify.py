@@ -1,6 +1,7 @@
 import pandas as pd
 import requests
 import shioaji as sj
+from typing import Dict, Any
 
 from .account import ShioajiAccount
 from .constant import Action, StockPriceType
@@ -10,22 +11,21 @@ class Notification:
     """ 執行 Line 通知 """
     
     @staticmethod
-    def post_line_notify(token: str, msg: str):
+    def post_line_notify(token: str, msg: str) -> None:
         """ Line notify """
         
-        token = token
-        url = 'https://notify-api.line.me/api/notify'
-        headers = {
+        url: str = 'https://notify-api.line.me/api/notify'
+        headers: Dict[str, str] = {
             'Authorization': 'Bearer ' + token
         }
-        data = {
+        data: Dict[str, str] = {
             'message': msg
         }
         requests.post(url, headers=headers, data=data)
         
 
     @staticmethod
-    def post_order_notify(token: str, order: dict):
+    def post_order_notify(token: str, order: Dict[str, Any]) -> None:
         """ 
         買or賣下單委託通知 
         order 格式
@@ -41,7 +41,7 @@ class Notification:
         }
         """
         
-        msg = "\n"
+        msg: str = "\n"
         msg += f"【{order['action']} Order Submit】\n"
         msg += f"Stock ID: {order['code']}\n"
         msg += f"Volume: {order['volume']}\n"
@@ -52,10 +52,10 @@ class Notification:
     
     
     @staticmethod
-    def post_deal_notify(token: str, order: dict):
+    def post_deal_notify(token: str, order: Dict[str, Any]) -> None:
         """ 委託成交通知 """
         
-        msg = "\n"
+        msg: str = "\n"
         msg += f"【{order['action']} Order Deal】\n"
         msg += f"Stock ID: {order['code']}\n"
         msg += f"Volume: {order['volume']}\n"
@@ -65,10 +65,10 @@ class Notification:
     
     
     @staticmethod
-    def post_account_info(api: sj.Shioaji, token: str, info: pd.DataFrame):
+    def post_account_info(api: sj.Shioaji, token: str, info: pd.DataFrame) -> None:
         """ 每日帳戶資訊 """
         
-        msg = "\n"
+        msg: str = "\n"
         msg += f"【Today's Stock Info】\n"
         msg += "".join(f"{title:<{len(title) + 5}}" for title in info.columns if title != 'pnl' ) + "\n"
         msg += "\n".join(
