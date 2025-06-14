@@ -59,13 +59,13 @@ class Backtester:
         
         """ === Backtest Parameters === """
         self.scale: str = self.strategy.scale                                   # 回測 KBar 級別
-        self.max_positions: Optional[int] = self.strategy.max_positions         # 最大持倉檔數
+        self.max_holdings: Optional[int] = self.strategy.max_holdings         # 最大持倉檔數
         self.start_date: datetime.date = self.strategy.start_date               # 回測起始日
         self.cur_date: datetime.date = self.strategy.start_date                 # 回測當前日
         self.end_date: datetime.date = self.strategy.end_date                   # 回測結束日
         
     
-    def load_datasets(self):
+    def load_datasets(self) -> None:
         """ 從資料庫載入資料 """
         
         self.chip = self.data.chip
@@ -81,7 +81,7 @@ class Backtester:
             
     
     # === Main Backtest Loop ===
-    def run(self):
+    def run(self) -> None:
         """ 執行 Backtest (目前只有全tick回測) """
         
         print("========== Backtest Start ==========")
@@ -114,7 +114,7 @@ class Backtester:
         self.account.update_account_status()
     
     
-    def run_tick_backtest(self):
+    def run_tick_backtest(self) -> None:
         """ Tick 級別的回測架構 """
         
         # Stock Quotes
@@ -127,7 +127,7 @@ class Backtester:
         self.execute_open_signal(stock_quotes)
             
             
-    def run_day_backtest(self):
+    def run_day_backtest(self) -> None:
         """ Day 級別的回測架構 """
         
         # Stock Quotes
@@ -140,25 +140,25 @@ class Backtester:
         self.execute_open_signal(stock_quotes)
                 
             
-    def run_mix_backtest(self):
+    def run_mix_backtest(self) -> None:
         """ Tick & Day 級別的回測架構 """
         pass
     
     
     # === Signal Execution ===
-    def execute_open_signal(self, stock_quotes: List[StockQuote]):
+    def execute_open_signal(self, stock_quotes: List[StockQuote]) -> None:
         """ 若倉位數量未達到限制且有開倉訊號，則執行開倉 """
         
         open_orders: List[StockOrder] = self.strategy.check_open_signal(stock_quotes)
-        if self.max_positions is not None:
-            remaining_positions: int = max(0, self.max_positions - self.account.get_position_count())
-            open_orders = open_orders[:remaining_positions]
+        if self.max_holdings is not None:
+            remaining_holding: int = max(0, self.max_holdings - self.account.get_position_count())
+            open_orders = open_orders[:remaining_holding]
             
         for order in open_orders:
             self.place_open_order(order)
             
     
-    def execute_close_signal(self, stock_quotes: List[StockQuote]):
+    def execute_close_signal(self, stock_quotes: List[StockQuote]) -> None:
         """ 執行平倉邏輯：先判斷停損訊號，後判斷一般平倉 """
         
         # 先找出有持倉的股票
@@ -190,10 +190,9 @@ class Backtester:
             - position: StockTradeRecord
         """
         
+        position_value: float = stock.price * stock.volume * Units.LOT
+        open_cost: float = StockTools.calculate_transaction_commission(buy_price=stock.price, volume=stock.volume)
         position: Optional[StockTradeRecord] = None
-        
-        position_value = stock.price * stock.volume * Units.LOT
-        open_cost = StockTools.calculate_transaction_commission(buy_price=stock.price, volume=stock.volume)
         
         if stock.position_type == PositionType.LONG:
             if self.account.balance >= (position_value + open_cost):
@@ -224,8 +223,8 @@ class Backtester:
             - position: StockTradeRecord
         """
 
-        position_value = stock.price * stock.volume * Units.LOT
-        close_cost = StockTools.calculate_transaction_commission(sell_price=stock.price, volume=stock.volume)
+        position_value: float = stock.price * stock.volume * Units.LOT
+        close_cost: float = StockTools.calculate_transaction_commission(sell_price=stock.price, volume=stock.volume)
         
         # 根據 stock.code 找出庫存中最早買進的該檔股票（FIFO）
         position: Optional[StockTradeRecord] = self.account.get_first_open_position(stock.code)
@@ -249,8 +248,8 @@ class Backtester:
 
         return position
     
-    
+     
     # === Report ===
-    def generate_backtest_report(self):
+    def generate_backtest_report(self) -> None:
         """ 生產回測報告 """
         pass

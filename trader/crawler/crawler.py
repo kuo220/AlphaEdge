@@ -47,8 +47,8 @@ class Crawler:
     """
 
     def __init__(self):
-        self.chip = CrawlStockChip()
-        self.tick = CrawlStockTick()
-        self.html = CrawlHTML()
-        self.quantx = CrawlQuantX()
-        self.shioaji = CrawlShioaji()
+        self.chip: CrawlStockChip = CrawlStockChip()
+        self.tick: CrawlStockTick = CrawlStockTick()
+        self.html: CrawlHTML = CrawlHTML()
+        self.quantx: CrawlQuantX = CrawlQuantX()
+        self.shioaji: CrawlShioaji = CrawlShioaji()

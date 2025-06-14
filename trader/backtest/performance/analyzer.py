@@ -53,7 +53,7 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
         
         # Statistics
         self.benchmark: str = '0050'
-        self.risk_free_rate = 0         # 無風險利率（暫定0）
+        self.risk_free_rate: float  = 0         # 無風險利率（暫定0）
 
     
     # ===== Risk-Adjusted Metrics =====
@@ -65,19 +65,19 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
     def compute_sharpe_ratio(self) -> Optional[float]:
         """ 計算 Sharpe Ratio """
         
-        std_dev = self.compute_volatility()
-        roi_mean = np.mean([record.roi for record in self.trade_records])
+        std_dev: float = self.compute_volatility()
+        roi_mean: float = np.mean([record.roi for record in self.trade_records])
         
         if std_dev > 0:
             return (roi_mean - self.risk_free_rate) / std_dev
         return None
     
     
-    def compute_sortino_ratio(self) -> float:
+    def compute_sortino_ratio(self) -> Optional[float]:
         """ 計算 Sortino Ratio"""
         
-        downside_dev = np.std([record.roi for record in self.trade_records if record.roi < self.risk_free_rate])
-        roi_mean = np.mean([record.roi for record in self.trade_records])
+        downside_dev: float = np.std([record.roi for record in self.trade_records if record.roi < self.risk_free_rate])
+        roi_mean: float = np.mean([record.roi for record in self.trade_records])
         
         if downside_dev > 0:
             return (roi_mean - self.risk_free_rate) / downside_dev
@@ -101,8 +101,8 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
     def compute_profit_factor(self) -> float:
         """ 計算利潤因子（總獲利/總虧損）"""
         
-        profit: float = sum(record for record in self.trade_records if record.realized_pnl >= 0)
-        loss: float = sum(record for record in self.trade_records if record.realized_pnl < 0)
+        profit: float = sum(record.realized_pnl for record in self.trade_records if record.realized_pnl >= 0)
+        loss: float = sum(abs(record.realized_pnl) for record in self.trade_records if record.realized_pnl < 0)
         
         return profit / loss
     

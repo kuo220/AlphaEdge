@@ -9,7 +9,6 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.graph_objs import Figure
 
 from trader.data import Data, Chip, Tick, QXData
 from trader.utils import Market, Scale, PositionType
@@ -47,19 +46,19 @@ class StockBacktestReporter:
     
     def __init__(self, account: StockAccount, strategy: BaseStockStrategy):
         self.account: StockAccount = account                                # Account
-        self.strategy: BaseStockStrategy = strategy                        # Backtest strategy
+        self.strategy: BaseStockStrategy = strategy                         # Backtest strategy
         
         self.start_date: datetime.date = self.strategy.start_date           # Backtest start date
         self.end_date: datetime.date = self.strategy.end_date               # Backtest end date
          
         self.benchmark: str = '0050'                                        # Benchmark stock
-        self.qxData = QXData()                                              # QuantX data (for benchmark)
+        self.qxData: QXData = QXData()                                      # QuantX data (for benchmark)
         
     
-    def plot_equity_curve(self):
+    def plot_equity_curve(self) -> None:
         """ 繪製權益曲線圖圖（淨資產隨時間變化）"""
         
-        dates: List[datetime.datetime] = [self.start_date]
+        dates: List[datetime.date] = [self.start_date]
         cumulative_equity: List[float] = [self.account.init_capital]
         fig_title: str = "Equity Curve"
         
@@ -68,7 +67,7 @@ class StockBacktestReporter:
             cumulative_equity.append(cumulative_equity[-1] + record.realized_pnl)
         
         # TODO: 需處理日期顯示過於密集的問題
-        fig = go.Figure()
+        fig: go.Figure = go.Figure()
         fig.add_trace(go.Scatter(
             x=dates,
             y=cumulative_equity,
@@ -76,23 +75,32 @@ class StockBacktestReporter:
             line=dict(color='blue', width=2)
         ))
         
-        self._set_fig_config(fig, title = fig_title,
-                                xaxis_title='Date', yaxis_title='Equity')
+        self._set_fig_config(
+            fig, 
+            title = fig_title, 
+            xaxis_title='Date', 
+            yaxis_title='Equity'
+        )
     
     
-    def plot_equity_and_benchmark_curve(self):
+    def plot_equity_and_benchmark_curve(self) -> None:
         """ 繪製權益 & benchmark 曲線圖 """
         pass
     
     
-    def plot_mdd(self):
+    def plot_mdd(self) -> None:
         """ 繪製 Max Drawdown """
         pass
     
     
-    def _set_figure_config(self, fig: Figure, title: str="", 
-                          xaxis_title: str="", yaxis_title: str="",
-                          fig_text: str=""):
+    def _set_figure_config(
+        self, 
+        fig: go.Figure, 
+        title: str="", 
+        xaxis_title: str="", 
+        yaxis_title: str="",
+        fig_text: str=""
+    ) -> None:
         """ 設置繪圖配置 """
         
         # Layout setting
@@ -138,6 +146,6 @@ class StockBacktestReporter:
             )
         
         
-    def _save_figure(self, file_name: str=""):
+    def _save_figure(self, file_name: str="") -> None:
         """ 儲存回測報告 """
         pass

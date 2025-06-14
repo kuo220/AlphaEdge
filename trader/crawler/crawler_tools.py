@@ -11,7 +11,7 @@ import urllib.request
 import warnings
 from io import StringIO
 from pathlib import Path
-from typing import List
+from typing import List, Dict
 import numpy as np
 import pandas as pd
 import requests
@@ -30,21 +30,21 @@ class CrawlerTools:
     """ Cralwer Tools """
     
     @staticmethod
-    def generate_random_header():
+    def generate_random_header() -> Dict[str, str]:
         """ 產生隨機 headers 避免爬蟲被鎖 """
         
-        ua = UserAgent()
-        user_agent = ua.random
-        headers = {'Accept': '*/*', 'Connection': 'keep-alive',
+        ua: UserAgent = UserAgent()
+        user_agent: str = ua.random
+        headers: Dict[str, str] = {'Accept': '*/*', 'Connection': 'keep-alive',
                 'User-Agent': user_agent}
         return headers
     
 
     @staticmethod
-    def move_col(df: pd.DataFrame, col_name: str, ref_col_name: str):
+    def move_col(df: pd.DataFrame, col_name: str, ref_col_name: str) -> None:
         """ 移動 columns 位置"""
         
-        col_data = df.pop(col_name)
+        col_data: pd.Series = df.pop(col_name)
         df.insert(df.columns.get_loc(ref_col_name) + 1, col_name, col_data)
         
     
@@ -53,7 +53,7 @@ class CrawlerTools:
         """ 刪除 DataFrame 中指定欄位後面的所有欄位 """
         
         if col_name in df.columns:
-            last_col_loc = df.columns.get_loc(col_name)
+            last_col_loc: int = df.columns.get_loc(col_name)
             df = df.iloc[:, :last_col_loc + 1]
         return df
     

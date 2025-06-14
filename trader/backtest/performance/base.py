@@ -48,13 +48,13 @@ class BaseBacktestAnalyzer(ABC):
     
     # ===== Equity-based Metrics =====
     @abstractmethod
-    def compute_equity_curve(self):
+    def compute_equity_curve(self) -> None:
         """ 計算並繪製權益曲線（淨資產隨時間變化）"""
         pass
     
     
     @abstractmethod
-    def compute_mdd(self):
+    def compute_mdd(self) -> None:
         """ 計算並繪製 Max Drawdown """
         pass
     

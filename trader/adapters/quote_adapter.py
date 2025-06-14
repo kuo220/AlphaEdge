@@ -45,6 +45,7 @@ class StockQuoteAdapter:
     def convert_to_day_quotes(data: QXData, date: datetime.date) -> List[StockQuote]:
         """ 將指定日期的 QXData 日資料轉換為 StockQuote 物件列表，用於日級回測 """
         
+        # Set QXData database date
         data.date = date
         
         day_data: Dict[str, pd.Series] = {

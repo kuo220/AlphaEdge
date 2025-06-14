@@ -13,7 +13,7 @@ import warnings
 import zipfile
 from io import StringIO
 from pathlib import Path
-from typing import List
+from typing import List, Any
 
 import ipywidgets as widgets
 import numpy as np
@@ -35,12 +35,12 @@ class CrawlQuantX:
     """ QuantX Crawler """
     
     def __init__(self):
-        self.table_without_stockid = ["tw_total_pmi", "tw_total_nmi", "tw_business_indicator", "benchmark_return", "margin_balance"]
-        self.ses = None
+        self.table_without_stockid: List[str] = ["tw_total_pmi", "tw_total_nmi", "tw_business_indicator", "benchmark_return", "margin_balance"]
+        self.ses: Any = None
         warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
-    def find_best_session(self):
+    def find_best_session(self) -> None:
         for i in range(10):
             try:
                 print('獲取新的Session 第', i, '回合')

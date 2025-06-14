@@ -7,7 +7,7 @@ import sys
 import threading
 import time
 import urllib.request
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import List, Optional, Any
 import ipywidgets as widgets
@@ -78,14 +78,25 @@ class CrawlStockTick:
         TickDBTools.generate_tick_metadata_backup()
 
     
-    def split_list(self, target_list: List[Any], n_parts: int) -> List[List[str]]:
+    def split_list(
+        self, 
+        target_list: List[Any], 
+        n_parts: int
+    ) -> List[List[str]]:
         """ 將 list 均分成 n 個 list """
         
+        num_list: int = 0
+        rem: int = 0
         num_list, rem = divmod(len(target_list), n_parts)
         return [target_list[i * num_list + min(i, rem) : (i + 1) * num_list + min(i + 1, rem)] for i in range(n_parts)]
 
 
-    def crawl_ticks_for_stock(self, api: sj.Shioaji, code: str, date: datetime.date) -> Optional[pd.DataFrame]:
+    def crawl_ticks_for_stock(
+        self, 
+        api: sj.Shioaji, 
+        code: str, 
+        date: datetime.date
+    ) -> Optional[pd.DataFrame]:
         """ 透過 Shioaji 爬取指定個股的 tick data """
             
         # 判斷 api 用量
@@ -94,8 +105,8 @@ class CrawlStockTick:
             return None
         
         try:
-            ticks = api.ticks(contract=api.Contracts.Stocks[code], date=date.isoformat())
-            tick_df = pd.DataFrame({**ticks})
+            ticks: sj.Shioaji.data.Ticks = api.ticks(contract=api.Contracts.Stocks[code], date=date.isoformat())
+            tick_df: pd.DataFrame = pd.DataFrame({**ticks})
             
             if not tick_df.empty:
                 tick_df.ts = pd.to_datetime(tick_df.ts)
@@ -107,7 +118,7 @@ class CrawlStockTick:
                 return None
         
         try:
-            formatted_df = TickDBTools.format_tick_data(tick_df, code)
+            formatted_df: pd.DataFrame = TickDBTools.format_tick_data(tick_df, code)
             formatted_df = TickDBTools.format_time_to_microsec(formatted_df)
         
             # Save df to csv file
@@ -121,7 +132,12 @@ class CrawlStockTick:
     
     
     @log_thread
-    def crawl_ticks_for_stock_list(self, api: sj.Shioaji, stock_list: List[str], dates: List[datetime.date]):
+    def crawl_ticks_for_stock_list(
+        self, 
+        api: sj.Shioaji, 
+        stock_list: List[str], 
+        dates: List[datetime.date]
+    ) -> None:
         """ 透過 Shioaji 爬取 stock_list 中的個股 tick data """
         
         for code in stock_list:
@@ -136,8 +152,8 @@ class CrawlStockTick:
             
             for date in dates:
                 try:
-                    ticks = api.ticks(contract=api.Contracts.Stocks[code], date=date.isoformat())
-                    tick_df = pd.DataFrame({**ticks})
+                    ticks: sj.Shioaji.data.Ticks = api.ticks(contract=api.Contracts.Stocks[code], date=date.isoformat())
+                    tick_df: pd.DataFrame = pd.DataFrame({**ticks})
 
                     if not tick_df.empty:
                         tick_df.ts = pd.to_datetime(tick_df.ts)
@@ -153,8 +169,8 @@ class CrawlStockTick:
 
             # Format tick data
             try:
-                merged_df = pd.concat(df_list, ignore_index=True)
-                formatted_df = TickDBTools.format_tick_data(merged_df, code)
+                merged_df: pd.DataFrame = pd.concat(df_list, ignore_index=True)
+                formatted_df: pd.DataFrame = TickDBTools.format_tick_data(merged_df, code)
                 formatted_df = TickDBTools.format_time_to_microsec(formatted_df)
             
                 # Save df to csv file
@@ -165,18 +181,18 @@ class CrawlStockTick:
                 logger.error(f"Error processing or saving tick data for stock {code} | {e}")
             
     
-    def crawl_ticks_multithreaded(self, dates: List[datetime.date]):
+    def crawl_ticks_multithreaded(self, dates: List[datetime.date]) -> None:
         """ 使用 Multi-threading 的方式 Crawl Tick Data """
         
         logger.info(f"Start multi-thread crawling. Total stocks: {len(self.all_stock_list)}, Threads: {self.num_threads}")
-        start_time = time.time()  # 開始計時
+        start_time: float = time.time()  # 開始計時
         
         # 將 Stock list 均分給各個 thread 進行爬蟲
-        self.split_stock_list = self.split_list(self.all_stock_list, self.num_threads)
+        self.split_stock_list: List[List[str]] = self.split_list(self.all_stock_list, self.num_threads)
         
         # Multi-threading
         with ThreadPoolExecutor(max_workers=self.num_threads) as executor:
-            futures = []
+            futures: List[Future] = []
             for api, stock_list in zip(self.api_list, self.split_stock_list):
                 futures.append(executor.submit(self.crawl_ticks_for_stock_list, api=api, stock_list=stock_list, dates=dates))
 
@@ -190,41 +206,41 @@ class CrawlStockTick:
         # Update tick table latest date
         TickDBTools.update_tick_table_latest_date(self.table_latest_date)
         
-        total_time = time.time() - start_time
-        total_file = len(list(TICK_DOWNLOADS_PATH.glob("*.csv")))
+        total_time: float = time.time() - start_time
+        total_file: int = len(list(TICK_DOWNLOADS_PATH.glob("*.csv")))
         logger.info(f"All crawling tasks completed and metadata updated. Total file: {total_file}, Total time: {total_time:.2f} seconds")
         
 
-    def update_table(self, dates: List[datetime.date]):
+    def update_table(self, dates: List[datetime.date]) -> None:
         """ Tick Database 資料更新（Multi-threading） """
         
         self.crawl_ticks_multithreaded(dates)
         self.add_to_sql()
     
     
-    def widget(self):
+    def widget(self) -> None:
         """ Tick Database 資料更新 UI """
         
         # Set update date
-        date_picker_from = widgets.DatePicker(description='from', disabled=False)
-        date_picker_to = widgets.DatePicker(description='to', disabled=False)
+        date_picker_from: widgets.DatePicker = widgets.DatePicker(description='from', disabled=False)
+        date_picker_to: widgets.DatePicker = widgets.DatePicker(description='to', disabled=False)
         
         date_picker_from.value = TickDBTools.get_table_latest_date() + datetime.timedelta(days=1)
         date_picker_to.value = datetime.date.today()
         
         # Set update button
-        btn = widgets.Button(description='update')
+        btn: widgets.Button = widgets.Button(description='update')
         
         # Define update button behavior
         def onupdate(_):
-            start_date = date_picker_from.value
-            end_date = date_picker_to.value
+            start_date: Optional[datetime.date] = date_picker_from.value
+            end_date: Optional[datetime.date] = date_picker_to.value
             
             if not start_date or not end_date:
                 print("Please select both start and end dates.")
                 return
             
-            dates = CrawlerTools.generate_date_range(start_date, end_date)
+            dates: List[datetime.date] = CrawlerTools.generate_date_range(start_date, end_date)
             
             if not dates:
                 print("Date range is empty. Please check if the start date is earlier than the end date.")
@@ -235,14 +251,14 @@ class CrawlStockTick:
         
         btn.on_click(onupdate)
         
-        label = widgets.Label(f"""{TICK_TABLE_NAME} (from {TickDBTools.get_table_earliest_date()} to 
+        label: widgets.Label = widgets.Label(f"""{TICK_TABLE_NAME} (from {TickDBTools.get_table_earliest_date()} to 
                               {TickDBTools.get_table_latest_date()})
                               """)
-        items = [date_picker_from, date_picker_to, btn]
+        items: List[widgets.Widget] = [date_picker_from, date_picker_to, btn]
         display(widgets.VBox([label, widgets.HBox(items)]))
     
     
-    def add_to_sql(self):
+    def add_to_sql(self) -> None:
         """ 將資料夾中的所有 CSV 檔存入 tick 的 DolphinDB 中 """
         
         self.tick_db_manager.append_all_csv_to_dolphinDB(TICK_DOWNLOADS_PATH)

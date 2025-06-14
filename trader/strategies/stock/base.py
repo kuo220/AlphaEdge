@@ -35,7 +35,7 @@ class BaseStockStrategy(ABC):
         self.position_type: str = PositionType.LONG     # Long or Short
         self.enable_intraday: bool = True               # Allow day trade or not
         self.init_capital: float = 0                    # Initial capital
-        self.max_positions: Optional[int] = 0           # max limit numbers of positions
+        self.max_holdings: Optional[int] = 0            # Maximum number of holdings allowed
         
         """ === Backtest Setting === """
         self.is_backtest: bool = True                   # Whether it's used for backtest or not

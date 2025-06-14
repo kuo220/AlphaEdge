@@ -24,7 +24,7 @@ class MomentumStrategy(BaseStockStrategy):
         super().__init__()
         self.strategy_name = "Momentum"
         self.init_capital = 1000000.0
-        self.max_positions = 10
+        self.max_holdings = 10
         self.scale = Scale.DAY 
         
         self.start_date = datetime.date(2020, 4, 1)

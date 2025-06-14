@@ -12,7 +12,7 @@ class StrategyLoader:
     """ 自動載入 strategies 資料夾下所有策略類別 """
     
     @staticmethod
-    def load_all_stock_strategies() -> Dict[str, Type[BaseStockStrategy]]:
+    def load_stock_strategies() -> Dict[str, Type[BaseStockStrategy]]:
         """ 載入所有 stock 策略 """
         
         stock_strategies: Dict[str, Type[BaseStockStrategy]] = {}
