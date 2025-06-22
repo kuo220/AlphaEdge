@@ -65,11 +65,8 @@ class URLManager:
         # 上市上櫃財報（year = 2019 ~ present）
         "FINANCE_STATEMENT_URL": "https://mopsov.twse.com.tw/server-java/t164sb01?step=1&CO_ID={id}&SYEAR={year}&SSEASON={season}&REPORT_ID={type}",
         "FINANCE_STATEMENT_2019_URL": "https://mopsov.twse.com.tw/server-java/t164sb01?step=3&year=2019&file_name=tifrs-fr1-m1-ci-{type}-{id}-{year}Q{season}.html",
-        
     }
     
-    # f"https://mopsov.twse.com.tw/server-java/FileDownLoad?step=9&fileName="
-    #         f"tifrs-{year}Q{season}.zip&filePath=/home/html/nas/ifrs/{year}/"
     
     @classmethod
     def get_url(cls, url_name: str, **kwargs: Any) -> str:
