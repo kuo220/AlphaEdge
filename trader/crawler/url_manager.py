@@ -38,8 +38,38 @@ class URLManager:
         # 上櫃信用交易統計（Summary）
         "TPEX_MARGIN_SUMMARY_URL": "https://www.tpex.org.tw/web/stock/margin_trading/margin_balance/margin_bal_result.php?l=zh-tw&o=htm&d={roc_year}/{month}/{day}&s=0,asc",
         
+        # 上市收盤行情
+        "TWSE_CLOSING_QUOTE_URL": "https://www.twse.com.tw/exchangeReport/MI_INDEX?response=csv&date={date}&type=ALLBUT0999",
+        
+        # 上櫃收盤行情
+        "TPEX_CLOSING_QUOTE_URL": "https://www.tpex.org.tw/web/stock/aftertrading/otc_quotes_no1430/stk_wn1430_result.php?l=zh-tw&o=csv&d={roc_year}/{month}/{day}&se=EW&s=0,asc,0",
+        
+        # 上櫃收盤行情（For year = 2005 or year = 2006）
+        "TPEX_CLOSING_QUOTE_OLD_1_URL": "https://hist.tpex.org.tw/Hist/STOCK/AFTERTRADING/DAILY_CLOSE_QUOTES/RSTA3104_{date}.HTML",
+        
+        # 上櫃收盤行情（# For date 2007/01/02 - 2007/04/20（目前網址已經壞了））
+        "TPEX_CLOSING_QUOTE_OLD_2_URL": "https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotesB/stk_quote_result.php?timestamp=1693758523823",
+        
+        # 上櫃收盤行情（# For date 2007/04/20 - 2007/06/29（目前網址已經壞了））
+        "TPEX_CLOSING_QUOTE_OLD_3_URL": "https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotes/stk_quote_result.php?l=zh-tw&o=htm&d={roc_year}/{month}/{day}&s=0,asc,0",
+        
+        # 上市月報
+        "TWSE_MONTHLY_REPORT_URL": "https://mopsov.twse.com.tw/nas/t21/sii/t21sc03_{roc_year}_{month}.html",
+        
+        # 上櫃月報
+        "TPEX_MONTHLY_REPORT_URL": "https://mopsov.twse.com.tw/nas/t21/otc/t21sc03_{roc_year}_{month}.html",
+        
+        # IFRS 財報資料壓縮檔下載網址
+        "IFRS_URL": "https://mopsov.twse.com.tw/server-java/FileDownLoad?step=9&fileName=tifrs-{year}Q{season}.zip&filePath=/home/html/nas/ifrs/{year}/",
+        
+        # 上市上櫃財報（year = 2019 ~ present）
+        "FINANCE_STATEMENT_URL": "https://mopsov.twse.com.tw/server-java/t164sb01?step=1&CO_ID={id}&SYEAR={year}&SSEASON={season}&REPORT_ID={type}",
+        "FINANCE_STATEMENT_2019_URL": "https://mopsov.twse.com.tw/server-java/t164sb01?step=3&year=2019&file_name=tifrs-fr1-m1-ci-{type}-{id}-{year}Q{season}.html",
+        
     }
     
+    # f"https://mopsov.twse.com.tw/server-java/FileDownLoad?step=9&fileName="
+    #         f"tifrs-{year}Q{season}.zip&filePath=/home/html/nas/ifrs/{year}/"
     
     @classmethod
     def get_url(cls, url_name: str, **kwargs: Any) -> str:

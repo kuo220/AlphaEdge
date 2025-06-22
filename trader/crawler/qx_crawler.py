@@ -13,7 +13,7 @@ import warnings
 import zipfile
 from io import StringIO
 from pathlib import Path
-from typing import List, Any
+from typing import List, Optional, Any
 
 import ipywidgets as widgets
 import numpy as np
@@ -29,7 +29,12 @@ from tqdm import tqdm, tnrange, tqdm_notebook
 
 from .crawler_tools import CrawlerTools
 from .url_manager import URLManager
-from trader.config import QUANTX_DB_PATH, CERTS_FILE_PATH
+from trader.config import (
+    CRAWLER_DOWNLOADS_PATH, 
+    FINANCIAL_STATEMENT_PATH, 
+    QUANTX_DB_PATH, 
+    CERTS_FILE_PATH
+)
 
 
 class CrawlQuantX:
@@ -137,8 +142,7 @@ class CrawlQuantX:
         return df
     
 
-    # cttc 代表是爬取上櫃資料
-    def crawl_margin_balance_cttc(self, date):
+    def crawl_tpex_margin_balance(self, date):
         date_str: str = date.strftime('%Y%m%d')
 
         url: str = URLManager.get_url(
@@ -239,13 +243,13 @@ class CrawlQuantX:
         df["上市融券券償"] = html_df.iloc[1, 3]
         df = df.apply(lambda s: pd.to_numeric(s, errors='coerce'))
         df = df[df.columns[df.isnull().all() == False]]
-        df_otc = self.crawl_margin_balance_cttc(date)
+        df_otc = self.crawl_tpex_margin_balance(date)
         df = pd.concat([df, df_otc], axis=1)
 
         return df
      
     
-    def crawl_margin_transactions_cttc(self, date):
+    def crawl_tpex_margin_transactions(self, date):
         date_str: str = date.strftime('%Y%m%d')
 
         url: str = URLManager.get_url(
@@ -287,7 +291,7 @@ class CrawlQuantX:
         return html_df
     
     
-    def crawl_margin_transactions(self, date):
+    def crawl_margin_transactions(self, date) -> pd.DataFrame:
         # 上櫃資料從102/1/2以後才提供，所以融資融券先以102/1/2以後為主
         date_str: str = date.strftime('%Y%m%d')
 
@@ -339,7 +343,7 @@ class CrawlQuantX:
                 df = pd.concat([df, html_df], axis=0)
             c += 1
 
-        df_otc = self.crawl_margin_transactions_cttc(date)
+        df_otc = self.crawl_tpex_margin_transactions(date)
         if df_otc is not None and df is not None:
             df = pd.concat([df, df_otc], axis=0)
         elif df is None and df_otc is not None:
@@ -351,19 +355,22 @@ class CrawlQuantX:
         return df
 
 
-    def crawl_price_cttc(self, date):
+    def crawl_tpex_price(self, date) -> Optional[pd.DataFrame]:
         # 上櫃資料從96/7/2以後才提供
         # 109/4/30以後csv檔的column不一樣
-        datestr = date.strftime('%Y%m%d')
-
-        try:
-            url = 'https://www.tpex.org.tw/web/stock/aftertrading/otc_quotes_no1430/stk_wn1430_result.php?l=zh-tw&o=csv&d=' + str(
-                date.year - 1911) + "/" + datestr[4:6] + "/" + datestr[6:] + '&se=EW&s=0,asc,0'
-            r = self.requests_post(url)
-            print("上櫃", url)
-        except Exception as e:
-            print('**WARRN: cannot get stock price at', datestr)
-            print(e)
+        date_str: str = date.strftime('%Y%m%d')
+        
+        url: str = URLManager.get_url(
+            "TPEX_CLOSING_QUOTE_URL",
+            roc_year=str(date.year - 1911),
+            month=date_str[4:6],
+            day=date_str[6:]
+        )
+        print("上櫃", url)    
+        r = self.requests_post(url)
+        
+        if r is None:
+            print('**WARRN: cannot get stock price at', date_str)
             return None
 
         content = r.text.replace('=', '')
@@ -378,7 +385,7 @@ class CrawlQuantX:
         df = pd.read_csv(StringIO(content))
         df = df.astype(str)
         df = df.apply(lambda s: s.str.replace(',', ''))
-        if datestr >= str(20200430):
+        if date_str >= str(20200430):
             df.drop(df.columns[[14, 15, 16]],
                     axis=1,
                     inplace=True)
@@ -402,16 +409,15 @@ class CrawlQuantX:
         return df
     
     
-    def crawl_price(self, date):
-        datestr = date.strftime('%Y%m%d')
+    def crawl_price(self, date) -> Optional[pd.DataFrame]:
+        date_str: str = date.strftime('%Y%m%d')
 
-        try:
-            url = 'https://www.twse.com.tw/exchangeReport/MI_INDEX?response=csv&date=' + datestr + '&type=ALLBUT0999'
-            r = self.requests_post(url)
-            print("上市", url)
-        except Exception as e:
-            print('**WARRN: cannot get stock price at', datestr)
-            print(e)
+        url: str = URLManager.get_url("TWSE_CLOSING_QUOTE_URL", date=date_str)
+        print("上市", url)
+        r = self.requests_post(url)
+            
+        if r is None:
+            print('**WARRN: cannot get stock price at', date_str)
             return None
 
         content = r.text.replace('=', '')
@@ -434,20 +440,20 @@ class CrawlQuantX:
         df = df[df.columns[df.isnull().all() == False]]
         df = df[~df['收盤價'].isnull()]
 
-        df1 = self.crawl_price_cttc(date)
+        df1 = self.crawl_tpex_price(date)
 
         df = df.append(df1)
 
         return df
     
     
-    def crawl_price_tpex_1(self, date):
-        datestr = date.strftime('%Y%m%d')
-        datestr = str(int(datestr[0:4]) - 1911) + datestr[4:]
+    def crawl_tpex_price_old_1(self, date) -> Optional[pd.DataFrame]:
+        # For year == 2005 or year == 2006
+        date_str: str = date.strftime('%Y%m%d')
+        date_str = str(int(date_str[0:4]) - 1911) + date_str[4:]
 
-        # url = "https://hist.tpex.org.tw/Hist/STOCK/AFTERTRADING/DAILY_CLOSE_QUOTES/RSTA3104_951201.HTML"
-        url = "https://hist.tpex.org.tw/Hist/STOCK/AFTERTRADING/DAILY_CLOSE_QUOTES/RSTA3104_" + datestr + ".HTML"
-
+        url: str = URLManager.get_url("TPEX_CLOSING_QUOTE_OLD_1_URL", date=date_str)
+        
         response = requests.get(url)
         soup = BeautifulSoup(response.content, 'html.parser')
 
@@ -492,13 +498,14 @@ class CrawlQuantX:
         return df
     
     
-    # for date 2007/01/02 - 2007/04/20
-    def crawl_price_tpex_2(self, date):
+    # For date 2007/01/02 - 2007/04/20
+    def crawl_tpex_price_old_2(self, date) -> Optional[pd.DataFrame]:
         datestr = date.strftime('%Y%m%d')
         datestr = str(int(datestr[0:4]) - 1911) + '/' + datestr[2:4] + '/' + datestr[4:6]
 
-        # 目標網址
-        url = "https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotesB/stk_quote_result.php?timestamp=1693758523823"
+        # 目標網址（網址已經壞了）
+        url: str = URLManager.get_url("TPEX_CLOSING_QUOTE_OLD_2_URL")
+        print(url)
 
         # 設置 payload 參數，只包含日期
         payload = {"ajax": "true", "input_date": datestr}  # 修改為你需要的日期
@@ -553,17 +560,19 @@ class CrawlQuantX:
         return df
     
     
-    # for date 2007/04/20 - 2007/06/29
-    def crawl_price_tpex_3(self, date):
-        datestr = date.strftime('%Y%m%d')
-        datestr = str(int(datestr[0:4]) - 1911) + datestr[4:]
-
-        # url = 'https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotes/stk_quote_result.php?l=zh-tw&o=htm&d=96/04/23&s=0,asc,0'
-        url = 'https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotes/stk_quote_result.php?l=zh-tw&o=htm&d=' + datestr[
-                                                                                                                        0:2] + '/' + datestr[
-                                                                                                                                    2:4] + '/' + datestr[
-                                                                                                                                                    4:6] + '&s=0,asc,0'
-
+    # For date 2007/04/20 - 2007/06/29
+    def crawl_tpex_price_old_3(self, date) -> Optional[pd.DataFrame]:
+        date_str: str = date.strftime('%Y%m%d')
+        date_str = str(int(date_str[0:4]) - 1911) + date_str[4:]
+        
+        url: str = URLManager.get_url(
+            "TPEX_CLOSING_QUOTE_OLD_3_URL",
+            roc_year=date_str[0:2],
+            month=date_str[2:4],
+            day=date_str[4:6]
+        )
+        print("上櫃", url)
+        
         response = requests.get(url)
         soup = BeautifulSoup(response.content, 'html.parser')
 
@@ -578,8 +587,6 @@ class CrawlQuantX:
         columns = ["股票代號", "證卷名稱", "收盤價", "漲跌價差", "開盤價", "最高價", "最低價", "均價", "成交股數",
                 "成交金額", "成交筆數", "最後揭示買價", "最後揭示賣價", "發行股數", "次日參考價", "次日漲停價",
                 "次日跌停價"]
-
-        # df.columns = ["stock_id", "證卷名稱", "收盤價", "漲跌價差", "開盤價", "最高價", "最低價", "成交股數", "成交金額", "成交筆數", "最後揭示買價", "最後揭示賣價"]
 
         df = pd.DataFrame(columns=columns)
 
@@ -606,15 +613,14 @@ class CrawlQuantX:
         return df
     
     
-    # 爬上市公司的股價
-    def crawl_old_price(self, date):
-        datestr = date.strftime('%Y%m%d')
+    # 爬上市公司的股價 For year = 2005 ~ 2007
+    def crawl_old_price(self, date) -> Optional[pd.DataFrame]:
+        date_str: str = date.strftime('%Y%m%d')
 
         try:
-            r = self.requests_post(
-                'https://www.twse.com.tw/exchangeReport/MI_INDEX?response=csv&date=' + datestr + '&type=ALLBUT0999')
+            r = self.requests_post(URLManager.get_url("TWSE_CLOSING_QUOTE_URL", date=date_str))
         except Exception as e:
-            print('**WARRN: cannot get stock price at', datestr)
+            print('**WARRN: cannot get stock price at', date_str)
             print(e)
             return None
 
@@ -640,25 +646,29 @@ class CrawlQuantX:
 
         # 上櫃公司的部分
         if date.year == 2005 or date.year == 2006:
-            df1 = self.crawl_price_tpex_1(date)
+            df1 = self.crawl_tpex_price_old_1(date)
         elif date.year == 2007:
             if date.month == 4:
                 if date.day <= 20:
                     df1 = self.crawl_price_tpex_2(date)
                 else:
-                    df1 = self.crawl_price_tpex_3(date)
+                    df1 = self.crawl_tpex_price_old_3(date)
             elif date.month < 4:
                 df1 = self.crawl_price_tpex_2(date)
             else:
-                df1 = self.crawl_price_tpex_3(date)
+                df1 = self.crawl_tpex_price_old_3(date)
 
         df = df.append(df1)
 
         return df
     
     
-    def crawl_monthly_report_cttc(self, date):
-        url = 'https://mopsov.twse.com.tw/nas/t21/otc/t21sc03_' + str(date.year - 1911) + '_' + str(date.month) + '.html'
+    def crawl_tpex_monthly_report(self, date):
+        url: str = URLManager.get_url(
+            "TPEX_MONTHLY_REPORT_URL",
+            roc_year=(date.year - 1911),
+            month=date.month
+        )
         print("上櫃：", url)
 
         # 偽瀏覽器
@@ -723,13 +733,17 @@ class CrawlQuantX:
         return df
     
     
-    def crawl_monthly_report(self, date):
+    def crawl_monthly_report(self, date) -> Optional[pd.DataFrame]:
         x = [datetime.date(2011, 2, 10), datetime.date(2012, 1, 10)]
         if date in x:
-            df1 = self.crawl_monthly_report_cttc(date)
+            df1 = self.crawl_tpex_monthly_report(date)
             return df1
         else:
-            url = 'https://mopsov.twse.com.tw/nas/t21/sii/t21sc03_' + str(date.year - 1911) + '_' + str(date.month) + '.html'
+            url: str = URLManager.get_url(
+                "TWSE_MONTHLY_REPORT_URL",
+                roc_year=(date.year - 1911),
+                month=date.month
+            )
             print("上市", url)
 
             # 偽瀏覽器
@@ -792,7 +806,7 @@ class CrawlQuantX:
             df = df.apply(lambda s: pd.to_numeric(s, errors='coerce'))
             df = df[df.columns[df.isnull().all() == False]]
 
-            df1 = self.crawl_monthly_report_cttc(date)
+            df1 = self.crawl_tpex_monthly_report(date)
 
             df = df.append(df1)
 
@@ -801,8 +815,11 @@ class CrawlQuantX:
         
     def crawl_finance_statement2019(self, year, season):
         def ifrs_url(year, season):
-            url = "https://mopsov.twse.com.tw/server-java/FileDownLoad?step=9&fileName=tifrs-" + str(year) + "Q" + str(season) \
-                + ".zip&filePath=/home/html/nas/ifrs/" + str(year) + "/"
+            url: str = URLManager.get_url(
+                "IFRS_URL",
+                year=year,
+                season=season
+            )
             print(url)
             return url
 
@@ -821,20 +838,14 @@ class CrawlQuantX:
                                     miniters=1, desc=url.split('/')[-1]) as t:
                 urllib.request.urlretrieve(url, filename=output_path, reporthook=t.update_to)
 
-        def ifrs_url(year, season):
-            url = "https://mops.twse.com.tw/server-java/FileDownLoad?step=9&fileName=tifrs-" + str(year) + "Q" + str(season) \
-                + ".zip&filePath=/home/html/nas/ifrs/" + str(year) + "/"
-            print(url)
-            return url
-
         url = ifrs_url(year, season)
         download_url(url, 'temp.zip')
 
         print('finish download')
 
-        path = os.path.join('data', 'financial_statement', str(year) + str(season))
+        path: Path = (CRAWLER_DOWNLOADS_PATH / f"financial_statement{year}{season}").resolve()
 
-        if os.path.isdir(path):
+        if path.is_dir():
             shutil.rmtree(path)
 
         print('create new dir')
@@ -860,12 +871,11 @@ class CrawlQuantX:
             else:
                 os.remove(os.path.join(path, fold))
 
-
+    # TODO:需要 Refactor（目前有 bug）
     def crawl_finance_statement(self, year, season, stock_ids):
-        directory = str((Path(__file__).resolve().parents[1] / 'Data' / 'financial_statement').resolve())
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-
+        if not FINANCIAL_STATEMENT_PATH.is_dir():
+            os.makedirs(FINANCIAL_STATEMENT_PATH)
+            
         def download_html(year, season, stock_ids, report_type='C'):
 
             headers = {
@@ -881,7 +891,7 @@ class CrawlQuantX:
             for i in pbar:
 
                 # check if the html is already parsed
-                file = os.path.join(directory, str(i) + '.html')
+                file = os.path.join(FINANCIAL_STATEMENT_PATH, str(i) + '.html')
                 if os.path.exists(file) and os.stat(file).st_size > 20000:
                     continue
 
@@ -890,12 +900,21 @@ class CrawlQuantX:
                 # start parsing
                 if year >= 2019:
                     ty = {"C": "cr", "B": "er", "C": "ir"}
-                    url = "https://mopsov.twse.com.tw/server-java/t164sb01?step=3&year=2019&file_name=tifrs-fr1-m1-ci-" + ty[
-                        report_type] + "-" + i + "-" + str(year) + "Q" + str(season) + ".html"
+                    url: str = URLManager.get_url(
+                        "FINANCE_STATEMENT_2019_URL",
+                        type=ty[report_type],
+                        id=i,
+                        year=year,
+                        season=season
+                    )
                 else:
-                    url = ('https://mopsov.twse.com.tw/server-java/t164sb01?step=1&CO_ID='
-                        + i + '&SYEAR=' + str(year) + '&SSEASON=' + str(season) + '&REPORT_ID=' + str(report_type))
-
+                    url: str = URLManager.get_url(
+                        "FINANCE_STATEMENT_URL",
+                        id=i,
+                        year=year,
+                        season=season,
+                        type=report_type
+                    )
                 print(url)
                 try:
                     r = self.requests_get(url, headers=headers, timeout=30, verify=CERTS_FILE_PATH)
