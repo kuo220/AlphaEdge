@@ -22,6 +22,7 @@ from dateutil.relativedelta import relativedelta
 from requests.exceptions import ReadTimeout, ConnectionError
 
 from .crawler_tools import CrawlerTools
+from .url_manager import URLManager
 from trader.data import SQLiteTools
 from trader.config import (
     CHIP_DOWNLOADS_PATH,
@@ -64,11 +65,13 @@ class CrawlStockChip:
     
     def crawl_twse_chip(self, date: datetime.date) -> Optional[pd.DataFrame]:
         """ TWSE 三大法人單日爬蟲 """
-
-        print("* Start crawling TWSE institutional investors data...")
-        print(date.strftime("%Y/%m/%d"))
         
-        twse_url: str = f'https://www.twse.com.tw/rwd/zh/fund/T86?date={date.strftime("%Y%m%d")}&selectType=ALLBUT0999&response=html'
+        date_str: str = date.strftime("%Y%m%d")
+        readable_date: str = date.strftime("%Y/%m/%d")
+        print("* Start crawling TWSE institutional investors data...")
+        print(readable_date)
+        
+        twse_url: str = URLManager.get_chip_url("TWSE_CHIP_URL", date=date_str)
         headers: Dict[str, str] = CrawlerTools.generate_random_header()
         twse_response: requests.Response = requests.get(twse_url, headers=headers)
         
@@ -121,10 +124,11 @@ class CrawlStockChip:
     def crawl_tpex_chip(self, date: datetime.date) -> Optional[pd.DataFrame]:
         """ TPEX 三大法人單日爬蟲 """
         
+        date_str: str = date.strftime("%Y/%m/%d")
         print("* Start crawling TPEX institutional investors data...")
-        print(date.strftime("%Y/%m/%d"))
+        print(date_str)
         
-        tpex_url: str = f'https://www.tpex.org.tw/www/zh-tw/insti/dailyTrade?type=Daily&sect=EW&date={date.strftime("%Y/%m/%d")}&id=&response=html'
+        tpex_url: str = URLManager.get_chip_url("TPEX_CHIP_URL", date=date_str)
         headers: Dict[str, str] = CrawlerTools.generate_random_header()
         tpex_response: requests.Response = requests.get(tpex_url, headers=headers)
         
