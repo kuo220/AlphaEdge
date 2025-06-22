@@ -20,11 +20,23 @@ class URLManager:
         # 發行量加權股價報酬指數
         "TAIEX_RETURN_INDEX": "https://www.twse.com.tw/rwd/zh/TAIEX/MFI94U?date={date}01&response=html",
         
-        # 上市信用交易餘額查詢
-        "TWSE_MARGIN_BALANCE_URL": "https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN?date={date}&selectType=MS&response=html",
+        # 上市信用交易統計（Summary）
+        "TWSE_MARGIN_SUMMARY_URL": "https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN?date={date}&selectType=MS&response=html",
         
-        # 上櫃信用交易餘額查詢
-        "TPEX_MARGIN_BALANCE_URL": "https://www.tpex.org.tw/web/stock/margin_trading/margin_balance/margin_bal_result.php?l=zh-tw&o=htm&d={roc_year}/{month}/{day}&s=0,asc",
+        # 上市信用交易統計（封閉式基金 Fund）
+        "TWSE_MARGIN_FUND_URL": "https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN?date={date}&selectType=0049&response=html",
+        
+        # 上市信用交易統計（ETF）
+        "TWSE_MARGIN_ETF_URL": "https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN?date={date}&selectType=0099P&response=html",
+        
+        # 上市信用交易統計（存託憑證 TDR）
+        "TWSE_MARGIN_TDR_URL": "https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN?date={date}&selectType=9299&response=html",
+        
+        # 上市信用交易統計（股票）
+        "TWSE_MARGIN_STOCK_URL": "https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN?date={date}&selectType=STOCK&response=html",
+        
+        # 上櫃信用交易統計（Summary）
+        "TPEX_MARGIN_SUMMARY_URL": "https://www.tpex.org.tw/web/stock/margin_trading/margin_balance/margin_bal_result.php?l=zh-tw&o=htm&d={roc_year}/{month}/{day}&s=0,asc",
         
     }
     

@@ -142,7 +142,7 @@ class CrawlQuantX:
         date_str: str = date.strftime('%Y%m%d')
 
         url: str = URLManager.get_url(
-            "TPEX_MARGIN_BALANCE_URL",
+            "TPEX_MARGIN_SUMMARY_URL",
             roc_year=str(date.year - 1911),
             month=date_str[4:6],
             day=date_str[6:]
@@ -197,7 +197,7 @@ class CrawlQuantX:
         # 上櫃資料從102/1/2以後才提供，所以融資融券先以102/1/2以後為主
         date_str: str = date.strftime('%Y%m%d')
         
-        url: str = URLManager.get_url("TWSE_MARGIN_BALANCE_URL", date=date_str)
+        url: str = URLManager.get_url("TWSE_MARGIN_SUMMARY_URL", date=date_str)
         print("上市", url)
 
         # 偽瀏覽器
@@ -249,7 +249,7 @@ class CrawlQuantX:
         date_str: str = date.strftime('%Y%m%d')
 
         url: str = URLManager.get_url(
-            "TPEX_MARGIN_BALANCE_URL",
+            "TPEX_MARGIN_SUMMARY_URL",
             roc_year=str(date.year - 1911),
             month=date_str[4:6],
             day=date_str[6:]
@@ -289,18 +289,21 @@ class CrawlQuantX:
     
     def crawl_margin_transactions(self, date):
         # 上櫃資料從102/1/2以後才提供，所以融資融券先以102/1/2以後為主
-        datestr = date.strftime('%Y%m%d')
+        date_str: str = date.strftime('%Y%m%d')
 
         # 上市分成4個網站爬取: 封閉式基金、ETF、存託憑證、股票
-        # ETF
-        url_list = ["&selectType=0049&response=html", "&selectType=0099P&response=html", "&selectType=9299&response=html",
-                    "&selectType=STOCK&response=html"]
+        # 封閉式基金 => 0049
+        # ETF => 0099P 
+        # 存託憑證 => 9299
+        # 股票 => STOCK
+
+        url_names: List[str] = ["TWSE_MARGIN_FUND_URL", "TWSE_MARGIN_ETF_URL", "TWSE_MARGIN_TDR_URL", "TWSE_MARGIN_STOCK_URL"]
+        url_list: List[str] = [URLManager.get_url(url_name, date=date_str) for url_name in url_names]
         c = 0
         df = None
         for url in url_list:
-            url = 'https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN?date=' + datestr + url
             print("上市", url)
-
+            
             # 偽瀏覽器
             headers = CrawlerTools.generate_random_header()
 
