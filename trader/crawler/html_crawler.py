@@ -35,7 +35,7 @@ class CrawlHTML:
     def crawl_twse_stock_info() -> pd.DataFrame:
         """ 爬取上市公司的基本股票資訊（股票代號、上市日期、產業類別等） """
         
-        response: requests.Response = requests.get(URLManager.get_code_url("TWSE_CODE_URL"))
+        response: requests.Response = requests.get(URLManager.get_url("TWSE_CODE_URL"))
         twse_df: pd.DataFrame = pd.read_html(StringIO(response.text))[0]
         
         twse_df.columns = twse_df.iloc[0]
@@ -62,7 +62,7 @@ class CrawlHTML:
     def crawl_tpex_stock_info() -> pd.DataFrame:
         """ 爬取上櫃公司的基本股票資訊（股票代號、上櫃日期、產業類別等） """
         
-        response: requests.Response = requests.get(URLManager.get_code_url("TPEX_CODE_URL"))
+        response: requests.Response = requests.get(URLManager.get_url("TPEX_CODE_URL"))
         tpex_df: pd.DataFrame = pd.read_html(StringIO(response.text))[0]
 
         tpex_df.columns = tpex_df.iloc[0]

@@ -17,19 +17,25 @@ class URLManager:
         # 上櫃公司籌碼 URL
         "TPEX_CHIP_URL": "https://www.tpex.org.tw/www/zh-tw/insti/dailyTrade?type=Daily&sect=EW&date={date}&id=&response=html",
         
+        # 發行量加權股價報酬指數
+        "TAIEX_RETURN_INDEX": "https://www.twse.com.tw/rwd/zh/TAIEX/MFI94U?date={date}01&response=html",
+        
+        # 上市信用交易餘額查詢
+        "TWSE_MARGIN_BALANCE_URL": "https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN?date={date}&selectType=MS&response=html",
+        
+        # 上櫃信用交易餘額查詢
+        "TPEX_MARGIN_BALANCE_URL": "https://www.tpex.org.tw/web/stock/margin_trading/margin_balance/margin_bal_result.php?l=zh-tw&o=htm&d={roc_year}/{month}/{day}&s=0,asc",
+        
     }
     
     
     @classmethod
-    def get_code_url(cls, url_name: str) -> str:
-        """ 取得上市櫃公司代號 URL """
-        return cls.URLS[url_name]
-    
-    
-    @classmethod
-    def get_chip_url(cls, url_name: str, **kwargs: Any) -> str:
-        """ 取得上市櫃公司籌碼 URL """
+    def get_url(cls, url_name: str, **kwargs: Any) -> str:
+        """ 取得指定 URL，若提供 kwargs 則進行格式化 """
         
         if url_name not in cls.URLS:
             raise ValueError(f"URL key '{url_name}' not found in URLManager.")
-        return cls.URLS[url_name].format(**kwargs)
+        
+        url = cls.URLS[url_name]
+        return url.format(**kwargs) if kwargs else url
+    

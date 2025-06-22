@@ -28,7 +28,8 @@ from requests.exceptions import ConnectionError, ReadTimeout
 from tqdm import tqdm, tnrange, tqdm_notebook
 
 from .crawler_tools import CrawlerTools
-from trader.config import QUANTX_DB_PATH
+from .url_manager import URLManager
+from trader.config import QUANTX_DB_PATH, CERTS_FILE_PATH
 
 
 class CrawlQuantX:
@@ -77,7 +78,8 @@ class CrawlQuantX:
                 self.ses = self.find_best_session()
 
             i -= 1
-        return pd.DataFrame()
+        # return pd.DataFrame()
+        return None
     
     
     def requests_post(self, *args1, **args2):
@@ -101,20 +103,19 @@ class CrawlQuantX:
     
     
     def crawl_benchmark_return(self, date):
-        url = "https://www.twse.com.tw/rwd/zh/TAIEX/MFI94U?date=" + date.strftime("%Y%m") + "01&response=html"
+        date_str: str = date.strftime("%Y%m")
+        url: str = URLManager.get_url("TAIEX_RETURN_INDEX", date=date_str)
         print("發行量加權股價報酬指數", url)
 
         # 偽瀏覽器
         headers = CrawlerTools.generate_random_header()
 
         # 下載該年月的網站，並用pandas轉換成 dataframe
-        try:
-            r = self.requests_get(url, headers=headers, verify='./certs.cer')
-            r.encoding = "UTF-8"
-        except:
-            print("**WARRN: requests cannot get html")
+        r = self.requests_get(url, headers=headers, verify=CERTS_FILE_PATH)
+        if r is None:
+            print('**WARRN: requests cannot get html')
             return None
-
+        r.encoding = "UTF-8"
         try:
             html_df = pd.read_html(StringIO(r.text))
         except:
@@ -138,23 +139,25 @@ class CrawlQuantX:
 
     # cttc 代表是爬取上櫃資料
     def crawl_margin_balance_cttc(self, date):
-        datestr = date.strftime('%Y%m%d')
+        date_str: str = date.strftime('%Y%m%d')
 
-        url = ('https://www.tpex.org.tw/web/stock/margin_trading/margin_balance/margin_bal_result.php?l=zh-tw&o=htm&d=' +
-            str(date.year - 1911) + "/" + datestr[4:6] + "/" + datestr[6:] + '&s=0,asc')
+        url: str = URLManager.get_url(
+            "TPEX_MARGIN_BALANCE_URL",
+            roc_year=str(date.year - 1911),
+            month=date_str[4:6],
+            day=date_str[6:]
+        )
         print("上櫃", url)
 
         # 偽瀏覽器
         headers = CrawlerTools.generate_random_header()
 
         # 下載該年月的網站，並用pandas轉換成 dataframe
-        try:
-            r = self.requests_get(url, headers=headers, verify='./certs.cer')
-            r.encoding = 'UTF-8'
-        except:
+        r = self.requests_get(url, headers=headers, verify=CERTS_FILE_PATH)
+        if r is None:
             print('**WARRN: requests cannot get html')
             return None
-
+        r.encoding = "UTF-8"
         try:
             html_df = pd.read_html(StringIO(r.text))
         except:
@@ -192,22 +195,20 @@ class CrawlQuantX:
     
     def crawl_margin_balance(self, date):
         # 上櫃資料從102/1/2以後才提供，所以融資融券先以102/1/2以後為主
-        datestr = date.strftime('%Y%m%d')
-
-        url = 'https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN?date=' + datestr + '&selectType=MS&response=html'
+        date_str: str = date.strftime('%Y%m%d')
+        
+        url: str = URLManager.get_url("TWSE_MARGIN_BALANCE_URL", date=date_str)
         print("上市", url)
 
         # 偽瀏覽器
         headers = CrawlerTools.generate_random_header()
 
         # 下載該年月的網站，並用pandas轉換成 dataframe
-        try:
-            r = self.requests_get(url, headers=headers, verify='./certs.cer')
-            r.encoding = 'UTF-8'
-        except:
+        r = self.requests_get(url, headers=headers, verify=CERTS_FILE_PATH)
+        if r is None:
             print('**WARRN: requests cannot get html')
             return None
-
+        r.encoding = 'UTF-8'
         try:
             html_df = pd.read_html(StringIO(r.text))
         except:
@@ -242,25 +243,28 @@ class CrawlQuantX:
         df = pd.concat([df, df_otc], axis=1)
 
         return df
-    
+     
     
     def crawl_margin_transactions_cttc(self, date):
-        datestr = date.strftime('%Y%m%d')
+        date_str: str = date.strftime('%Y%m%d')
 
-        url = ('https://www.tpex.org.tw/web/stock/margin_trading/margin_balance/margin_bal_result.php?l=zh-tw&o=htm&d=' +
-            str(date.year - 1911) + "/" + datestr[4:6] + "/" + datestr[6:] + '&s=0,asc')
+        url: str = URLManager.get_url(
+            "TPEX_MARGIN_BALANCE_URL",
+            roc_year=str(date.year - 1911),
+            month=date_str[4:6],
+            day=date_str[6:]
+        )
         print("上櫃", url)
 
         # 偽瀏覽器
         headers = CrawlerTools.generate_random_header()
 
         # 下載該年月的網站，並用pandas轉換成 dataframe
-        try:
-            r = self.requests_get(url, headers=headers, verify='./certs.cer')
-            r.encoding = 'UTF-8'
-        except:
+        r = self.requests_get(url, headers=headers, verify=CERTS_FILE_PATH)
+        if r is None:
             print('**WARRN: requests cannot get html')
             return None
+        r.encoding = 'UTF-8'
 
         try:
             html_df = pd.read_html(StringIO(r.text), converters={0: str})
@@ -302,7 +306,7 @@ class CrawlQuantX:
 
             # 下載該年月的網站，並用pandas轉換成 dataframe
             try:
-                r = self.requests_get(url, headers=headers, verify='./certs.cer')
+                r = self.requests_get(url, headers=headers, verify=CERTS_FILE_PATH)
                 r.encoding = 'UTF-8'
             except:
                 print('**WARRN: requests cannot get html')
@@ -659,7 +663,7 @@ class CrawlQuantX:
 
         # 下載該年月的網站，並用pandas轉換成 dataframe
         try:
-            r = self.requests_get(url, headers=headers, verify='./certs.cer')
+            r = self.requests_get(url, headers=headers, verify=CERTS_FILE_PATH)
             r.encoding = 'big5'
         except:
             print('**WARRN: requests cannot get html')
@@ -730,7 +734,7 @@ class CrawlQuantX:
 
             # 下載該年月的網站，並用pandas轉換成 dataframe
             try:
-                r = self.requests_get(url, headers=headers, verify='./certs.cer')
+                r = self.requests_get(url, headers=headers, verify=CERTS_FILE_PATH)
                 r.encoding = 'big5'
             except:
                 print('**WARRN: requests cannot get html')
@@ -891,7 +895,7 @@ class CrawlQuantX:
 
                 print(url)
                 try:
-                    r = self.requests_get(url, headers=headers, timeout=30, verify='./certs.cer')
+                    r = self.requests_get(url, headers=headers, timeout=30, verify=CERTS_FILE_PATH)
                 except:
                     print('**WARRN: requests cannot get stock', i, '.html')
                     time.sleep(25 + random.uniform(0, 10))

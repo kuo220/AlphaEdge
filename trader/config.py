@@ -36,6 +36,11 @@ CRAWLER_DOWNLOADS_PATH: Path = get_resolved_path("CRAWLER_DOWNLOADS_PATH")
 CHIP_DOWNLOADS_PATH: Path = get_resolved_path("CHIP_DOWNLOADS_PATH")
 TICK_DOWNLOADS_PATH: Path = get_resolved_path("TICK_DOWNLOADS_PATH")
 
+# === Certs.cer ===
+CERTS_DIR_PATH: Path = get_resolved_path("CERTS_DIR_PATH")
+CERTS_FILE_NAME: str = os.getenv("CERTS_FILE_NAME")
+CERTS_FILE_PATH: Path = (CERTS_DIR_PATH / CERTS_FILE_NAME).resolve()
+
 
 # === Metadata Directory Path ===
 METADATA_DIR_PATH: Path = get_resolved_path("METADATA_DIR_PATH")
