@@ -28,13 +28,13 @@ class TickDBManager:
     
     def __init__(self):
         self.session: ddb.session = ddb.session()
-        self.session.connect(DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)  
+        self.session.connect(DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
         
         if (self.session.existsDatabase(TICK_DB_PATH)):
             print("Database exists!")
             
             # set TSDBCacheEngineSize to 5GB (must < 8(maxMemSize) * 0.75 GB)
-            script: str = """ 
+            script: str = """
             memSize = 2
             setTSDBCacheEngineSize(memSize)
             print("TSDBCacheEngineSize: " + string(getTSDBCacheEngineSize() / pow(1024, 3)) + "GB")
@@ -56,7 +56,7 @@ class TickDBManager:
         loadTextEx(
             dbHandle=db,
             tableName="{TICK_TABLE_NAME}",
-            partitionColumns=["time", "stock_id"], 
+            partitionColumns=["time", "stock_id"],
             filename="{csv_path}",
             delimiter=",",
             schema=schemaTable,
@@ -68,7 +68,7 @@ class TickDBManager:
             print("The csv file successfully save into database and table!")
 
         except Exception as e:
-            print(f"The csv file fail to save into database and table!\n{e}")    
+            print(f"The csv file fail to save into database and table!\n{e}")
     
 
     def append_all_csv_to_dolphinDB(self, dir_path: Path) -> None:
@@ -78,7 +78,7 @@ class TickDBManager:
         csv_files: List[str] = [str(csv.as_posix()) for csv in dir_path.glob("*.csv")]
         print(f"* Total csv files: {len(csv_files)}")
         
-        script: str = f""" 
+        script: str = f"""
         db = database("{TICK_DB_PATH}")
         schemaTable = table(
             ["stock_id", "time", "close", "volume", "bid_price", "bid_volume", "ask_price", "ask_volume", "tick_type"] as columnName,
@@ -122,7 +122,7 @@ class TickDBManager:
             print("Database doesn't exist!\nCreating a database...")
             script: str = f"""
             create database "{DDB_PATH}{TICK_DB_NAME}"
-            partitioned by VALUE({start_time}..{end_time}), HASH([SYMBOL, 25]) 
+            partitioned by VALUE({start_time}..{end_time}), HASH([SYMBOL, 25])
             engine='TSDB'
             create table "{DDB_PATH}{TICK_DB_NAME}"."{TICK_TABLE_NAME}"(
                 stock_id SYMBOL
@@ -152,7 +152,7 @@ class TickDBManager:
     def clear_all_cache(self) -> None:
         """ 清除 Cache Data """
         
-        script: str = """ 
+        script: str = """
         clearAllCache()
         """
         self.session.run(script)
