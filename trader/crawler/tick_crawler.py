@@ -43,7 +43,7 @@ from trader.config import (
 )
 
 
-""" 
+"""
 Shioaji 台股 ticks 資料時間表：
 From: 2020/03/02 ~ Today
 
@@ -80,8 +80,8 @@ class CrawlStockTick:
 
     
     def split_list(
-        self, 
-        target_list: List[Any], 
+        self,
+        target_list: List[Any],
         n_parts: int
     ) -> List[List[str]]:
         """ 將 list 均分成 n 個 list """
@@ -93,9 +93,9 @@ class CrawlStockTick:
 
 
     def crawl_ticks_for_stock(
-        self, 
-        api: sj.Shioaji, 
-        code: str, 
+        self,
+        api: sj.Shioaji,
+        code: str,
         date: datetime.date
     ) -> Optional[pd.DataFrame]:
         """ 透過 Shioaji 爬取指定個股的 tick data """
@@ -134,9 +134,9 @@ class CrawlStockTick:
     
     @log_thread
     def crawl_ticks_for_stock_list(
-        self, 
-        api: sj.Shioaji, 
-        stock_list: List[str], 
+        self,
+        api: sj.Shioaji,
+        stock_list: List[str],
         dates: List[datetime.date]
     ) -> None:
         """ 透過 Shioaji 爬取 stock_list 中的個股 tick data """
@@ -149,7 +149,7 @@ class CrawlStockTick:
             
             logger.info(f"Start crawling stock: {code}")
             
-            df_list: List[pd.DataFrame] = []   
+            df_list: List[pd.DataFrame] = []
             
             for date in dates:
                 try:
@@ -252,7 +252,7 @@ class CrawlStockTick:
         
         btn.on_click(onupdate)
         
-        label: widgets.Label = widgets.Label(f"""{TICK_TABLE_NAME} (from {TickDBTools.get_table_earliest_date()} to 
+        label: widgets.Label = widgets.Label(f"""{TICK_TABLE_NAME} (from {TickDBTools.get_table_earliest_date()} to
                               {TickDBTools.get_table_latest_date()})
                               """)
         items: List[widgets.Widget] = [date_picker_from, date_picker_to, btn]
