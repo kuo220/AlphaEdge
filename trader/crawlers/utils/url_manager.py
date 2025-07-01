@@ -5,6 +5,9 @@ class URLManager:
     """ URL Manager """
 
     URLS: Dict[str, str] = {
+        # 台灣證券交易所首頁 URL
+        "TWSE_URL": "https://www.twse.com.tw/zh/",
+
         # 上市公司代號 URL
         "TWSE_CODE_URL": "https://isin.twse.com.tw/isin/C_public.jsp?strMode=2",
 
