@@ -26,7 +26,7 @@ import zipfile
 
 from .chip_crawler import StockChipCrawler
 from .tick_crawler import StockTickCrawler
-from .html_crawler import HTMLCrawler
+from .stock_info_crawler import StockInfoCrawler
 from .qx_crawler import QuantXCrawler
 from .shioaji_crawler import ShioajiCrawler
 from .utils.crawler_tools import CrawlerTools
@@ -38,7 +38,7 @@ class Crawler:
 
     Integrates multiple crawlers:
     - StockChipCrawler: Fetches institutional trading data (TWSE, TPEX).
-    - HTMLCrawler: Retrieves static HTML-based data such as stock lists.
+    - StockInfoCrawler: Retrieves static HTML-based data such as stock lists.
     - ShioajiCrawler: Gathers real-time tick data via Shioaji API.
 
     Provides centralized access to trigger updates or batch crawling across sources.
@@ -48,6 +48,6 @@ class Crawler:
     def __init__(self):
         self.chip: StockChipCrawler = StockChipCrawler()
         self.tick: StockTickCrawler = StockTickCrawler()
-        self.html: HTMLCrawler = HTMLCrawler()
+        self.html: StockInfoCrawler = StockInfoCrawler()
         self.quantx: QuantXCrawler = QuantXCrawler()
         self.shioaji: ShioajiCrawler = ShioajiCrawler()

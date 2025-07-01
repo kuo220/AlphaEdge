@@ -26,7 +26,7 @@ from tqdm import tqdm, tnrange, tqdm_notebook
 from trader.data import TickDBTools, TickDBManager
 from trader.utils import ShioajiAccount, ShioajiAPI, log_thread
 from .utils.crawler_tools import CrawlerTools
-from .html_crawler import CrawlHTML
+from .stock_info_crawler import StockInfoCrawler
 from trader.config import (
     LOGS_DIR_PATH,
     TICK_DOWNLOADS_PATH,
@@ -63,7 +63,7 @@ class StockTickCrawler:
             if (api_instance := ShioajiAccount.API_login(sj.Shioaji(), sj_api.api_key, sj_api.api_secret_key)) is not None
         ]
         self.num_threads: int = len(self.api_list)                              # 可用的 API 數量 = 可開的 thread 數
-        self.all_stock_list: List[str] = CrawlHTML.crawl_stock_list()           # 爬取所有上市櫃股票清單
+        self.all_stock_list: List[str] = StockInfoCrawler.crawl_stock_list()           # 爬取所有上市櫃股票清單
         self.split_stock_list: List[List[str]] = []                             # 股票清單分組（後續給多線程用）
         self.table_latest_date: datetime.date = None
         
