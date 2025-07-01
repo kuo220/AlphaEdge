@@ -7,6 +7,7 @@ import pandas as pd
 import shioaji as sj
 from shioaji.data import Ticks
 from loguru import logger
+from tqdm import tqdm
 
 from trader.utils import ShioajiAccount, ShioajiAPI, log_thread
 from trader.crawler.utils.stock_tick_tools import StockTickTools

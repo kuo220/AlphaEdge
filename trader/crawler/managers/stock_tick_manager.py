@@ -1,6 +1,7 @@
 import datetime
 from typing import List, Optional, Any
 import ipywidgets as widgets
+from IPython.display import display
 
 from trader.crawler.crawlers.tick_crawler import StockTickCrawler
 from trader.crawler.handlers.stock_tick_handler import StockTickHandler
