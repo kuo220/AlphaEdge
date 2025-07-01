@@ -1,4 +1,3 @@
-# Standard library imports
 import sys
 import datetime
 from abc import ABC, abstractmethod

@@ -1,4 +1,3 @@
-# Standard library imports
 import datetime
 import os
 import random
