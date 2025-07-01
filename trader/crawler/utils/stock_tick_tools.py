@@ -14,7 +14,7 @@ except ModuleNotFoundError:
 from trader.config import TICK_METADATA_PATH
 
 
-class TickDBTools:
+class StockTickTools:
     """ Tick DolphinDB Tools """
 
     @staticmethod
@@ -71,7 +71,7 @@ class TickDBTools:
 
         # Time range for updating
         metadata: Dict[str, str] = {
-            "earliest_date": TickDBTools.get_table_earliest_date().isoformat(),
+            "earliest_date": StockTickTools.get_table_earliest_date().isoformat(),
             "latest_date": date.isoformat()
         }
 

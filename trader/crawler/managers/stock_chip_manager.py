@@ -1,32 +1,19 @@
-import sys
-import os
-import shutil
 import random
 import sqlite3
 import datetime
 import time
-from pathlib import Path
 from typing import List, Dict, Optional, Any
-from io import StringIO
 
-import numpy as np
 import pandas as pd
-import requests
 import ipywidgets as widgets
 from IPython.display import display
-from fake_useragent import UserAgent
-from tqdm import tqdm, tnrange, tqdm_notebook
-from dateutil.rrule import rrule, DAILY, MONTHLY
-from dateutil.relativedelta import relativedelta
-from requests.exceptions import ReadTimeout, ConnectionError
+from tqdm import tqdm_notebook
 
 from trader.crawler.crawlers.chip_crawler import StockChipCrawler
 from trader.crawler.handlers.stock_chip_handler import StockChipHandler
-from trader.crawler.utils.url_manager import URLManager
 from trader.crawler.utils.crawler_tools import CrawlerTools
 from trader.data import SQLiteTools
 from trader.config import (
-    CHIP_DOWNLOADS_PATH,
     CHIP_DB_PATH,
     CHIP_TABLE_NAME
 )
