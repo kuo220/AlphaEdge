@@ -3,10 +3,10 @@ from typing import List, Optional, Any
 import ipywidgets as widgets
 from IPython.display import display
 
-from trader.crawler.crawlers.tick_crawler import StockTickCrawler
-from trader.crawler.handlers.stock_tick_handler import StockTickHandler
-from trader.crawler.utils.crawler_tools import CrawlerTools
-from trader.crawler.utils.stock_tick_tools import StockTickTools
+from trader.crawlers.fetchers.tick_crawler import StockTickCrawler
+from trader.crawlers.handlers.stock_tick_handler import StockTickHandler
+from trader.crawlers.utils.crawler_tools import CrawlerTools
+from trader.crawlers.utils.stock_tick_tools import StockTickTools
 
 from trader.config import TICK_TABLE_NAME
 

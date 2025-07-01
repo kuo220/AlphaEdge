@@ -106,7 +106,7 @@ class QuantXCrawler:
         return pd.DataFrame()
 
 
-    def crawl_benchmark_return(self, date):
+    def crawl_benchmark_return(self, date) -> pd.DataFrame:
         date_str: str = date.strftime("%Y%m")
         url: str = URLManager.get_url("TAIEX_RETURN_INDEX", date=date_str)
         print("發行量加權股價報酬指數", url)
@@ -141,7 +141,7 @@ class QuantXCrawler:
         return df
 
 
-    def crawl_tpex_margin_balance(self, date):
+    def crawl_tpex_margin_balance(self, date) -> pd.DataFrame:
         date_str: str = date.strftime('%Y%m%d')
 
         url: str = URLManager.get_url(

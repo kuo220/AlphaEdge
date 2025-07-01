@@ -9,9 +9,9 @@ import ipywidgets as widgets
 from IPython.display import display
 from tqdm import tqdm_notebook
 
-from trader.crawler.crawlers.chip_crawler import StockChipCrawler
-from trader.crawler.handlers.stock_chip_handler import StockChipHandler
-from trader.crawler.utils.crawler_tools import CrawlerTools
+from trader.crawlers.fetchers.chip_crawler import StockChipCrawler
+from trader.crawlers.handlers.stock_chip_handler import StockChipHandler
+from trader.crawlers.utils.crawler_tools import CrawlerTools
 from trader.data import SQLiteTools
 from trader.config import (
     CHIP_DB_PATH,

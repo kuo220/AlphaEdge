@@ -3,7 +3,7 @@ from typing import List, Optional
 import pandas as pd
 import requests
 
-from trader.crawler.utils.url_manager import URLManager
+from trader.crawlers.utils.url_manager import URLManager
 
 
 class StockInfoCrawler:
