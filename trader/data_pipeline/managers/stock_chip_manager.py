@@ -13,7 +13,7 @@ from tqdm import tqdm_notebook
 
 from trader.data_pipeline.crawlers.chip_crawler import StockChipCrawler
 from trader.data_pipeline.utils.crawler_tools import CrawlerTools
-from trader.data import SQLiteTools
+from trader.data_pipeline.utils.sqlite_tools import SQLiteTools
 from trader.config import (
     CHIP_DB_PATH,
     CHIP_TABLE_NAME,
