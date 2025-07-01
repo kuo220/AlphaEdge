@@ -21,8 +21,8 @@ from dateutil.rrule import rrule, DAILY, MONTHLY
 from dateutil.relativedelta import relativedelta
 from requests.exceptions import ReadTimeout, ConnectionError
 
-from .crawler_tools import CrawlerTools
-from .url_manager import URLManager
+from .utils.crawler_tools import CrawlerTools
+from .managers.url_manager import URLManager
 from trader.data import SQLiteTools
 from trader.config import (
     CHIP_DOWNLOADS_PATH,

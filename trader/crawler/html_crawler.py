@@ -25,7 +25,7 @@ from tqdm import tqdm, tnrange, tqdm_notebook
 import warnings
 import zipfile
 
-from .url_manager import URLManager
+from .managers.url_manager import URLManager
 
 
 class CrawlHTML:
