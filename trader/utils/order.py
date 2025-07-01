@@ -4,14 +4,14 @@ from shioaji.contracts import Contract
 from shioaji.order import Order
 
 
-class OrderTools:
+class OrderUtils:
     """ 執行買入、賣出等下單操作 """
-                
+
     @staticmethod
     # place buy or sell order
     def place_order(api: sj.Shioaji, order: dict) -> None:
-        """ 
-        下單操作  
+        """
+        下單操作
         order 格式
         order = {
             'code': '2330',

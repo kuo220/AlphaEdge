@@ -13,7 +13,7 @@ from requests.exceptions import ReadTimeout
 from trader.data_pipeline.utils.url_manager import URLManager
 
 
-class CrawlerTools:
+class CrawlerUtils:
     """ Cralwer Tools """
 
     ses: Optional[requests.Session] = None    # Session

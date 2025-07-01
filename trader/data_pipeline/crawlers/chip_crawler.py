@@ -9,7 +9,7 @@ from io import StringIO
 import pandas as pd
 import requests
 
-from trader.data_pipeline.utils.crawler_tools import CrawlerTools
+from trader.data_pipeline.utils.crawler_utils import CrawlerUtils
 from trader.data_pipeline.utils.url_manager import URLManager
 from trader.config import (
     CHIP_DOWNLOADS_PATH,
@@ -57,7 +57,7 @@ class StockChipCrawler:
         print(readable_date)
 
         twse_url: str = URLManager.get_url("TWSE_CHIP_URL", date=date_str)
-        headers: Dict[str, str] = CrawlerTools.generate_random_header()
+        headers: Dict[str, str] = CrawlerUtils.generate_random_header()
         twse_response: requests.Response = requests.get(twse_url, headers=headers)
 
         # 檢查是否為假日 or 單純網站還未更新
@@ -81,10 +81,10 @@ class StockChipCrawler:
 
         # 第一次格式改制前
         if date < self.twse_first_reform_date:
-            CrawlerTools.move_col(twse_df, "自營商買賣超股數", "自營商賣出股數")
+            CrawlerUtils.move_col(twse_df, "自營商買賣超股數", "自營商賣出股數")
         # 第一次格式改制後，第二次格式改制前
         elif self.twse_first_reform_date <= date < self.twse_second_reform_date:
-            CrawlerTools.move_col(twse_df, "自營商買賣超股數", "自營商買賣超股數(避險)")
+            CrawlerUtils.move_col(twse_df, "自營商買賣超股數", "自營商買賣超股數(避險)")
             twse_df.rename(columns=dict(zip(old_col_name, new_col_name)), inplace=True)
         # 第二次格式改制後
         else:
@@ -93,14 +93,14 @@ class StockChipCrawler:
             twse_df['外資買賣超股數'] = twse_df['外陸資買賣超股數(不含外資自營商)'] + twse_df['外資自營商買賣超股數']
             twse_df.drop(columns=['外陸資買進股數(不含外資自營商)', '外陸資賣出股數(不含外資自營商)', '外陸資買賣超股數(不含外資自營商)',
                                 '外資自營商買進股數', '外資自營商賣出股數', '外資自營商買賣超股數'], inplace=True)
-            CrawlerTools.move_col(twse_df, '外資買進股數', '證券名稱')
-            CrawlerTools.move_col(twse_df, '外資賣出股數', '外資買進股數')
-            CrawlerTools.move_col(twse_df, '外資買賣超股數', '外資賣出股數')
-            CrawlerTools.move_col(twse_df, "自營商買賣超股數", "自營商買賣超股數(避險)")
+            CrawlerUtils.move_col(twse_df, '外資買進股數', '證券名稱')
+            CrawlerUtils.move_col(twse_df, '外資賣出股數', '外資買進股數')
+            CrawlerUtils.move_col(twse_df, '外資買賣超股數', '外資賣出股數')
+            CrawlerUtils.move_col(twse_df, "自營商買賣超股數", "自營商買賣超股數(避險)")
             twse_df.rename(columns=dict(zip(old_col_name, new_col_name)), inplace=True)
 
-        twse_df = CrawlerTools.remove_redundant_col(twse_df, '三大法人買賣超股數')
-        twse_df = CrawlerTools.fill_nan(twse_df, 0)
+        twse_df = CrawlerUtils.remove_redundant_col(twse_df, '三大法人買賣超股數')
+        twse_df = CrawlerUtils.fill_nan(twse_df, 0)
         twse_df.to_csv(os.path.join(CHIP_DOWNLOADS_PATH, f"twse_{date.strftime('%Y%m%d')}.csv"), index=False)
 
         return twse_df
@@ -114,7 +114,7 @@ class StockChipCrawler:
         print(date_str)
 
         tpex_url: str = URLManager.get_url("TPEX_CHIP_URL", date=date_str)
-        headers: Dict[str, str] = CrawlerTools.generate_random_header()
+        headers: Dict[str, str] = CrawlerUtils.generate_random_header()
         tpex_response: requests.Response = requests.get(tpex_url, headers=headers)
 
         try:
@@ -180,9 +180,9 @@ class StockChipCrawler:
 
         tpex_df = tpex_df.iloc[:-1] # 刪掉最後一個 row
         tpex_df.insert(0, '日期', date)
-        CrawlerTools.move_col(tpex_df, "自營商買賣超股數", "自營商買賣超股數_避險")
-        tpex_df = CrawlerTools.remove_redundant_col(tpex_df, '三大法人買賣超股數')
-        tpex_df = CrawlerTools.fill_nan(tpex_df, 0)
+        CrawlerUtils.move_col(tpex_df, "自營商買賣超股數", "自營商買賣超股數_避險")
+        tpex_df = CrawlerUtils.remove_redundant_col(tpex_df, '三大法人買賣超股數')
+        tpex_df = CrawlerUtils.fill_nan(tpex_df, 0)
         tpex_df.to_csv(os.path.join(CHIP_DOWNLOADS_PATH, f"tpex_{date.strftime('%Y%m%d')}.csv"), index=False)
 
         return tpex_df

@@ -10,6 +10,6 @@ from .managers.stock_chip_manager import StockChipManager
 from .managers.stock_tick_manager import StockTickManager
 
 # Utils
-from .utils.crawler_tools import CrawlerTools
-from .utils.sqlite_tools import SQLiteTools
+from .utils.crawler_utils import CrawlerUtils
+from .utils.sqlite_utils import SQLiteUtils
 from .utils.url_manager import URLManager

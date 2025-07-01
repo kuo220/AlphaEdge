@@ -9,8 +9,8 @@ try:
 except ModuleNotFoundError:
     print("Warning: dolphindb module is not installed.")
 from trader.data_pipeline.crawlers.tick_crawler import StockTickCrawler
-from trader.data_pipeline.utils.crawler_tools import CrawlerTools
-from trader.data_pipeline.utils.stock_tick_tools import StockTickTools
+from trader.data_pipeline.utils.crawler_utils import CrawlerUtils
+from trader.data_pipeline.utils.stock_tick_utils import StockTickUtils
 
 from trader.config import (
     TICK_DOWNLOADS_PATH,
@@ -63,7 +63,7 @@ class StockTickManager:
         date_picker_from: widgets.DatePicker = widgets.DatePicker(description='from', disabled=False)
         date_picker_to: widgets.DatePicker = widgets.DatePicker(description='to', disabled=False)
 
-        date_picker_from.value = StockTickTools.get_table_latest_date() + datetime.timedelta(days=1)
+        date_picker_from.value = StockTickUtils.get_table_latest_date() + datetime.timedelta(days=1)
         date_picker_to.value = datetime.date.today()
 
         # Set update button
@@ -78,7 +78,7 @@ class StockTickManager:
                 print("Please select both start and end dates.")
                 return
 
-            dates: List[datetime.date] = CrawlerTools.generate_date_range(start_date, end_date)
+            dates: List[datetime.date] = CrawlerUtils.generate_date_range(start_date, end_date)
 
             if not dates:
                 print("Date range is empty. Please check if the start date is earlier than the end date.")
@@ -91,8 +91,8 @@ class StockTickManager:
 
         label: widgets.Label = widgets.Label(
             f"""
-            {TICK_TABLE_NAME} (from {StockTickTools.get_table_earliest_date()} to
-            {StockTickTools.get_table_latest_date()})
+            {TICK_TABLE_NAME} (from {StockTickUtils.get_table_earliest_date()} to
+            {StockTickUtils.get_table_latest_date()})
             """
         )
         items: List[widgets.Widget] = [date_picker_from, date_picker_to, btn]

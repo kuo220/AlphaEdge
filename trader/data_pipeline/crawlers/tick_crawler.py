@@ -10,7 +10,7 @@ from loguru import logger
 from tqdm import tqdm
 
 from trader.utils import ShioajiAccount, ShioajiAPI, log_thread
-from trader.data_pipeline.utils.stock_tick_tools import StockTickTools
+from trader.data_pipeline.utils.stock_tick_utils import StockTickUtils
 from .stock_info_crawler import StockInfoCrawler
 from trader.config import (
     LOGS_DIR_PATH,
@@ -51,7 +51,7 @@ class StockTickCrawler:
             os.makedirs(TICK_DOWNLOADS_PATH)
 
         # Generate tick_metadata backup
-        StockTickTools.generate_tick_metadata_backup()
+        StockTickUtils.generate_tick_metadata_backup()
 
 
     def split_list(
@@ -94,8 +94,8 @@ class StockTickCrawler:
                 return None
 
         try:
-            formatted_df: pd.DataFrame = StockTickTools.format_tick_data(tick_df, code)
-            formatted_df = StockTickTools.format_time_to_microsec(formatted_df)
+            formatted_df: pd.DataFrame = StockTickUtils.format_tick_data(tick_df, code)
+            formatted_df = StockTickUtils.format_time_to_microsec(formatted_df)
 
             # Save df to csv file
             formatted_df.to_csv(os.path.join(TICK_DOWNLOADS_PATH, f"{code}.csv"), index=False)
@@ -146,8 +146,8 @@ class StockTickCrawler:
             # Format tick data
             try:
                 merged_df: pd.DataFrame = pd.concat(df_list, ignore_index=True)
-                formatted_df: pd.DataFrame = StockTickTools.format_tick_data(merged_df, code)
-                formatted_df = StockTickTools.format_time_to_microsec(formatted_df)
+                formatted_df: pd.DataFrame = StockTickUtils.format_tick_data(merged_df, code)
+                formatted_df = StockTickUtils.format_time_to_microsec(formatted_df)
 
                 # Save df to csv file
                 formatted_df.to_csv(os.path.join(TICK_DOWNLOADS_PATH, f"{code}.csv"), index=False)
@@ -180,7 +180,7 @@ class StockTickCrawler:
                     logger.error(f"Thread execution failed with exception: {e}")
 
         # Update tick table latest date
-        StockTickTools.update_tick_table_latest_date(self.table_latest_date)
+        StockTickUtils.update_tick_table_latest_date(self.table_latest_date)
 
         total_time: float = time.time() - start_time
         total_file: int = len(list(TICK_DOWNLOADS_PATH.glob("*.csv")))

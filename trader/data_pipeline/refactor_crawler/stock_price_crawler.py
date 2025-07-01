@@ -6,7 +6,7 @@ import logging
 from typing import List, Optional
 
 from trader.data_pipeline.utils.url_manager import URLManager
-from trader.data_pipeline.utils.crawler_tools import CrawlerTools
+from trader.data_pipeline.utils.crawler_utils import CrawlerUtils
 
 
 class StockPriceCrawler:
@@ -23,7 +23,7 @@ class StockPriceCrawler:
         url: str = URLManager.get_url("TWSE_CLOSING_QUOTE_URL", date=date_str)
 
         try:
-            r: Optional[requests.Response] = CrawlerTools.requests_get(url)
+            r: Optional[requests.Response] = CrawlerUtils.requests_get(url)
             logging.info(f"上市 URL: {url}")
         except Exception as e:
             logging.info(f"* WARN: Cannot get stock price at {date_str}")
@@ -72,7 +72,7 @@ class StockPriceCrawler:
         )
 
         try:
-            r: Optional[requests.Response] = CrawlerTools.requests_get(url)
+            r: Optional[requests.Response] = CrawlerUtils.requests_get(url)
             logging.info(f"上櫃 URL: {url}")
         except Exception as e:
             logging.info(f"* WARN: Cannot get stock price at {date_str}")

@@ -12,8 +12,8 @@ from IPython.display import display
 from tqdm import tqdm_notebook
 
 from trader.data_pipeline.crawlers.chip_crawler import StockChipCrawler
-from trader.data_pipeline.utils.crawler_tools import CrawlerTools
-from trader.data_pipeline.utils.sqlite_tools import SQLiteTools
+from trader.data_pipeline.utils.crawler_utils import CrawlerUtils
+from trader.data_pipeline.utils.sqlite_utils import SQLiteUtils
 from trader.config import (
     CHIP_DB_PATH,
     CHIP_TABLE_NAME,
@@ -73,8 +73,8 @@ class StockChipManager:
         date_picker_from: widgets.DatePicker = widgets.DatePicker(description='from', disabled=False)
         date_picker_to: widgets.DatePicker = widgets.DatePicker(description='to', disabled=False)
 
-        if SQLiteTools.check_table_exist(self.conn, CHIP_TABLE_NAME):
-            date_picker_from.value = SQLiteTools.get_table_latest_date(self.conn, CHIP_TABLE_NAME, '日期') + datetime.timedelta(days=1)
+        if SQLiteUtils.check_table_exist(self.conn, CHIP_TABLE_NAME):
+            date_picker_from.value = SQLiteUtils.get_table_latest_date(self.conn, CHIP_TABLE_NAME, '日期') + datetime.timedelta(days=1)
         date_picker_to.value = datetime.datetime.now().date()
 
         # Set update button
@@ -89,7 +89,7 @@ class StockChipManager:
                 print("Please select both start and end dates.")
                 return
 
-            dates: List[datetime.date] = CrawlerTools.generate_date_range(start_date, end_date)
+            dates: List[datetime.date] = CrawlerUtils.generate_date_range(start_date, end_date)
 
             if not dates:
                 print("Date range is empty. Please check if the start date is earlier than the end date.")
@@ -100,11 +100,11 @@ class StockChipManager:
 
         btn.on_click(onupdate)
 
-        if SQLiteTools.check_table_exist(self.conn, CHIP_TABLE_NAME):
+        if SQLiteUtils.check_table_exist(self.conn, CHIP_TABLE_NAME):
             label: widgets.Label = widgets.Label(
                 f"""
-                {CHIP_TABLE_NAME} (from {SQLiteTools.get_table_earliest_date(self.conn, CHIP_TABLE_NAME, '日期').strftime('%Y-%m-%d')} to
-                {SQLiteTools.get_table_latest_date(self.conn, CHIP_TABLE_NAME, '日期').strftime('%Y-%m-%d')})
+                {CHIP_TABLE_NAME} (from {SQLiteUtils.get_table_earliest_date(self.conn, CHIP_TABLE_NAME, '日期').strftime('%Y-%m-%d')} to
+                {SQLiteUtils.get_table_latest_date(self.conn, CHIP_TABLE_NAME, '日期').strftime('%Y-%m-%d')})
                 """
             )
         else:
