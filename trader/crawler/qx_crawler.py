@@ -30,16 +30,16 @@ from tqdm import tqdm, tnrange, tqdm_notebook
 from .crawler_tools import CrawlerTools
 from .url_manager import URLManager
 from trader.config import (
-    CRAWLER_DOWNLOADS_PATH, 
-    FINANCIAL_STATEMENT_PATH, 
-    QUANTX_DB_PATH, 
+    CRAWLER_DOWNLOADS_PATH,
+    FINANCIAL_STATEMENT_PATH,
+    QUANTX_DB_PATH,
     CERTS_FILE_PATH
 )
 
 
 class CrawlQuantX:
     """ QuantX Crawler """
-    
+
     def __init__(self):
         self.table_without_stockid: List[str] = ["tw_total_pmi", "tw_total_nmi", "tw_business_indicator", "benchmark_return", "margin_balance"]
         self.ses: Any = None
@@ -64,8 +64,8 @@ class CrawlQuantX:
         print('您的網頁IP已經被證交所封鎖，請更新IP來獲取解鎖')
         print("　手機：開啟飛航模式，再關閉，即可獲得新的IP")
         print("數據機：關閉然後重新打開數據機的電源")
-        
-    
+
+
     def requests_get(self, *args1, **args2):
         # get current session
         if self.ses == None:
@@ -85,8 +85,8 @@ class CrawlQuantX:
             i -= 1
         # return pd.DataFrame()
         return None
-    
-    
+
+
     def requests_post(self, *args1, **args2):
         # get current session
         if self.ses == None:
@@ -105,8 +105,8 @@ class CrawlQuantX:
 
             i -= 1
         return pd.DataFrame()
-    
-    
+
+
     def crawl_benchmark_return(self, date):
         date_str: str = date.strftime("%Y%m")
         url: str = URLManager.get_url("TAIEX_RETURN_INDEX", date=date_str)
@@ -140,7 +140,7 @@ class CrawlQuantX:
         df = df[df.columns[df.isnull().all() == False]]
 
         return df
-    
+
 
     def crawl_tpex_margin_balance(self, date):
         date_str: str = date.strftime('%Y%m%d')
@@ -195,12 +195,12 @@ class CrawlQuantX:
         df = df[df.columns[df.isnull().all() == False]]
 
         return df
-    
-    
+
+
     def crawl_margin_balance(self, date):
         # 上櫃資料從102/1/2以後才提供，所以融資融券先以102/1/2以後為主
         date_str: str = date.strftime('%Y%m%d')
-        
+
         url: str = URLManager.get_url("TWSE_MARGIN_SUMMARY_URL", date=date_str)
         print("上市", url)
 
@@ -247,8 +247,8 @@ class CrawlQuantX:
         df = pd.concat([df, df_otc], axis=1)
 
         return df
-     
-    
+
+
     def crawl_tpex_margin_transactions(self, date):
         date_str: str = date.strftime('%Y%m%d')
 
@@ -289,15 +289,15 @@ class CrawlQuantX:
         html_df = html_df[html_df.columns[html_df.isnull().all() == False]]
 
         return html_df
-    
-    
+
+
     def crawl_margin_transactions(self, date) -> pd.DataFrame:
         # 上櫃資料從102/1/2以後才提供，所以融資融券先以102/1/2以後為主
         date_str: str = date.strftime('%Y%m%d')
 
         # 上市分成4個網站爬取: 封閉式基金、ETF、存託憑證、股票
         # 封閉式基金 => 0049
-        # ETF => 0099P 
+        # ETF => 0099P
         # 存託憑證 => 9299
         # 股票 => STOCK
 
@@ -307,7 +307,7 @@ class CrawlQuantX:
         df = None
         for url in url_list:
             print("上市", url)
-            
+
             # 偽瀏覽器
             headers = CrawlerTools.generate_random_header()
 
@@ -359,16 +359,16 @@ class CrawlQuantX:
         # 上櫃資料從96/7/2以後才提供
         # 109/4/30以後csv檔的column不一樣
         date_str: str = date.strftime('%Y%m%d')
-        
+
         url: str = URLManager.get_url(
             "TPEX_CLOSING_QUOTE_URL",
             roc_year=str(date.year - 1911),
             month=date_str[4:6],
             day=date_str[6:]
         )
-        print("上櫃", url)    
+        print("上櫃", url)
         r = self.requests_post(url)
-        
+
         if r is None:
             print('**WARRN: cannot get stock price at', date_str)
             return None
@@ -407,15 +407,15 @@ class CrawlQuantX:
         df = df[~df['收盤價'].isnull()]
 
         return df
-    
-    
+
+
     def crawl_price(self, date) -> Optional[pd.DataFrame]:
         date_str: str = date.strftime('%Y%m%d')
 
         url: str = URLManager.get_url("TWSE_CLOSING_QUOTE_URL", date=date_str)
         print("上市", url)
         r = self.requests_post(url)
-            
+
         if r is None:
             print('**WARRN: cannot get stock price at', date_str)
             return None
@@ -445,15 +445,15 @@ class CrawlQuantX:
         df = df.append(df1)
 
         return df
-    
-    
+
+
     def crawl_tpex_price_old_1(self, date) -> Optional[pd.DataFrame]:
         # For year == 2005 or year == 2006
         date_str: str = date.strftime('%Y%m%d')
         date_str = str(int(date_str[0:4]) - 1911) + date_str[4:]
 
         url: str = URLManager.get_url("TPEX_CLOSING_QUOTE_OLD_1_URL", date=date_str)
-        
+
         response = requests.get(url)
         soup = BeautifulSoup(response.content, 'html.parser')
 
@@ -496,8 +496,8 @@ class CrawlQuantX:
         df = df[~df['收盤價'].isnull()]
 
         return df
-    
-    
+
+
     # For date 2007/01/02 - 2007/04/20
     def crawl_tpex_price_old_2(self, date) -> Optional[pd.DataFrame]:
         datestr = date.strftime('%Y%m%d')
@@ -558,13 +558,13 @@ class CrawlQuantX:
         df = df[~df['收盤價'].isnull()]
 
         return df
-    
-    
+
+
     # For date 2007/04/20 - 2007/06/29
     def crawl_tpex_price_old_3(self, date) -> Optional[pd.DataFrame]:
         date_str: str = date.strftime('%Y%m%d')
         date_str = str(int(date_str[0:4]) - 1911) + date_str[4:]
-        
+
         url: str = URLManager.get_url(
             "TPEX_CLOSING_QUOTE_OLD_3_URL",
             roc_year=date_str[0:2],
@@ -572,7 +572,7 @@ class CrawlQuantX:
             day=date_str[4:6]
         )
         print("上櫃", url)
-        
+
         response = requests.get(url)
         soup = BeautifulSoup(response.content, 'html.parser')
 
@@ -611,8 +611,8 @@ class CrawlQuantX:
         df = df[~df['收盤價'].isnull()]
 
         return df
-    
-    
+
+
     # 爬上市公司的股價 For year = 2005 ~ 2007
     def crawl_old_price(self, date) -> Optional[pd.DataFrame]:
         date_str: str = date.strftime('%Y%m%d')
@@ -661,8 +661,8 @@ class CrawlQuantX:
         df = df.append(df1)
 
         return df
-    
-    
+
+
     def crawl_tpex_monthly_report(self, date):
         url: str = URLManager.get_url(
             "TPEX_MONTHLY_REPORT_URL",
@@ -731,8 +731,8 @@ class CrawlQuantX:
         df = df[df.columns[df.isnull().all() == False]]
 
         return df
-    
-    
+
+
     def crawl_monthly_report(self, date) -> Optional[pd.DataFrame]:
         x = [datetime.date(2011, 2, 10), datetime.date(2012, 1, 10)]
         if date in x:
@@ -811,8 +811,8 @@ class CrawlQuantX:
             df = df.append(df1)
 
             return df
-        
-        
+
+
     def crawl_finance_statement2019(self, year, season):
         def ifrs_url(year, season):
             url: str = URLManager.get_url(
@@ -875,7 +875,7 @@ class CrawlQuantX:
     def crawl_finance_statement(self, year, season, stock_ids):
         if not FINANCIAL_STATEMENT_PATH.is_dir():
             os.makedirs(FINANCIAL_STATEMENT_PATH)
-            
+
         def download_html(year, season, stock_ids, report_type='C'):
 
             headers = {
@@ -951,7 +951,7 @@ class CrawlQuantX:
 
     def crawl_finance_statement_by_date(self, date):
         FDH = FinanceDataHandler()
-        
+
         year = date.year
         if date.month == 3:
             season = 4
@@ -1042,9 +1042,9 @@ class CrawlQuantX:
             ret['stock_id'] = ret['stock_id'].astype(str)
             ret.set_index(['stock_id', 'date'], inplace=True)
             ret.to_sql(name, conn, if_exists='replace')
-            
-            
-    def add_to_sql_without_stock_id_index(self, conn, name, df):        
+
+
+    def add_to_sql_without_stock_id_index(self, conn, name, df):
         exist = self.table_exist(conn, name)
         ret = pd.read_sql('select * from ' + name, conn, index_col=['date']) if exist else pd.DataFrame()
 
@@ -1063,8 +1063,8 @@ class CrawlQuantX:
             ret = pd.read_csv('backup.csv', parse_dates=['date'])
             ret.set_index(['date'], inplace=True)
             ret.to_sql(name, conn, if_exists='replace')
-            
-    
+
+
     def update_table(self, conn, table_name, crawl_function, dates):
         print('start crawl ' + table_name + ' from ', dates[0], 'to', dates[-1])
 
@@ -1120,8 +1120,8 @@ class CrawlQuantX:
                 if len(d) != 0:
                     self.add_to_sql(conn, i, d)
                     print('df save successfully', d.head())
-                    
-                    
+
+
     def update_table_from_tej(self, conn, table_name, get_function, progress):
         print('start crawl ')
 
@@ -1219,10 +1219,10 @@ class CrawlQuantX:
 
 class FinanceDataHandler:
     """ 從 HTML 檔案中提取財務報表數據，清理、組合並將它們儲存到資料庫中 """
-    
+
     def __init__(self):
         pass
-    
+
     def afterIFRS(self, year, season):
         season2date = [ datetime.datetime(year, 5, 15),
                         datetime.datetime(year, 8, 14),
@@ -1233,7 +1233,7 @@ class FinanceDataHandler:
 
 
     def clean(self, year, season, balance_sheet):
-        
+
         if len(balance_sheet) == 0:
             print('**WARRN: no data to parse')
             return balance_sheet
@@ -1245,36 +1245,36 @@ class FinanceDataHandler:
             balance_sheet['會計項目'] = s.astype(str)
 
         balance_sheet['date'] = self.afterIFRS(year, season)
-        
+
         balance_sheet['stock_id'] = balance_sheet['stock_id'].astype(str)
         balance = balance_sheet.set_index(['stock_id', 'date'])
         return balance
-    
+
     def remove_english(self, s):
         result = re.sub(r'[a-zA-Z()]', "", s)
         return result
-    
-    
+
+
     def patch2019(self, df):
         df = df.copy()
         dfname = df.columns.levels[0][0]
 
         df = df.iloc[:,1:].rename(columns={'會計項目Accounting Title':'會計項目'})
-        
-        
+
+
         refined_name = df[(dfname,'會計項目')].str.split(" ").str[0].str.replace("　", "").apply(self.remove_english)
-        
+
         subdf = df[dfname].copy()
         subdf['會計項目'] = refined_name
         df[dfname] = subdf
-        
+
         df.columns = pd.MultiIndex(levels=[df.columns.levels[1], df.columns.levels[0]],codes=[df.columns.codes[1], df.columns.codes[0]])
 
         def neg(s):
-            
+
             if isinstance(s, float):
                 return s
-            
+
             if str(s) == 'nan':
                 return np.nan
 
@@ -1286,12 +1286,12 @@ class FinanceDataHandler:
 
         df.iloc[:,1:] = df.iloc[:,1:].applymap(neg)
         return df
-    
-    
+
+
     def read_html2019(self, file):
         dfs = pd.read_html(file)
         return [pd.DataFrame(), self.patch2019(dfs[0]), self.patch2019(dfs[1]), self.patch2019(dfs[2])]
-        
+
 
     def pack_htmls(self, year, season, directory):
         balance_sheet = {}
@@ -1304,15 +1304,15 @@ class FinanceDataHandler:
 
             # 將檔案路徑建立好
             file = os.path.join(directory, i) 
-            
+
             # 假如檔案不是html結尾，或是太小，代表不是正常的檔案，略過
             if file[-4:] != 'html' or os.stat(file).st_size < 10000:
                 continue
-            
+
             # 顯示目前運行的狀況
             stock_id = i.split('.')[0]
             pbar.set_description('parse htmls %d season %d stock %s' % (year, season, stock_id))
-            
+
             # 讀取html
             if year < 2019:
                 dfs = pd.read_html(file)
@@ -1327,12 +1327,12 @@ class FinanceDataHandler:
             for df in dfs:
                 if 'levels' in dir(df.columns):
                     df.columns = list(range(df.values.shape[1]))#list(range(max_col))
-            
+
             # 假如html不完整，則略過
             if len(dfs) < 4:
                 print('**WARRN html file broken', year, season, i)
                 continue
-            
+
             # 取得 balance sheet
             df = dfs[1].copy().drop_duplicates(subset=0, keep='last')
             df = df.set_index(0)
@@ -1342,7 +1342,7 @@ class FinanceDataHandler:
             # 取得 income statement
             df = dfs[2].copy().drop_duplicates(subset=0, keep='last')
             df = df.set_index(0)
-            
+
             # 假如有4個columns，則第1與第3條column是單季跟累計的income statement
             if len(df.columns) == 4:
                 income_sheet[stock_id] = df[1].dropna()
@@ -1350,7 +1350,7 @@ class FinanceDataHandler:
             # 假如有2個columns，則代表第3條column為累計的income statement，單季的從缺
             elif len(df.columns) == 2:
                 income_sheet_cumulate[stock_id] = df[1].dropna()
-                
+
                 # 假如是第一季財報 累計 跟單季 的數值是一樣的
                 if season == 1:
                     income_sheet[stock_id] = df[1].dropna()
@@ -1359,28 +1359,28 @@ class FinanceDataHandler:
             df = dfs[3].copy().drop_duplicates(subset=0, keep='last')
             df = df.set_index(0)
             cash_flows[stock_id] = df[1].dropna()
-        
+
         # 將dictionary整理成dataframe
         balance_sheet = pd.DataFrame(balance_sheet)
         income_sheet = pd.DataFrame(income_sheet)
         income_sheet_cumulate = pd.DataFrame(income_sheet_cumulate)
         cash_flows = pd.DataFrame(cash_flows)
-        
+
         # 做清理
-        ret = {'balance_sheet': self.clean(year, season, balance_sheet), 'income_sheet': self.clean(year, season, income_sheet), 
+        ret = {'balance_sheet': self.clean(year, season, balance_sheet), 'income_sheet': self.clean(year, season, income_sheet),
                 'income_sheet_cumulate': self.clean(year, season, income_sheet_cumulate), 'cash_flows': self.clean(year, season, cash_flows)}
-        
+
         # 假如是第一季的話，則 單季 跟 累計 是一樣的
         if season == 1:
             ret['income_sheet'] = ret['income_sheet_cumulate'].copy()
 
         ret['income_sheet_cumulate'].columns = '累計' + ret['income_sheet_cumulate'].columns
-        
+
         pickle.dump(ret, open('data/financial_statement/pack' + str(year) + str(season) + '.pickle', 'wb'))
-        
+
         return ret
-    
-    
+
+
     def get_all_pickles(self, directory):
         ret = {}
         for i in os.listdir(directory):
@@ -1404,7 +1404,7 @@ class FinanceDataHandler:
                 tbs[tname] = tbs[tname].append(dfs[tname])
         return tbs
 
-   
+
     def fill_season4(self, tbs):
         # copy income sheet (will modify it later)
         income_sheet = tbs['income_sheet'].copy()
@@ -1422,12 +1422,12 @@ class FinanceDataHandler:
         years = set(tbs['income_sheet_cumulate'].index.levels[1].year)
 
         for y in years:
-            
+
             # get rows of the dataframe that is season 4
             ys = tbs['income_sheet_cumulate'].reset_index('stock_id').index.year == y
             ds4 = tbs['income_sheet_cumulate'].reset_index('stock_id').index.month == 3
             df4 = tbs['income_sheet_cumulate'][ds4 & ys].apply(lambda s: pd.to_numeric(s, errors='coerce')).reset_index('date')
-            
+
             # get rows of the dataframe that is season 3
             yps = tbs['income_sheet_cumulate'].reset_index('stock_id').index.year == y - 1
             ds3 = tbs['income_sheet_cumulate'].reset_index('stock_id').index.month == 11
@@ -1436,11 +1436,11 @@ class FinanceDataHandler:
             if len(df3) == 0:
                 print('skip ', y)
                 continue
-            
+
             # calculate the differences of income_sheet_cumulate to get income_sheet single season
             diff = df4 - df3
             diff = diff.drop(['date'], axis=1)[overlap_columns]
-            
+
             # remove 累計
             diff.columns = diff.columns.str[2:]
 
@@ -1449,16 +1449,16 @@ class FinanceDataHandler:
             diff = diff[list(c1) + ['date']].reset_index().set_index(['stock_id','date'])
 
             diff = diff.dropna(how="all")
-            
+
             # 新增資料於income_sheet尾部
             income_sheet = income_sheet.append(diff)
 
-            
+
         # 排序好並更新tbs
         income_sheet = income_sheet.reset_index().sort_values(['stock_id', 'date']).set_index(['stock_id', 'date'])
         tbs['income_sheet'] = income_sheet
-        
-        
+
+
     def to_db(self, tbs):
         print('save table to db')
         conn = sqlite3.connect(QUANTX_DB_PATH)
@@ -1466,8 +1466,8 @@ class FinanceDataHandler:
             print('  ', i)
             df = df.reset_index().sort_values(['stock_id', 'date']).drop_duplicates(['stock_id', 'date']).set_index(['stock_id', 'date'])
             df[df.count().nlargest(900).index].to_sql(i, conn, if_exists='replace')
-            
-            
+
+
     def html2db(self, date):
         year = date.year
         if date.month == 3:
@@ -1485,7 +1485,7 @@ class FinanceDataHandler:
             month = 8
         else:
             return None
-        
+
         self.pack_htmls(year, season, os.path.join('data', 'financial_statement', str(year) + str(season)))
         d = self.get_all_pickles(os.path.join('data', 'financial_statement'))
         tbs = self.combine(d)
