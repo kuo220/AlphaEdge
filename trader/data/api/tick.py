@@ -10,7 +10,7 @@ except ModuleNotFoundError:
 
 from trader.config import (
     TICK_DB_PATH,
-    TICK_TABLE_NAME, 
+    TICK_TABLE_NAME,
     TICK_METADATA_PATH,
     DDB_HOST,
     DDB_PORT,
@@ -27,14 +27,14 @@ class Tick:
         self.query_start_date: str = "2024.05.10"
         self.query_end_date: str = "2024.05.10"
         
-        self.session: ddb.session = ddb.session() 
+        self.session: ddb.session = ddb.session()
         self.session.connect(DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
         
         if (self.session.existsDatabase(TICK_DB_PATH)):
             print("* Database exists!")
             
             # set TSDBCacheEngineSize to 5GB (must < 8(maxMemSize) * 0.75 GB)
-            script: str = """ 
+            script: str = """
             memSize = 2
             setTSDBCacheEngineSize(memSize)
             print("TSDBCacheEngineSize: " + string(getTSDBCacheEngineSize() / pow(1024, 3)) + "GB")
@@ -45,8 +45,8 @@ class Tick:
     
     
     def get(
-        self, 
-        start_date: datetime.date, 
+        self,
+        start_date: datetime.date,
         end_date: datetime.date
     ) -> pd.DataFrame:
         """ 取得所有個股各自排序好 tick 資料（個股沒有混在一起排序） """
@@ -56,7 +56,7 @@ class Tick:
         
         start_date: str = start_date.strftime('%Y.%m.%d')
         end_date: str = (end_date + datetime.timedelta(days=1)).strftime('%Y.%m.%d')
-        script: str = f""" 
+        script: str = f"""
         db = database("{TICK_DB_PATH}")
         table = loadTable(db, "{TICK_TABLE_NAME}")
         select * from table
@@ -67,8 +67,8 @@ class Tick:
 
 
     def get_ordered_ticks(
-        self, 
-        start_date: datetime.date, 
+        self,
+        start_date: datetime.date,
         end_date: datetime.date
     ) -> pd.DataFrame:
         """ 取得排序好的 tick 資料（所有個股混在一起以時間排序） """
@@ -79,7 +79,7 @@ class Tick:
         
         start_date: str = start_date.strftime('%Y.%m.%d')
         end_date: str = (end_date + datetime.timedelta(days=1)).strftime('%Y.%m.%d')
-        script: str = f""" 
+        script: str = f"""
         db = database("{TICK_DB_PATH}")
         table = loadTable(db, "{TICK_TABLE_NAME}")
         select * from table
@@ -90,9 +90,9 @@ class Tick:
     
     
     def get_stock_ticks(
-        self, 
-        stock_id: str, 
-        start_date: datetime.date, 
+        self,
+        stock_id: str,
+        start_date: datetime.date,
         end_date: datetime.date
     ) -> pd.DataFrame:
         """ 取得個股 tick 資料 """
@@ -102,7 +102,7 @@ class Tick:
         
         start_date: str = start_date.strftime('%Y.%m.%d')
         end_date: str = (end_date + datetime.timedelta(days=1)).strftime('%Y.%m.%d')
-        script: str = f""" 
+        script: str = f"""
         db = database("{TICK_DB_PATH}")
         table = loadTable(db, "{TICK_TABLE_NAME}")
         select * from table
@@ -113,8 +113,8 @@ class Tick:
     
     
     def get_last_tick(
-        self, 
-        stock_id: str, 
+        self,
+        stock_id: str,
         date: datetime.date
     ) -> pd.DataFrame:
         """ 取得當日最後一筆 tick """

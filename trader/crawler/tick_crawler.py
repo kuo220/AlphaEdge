@@ -52,10 +52,10 @@ From 2020/04/01 ~ 2024/05/10
 
 class StockTickCrawler:
     """ 爬取上市櫃股票 ticks """
-    
+
     def __init__(self):
         """ 初始化爬蟲設定 """
-        
+
         self.tick_db_manager: TickDBManager = TickDBManager()                   # Tick DolphinDB Manager
         self.api_list: List[sj.Shioaji] = [                                     # Shioaji API List
             api_instance
@@ -66,25 +66,25 @@ class StockTickCrawler:
         self.all_stock_list: List[str] = StockInfoCrawler.crawl_stock_list()           # 爬取所有上市櫃股票清單
         self.split_stock_list: List[List[str]] = []                             # 股票清單分組（後續給多線程用）
         self.table_latest_date: datetime.date = None
-        
+
         # Set logger
         logger.add(f"{LOGS_DIR_PATH}/crawl_stock_tick.log")
-        
+
         # Generate downloads directory
         if not os.path.exists(TICK_DOWNLOADS_PATH):
             os.makedirs(TICK_DOWNLOADS_PATH)
-        
+
         # Generate tick_metadata backup
         TickDBTools.generate_tick_metadata_backup()
 
-    
+
     def split_list(
         self,
         target_list: List[Any],
         n_parts: int
     ) -> List[List[str]]:
         """ 將 list 均分成 n 個 list """
-        
+
         num_list: int = 0
         rem: int = 0
         num_list, rem = divmod(len(target_list), n_parts)
@@ -98,16 +98,16 @@ class StockTickCrawler:
         date: datetime.date
     ) -> Optional[pd.DataFrame]:
         """ 透過 Shioaji 爬取指定個股的 tick data """
-            
+
         # 判斷 api 用量
         if api.usage().remaining_bytes / 1024**2 < 20:
             logger.warning(f"API quota low for {api}. Stopped crawling at stock {code}.")
             return None
-        
+
         try:
             ticks: Ticks = api.ticks(contract=api.Contracts.Stocks[code], date=date.isoformat())
             tick_df: pd.DataFrame = pd.DataFrame({**ticks})
-            
+
             if not tick_df.empty:
                 tick_df.ts = pd.to_datetime(tick_df.ts)
                 self.table_latest_date = tick_df.ts.max().date()
@@ -116,21 +116,21 @@ class StockTickCrawler:
         except Exception as e:
                 logger.error(f"Error Crawling Tick Data: {code} {date} | {e}")
                 return None
-        
+
         try:
             formatted_df: pd.DataFrame = TickDBTools.format_tick_data(tick_df, code)
             formatted_df = TickDBTools.format_time_to_microsec(formatted_df)
-        
+
             # Save df to csv file
             formatted_df.to_csv(os.path.join(TICK_DOWNLOADS_PATH, f"{code}.csv"), index=False)
             logger.info(f"Saved {code}.csv to {TICK_DOWNLOADS_PATH}")
 
         except Exception as e:
             logger.error(f"Error processing or saving tick data for stock {code} | {e}")
-        
+
         return formatted_df
-    
-    
+
+
     @log_thread
     def crawl_ticks_for_stock_list(
         self,
@@ -139,17 +139,17 @@ class StockTickCrawler:
         dates: List[datetime.date]
     ) -> None:
         """ 透過 Shioaji 爬取 stock_list 中的個股 tick data """
-        
+
         for code in stock_list:
             # 判斷 api 用量
             if api.usage().remaining_bytes / 1024**2 < 20:
                 logger.warning(f"API quota low for {api}. Stopped crawling at stock {code}.")
                 break
-            
+
             logger.info(f"Start crawling stock: {code}")
-            
+
             df_list: List[pd.DataFrame] = []
-            
+
             for date in dates:
                 try:
                     ticks: Ticks = api.ticks(contract=api.Contracts.Stocks[code], date=date.isoformat())
@@ -162,7 +162,7 @@ class StockTickCrawler:
 
                 except Exception as e:
                     logger.error(f"Error Crawling Tick Data: {code} {date} | {e}")
-        
+
             if not df_list:
                 logger.warning(f"No tick data found for stock {code} from {dates[0]} to {dates[-1]}. Skipping.")
                 continue
@@ -172,24 +172,24 @@ class StockTickCrawler:
                 merged_df: pd.DataFrame = pd.concat(df_list, ignore_index=True)
                 formatted_df: pd.DataFrame = TickDBTools.format_tick_data(merged_df, code)
                 formatted_df = TickDBTools.format_time_to_microsec(formatted_df)
-            
+
                 # Save df to csv file
                 formatted_df.to_csv(os.path.join(TICK_DOWNLOADS_PATH, f"{code}.csv"), index=False)
                 logger.info(f"Saved {code}.csv to {TICK_DOWNLOADS_PATH}")
-                
+
             except Exception as e:
                 logger.error(f"Error processing or saving tick data for stock {code} | {e}")
-            
-    
+
+
     def crawl_ticks_multithreaded(self, dates: List[datetime.date]) -> None:
         """ 使用 Multi-threading 的方式 Crawl Tick Data """
-        
+
         logger.info(f"Start multi-thread crawling. Total stocks: {len(self.all_stock_list)}, Threads: {self.num_threads}")
         start_time: float = time.time()  # 開始計時
-        
+
         # 將 Stock list 均分給各個 thread 進行爬蟲
         self.split_stock_list: List[List[str]] = self.split_list(self.all_stock_list, self.num_threads)
-        
+
         # Multi-threading
         with ThreadPoolExecutor(max_workers=self.num_threads) as executor:
             futures: List[Future] = []
@@ -205,61 +205,61 @@ class StockTickCrawler:
 
         # Update tick table latest date
         TickDBTools.update_tick_table_latest_date(self.table_latest_date)
-        
+
         total_time: float = time.time() - start_time
         total_file: int = len(list(TICK_DOWNLOADS_PATH.glob("*.csv")))
         logger.info(f"All crawling tasks completed and metadata updated. Total file: {total_file}, Total time: {total_time:.2f} seconds")
-        
+
 
     def update_table(self, dates: List[datetime.date]) -> None:
         """ Tick Database 資料更新（Multi-threading） """
-        
+
         self.crawl_ticks_multithreaded(dates)
         self.add_to_sql()
-    
-    
+
+
     def widget(self) -> None:
         """ Tick Database 資料更新 UI """
-        
+
         # Set update date
         date_picker_from: widgets.DatePicker = widgets.DatePicker(description='from', disabled=False)
         date_picker_to: widgets.DatePicker = widgets.DatePicker(description='to', disabled=False)
-        
+
         date_picker_from.value = TickDBTools.get_table_latest_date() + datetime.timedelta(days=1)
         date_picker_to.value = datetime.date.today()
-        
+
         # Set update button
         btn: widgets.Button = widgets.Button(description='update')
-        
+
         # Define update button behavior
         def onupdate(_):
             start_date: Optional[datetime.date] = date_picker_from.value
             end_date: Optional[datetime.date] = date_picker_to.value
-            
+
             if not start_date or not end_date:
                 print("Please select both start and end dates.")
                 return
-            
+
             dates: List[datetime.date] = CrawlerTools.generate_date_range(start_date, end_date)
-            
+
             if not dates:
                 print("Date range is empty. Please check if the start date is earlier than the end date.")
                 return
-            
+
             print(f"Updating data for table '{TICK_TABLE_NAME}' from {dates[0]} to {dates[-1]}...")
             self.update_table(dates)
-        
+
         btn.on_click(onupdate)
-        
+
         label: widgets.Label = widgets.Label(f"""{TICK_TABLE_NAME} (from {TickDBTools.get_table_earliest_date()} to
                               {TickDBTools.get_table_latest_date()})
                               """)
         items: List[widgets.Widget] = [date_picker_from, date_picker_to, btn]
         display(widgets.VBox([label, widgets.HBox(items)]))
-    
-    
+
+
     def add_to_sql(self) -> None:
         """ 將資料夾中的所有 CSV 檔存入 tick 的 DolphinDB 中 """
-        
+
         self.tick_db_manager.append_all_csv_to_dolphinDB(TICK_DOWNLOADS_PATH)
         shutil.rmtree(TICK_DOWNLOADS_PATH)

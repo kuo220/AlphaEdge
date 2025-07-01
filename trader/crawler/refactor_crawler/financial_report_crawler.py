@@ -36,3 +36,5 @@ from trader.config import (
 )
 
 
+class FinancialReportCrawler:
+    pass
