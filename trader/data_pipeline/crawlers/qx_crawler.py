@@ -1,4 +1,3 @@
-# Standard library imports
 import datetime
 import os
 import pickle
@@ -27,8 +26,8 @@ from IPython.display import display
 from requests.exceptions import ConnectionError, ReadTimeout
 from tqdm import tqdm, tnrange, tqdm_notebook
 
-from .crawler_tools import CrawlerTools
-from .url_manager import URLManager
+from ..utils.crawler_utils import CrawlerUtils
+from ..utils.url_manager import URLManager
 from trader.config import (
     CRAWLER_DOWNLOADS_PATH,
     FINANCIAL_STATEMENT_PATH,
@@ -37,7 +36,7 @@ from trader.config import (
 )
 
 
-class CrawlQuantX:
+class QuantXCrawler:
     """ QuantX Crawler """
 
     def __init__(self):
@@ -50,7 +49,7 @@ class CrawlQuantX:
         for i in range(10):
             try:
                 print('獲取新的Session 第', i, '回合')
-                headers = CrawlerTools.generate_random_header()
+                headers = CrawlerUtils.generate_random_header()
                 self.ses = requests.Session()
                 self.ses.get('https://www.twse.com.tw/zh/', headers=headers, timeout=10)
                 self.ses.headers.update(headers)
@@ -107,13 +106,13 @@ class CrawlQuantX:
         return pd.DataFrame()
 
 
-    def crawl_benchmark_return(self, date):
+    def crawl_benchmark_return(self, date) -> pd.DataFrame:
         date_str: str = date.strftime("%Y%m")
         url: str = URLManager.get_url("TAIEX_RETURN_INDEX", date=date_str)
         print("發行量加權股價報酬指數", url)
 
         # 偽瀏覽器
-        headers = CrawlerTools.generate_random_header()
+        headers = CrawlerUtils.generate_random_header()
 
         # 下載該年月的網站，並用pandas轉換成 dataframe
         r = self.requests_get(url, headers=headers, verify=CERTS_FILE_PATH)
@@ -142,7 +141,7 @@ class CrawlQuantX:
         return df
 
 
-    def crawl_tpex_margin_balance(self, date):
+    def crawl_tpex_margin_balance(self, date) -> pd.DataFrame:
         date_str: str = date.strftime('%Y%m%d')
 
         url: str = URLManager.get_url(
@@ -154,7 +153,7 @@ class CrawlQuantX:
         print("上櫃", url)
 
         # 偽瀏覽器
-        headers = CrawlerTools.generate_random_header()
+        headers = CrawlerUtils.generate_random_header()
 
         # 下載該年月的網站，並用pandas轉換成 dataframe
         r = self.requests_get(url, headers=headers, verify=CERTS_FILE_PATH)
@@ -205,7 +204,7 @@ class CrawlQuantX:
         print("上市", url)
 
         # 偽瀏覽器
-        headers = CrawlerTools.generate_random_header()
+        headers = CrawlerUtils.generate_random_header()
 
         # 下載該年月的網站，並用pandas轉換成 dataframe
         r = self.requests_get(url, headers=headers, verify=CERTS_FILE_PATH)
@@ -261,7 +260,7 @@ class CrawlQuantX:
         print("上櫃", url)
 
         # 偽瀏覽器
-        headers = CrawlerTools.generate_random_header()
+        headers = CrawlerUtils.generate_random_header()
 
         # 下載該年月的網站，並用pandas轉換成 dataframe
         r = self.requests_get(url, headers=headers, verify=CERTS_FILE_PATH)
@@ -309,7 +308,7 @@ class CrawlQuantX:
             print("上市", url)
 
             # 偽瀏覽器
-            headers = CrawlerTools.generate_random_header()
+            headers = CrawlerUtils.generate_random_header()
 
             # 下載該年月的網站，並用pandas轉換成 dataframe
             try:
@@ -510,7 +509,7 @@ class CrawlQuantX:
         # 設置 payload 參數，只包含日期
         payload = {"ajax": "true", "input_date": datestr}  # 修改為你需要的日期
 
-        headers = CrawlerTools.generate_random_header()
+        headers = CrawlerUtils.generate_random_header()
         # 發送 POST 請求
         response = requests.post(url, data=payload, headers=headers)
 
@@ -672,7 +671,7 @@ class CrawlQuantX:
         print("上櫃：", url)
 
         # 偽瀏覽器
-        headers = CrawlerTools.generate_random_header()
+        headers = CrawlerUtils.generate_random_header()
 
         # 下載該年月的網站，並用pandas轉換成 dataframe
         try:
@@ -747,7 +746,7 @@ class CrawlQuantX:
             print("上市", url)
 
             # 偽瀏覽器
-            headers = CrawlerTools.generate_random_header()
+            headers = CrawlerUtils.generate_random_header()
 
             # 下載該年月的網站，並用pandas轉換成 dataframe
             try:
@@ -823,7 +822,7 @@ class CrawlQuantX:
             print(url)
             return url
 
-        headers = CrawlerTools.generate_random_header()
+        headers = CrawlerUtils.generate_random_header()
 
         print('start download')
 
@@ -885,7 +884,7 @@ class CrawlQuantX:
                 'Connection': 'keep-alive',
                 'Host': 'mops.twse.com.tw',
                 'Upgrade-Insecure-Requests': '1',
-                'User-Agent': CrawlerTools.generate_random_header()["User-Agent"]
+                'User-Agent': CrawlerUtils.generate_random_header()["User-Agent"]
             }
             pbar = tqdm(stock_ids)
             for i in pbar:

@@ -1,5 +1,8 @@
-import argparse
-from typing import Dict, Type
-parser = argparse.ArgumentParser(description="Trading System")
+import logging
+logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(
+#     level=logging.INFO,
+#     format="%(asctime)s - %(levelname)s - %(message)s"
+# )
 
-print(type(parser.parse_args()))
+logging.info("資料下載完成")
