@@ -96,12 +96,12 @@ class HTMLCrawler:
         """ 爬取上市櫃公司的股票代號 """
         
         # 取得上市公司代號
-        twse_df: pd.DataFrame = CrawlHTML.crawl_twse_stock_info()
+        twse_df: pd.DataFrame = HTMLCrawler.crawl_twse_stock_info()
         twse_stock_list: List[str] = twse_df['證券代號'].to_list()
         print(f"* TWSE stocks: {len(twse_stock_list)}")
 
         # 取得上櫃公司代號
-        tpex_df: pd.DataFrame = CrawlHTML.crawl_tpex_stock_info()
+        tpex_df: pd.DataFrame = HTMLCrawler.crawl_tpex_stock_info()
         tpex_stock_list: List[str] = tpex_df['證券代號'].to_list()
         print(f"* TPEX stocks: {len(tpex_stock_list)}")
         
