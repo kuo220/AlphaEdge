@@ -1,4 +1,3 @@
-# Standard library imports
 import datetime
 import os
 import pickle
@@ -27,8 +26,8 @@ from IPython.display import display
 from requests.exceptions import ConnectionError, ReadTimeout
 from tqdm import tqdm, tnrange, tqdm_notebook
 
-from .crawler_tools import CrawlerTools
-from .url_manager import URLManager
+from ..utils.crawler_tools import CrawlerTools
+from ..utils.url_manager import URLManager
 from trader.config import (
     CRAWLER_DOWNLOADS_PATH,
     FINANCIAL_STATEMENT_PATH,
@@ -37,7 +36,7 @@ from trader.config import (
 )
 
 
-class CrawlQuantX:
+class QuantXCrawler:
     """ QuantX Crawler """
 
     def __init__(self):
@@ -107,7 +106,7 @@ class CrawlQuantX:
         return pd.DataFrame()
 
 
-    def crawl_benchmark_return(self, date):
+    def crawl_benchmark_return(self, date) -> pd.DataFrame:
         date_str: str = date.strftime("%Y%m")
         url: str = URLManager.get_url("TAIEX_RETURN_INDEX", date=date_str)
         print("發行量加權股價報酬指數", url)
@@ -142,7 +141,7 @@ class CrawlQuantX:
         return df
 
 
-    def crawl_tpex_margin_balance(self, date):
+    def crawl_tpex_margin_balance(self, date) -> pd.DataFrame:
         date_str: str = date.strftime('%Y%m%d')
 
         url: str = URLManager.get_url(

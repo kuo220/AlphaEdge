@@ -7,9 +7,9 @@ from typing import List, Dict, Tuple, Optional, Any, Union
 from trader.data import Data, Chip, Tick, QXData
 from trader.adapters import StockQuoteAdapter
 from trader.models import (
-    StockAccount, 
+    StockAccount,
     TickQuote,
-    StockQuote, 
+    StockQuote,
     StockOrder,
     StockTradeRecord
 )
@@ -18,7 +18,7 @@ from trader.utils import (
     Commission,
     Market,
     Scale,
-    PositionType, 
+    PositionType,
     Units
 )
 from trader.strategies.stock import BaseStockStrategy
@@ -36,7 +36,7 @@ Includes:
 
 
 class Backtester:
-    """ 
+    """
     Backtest Framework
     - Time Interval：
         1. Ticks
@@ -47,19 +47,19 @@ class Backtester:
     def __init__(self, strategy: BaseStockStrategy):
         
         """ === Strategy & Account Information === """
-        self.strategy: BaseStockStrategy = strategy                                      # 要回測的策略
+        self.strategy: BaseStockStrategy = strategy                             # 要回測的策略
         self.account: StockAccount = StockAccount(self.strategy.init_capital)   # 虛擬帳戶資訊
         self.strategy.set_account(self.account)                                 # 設置虛擬帳戶資訊
         
         """ === Datasets === """
-        self.data: Data = Data()                                                
+        self.data: Data = Data()
         self.tick: Optional[Tick] = None                                        # Ticks data
         self.chip: Optional[Chip] = None                                        # Chips data
         self.qx_data: Optional[QXData] = None                                   # Day price data, Financial data, etc
         
         """ === Backtest Parameters === """
         self.scale: str = self.strategy.scale                                   # 回測 KBar 級別
-        self.max_holdings: Optional[int] = self.strategy.max_holdings         # 最大持倉檔數
+        self.max_holdings: Optional[int] = self.strategy.max_holdings           # 最大持倉檔數
         self.start_date: datetime.date = self.strategy.start_date               # 回測起始日
         self.cur_date: datetime.date = self.strategy.start_date                 # 回測當前日
         self.end_date: datetime.date = self.strategy.end_date                   # 回測結束日
@@ -181,7 +181,7 @@ class Backtester:
     
     # === Order Placement ===
     def place_open_order(self, stock: StockOrder) -> Optional[StockTradeRecord]:
-        """ 
+        """
         - Description: 開倉下單股票
         - Parameters:
             - stock: StockOrder

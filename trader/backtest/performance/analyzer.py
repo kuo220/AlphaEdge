@@ -1,4 +1,3 @@
-# Standard library imports
 import sys
 import os
 import datetime
@@ -40,8 +39,8 @@ Intended for use in strategy evaluation, portfolio optimization, and performance
 
 
 class StockBacktestAnalyzer(BaseBacktestAnalyzer):
-    """ 
-    Analyzes backtest results to compute key metrics like 
+    """
+    Analyzes backtest results to compute key metrics like
     equity curve, MDD, and ROI
     """
     def __init__(self, account: StockAccount):

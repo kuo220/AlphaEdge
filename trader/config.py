@@ -1,6 +1,6 @@
-# Standard library imports
 import os
 from pathlib import Path
+import logging
 from typing import List, Optional
 from dotenv import load_dotenv
 
@@ -86,3 +86,11 @@ API_LIST: List[ShioajiAPI] = []
 for num in range(NUM_API):
     api: ShioajiAPI = ShioajiAPI(os.getenv(f"API_KEY_{num + 1}"), os.getenv(f"API_SECRET_KEY_{num + 1}"))
     API_LIST.append(api)
+
+
+# Setup logging
+def setup_logging():
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s"
+    )

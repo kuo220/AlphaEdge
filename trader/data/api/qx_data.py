@@ -11,11 +11,11 @@ from trader.config import QUANTX_DB_PATH
 
 class QXData:
     """ QuantX Data API """
-    
+
     def __init__(self, date = datetime.datetime.now().date()):
 
         self.macro_eco_db: List[str] = ["tw_total_pmi", "tw_total_nmi", "tw_business_indicator", "benchmark_return", "margin_balance"]
-        
+
         self.conn: sqlite3.Connection = sqlite3.connect(QUANTX_DB_PATH)
         cursor: sqlite3.Cursor = self.conn.execute('SELECT name FROM sqlite_master WHERE type = "table"')
 
@@ -37,13 +37,13 @@ class QXData:
                     self.col2table[cname].append(tname)
         # 初始self.date（使用data.get時，可以獲得self.date以前的所有資料（以防拿到未來數據）
         self.date = date
-        
+
         # 假如self.cache是true的話，
         # 使用data.get的資料，會被儲存在self.data中，之後再呼叫data.get時，就不需要從資料庫裡面找，
         # 直接調用self.data中的資料即可
         self.cache: bool = False
         self.data = {}
-        
+
         # 先將每個table的所有日期都拿出來
         self.dates = {}
 
@@ -59,8 +59,8 @@ class QXData:
                     s3 = ("""SELECT DISTINCT date FROM %s where stock_id='2330'"""%('price'))
 
                     # 將日期抓出來並排序整理，放到self.dates中
-                    df = (pd.concat([pd.read_sql(s1, self.conn), 
-                                     pd.read_sql(s2, self.conn), 
+                    df = (pd.concat([pd.read_sql(s1, self.conn),
+                                     pd.read_sql(s2, self.conn),
                                      pd.read_sql(s3, self.conn)])
                           .drop_duplicates('date').sort_values('date'))
 
@@ -71,10 +71,10 @@ class QXData:
                     # 將日期抓出來並排序整理，放到self.dates中
                     s = ("""SELECT DISTINCT date FROM '%s'"""%(tname))
                     self.dates[tname] = pd.read_sql(s, self.conn, parse_dates=['date'], index_col=['date']).sort_index()
-        
-        
+
+
     def get(self, table, name, n):
-        
+
         # 確認名稱是否存在於資料庫
         if name not in self.col2table or n == 0:
             print('Data: **ERROR: cannot find', name, 'in database')
@@ -82,7 +82,7 @@ class QXData:
         if table not in self.col2table[name]:
             print('Data: **ERROR: cannot find', name, 'in table', table)
             return pd.DataFrame()
-        
+
         # 找出欲爬取的時間段（startdate, enddate）
         df = self.dates[table].loc[:self.date].iloc[-n:]
 
@@ -92,11 +92,11 @@ class QXData:
         except:
             print('Data: **WARRN: data cannot be retrieve completely:', name)
             enddate = df.iloc[0]
-        
+
         # 假如該時間段已經在self.data中，則直接從self.data中拿取並回傳即可
         if (table, name) in self.data and self.contain_date(table, name, enddate, startdate):
             return self.data[(table, name)][enddate:startdate]
-        
+
         # 從資料庫中拿取所需的資料 總經資料沒有stock_id
         if table in self.macro_eco_db:
             s = ("""SELECT date, [%s] FROM %s WHERE date BETWEEN '%s' AND '%s'"""%(name,
@@ -138,27 +138,27 @@ class QXData:
 
         s = (
             """
-            SELECT 
-                stock_id, 
-                date, 
-                [%s], 
-                [%s], 
-                [%s], 
-                [%s], 
-                [%s], 
-                [%s] 
-            FROM 
-                %s 
-            WHERE 
-                stock_id IN (%s) 
+            SELECT
+                stock_id,
+                date,
+                [%s],
+                [%s],
+                [%s],
+                [%s],
+                [%s],
+                [%s]
+            FROM
+                %s
+            WHERE
+                stock_id IN (%s)
                 AND date BETWEEN '%s' AND '%s'
             """
             % (
-                names[0], 
-                names[1], 
-                names[2], 
-                names[3], 
-                names[4], 
+                names[0],
+                names[1],
+                names[2],
+                names[3],
+                names[4],
                 names[5],
                 table,
                 stock_id,
@@ -171,7 +171,7 @@ class QXData:
 
         # 將這些資料存入cache，以便將來要使用時，不需要從資料庫額外調出來
         return ret
-    
+
 
     def get_stock_id_date_margin_transactions(self, table, stock_id, n):
 
@@ -187,10 +187,10 @@ class QXData:
 
         s = (
             """
-            SELECT * 
-            FROM %s 
-            WHERE 
-                stock_id IN (%s) 
+            SELECT *
+            FROM %s
+            WHERE
+                stock_id IN (%s)
                 AND date BETWEEN '%s' AND '%s'
             """
             % (
@@ -208,7 +208,7 @@ class QXData:
 
         # 將這些資料存入cache，以便將來要使用時，不需要從資料庫額外調出來
         return ret
-    
+
 
     # 確認該資料區間段是否已經存在self.data
     def contain_date(self,table, name, startdate, enddate):
@@ -216,20 +216,20 @@ class QXData:
             return False
         if self.data[(table, name)].index[0] <= startdate <= enddate <= self.data[(table, name)].index[-1]:
             return True
-        
+
         return False
-    
-    
+
+
     def check_market_open(self, date: datetime.date) -> bool:
-        """ 
+        """
         - Description: 判斷是否指定日期是否開盤
         - Parameters:
             - date: 要確認是否開盤的日期
         -Return:
             - bool
         """
-        
+
         self.date = date
         close_price = self.get('price', '收盤價', 1)
-        
+
         return True if close_price.index.date == date else False

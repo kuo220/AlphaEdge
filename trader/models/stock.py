@@ -1,4 +1,3 @@
-# Standard library imports
 import datetime
 from typing import Dict, List, Optional, Union
 import pandas as pd
@@ -6,7 +5,7 @@ import pandas as pd
 from trader.utils import Commission, PositionType, Scale
 
 
-""" 
+"""
 * This section mainly serves as utilities for quote representation and event recording in the backtesting phase.
 """
 
@@ -15,14 +14,14 @@ class TickQuote:
     """  Tick 報價資訊（即時報價） """
     
     def __init__(
-        self, 
-        code: str="", 
+        self,
+        code: str="",
         time: pd.Timestamp=None,
-        close: float=0.0, 
+        close: float=0.0,
         volume: int=0,
-        bid_price: float=0.0, 
-        bid_volume: int=0, 
-        ask_price: float=0.0, 
+        bid_price: float=0.0,
+        bid_volume: int=0,
+        ask_price: float=0.0,
         ask_volume: int=0,
         tick_type: int=0
     ):
@@ -48,15 +47,15 @@ class StockQuote:
     """ 個股報價資訊 """
     
     def __init__(
-        self, 
-        code: str="", 
-        scale: Scale=None, 
-        date: datetime.datetime=None, 
-        cur_price: float=0.0, 
+        self,
+        code: str="",
+        scale: Scale=None,
+        date: datetime.datetime=None,
+        cur_price: float=0.0,
         volume: float=0.0,
-        open: float=0.0, 
-        high: float=0.0, 
-        low: float=0.0, 
+        open: float=0.0,
+        high: float=0.0,
+        low: float=0.0,
         close: float=0.0,
         tick: TickQuote=None
     ):
@@ -83,11 +82,11 @@ class StockOrder:
     """ 個股買賣的訂單 """
     
     def __init__(
-        self, 
-        code: str="", 
+        self,
+        code: str="",
         date: datetime.datetime=None,
-        price: float=0.0, 
-        volume: float=0.0, 
+        price: float=0.0,
+        volume: float=0.0,
         position_type: PositionType=PositionType.LONG
      ):
         # Basic Info
@@ -104,20 +103,20 @@ class StockTradeRecord:
     """ 單筆股票交易紀錄 """
     
     def __init__(
-        self, 
-        id: int=0, 
-        code: str="", 
-        date: datetime.datetime=None, 
-        is_closed: bool=False, 
-        position_type: PositionType=PositionType.LONG, 
-        buy_price: float=0.0, 
-        sell_price: float=0.0, 
-        volume: float=0.0, 
-        commission: float=0.0, 
-        tax: float=0.0, 
-        transaction_cost: float=0.0, 
-        position_value: float=0.0, 
-        realized_pnl: float=0.0, 
+        self,
+        id: int=0,
+        code: str="",
+        date: datetime.datetime=None,
+        is_closed: bool=False,
+        position_type: PositionType=PositionType.LONG,
+        buy_price: float=0.0,
+        sell_price: float=0.0,
+        volume: float=0.0,
+        commission: float=0.0,
+        tax: float=0.0,
+        transaction_cost: float=0.0,
+        position_value: float=0.0,
+        realized_pnl: float=0.0,
         roi: float=0.0
     ):
 
@@ -176,7 +175,7 @@ class StockAccount:
 
 
     def get_position_count(self) -> int:
-        """ 取得庫存股票檔數 """    
+        """ 取得庫存股票檔數 """
         return len(self.positions)
     
     

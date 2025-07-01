@@ -1,4 +1,3 @@
-# Standard library imports
 import datetime
 import os
 import sqlite3
@@ -14,72 +13,72 @@ from trader.config import (
 
 class Chip:
     """ Institutional investors chip API """
-    
+
     def __init__(self):
         self.conn: sqlite3.Connection = sqlite3.connect(CHIP_DB_PATH)
-        
-    
+
+
     def get(
-        self, 
-        start_date: datetime.date, 
+        self,
+        start_date: datetime.date,
         end_date: datetime.date
     ) -> pd.DataFrame:
         """ 取得所有股票的三大法人籌碼 """
-        
+
         if start_date > end_date:
             return pd.DataFrame()
-        
-        query: str = f""" 
+
+        query: str = f"""
         SELECT * FROM {CHIP_TABLE_NAME} WHERE 日期 BETWEEN '{start_date}' AND '{end_date}'
         """
         df: pd.DataFrame = pd.read_sql_query(query, self.conn)
         return df
-    
-    
+
+
     def get_stock_chip(
-        self, 
-        stock_id: str, 
-        start_date: datetime.date, 
+        self,
+        stock_id: str,
+        start_date: datetime.date,
         end_date: datetime.date
     ) -> pd.DataFrame:
         """ 取得指定個股的三大法人籌碼 """
-        
+
         if start_date > end_date:
             return pd.DataFrame()
-        
-        query: str = f""" 
+
+        query: str = f"""
         SELECT * FROM {CHIP_TABLE_NAME} WHERE 證券代號 = '{stock_id}' AND 日期 BETWEEN '{start_date}' AND '{end_date}'
         """
         df: pd.DataFrame = pd.read_sql_query(query, self.conn)
         return df
 
-    
+
     def get_net_chip(
-        self, 
-        start_date: datetime.date, 
+        self,
+        start_date: datetime.date,
         end_date: datetime.date
     ) -> pd.DataFrame:
         """ 取得所有股票的三大法人淨買賣超 """
-        
+
         if start_date > end_date:
             return pd.DataFrame()
-        
+
         df: pd.DataFrame = self.get(start_date, end_date)
         df = df.loc[:, ('日期', '證券代號', '證券名稱', '外資買賣超股數', '投信買賣超股數', '自營商買賣超股數')]
         return df
-        
-    
+
+
     def get_stock_net_chip(
-        self, 
-        stock_id: str, 
-        start_date: datetime.date, 
+        self,
+        stock_id: str,
+        start_date: datetime.date,
         end_date: datetime.date
     ) -> pd.DataFrame:
         """ 取得指定個股的三大法人淨買賣超 """
-        
+
         if start_date > end_date:
             return pd.DataFrame()
-        
+
         df: pd.DataFrame = self.get_stock_chip(stock_id, start_date, end_date)
         df = df.loc[:, ('日期', '證券代號', '證券名稱', '外資買賣超股數', '投信買賣超股數', '自營商買賣超股數')]
         return df
