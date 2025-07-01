@@ -8,9 +8,9 @@ try:
     import dolphindb as ddb
 except ModuleNotFoundError:
     print("Warning: dolphindb module is not installed.")
-from trader.crawlers.fetchers.tick_crawler import StockTickCrawler
-from trader.crawlers.utils.crawler_tools import CrawlerTools
-from trader.crawlers.utils.stock_tick_tools import StockTickTools
+from trader.data_pipeline.crawlers.tick_crawler import StockTickCrawler
+from trader.data_pipeline.utils.crawler_tools import CrawlerTools
+from trader.data_pipeline.utils.stock_tick_tools import StockTickTools
 
 from trader.config import (
     TICK_DOWNLOADS_PATH,

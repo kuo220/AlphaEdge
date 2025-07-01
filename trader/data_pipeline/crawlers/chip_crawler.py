@@ -9,8 +9,8 @@ from io import StringIO
 import pandas as pd
 import requests
 
-from trader.crawlers.utils.crawler_tools import CrawlerTools
-from trader.crawlers.utils.url_manager import URLManager
+from trader.data_pipeline.utils.crawler_tools import CrawlerTools
+from trader.data_pipeline.utils.url_manager import URLManager
 from trader.config import (
     CHIP_DOWNLOADS_PATH,
     CHIP_DB_PATH,

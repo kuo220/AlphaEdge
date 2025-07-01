@@ -10,7 +10,7 @@ from dateutil.rrule import DAILY, MONTHLY, rrule
 from fake_useragent import UserAgent
 from requests.exceptions import ReadTimeout
 
-from trader.crawlers.utils.url_manager import URLManager
+from trader.data_pipeline.utils.url_manager import URLManager
 
 
 class CrawlerTools:

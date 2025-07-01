@@ -26,8 +26,8 @@ from IPython.display import display
 from requests.exceptions import ConnectionError, ReadTimeout
 from tqdm import tqdm, tnrange, tqdm_notebook
 
-from trader.crawlers.utils.crawler_tools import CrawlerTools
-from trader.crawlers.utils.url_manager import URLManager
+from trader.data_pipeline.utils.crawler_tools import CrawlerTools
+from trader.data_pipeline.utils.url_manager import URLManager
 from trader.config import (
     CRAWLER_DOWNLOADS_PATH,
     FINANCIAL_STATEMENT_PATH,
