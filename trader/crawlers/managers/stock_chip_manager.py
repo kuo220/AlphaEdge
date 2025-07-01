@@ -1,3 +1,5 @@
+import os
+import shutil
 import random
 import sqlite3
 import datetime
@@ -10,12 +12,12 @@ from IPython.display import display
 from tqdm import tqdm_notebook
 
 from trader.crawlers.fetchers.chip_crawler import StockChipCrawler
-from trader.crawlers.handlers.stock_chip_handler import StockChipHandler
 from trader.crawlers.utils.crawler_tools import CrawlerTools
 from trader.data import SQLiteTools
 from trader.config import (
     CHIP_DB_PATH,
-    CHIP_TABLE_NAME
+    CHIP_TABLE_NAME,
+    CHIP_DOWNLOADS_PATH
 )
 
 
@@ -28,9 +30,6 @@ class StockChipManager:
 
         # Chip Crawler
         self.crawler: StockChipCrawler = StockChipCrawler()
-
-        # Chip Handler
-        self.handler: StockChipHandler = StockChipHandler()
 
 
     def update_table(self, dates: List[datetime.date]) -> None:
@@ -64,7 +63,7 @@ class StockChipManager:
                 time.sleep(delay)
 
         # Save chip data to database
-        self.handler.add_to_sql()
+        self.add_to_sql()
 
 
     def widget(self) -> None:
@@ -102,12 +101,70 @@ class StockChipManager:
         btn.on_click(onupdate)
 
         if SQLiteTools.check_table_exist(self.conn, CHIP_TABLE_NAME):
-            label: widgets.Label = widgets.Label(f"""
-                                  {CHIP_TABLE_NAME} (from {SQLiteTools.get_table_earliest_date(self.conn, CHIP_TABLE_NAME, '日期').strftime('%Y-%m-%d')} to
-                                  {SQLiteTools.get_table_latest_date(self.conn, CHIP_TABLE_NAME, '日期').strftime('%Y-%m-%d')})
-                                  """)
+            label: widgets.Label = widgets.Label(
+                f"""
+                {CHIP_TABLE_NAME} (from {SQLiteTools.get_table_earliest_date(self.conn, CHIP_TABLE_NAME, '日期').strftime('%Y-%m-%d')} to
+                {SQLiteTools.get_table_latest_date(self.conn, CHIP_TABLE_NAME, '日期').strftime('%Y-%m-%d')})
+                """
+            )
         else:
             label: widgets.Label = widgets.Label(f"{CHIP_TABLE_NAME} (No table found)")
 
         items: List[widgets.Widget] = [date_picker_from, date_picker_to, btn]
         display(widgets.VBox([label, widgets.HBox(items)]))
+
+
+    def create_chip_db(self) -> None:
+        """ 創建三大法人盤後籌碼db """
+
+        cursor: sqlite3.Cursor = self.conn.cursor()
+
+        create_table_query: str = f"""
+        CREATE TABLE IF NOT EXISTS {CHIP_TABLE_NAME}(
+            日期 TEXT NOT NULL,
+            證券代號 TEXT NOT NULL,
+            證券名稱 TEXT NOT NULL,
+            外資買進股數 INT NOT NULL,
+            外資賣出股數 INT NOT NULL,
+            外資買賣超股數 INT NOT NULL,
+            投信買進股數 INT NOT NULL,
+            投信賣出股數 INT NOT NULL,
+            投信買賣超股數 INT NOT NULL,
+            自營商買進股數_自行買賣 INT,
+            自營商賣出股數_自行買賣 INT,
+            自營商買賣超股數_自行買賣 INT,
+            自營商買進股數_避險 INT,
+            自營商賣出股數_避險 INT,
+            自營商買賣超股數_避險 INT,
+            自營商買賣超股數 INT NOT NULL,
+            三大法人買賣超股數 INT NOT NULL
+        );
+        """
+        cursor.execute(create_table_query)
+
+        # 檢查是否成功建立 table
+        cursor.execute(f"PRAGMA table_info('{CHIP_TABLE_NAME}')")
+        if cursor.fetchall():
+            print(f"Table {CHIP_TABLE_NAME} create successfully!")
+        else:
+            print(f"Table {CHIP_TABLE_NAME} create unsuccessfully!")
+
+        self.conn.commit()
+        self.conn.close()
+
+
+    def add_to_sql(self) -> None:
+        """ 將資料夾中的所有 CSV 檔存入指定 SQLite 資料庫中的指定資料表。 """
+
+        file_cnt: int = 0
+        for file_name in os.listdir(CHIP_DOWNLOADS_PATH):
+            # Skip non-CSV files
+            if not file_name.endswith('.csv'):
+                continue
+            df: pd.DataFrame = pd.read_csv(os.path.join(CHIP_DOWNLOADS_PATH, file_name))
+            df.to_sql(CHIP_TABLE_NAME, self.conn, if_exists='append', index=False)
+            print(f"Save {file_name} into database.")
+            file_cnt += 1
+        self.conn.close()
+        shutil.rmtree(CHIP_DOWNLOADS_PATH)
+        print(f"Total file: {file_cnt}")
