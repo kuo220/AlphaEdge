@@ -27,7 +27,7 @@ import zipfile
 from .managers.url_manager import URLManager
 
 
-class CrawlHTML:
+class HTMLCrawler:
     """ HTML Crawler """
     
     @staticmethod

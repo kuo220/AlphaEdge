@@ -75,9 +75,9 @@ class StockBacktestReporter:
         ))
         
         self._set_fig_config(
-            fig, 
-            title = fig_title, 
-            xaxis_title='Date', 
+            fig,
+            title = fig_title,
+            xaxis_title='Date',
             yaxis_title='Equity'
         )
     
@@ -93,10 +93,10 @@ class StockBacktestReporter:
     
     
     def _set_figure_config(
-        self, 
-        fig: go.Figure, 
-        title: str="", 
-        xaxis_title: str="", 
+        self,
+        fig: go.Figure,
+        title: str="",
+        xaxis_title: str="",
         yaxis_title: str="",
         fig_text: str=""
     ) -> None:
@@ -141,7 +141,7 @@ class StockBacktestReporter:
                 borderwidth = 1,
                 borderpad = 5,
                 bgcolor = 'black',
-                opacity = 0.5 
+                opacity = 0.5
             )
         
         

@@ -25,13 +25,13 @@ from .managers.url_manager import URLManager
 from trader.data import SQLiteTools
 from trader.config import (
     CHIP_DOWNLOADS_PATH,
-    CHIP_DB_PATH, 
+    CHIP_DB_PATH,
     CHIP_TABLE_NAME
 )
 
 
 
-""" 
+"""
 三大法人爬蟲資料時間表：
 1. TWSE
     - TWSE: 2012/5/2 開始提供（這邊從 2014/12/1 開始爬）
@@ -42,7 +42,7 @@ from trader.config import (
 """
 
 
-class CrawlStockChip:
+class StockChipCrawler:
     """ 爬取上市、上櫃股票三大法人盤後籌碼 """
     
     def __init__(self):
@@ -87,10 +87,10 @@ class CrawlStockChip:
         twse_df.columns = twse_df.columns.droplevel(0)
         twse_df.insert(0, '日期', date)
         
-        old_col_name: List[str] = ['自營商買進股數(自行買賣)', '自營商賣出股數(自行買賣)', '自營商買賣超股數(自行買賣)', 
+        old_col_name: List[str] = ['自營商買進股數(自行買賣)', '自營商賣出股數(自行買賣)', '自營商買賣超股數(自行買賣)',
                         '自營商買進股數(避險)', '自營商賣出股數(避險)', '自營商買賣超股數(避險)']
         
-        new_col_name: List[str] = ['自營商買進股數_自行買賣', '自營商賣出股數_自行買賣', '自營商買賣超股數_自行買賣', 
+        new_col_name: List[str] = ['自營商買進股數_自行買賣', '自營商賣出股數_自行買賣', '自營商買賣超股數_自行買賣',
                             '自營商買進股數_避險', '自營商賣出股數_避險', '自營商買賣超股數_避險']
         
         # 第一次格式改制前
@@ -200,11 +200,11 @@ class CrawlStockChip:
         tpex_df.to_csv(os.path.join(CHIP_DOWNLOADS_PATH, f"tpex_{date.strftime('%Y%m%d')}.csv"), index=False)
         
         return tpex_df
-    
+
 
     def crawl_twse_chip_range(
-        self, 
-        start_date: datetime.date, 
+        self,
+        start_date: datetime.date,
         end_date: datetime.date=datetime.date.today()
     ) -> None:
         """ TWSE 三大法人日期範圍爬蟲 """
@@ -231,8 +231,8 @@ class CrawlStockChip:
             
               
     def crawl_tpex_chip_range(
-        self, 
-        start_date: datetime.date, 
+        self,
+        start_date: datetime.date,
         end_date: datetime.date=datetime.date.today()
     ) -> None:
         """ TPEX 三大法人日期範圍爬蟲  """
@@ -263,7 +263,7 @@ class CrawlStockChip:
         
         print(f'* Start updating chip data')
                 
-        progress: Any = tqdm_notebook(dates)        
+        progress: Any = tqdm_notebook(dates)
         crawl_cnt: int = 0
         
         # Crawl chip data
@@ -327,8 +327,8 @@ class CrawlStockChip:
         btn.on_click(onupdate)
         
         if SQLiteTools.check_table_exist(self.conn, CHIP_TABLE_NAME):
-            label: widgets.Label = widgets.Label(f""" 
-                                  {CHIP_TABLE_NAME} (from {SQLiteTools.get_table_earliest_date(self.conn, CHIP_TABLE_NAME, '日期').strftime('%Y-%m-%d')} to 
+            label: widgets.Label = widgets.Label(f"""
+                                  {CHIP_TABLE_NAME} (from {SQLiteTools.get_table_earliest_date(self.conn, CHIP_TABLE_NAME, '日期').strftime('%Y-%m-%d')} to
                                   {SQLiteTools.get_table_latest_date(self.conn, CHIP_TABLE_NAME, '日期').strftime('%Y-%m-%d')})
                                   """)
         else:
@@ -343,7 +343,7 @@ class CrawlStockChip:
         
         cursor: sqlite3.Cursor = self.conn.cursor()
         
-        create_table_query: str = f""" 
+        create_table_query: str = f"""
         CREATE TABLE IF NOT EXISTS {CHIP_TABLE_NAME}(
             日期 TEXT NOT NULL,
             證券代號 TEXT NOT NULL,

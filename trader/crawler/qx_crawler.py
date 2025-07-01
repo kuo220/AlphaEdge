@@ -36,7 +36,7 @@ from trader.config import (
 )
 
 
-class CrawlQuantX:
+class QuantXCrawler:
     """ QuantX Crawler """
 
     def __init__(self):

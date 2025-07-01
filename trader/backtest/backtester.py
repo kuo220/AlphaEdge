@@ -7,9 +7,9 @@ from typing import List, Dict, Tuple, Optional, Any, Union
 from trader.data import Data, Chip, Tick, QXData
 from trader.adapters import StockQuoteAdapter
 from trader.models import (
-    StockAccount, 
+    StockAccount,
     TickQuote,
-    StockQuote, 
+    StockQuote,
     StockOrder,
     StockTradeRecord
 )
@@ -18,7 +18,7 @@ from trader.utils import (
     Commission,
     Market,
     Scale,
-    PositionType, 
+    PositionType,
     Units
 )
 from trader.strategies.stock import BaseStockStrategy
@@ -36,7 +36,7 @@ Includes:
 
 
 class Backtester:
-    """ 
+    """
     Backtest Framework
     - Time Interval：
         1. Ticks
@@ -52,7 +52,7 @@ class Backtester:
         self.strategy.set_account(self.account)                                 # 設置虛擬帳戶資訊
         
         """ === Datasets === """
-        self.data: Data = Data()                                                
+        self.data: Data = Data()
         self.tick: Optional[Tick] = None                                        # Ticks data
         self.chip: Optional[Chip] = None                                        # Chips data
         self.qx_data: Optional[QXData] = None                                   # Day price data, Financial data, etc

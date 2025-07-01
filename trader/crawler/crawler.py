@@ -24,11 +24,11 @@ from requests.exceptions import ConnectionError, ReadTimeout
 from tqdm import tqdm, tnrange, tqdm_notebook
 import zipfile
 
-from .chip_crawler import CrawlStockChip
-from .tick_crawler import CrawlStockTick
-from .html_crawler import CrawlHTML
-from .qx_crawler import CrawlQuantX
-from .shioaji_crawler import CrawlShioaji
+from .chip_crawler import StockChipCrawler
+from .tick_crawler import StockTickCrawler
+from .html_crawler import HTMLCrawler
+from .qx_crawler import QuantXCrawler
+from .shioaji_crawler import ShioajiCrawler
 from .utils.crawler_tools import CrawlerTools
 
 
@@ -37,17 +37,17 @@ class Crawler:
     Unified crawler interface for all data sources.
 
     Integrates multiple crawlers:
-    - CrawlStockChip: Fetches institutional trading data (TWSE, TPEX).
-    - CrawlHTML: Retrieves static HTML-based data such as stock lists.
-    - CrawlShioaji: Gathers real-time tick data via Shioaji API.
+    - StockChipCrawler: Fetches institutional trading data (TWSE, TPEX).
+    - HTMLCrawler: Retrieves static HTML-based data such as stock lists.
+    - ShioajiCrawler: Gathers real-time tick data via Shioaji API.
 
     Provides centralized access to trigger updates or batch crawling across sources.
     Useful for pipeline automation or scheduled tasks.
     """
 
     def __init__(self):
-        self.chip: CrawlStockChip = CrawlStockChip()
-        self.tick: CrawlStockTick = CrawlStockTick()
-        self.html: CrawlHTML = CrawlHTML()
-        self.quantx: CrawlQuantX = CrawlQuantX()
-        self.shioaji: CrawlShioaji = CrawlShioaji()
+        self.chip: StockChipCrawler = StockChipCrawler()
+        self.tick: StockTickCrawler = StockTickCrawler()
+        self.html: HTMLCrawler = HTMLCrawler()
+        self.quantx: QuantXCrawler = QuantXCrawler()
+        self.shioaji: ShioajiCrawler = ShioajiCrawler()

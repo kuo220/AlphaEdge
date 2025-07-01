@@ -50,7 +50,7 @@ From: 2020/03/02 ~ Today
 From 2020/04/01 ~ 2024/05/10
 """
 
-class CrawlStockTick:
+class StockTickCrawler:
     """ 爬取上市櫃股票 ticks """
     
     def __init__(self):

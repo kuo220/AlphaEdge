@@ -24,7 +24,7 @@ from requests.exceptions import ConnectionError, ReadTimeout
 from tqdm import tqdm, tnrange, tqdm_notebook
 import zipfile
 
-class CrawlShioaji:
+class ShioajiCrawler:
     """ Shioaji Crawler """
     
     pass
