@@ -24,7 +24,7 @@ from tqdm import tqdm, tnrange, tqdm_notebook
 import warnings
 import zipfile
 
-from .managers.url_manager import URLManager
+from ..utils.url_manager import URLManager
 
 
 class StockInfoCrawler:

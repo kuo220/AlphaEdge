@@ -27,7 +27,7 @@ from requests.exceptions import ConnectionError, ReadTimeout
 from tqdm import tqdm, tnrange, tqdm_notebook
 
 from ..utils.crawler_tools import CrawlerTools
-from ..managers.url_manager import URLManager
+from ..utils.url_manager import URLManager
 from trader.config import (
     CRAWLER_DOWNLOADS_PATH,
     FINANCIAL_STATEMENT_PATH,

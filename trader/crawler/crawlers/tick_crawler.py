@@ -25,7 +25,7 @@ from tqdm import tqdm, tnrange, tqdm_notebook
 
 from trader.data import TickDBTools, TickDBManager
 from trader.utils import ShioajiAccount, ShioajiAPI, log_thread
-from .utils.crawler_tools import CrawlerTools
+from ..utils.crawler_tools import CrawlerTools
 from .stock_info_crawler import StockInfoCrawler
 from trader.config import (
     LOGS_DIR_PATH,

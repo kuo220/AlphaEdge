@@ -20,10 +20,10 @@ from dateutil.rrule import rrule, DAILY, MONTHLY
 from dateutil.relativedelta import relativedelta
 from requests.exceptions import ReadTimeout, ConnectionError
 
-from ..chip_crawler import StockChipCrawler
-from ..handlers import StockChipHandler
-from ..utils.crawler_tools import CrawlerTools
-from ..managers.url_manager import URLManager
+from trader.crawler.crawlers.chip_crawler import StockChipCrawler
+from trader.crawler.handlers.stock_chip_handler import StockChipHandler
+from trader.crawler.utils.url_manager import URLManager
+from trader.crawler.utils.crawler_tools import CrawlerTools
 from trader.data import SQLiteTools
 from trader.config import (
     CHIP_DOWNLOADS_PATH,
