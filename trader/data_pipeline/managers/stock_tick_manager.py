@@ -8,10 +8,11 @@ try:
     import dolphindb as ddb
 except ModuleNotFoundError:
     print("Warning: dolphindb module is not installed.")
+
+from trader.data_pipeline.managers.base import BaseDatabaseManager
 from trader.data_pipeline.crawlers.tick_crawler import StockTickCrawler
 from trader.data_pipeline.utils.crawler_utils import CrawlerUtils
 from trader.data_pipeline.utils.stock_tick_utils import StockTickUtils
-
 from trader.config import (
     TICK_DOWNLOADS_PATH,
     TICK_DB_PATH,
@@ -25,12 +26,83 @@ from trader.config import (
 )
 
 
-class StockTickManager:
+class StockTickManager(BaseDatabaseManager):
     """ 管理上市與上櫃股票的三大法人 tick 資料，整合爬取、清洗與寫入資料庫等流程 """
 
     def __init__(self):
-        self.session: ddb.session = ddb.session()
+
+        # Connect to DolphinDB
+        self.session: ddb.session = None
+        self.connect()
+
+        # Set up database
+        self.setup_db()
+
+        # Tick Crawler
+        self.crawler: StockTickCrawler = StockTickCrawler()
+
+
+    def connect(self) -> None:
+        """ Connect to the Database """
+
+        self.session = ddb.session()
         self.session.connect(DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
+
+
+    def disconnect(self) -> None:
+        """ Disconnect the Database """
+
+        self.session.close()
+
+
+    def create_db(self) -> None:
+        """ 創建 dolphinDB """
+
+        start_time: str = '2020.03.01'
+        end_time: str = '2030.12.31'
+
+        if self.session.existsDatabase(TICK_DB_PATH):
+            print("Database exists!")
+        else:
+            print("Database doesn't exist!\nCreating a database...")
+            script: str = f"""
+            create database "{DDB_PATH}{TICK_DB_NAME}"
+            partitioned by VALUE({start_time}..{end_time}), HASH([SYMBOL, 25])
+            engine='TSDB'
+            create table "{DDB_PATH}{TICK_DB_NAME}"."{TICK_TABLE_NAME}"(
+                stock_id SYMBOL
+                time NANOTIMESTAMP
+                close FLOAT
+                volume INT
+                bid_price FLOAT
+                bid_volume INT
+                ask_price FLOAT
+                ask_volume INT
+                tick_type INT
+            )
+            partitioned by time, stock_id,
+            sortColumns=[`stock_id, `time],
+            keepDuplicates=ALL
+            """
+            try:
+                self.session.run(script)
+                if self.session.existsDatabase(TICK_DB_PATH):
+                    print("dolphinDB create successfully!")
+                else:
+                    print("dolphinDB create unsuccessfully!")
+            except Exception as e:
+                print(f"dolphinDB create unsuccessfully!\n{e}")
+
+
+    def add_to_db(self) -> None:
+        """ 將資料夾中的所有 CSV 檔存入 tick 的 DolphinDB 中 """
+
+        self.append_all_csv_to_dolphinDB(TICK_DOWNLOADS_PATH)
+        shutil.rmtree(TICK_DOWNLOADS_PATH)
+
+
+    def setup_db(self):
+        """ 檢查資料庫是否存在，並設定 TSDB Cache Engine """
 
         if (self.session.existsDatabase(TICK_DB_PATH)):
             print("Database exists!")
@@ -45,15 +117,12 @@ class StockTickManager:
         else:
             print("Database doesn't exist!")
 
-        # Tick Crawler
-        self.crawler: StockTickCrawler = StockTickCrawler()
-
 
     def update_table(self, dates: List[datetime.date]) -> None:
         """ Tick Database 資料更新（Multi-threading） """
 
         self.crawler.crawl_ticks_multithreaded(dates)
-        self.add_to_ddb()
+        self.add_to_db()
 
 
     def widget(self) -> None:
@@ -97,45 +166,6 @@ class StockTickManager:
         )
         items: List[widgets.Widget] = [date_picker_from, date_picker_to, btn]
         display(widgets.VBox([label, widgets.HBox(items)]))
-
-
-    def create_tick_dolphinDB(self) -> None:
-        """ 創建 dolphinDB """
-
-        start_time: str = '2020.03.01'
-        end_time: str = '2030.12.31'
-
-        if self.session.existsDatabase(TICK_DB_PATH):
-            print("Database exists!")
-        else:
-            print("Database doesn't exist!\nCreating a database...")
-            script: str = f"""
-            create database "{DDB_PATH}{TICK_DB_NAME}"
-            partitioned by VALUE({start_time}..{end_time}), HASH([SYMBOL, 25])
-            engine='TSDB'
-            create table "{DDB_PATH}{TICK_DB_NAME}"."{TICK_TABLE_NAME}"(
-                stock_id SYMBOL
-                time NANOTIMESTAMP
-                close FLOAT
-                volume INT
-                bid_price FLOAT
-                bid_volume INT
-                ask_price FLOAT
-                ask_volume INT
-                tick_type INT
-            )
-            partitioned by time, stock_id,
-            sortColumns=[`stock_id, `time],
-            keepDuplicates=ALL
-            """
-            try:
-                self.session.run(script)
-                if self.session.existsDatabase(TICK_DB_PATH):
-                    print("dolphinDB create successfully!")
-                else:
-                    print("dolphinDB create unsuccessfully!")
-            except Exception as e:
-                print(f"dolphinDB create unsuccessfully!\n{e}")
 
 
     def append_csv_to_dolphinDB(self, csv_path: str) -> None:
@@ -202,13 +232,6 @@ class StockTickManager:
 
         except Exception as e:
             print(f"All csv files fail to save into database and table!\n{e}")
-
-
-    def add_to_ddb(self) -> None:
-        """ 將資料夾中的所有 CSV 檔存入 tick 的 DolphinDB 中 """
-
-        self.append_all_csv_to_dolphinDB(TICK_DOWNLOADS_PATH)
-        shutil.rmtree(TICK_DOWNLOADS_PATH)
 
 
     def clear_all_cache(self) -> None:
