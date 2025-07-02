@@ -89,8 +89,8 @@ class Commission(float, Enum):
 class Market(str, Enum):
     """ 市場類別 """
     STOCK = "Stock"
-    FUTURES = "Futures"
-    OPTIONS = "Options"
+    FUTURE = "Future"
+    OPTION = "Option"
 
 
 class Scale(str, Enum):
