@@ -57,10 +57,9 @@ class StockTickCrawler(BaseCrawler):
         StockTickUtils.generate_tick_metadata_backup()
 
 
-    def crawl(self, **kwargs) -> None:
+    def crawl(self, dates: List[datetime.date]) -> None:
         """ Crawl Tick Data """
 
-        dates: List[datetime.date] = kwargs.get('dates')
         self.crawl_ticks_multithreaded(dates)
 
 

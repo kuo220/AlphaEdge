@@ -16,6 +16,7 @@ class StockPriceCrawler(BaseCrawler):
     def __init__(self):
         super().__init__()
 
+
     def crawl(self, date: datetime.date) -> None:
         """ Crawl Price Data """
 
