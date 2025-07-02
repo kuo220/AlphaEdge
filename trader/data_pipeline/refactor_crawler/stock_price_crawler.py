@@ -5,15 +5,22 @@ import requests
 import logging
 from typing import List, Optional
 
+from trader.data_pipeline.crawlers.base import BaseCrawler
 from trader.data_pipeline.utils.url_manager import URLManager
 from trader.data_pipeline.utils.crawler_utils import CrawlerUtils
 
 
-class StockPriceCrawler:
+class StockPriceCrawler(BaseCrawler):
     """ 爬取上市、上櫃公司的股票收盤行情（OHLC、成交量） """
 
     def __init__(self):
-        pass
+        super().__init__()
+
+    def crawl(self, date: datetime.date) -> None:
+        """ Crawl Price Data """
+
+        twse_price_df: pd.DataFrame = self.crawl_twse_price(date)
+        tpex_price_df: pd.DataFrame = self.crawl_tpex_price(date)
 
 
     def crawl_twse_price(self, date: datetime.date) -> Optional[pd.DataFrame]:

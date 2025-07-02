@@ -34,6 +34,8 @@ class StockChipCrawler(BaseCrawler):
     """ 爬取上市、上櫃股票三大法人盤後籌碼 """
 
     def __init__(self):
+        super().__init__()
+
         # SQLite Connection
         self.conn: sqlite3.Connection = sqlite3.connect(CHIP_DB_PATH)
 
