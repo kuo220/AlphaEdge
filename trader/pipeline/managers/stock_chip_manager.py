@@ -12,7 +12,7 @@ from IPython.display import display
 from tqdm import tqdm_notebook
 
 from trader.pipeline.managers.base import BaseDatabaseManager
-from trader.pipeline.crawlers.chip_crawler import StockChipCrawler
+from trader.pipeline.crawlers.stock_chip_crawler import StockChipCrawler
 from trader.pipeline.utils.crawler_utils import CrawlerUtils
 from trader.pipeline.utils.sqlite_utils import SQLiteUtils
 from trader.config import (
