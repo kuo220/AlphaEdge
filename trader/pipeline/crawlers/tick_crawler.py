@@ -9,9 +9,9 @@ from shioaji.data import Ticks
 from loguru import logger
 from tqdm import tqdm
 
-from trader.data_pipeline.crawlers.base import BaseCrawler
+from trader.pipeline.crawlers.base import BaseCrawler
 from trader.utils import ShioajiAccount, ShioajiAPI, log_thread
-from trader.data_pipeline.utils.stock_tick_utils import StockTickUtils
+from trader.pipeline.utils.stock_tick_utils import StockTickUtils
 from .stock_info_crawler import StockInfoCrawler
 from trader.config import (
     LOGS_DIR_PATH,

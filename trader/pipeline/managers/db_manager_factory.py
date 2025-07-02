@@ -1,9 +1,9 @@
 from typing import Dict, Type
 
-from trader.data_pipeline.managers.base import BaseDatabaseManager
-from trader.data_pipeline.managers.stock_chip_manager import StockChipManager
-from trader.data_pipeline.managers.stock_tick_manager import StockTickManager
-from trader.data_pipeline.utils.constant import InstrumentType, DataType
+from trader.pipeline.managers.base import BaseDatabaseManager
+from trader.pipeline.managers.stock_chip_manager import StockChipManager
+from trader.pipeline.managers.stock_tick_manager import StockTickManager
+from trader.pipeline.utils.constant import InstrumentType, DataType
 
 
 class DatabaseManagerFactory:
