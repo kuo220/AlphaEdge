@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 
-from trader.data import Data, Chip, Tick, QXData
+from trader.api import Data, Chip, Tick, QXData
 from trader.utils import Market, Scale, PositionType
 from trader.models import (
     StockAccount,

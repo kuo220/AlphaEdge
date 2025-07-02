@@ -6,7 +6,7 @@ from typing import List, Dict, Tuple, Optional, Any
 import numpy as np
 import pandas as pd
 
-from trader.data import Data, Chip, Tick, QXData
+from trader.api import Data, Chip, Tick, QXData
 from trader.models import (
     StockAccount,
     StockQuote,
