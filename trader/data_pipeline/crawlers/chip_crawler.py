@@ -9,6 +9,7 @@ from io import StringIO
 import pandas as pd
 import requests
 
+from trader.data_pipeline.crawlers.base import BaseCrawler
 from trader.data_pipeline.utils.crawler_utils import CrawlerUtils
 from trader.data_pipeline.utils.url_manager import URLManager
 from trader.config import (
@@ -29,7 +30,7 @@ from trader.config import (
 """
 
 
-class StockChipCrawler:
+class StockChipCrawler(BaseCrawler):
     """ 爬取上市、上櫃股票三大法人盤後籌碼 """
 
     def __init__(self):
@@ -46,6 +47,13 @@ class StockChipCrawler:
         # Generate downloads directory
         if not os.path.exists(CHIP_DOWNLOADS_PATH):
             os.makedirs(CHIP_DOWNLOADS_PATH)
+
+
+    def crawl(self, date: datetime.date) -> None:
+        """ Crawl TWSE & TPEX Chip Data """
+
+        self.crawl_twse_chip(date)
+        self.crawl_tpex_chip(date)
 
 
     def crawl_twse_chip(self, date: datetime.date) -> Optional[pd.DataFrame]:
