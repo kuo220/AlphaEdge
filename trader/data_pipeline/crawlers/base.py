@@ -14,6 +14,15 @@ class BaseCrawler(ABC):
 
 
     @abstractmethod
-    def crawl(self, date: datetime.date) -> None:
+    def crawl(self, **kwargs) -> None:
         """ Crawl Data """
+        """
+        General case:
+        **kwargs = {
+            'date': datetime.date,
+            'dates': List[datetime.date],
+            'start_date': datetime.date,
+            'end_date': datetime.date
+        }
+        """
         pass

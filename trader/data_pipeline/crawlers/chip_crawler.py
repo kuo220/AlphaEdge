@@ -51,9 +51,10 @@ class StockChipCrawler(BaseCrawler):
             os.makedirs(CHIP_DOWNLOADS_PATH)
 
 
-    def crawl(self, date: datetime.date) -> None:
+    def crawl(self, **kwargs) -> None:
         """ Crawl TWSE & TPEX Chip Data """
 
+        date: datetime.date = kwargs.get('date')
         self.crawl_twse_chip(date)
         self.crawl_tpex_chip(date)
 
