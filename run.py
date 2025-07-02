@@ -18,19 +18,19 @@ Make sure to run this file from the project root to ensure all relative imports 
 
 def parse_arguments():
     parser: argparse.ArgumentParser = argparse.ArgumentParser(description="Trading System")
-    
+
     parser.add_argument('--mode', choices=["backtest", "live"], default="backtest")
     parser.add_argument('--strategy', type=str, required=True, help='Name of the strategy class')
-    
+
     return parser.parse_args()
 
 
 def main():
     args: argparse.Namespace = parse_arguments()
     strategy_name: str = args.strategy
-    
+
     strategies: Dict[str, Type[BaseStockStrategy]] = StrategyLoader.load_stock_strategies()
-    
+
     if strategy_name not in strategies:
         print(f"Strategy '{strategy_name}' not found. Please check the spelling or ensure it is registered.")
         print(f"Available strategies: {list(strategies.keys())}")
@@ -38,7 +38,7 @@ def main():
 
     # Initialize strategy
     strategy: BaseStockStrategy = strategies[strategy_name]()
-    
+
     # Backtest or Live Trading
     if args.mode == "backtest":
         backtester = Backtester(strategy)

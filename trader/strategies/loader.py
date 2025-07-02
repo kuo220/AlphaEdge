@@ -11,13 +11,13 @@ import trader.strategies.stock as stock_strategies_pkg
 
 class StrategyLoader:
     """ 自動載入 strategies 資料夾下所有策略類別 """
-    
+
     @staticmethod
     def load_stock_strategies() -> Dict[str, Type[BaseStockStrategy]]:
         """ 載入所有 stock 策略 """
-        
+
         stock_strategies: Dict[str, Type[BaseStockStrategy]] = {}
-        
+
         for _, module_name, _ in pkgutil.iter_modules(stock_strategies_pkg.__path__):
             full_module_path: str = f"{stock_strategies_pkg.__name__}.{module_name}"
             module: ModuleType = importlib.import_module(full_module_path)
