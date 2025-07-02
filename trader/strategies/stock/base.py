@@ -1,17 +1,12 @@
-import sys
 import datetime
 from abc import ABC, abstractmethod
-from pathlib import Path
-from typing import List, Dict, Tuple, Optional, Any
-import numpy as np
-import pandas as pd
+from typing import List, Optional
 
 from trader.data import Data, Chip, Tick, QXData
 from trader.models import (
     StockAccount,
     StockQuote,
     StockOrder,
-    StockTradeRecord
 )
 from trader.utils import (
     Action,
