@@ -16,7 +16,7 @@ class StockInfoCrawler(BaseCrawler):
         super().__init__()
 
 
-    def crawl(self, **kwargs) -> None:
+    def crawl(self, *args, **kwargs) -> None:
         """ Crawl Data """
         pass
 

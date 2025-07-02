@@ -14,7 +14,7 @@ class BaseCrawler(ABC):
 
 
     @abstractmethod
-    def crawl(self, **kwargs) -> None:
+    def crawl(self, *args, **kwargs) -> None:
         """ Crawl Data """
         """
         General case:
