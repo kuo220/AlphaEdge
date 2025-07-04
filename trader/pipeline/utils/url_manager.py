@@ -67,6 +67,16 @@ class URLManager:
         "FINANCIAL_REPORT_LEGACY_URL": "https://mopsov.twse.com.tw/server-java/t164sb01?step=1&CO_ID={id}&SYEAR={year}&SSEASON={season}&REPORT_ID={type}",
         # year = 2019 ~ present（IFRS制）
         "FINANCIAL_REPORT_IFRS_URL": "https://mopsov.twse.com.tw/server-java/FileDownLoad?step=9&fileName=tifrs-{year}Q{season}.zip&filePath=/home/html/nas/ifrs/{year}/",
+
+        # 上市上櫃財報（四大報表）爬蟲網站（新方式）
+        # 資產負債表
+        "BALANCE_SHEET_URL": "https://mopsov.twse.com.tw/mops/web/ajax_t164sb03",
+        # 綜合損益表
+        "INCOME_STATEMENT_URL": "https://mopsov.twse.com.tw/mops/web/ajax_t164sb04",
+        # 現金流量表
+        "CASH_FLOW_STATEMENT_URL": "https://mopsov.twse.com.tw/mops/web/ajax_t164sb05",
+        # 權益變動表
+        "EQUITY_CHANGE_STATEMENT_URL": "https://mopsov.twse.com.tw/mops/web/ajax_t164sb06",
     }
 
 
