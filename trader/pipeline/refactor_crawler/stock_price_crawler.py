@@ -6,7 +6,8 @@ import logging
 from typing import List, Optional
 
 from trader.pipeline.crawlers import BaseCrawler
-from trader.pipeline.utils import CrawlerUtils, URLManager
+from trader.pipeline.utils import URLManager
+from trader.pipeline.utils.crawler_utils import CrawlerUtils
 
 
 class StockPriceCrawler(BaseCrawler):

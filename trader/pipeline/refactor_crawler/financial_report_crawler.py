@@ -27,10 +27,11 @@ from requests.exceptions import ConnectionError, ReadTimeout
 from tqdm import tqdm, tnrange, tqdm_notebook
 
 from trader.pipeline.crawlers import BaseCrawler
-from trader.pipeline.utils import CrawlerUtils, URLManager
+from trader.pipeline.utils import URLManager
+from trader.pipeline.utils.crawler_utils import CrawlerUtils
 from trader.config import (
     CRAWLER_DOWNLOADS_PATH,
-    FINANCIAL_STATEMENT_PATH,
+    FINANCIAL_REPORT_PATH,
     QUANTX_DB_PATH,
     CERTS_FILE_PATH
 )
@@ -42,5 +43,6 @@ class FinancialReportCrawler(BaseCrawler):
     def __init__(self):
         super().__init__()
 
-        self.root_dir: Path = FINANCIAL_STATEMENT_PATH
+        self.fr_dir: Path = FINANCIAL_REPORT_PATH
+        
         

@@ -56,10 +56,10 @@ class URLManager:
         # 上櫃收盤行情（# For date 2007/04/20 - 2007/06/29（目前網址已經壞了））
         "TPEX_CLOSING_QUOTE_OLD_3_URL": "https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotes/stk_quote_result.php?l=zh-tw&o=htm&d={roc_year}/{month}/{day}&s=0,asc,0",
 
-        # 上市月報
+        # 上市月營收財報
         "TWSE_MONTHLY_REPORT_URL": "https://mopsov.twse.com.tw/nas/t21/sii/t21sc03_{roc_year}_{month}.html",
 
-        # 上櫃月報
+        # 上櫃月營收財報
         "TPEX_MONTHLY_REPORT_URL": "https://mopsov.twse.com.tw/nas/t21/otc/t21sc03_{roc_year}_{month}.html",
 
         # IFRS 財報資料壓縮檔下載網址
