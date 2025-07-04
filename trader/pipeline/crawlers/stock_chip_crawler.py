@@ -9,7 +9,7 @@ from io import StringIO
 import pandas as pd
 import requests
 
-from trader.pipeline.crawlers import BaseCrawler
+from trader.pipeline.crawlers.base import BaseCrawler
 from trader.pipeline.utils.crawler_utils import CrawlerUtils, URLManager
 from trader.config import (
     CHIP_DOWNLOADS_PATH,

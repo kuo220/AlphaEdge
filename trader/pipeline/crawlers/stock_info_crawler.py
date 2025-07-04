@@ -3,7 +3,7 @@ from typing import List, Optional
 import pandas as pd
 import requests
 
-from trader.pipeline.crawlers import BaseCrawler
+from trader.pipeline.crawlers.base import BaseCrawler
 from trader.pipeline.utils import URLManager
 
 

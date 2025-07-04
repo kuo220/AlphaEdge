@@ -26,7 +26,7 @@ from IPython.display import display
 from requests.exceptions import ConnectionError, ReadTimeout
 from tqdm import tqdm, tnrange, tqdm_notebook
 
-from trader.pipeline.crawlers import BaseCrawler
+from trader.pipeline.crawlers.base import BaseCrawler
 from trader.pipeline.utils import URLManager
 from trader.pipeline.utils.crawler_utils import CrawlerUtils
 from trader.config import (
@@ -39,10 +39,31 @@ from trader.config import (
 
 class FinancialReportCrawler(BaseCrawler):
     """ Crawler for quarterly financial reports """
+    """
+    目前公開資訊觀測站（mopsov.twse.com）提供的財務報表格式有更改
+    1. 舊制：2013 ~ 2018
+    2. 新制：2019 ~ present
+    """
 
     def __init__(self):
         super().__init__()
 
         self.fr_dir: Path = FINANCIAL_REPORT_PATH
-        
-        
+
+
+
+    def crawl(self, *args, **kwargs) -> None:
+        """ Crawl Data """
+        pass
+
+
+    def setup_crawler(self):
+        """ Set Up Financial Report Crawler """
+
+        # Create Downloads Directory For Financial Reports
+        self.fr_dir.mkdir(parents=True, exist_ok=True)
+
+
+    def crawl_financial_report(self):
+        """ Crawl Financial Report in IFRS Format """
+

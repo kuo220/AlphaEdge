@@ -26,7 +26,7 @@ from IPython.display import display
 from requests.exceptions import ConnectionError, ReadTimeout
 from tqdm import tqdm, tnrange, tqdm_notebook
 
-from trader.pipeline.crawlers import BaseCrawler
+from trader.pipeline.crawlers.base import BaseCrawler
 from trader.pipeline.utils import URLManager
 from trader.pipeline.utils.crawler_utils import CrawlerUtils
 from trader.config import (

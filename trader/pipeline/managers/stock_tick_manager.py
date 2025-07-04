@@ -9,7 +9,7 @@ try:
 except ModuleNotFoundError:
     print("Warning: dolphindb module is not installed.")
 
-from trader.pipeline.crawlers import StockTickCrawler
+from trader.pipeline.crawlers.stock_tick_crawler import StockTickCrawler
 from trader.pipeline.managers import BaseDatabaseManager
 from trader.pipeline.utils.crawler_utils import CrawlerUtils
 from trader.pipeline.utils.stock_tick_utils import StockTickUtils
@@ -35,11 +35,11 @@ class StockTickManager(BaseDatabaseManager):
         self.session: ddb.session = None
         self.connect()
 
-        # Set up database
-        self.setup_db()
-
         # Tick Crawler
         self.crawler: StockTickCrawler = StockTickCrawler()
+
+        # Set up database
+        self.setup_db()
 
 
     def connect(self) -> None:

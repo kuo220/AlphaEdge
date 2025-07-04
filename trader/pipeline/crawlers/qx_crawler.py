@@ -30,7 +30,7 @@ from ..utils.crawler_utils import CrawlerUtils
 from ..utils.url_manager import URLManager
 from trader.config import (
     CRAWLER_DOWNLOADS_PATH,
-    FINANCIAL_STATEMENT_PATH,
+    FINANCIAL_REPORT_PATH,
     QUANTX_DB_PATH,
     CERTS_FILE_PATH
 )
@@ -872,8 +872,8 @@ class QuantXCrawler:
 
     # TODO:需要 Refactor（目前有 bug）
     def crawl_finance_statement(self, year, season, stock_ids):
-        if not FINANCIAL_STATEMENT_PATH.is_dir():
-            os.makedirs(FINANCIAL_STATEMENT_PATH)
+        if not FINANCIAL_REPORT_PATH.is_dir():
+            FINANCIAL_REPORT_PATH.mkdir(parents=True, exist_ok=True)
 
         def download_html(year, season, stock_ids, report_type='C'):
 
@@ -890,7 +890,7 @@ class QuantXCrawler:
             for i in pbar:
 
                 # check if the html is already parsed
-                file = os.path.join(FINANCIAL_STATEMENT_PATH, str(i) + '.html')
+                file = os.path.join(FINANCIAL_REPORT_PATH, str(i) + '.html')
                 if os.path.exists(file) and os.stat(file).st_size > 20000:
                     continue
 
@@ -900,7 +900,7 @@ class QuantXCrawler:
                 if year >= 2019:
                     ty = {"C": "cr", "B": "er", "C": "ir"}
                     url: str = URLManager.get_url(
-                        "FINANCE_STATEMENT_2019_URL",
+                        "FINANCE_REPORT_2019_URL",
                         type=ty[report_type],
                         id=i,
                         year=year,
@@ -908,7 +908,7 @@ class QuantXCrawler:
                     )
                 else:
                     url: str = URLManager.get_url(
-                        "FINANCE_STATEMENT_URL",
+                        "FINANCE_REPORT_URL",
                         id=i,
                         year=year,
                         season=season,
@@ -1223,10 +1223,12 @@ class FinanceDataHandler:
         pass
 
     def afterIFRS(self, year, season):
-        season2date = [ datetime.datetime(year, 5, 15),
-                        datetime.datetime(year, 8, 14),
-                        datetime.datetime(year, 11, 14),
-                        datetime.datetime(year+1, 3, 31)]
+        season2date = [
+            datetime.datetime(year, 5, 15),
+            datetime.datetime(year, 8, 14),
+            datetime.datetime(year, 11, 14),
+            datetime.datetime(year+1, 3, 31)
+        ]
 
         return pd.to_datetime(season2date[season-1].date())
 

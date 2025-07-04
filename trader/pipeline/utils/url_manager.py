@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import Dict, Any
 
 
 class URLManager:
@@ -62,12 +62,11 @@ class URLManager:
         # 上櫃月營收財報
         "TPEX_MONTHLY_REPORT_URL": "https://mopsov.twse.com.tw/nas/t21/otc/t21sc03_{roc_year}_{month}.html",
 
-        # IFRS 財報資料壓縮檔下載網址
-        "IFRS_URL": "https://mopsov.twse.com.tw/server-java/FileDownLoad?step=9&fileName=tifrs-{year}Q{season}.zip&filePath=/home/html/nas/ifrs/{year}/",
-
-        # 上市上櫃財報（year = 2019 ~ present）
-        "FINANCE_STATEMENT_URL": "https://mopsov.twse.com.tw/server-java/t164sb01?step=1&CO_ID={id}&SYEAR={year}&SSEASON={season}&REPORT_ID={type}",
-        "FINANCE_STATEMENT_2019_URL": "https://mopsov.twse.com.tw/server-java/t164sb01?step=3&year=2019&file_name=tifrs-fr1-m1-ci-{type}-{id}-{year}Q{season}.html",
+        # 上市上櫃財報（year = 2013 ~ present）
+        # year = 2013 ~ 2018
+        "FINANCIAL_REPORT_LEGACY_URL": "https://mopsov.twse.com.tw/server-java/t164sb01?step=1&CO_ID={id}&SYEAR={year}&SSEASON={season}&REPORT_ID={type}",
+        # year = 2019 ~ present（IFRS制）
+        "FINANCIAL_REPORT_IFRS_URL": "https://mopsov.twse.com.tw/server-java/FileDownLoad?step=9&fileName=tifrs-{year}Q{season}.zip&filePath=/home/html/nas/ifrs/{year}/",
     }
 
 

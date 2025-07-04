@@ -1,23 +1,6 @@
-# Crawlers
-from .crawlers import (
-    StockChipCrawler,
-    StockTickCrawler,
-    StockInfoCrawler,
-    QuantXCrawler,
-    ShioajiCrawler
-)
-
-
-# Managers
-from .managers import (
-    StockChipManager,
-    StockTickManager
-)
-
+# pipeline/__init__.py
 
 # Utils
 from .utils import (
-    CrawlerUtils,
-    SQLiteUtils,
     URLManager
 )

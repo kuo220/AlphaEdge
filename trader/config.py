@@ -33,7 +33,7 @@ STOCK_STRATEGY_DIR_PATH: Path = get_resolved_path("STOCK_STRATEGY_DIR_PATH")
 
 # === Crawl Data Downloads Path ===
 CRAWLER_DOWNLOADS_PATH: Path = get_resolved_path("CRAWLER_DOWNLOADS_PATH")
-FINANCIAL_REPORT_PATH: Path = (CRAWLER_DOWNLOADS_PATH / "financial_report").resolve()
+FINANCIAL_REPORT_PATH: Path = get_resolved_path("FINANCIAL_REPORT_PATH")
 CHIP_DOWNLOADS_PATH: Path = get_resolved_path("CHIP_DOWNLOADS_PATH")
 TICK_DOWNLOADS_PATH: Path = get_resolved_path("TICK_DOWNLOADS_PATH")
 
