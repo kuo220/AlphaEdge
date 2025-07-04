@@ -664,7 +664,7 @@ class QuantXCrawler:
 
     def crawl_tpex_monthly_report(self, date):
         url: str = URLManager.get_url(
-            "TPEX_MONTHLY_REPORT_URL",
+            "TPEX_MONTHLY_REVENUE_REPORT_URL",
             roc_year=(date.year - 1911),
             month=date.month
         )
@@ -739,7 +739,7 @@ class QuantXCrawler:
             return df1
         else:
             url: str = URLManager.get_url(
-                "TWSE_MONTHLY_REPORT_URL",
+                "TWSE_MONTHLY_REVENUE_REPORT_URL",
                 roc_year=(date.year - 1911),
                 month=date.month
             )
