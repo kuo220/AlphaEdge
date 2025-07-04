@@ -11,10 +11,9 @@ import ipywidgets as widgets
 from IPython.display import display
 from tqdm import tqdm_notebook
 
-from trader.pipeline.managers.base import BaseDatabaseManager
-from trader.pipeline.crawlers.stock_chip_crawler import StockChipCrawler
-from trader.pipeline.utils.crawler_utils import CrawlerUtils
-from trader.pipeline.utils.sqlite_utils import SQLiteUtils
+from trader.pipeline.crawlers import StockChipCrawler
+from trader.pipeline.managers import BaseDatabaseManager
+from trader.pipeline.utils import CrawlerUtils, SQLiteUtils
 from trader.config import (
     CHIP_DB_PATH,
     CHIP_TABLE_NAME,

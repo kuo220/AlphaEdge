@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Tuple, Optional, Any, Union
 
 """
 Abstract base class for database managers.

@@ -26,9 +26,8 @@ from IPython.display import display
 from requests.exceptions import ConnectionError, ReadTimeout
 from tqdm import tqdm, tnrange, tqdm_notebook
 
-from trader.pipeline.crawlers.base import BaseCrawler
-from trader.pipeline.utils.crawler_utils import CrawlerUtils
-from trader.pipeline.utils.url_manager import URLManager
+from trader.pipeline.crawlers import BaseCrawler
+from trader.pipeline.utils import CrawlerUtils, URLManager
 from trader.config import (
     CRAWLER_DOWNLOADS_PATH,
     FINANCIAL_STATEMENT_PATH,
@@ -38,4 +37,10 @@ from trader.config import (
 
 
 class FinancialReportCrawler(BaseCrawler):
-    pass
+    """ Crawler for quarterly financial reports """
+
+    def __init__(self):
+        super().__init__()
+
+        self.root_dir: Path = FINANCIAL_STATEMENT_PATH
+        

@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-import datetime
 
 """
 Abstract base class for all crawlers that fetch data for a specific date.

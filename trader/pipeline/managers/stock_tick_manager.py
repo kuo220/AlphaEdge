@@ -9,10 +9,9 @@ try:
 except ModuleNotFoundError:
     print("Warning: dolphindb module is not installed.")
 
-from trader.pipeline.managers.base import BaseDatabaseManager
-from trader.pipeline.crawlers.stock_tick_crawler import StockTickCrawler
-from trader.pipeline.utils.crawler_utils import CrawlerUtils
-from trader.pipeline.utils.stock_tick_utils import StockTickUtils
+from trader.pipeline.crawlers import StockTickCrawler
+from trader.pipeline.managers import BaseDatabaseManager
+from trader.pipeline.utils import CrawlerUtils, StockTickUtils
 from trader.config import (
     TICK_DOWNLOADS_PATH,
     TICK_DB_PATH,
