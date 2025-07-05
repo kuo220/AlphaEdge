@@ -92,7 +92,7 @@ class CrawlerUtils:
 
     @staticmethod
     def move_col(df: pd.DataFrame, col_name: str, ref_col_name: str) -> None:
-        """ 移動 columns 位置"""
+        """ 移動 columns 位置：將 col_name 整個 column 移到 ref_col_name 後方 """
 
         col_data: pd.Series = df.pop(col_name)
         df.insert(df.columns.get_loc(ref_col_name) + 1, col_name, col_data)
@@ -106,6 +106,15 @@ class CrawlerUtils:
             last_col_loc: int = df.columns.get_loc(col_name)
             df = df.iloc[:, :last_col_loc + 1]
         return df
+
+
+    @staticmethod
+    def convert_col_to_numeric(df: pd.DataFrame, exclude_cols: List[str]) -> pd.DataFrame:
+        """ 將 exclude_cols 以外的 columns 資料都轉為數字型態（int or float） """
+
+        for col in df.columns:
+            if col not in exclude_cols:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
 
 
     @staticmethod

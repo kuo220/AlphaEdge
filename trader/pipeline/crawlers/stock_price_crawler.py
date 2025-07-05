@@ -35,111 +35,122 @@ class StockPriceCrawler(BaseCrawler):
         self.price_dir.mkdir(parents=True, exist_ok=True)
 
 
-    def crawl_twse_price(self, date: datetime.date) -> Optional[pd.DataFrame]:
+    def crawl_twse_price(self, date: datetime.date) -> pd.DataFrame:
         """ 爬取上市公司股票收盤行情 """
+        """
+        TWSE 網站提供資料日期：
+        1. 2004/2/11 ~ present
+        """
 
-        date_str: str = date.strftime('%Y%m%d')
-        url: str = URLManager.get_url("TWSE_CLOSING_QUOTE_URL", date=date_str)
+        url: str = URLManager.get_url("TWSE_CLOSING_QUOTE_URL", date=date)
 
         try:
-            r: Optional[requests.Response] = CrawlerUtils.requests_get(url)
+            res: Optional[requests.Response] = CrawlerUtils.requests_get(url)
             logging.info(f"上市 URL: {url}")
         except Exception as e:
-            logging.info(f"* WARN: Cannot get stock price at {date_str}")
+            logging.info(f"* WARN: Cannot get stock price at {date}")
             logging.info(e)
             return None
 
-        content: str = r.text.replace('=', '')
-        lines: List[str] = content.split('\n')
-        lines = list(filter(lambda l: len(l.split('",')) > 10, lines))
-        content = "\n".join(lines)
+        df: pd.DataFrame = pd.read_html(res.text)[-1]
 
-        if content == "":
-            return None
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.droplevel(0)
 
-        df: pd.DataFrame = pd.read_csv(StringIO(content))
+        df.drop(
+            columns=["漲跌(+/-)"],
+            axis=1,
+            inplace=True
+        )
+        df.insert(0, "date", date)
+        df = df.rename(columns={"證券代號": "stock_id"})
         df = df.astype(str)
-        df = df.apply(lambda s: s.str.replace(',', ''))
-        df['date'] = pd.to_datetime(date)
-        df = df.rename(columns={'證券代號': 'stock_id'})
-        df = df.set_index(['stock_id', 'date'])
-
-        for col in df.columns:
-            if col != "證券名稱":
-                df[col] = pd.to_numeric(df[col], errors='coerce')
-
-        df = df[df.columns[df.isnull().all() == False]]
-        df = df[~df['收盤價'].isnull()]
-        df.to_csv(f"{self.price_dir}/{date}.csv", index=False)
+        CrawlerUtils.move_col(df, "成交股數", "漲跌價差")
+        CrawlerUtils.move_col(df, "成交金額", "成交股數")
+        CrawlerUtils.move_col(df, "成交筆數", "成交金額")
+        CrawlerUtils.convert_col_to_numeric(df, ["date", "stock_id", "證券名稱"])
+        df.to_csv(f"{self.price_dir}/twse_{date}.csv", index=False)
 
         return df
 
 
-    def crawl_tpex_price(self, date: datetime.date) -> Optional[pd.DataFrame]:
+    def crawl_tpex_price(self, date: datetime.date) -> pd.DataFrame:
         """ 爬取上櫃公司股票收盤行情 """
 
         """
-        1. 上櫃資料從96/7/2以後才提供
-        2. 109/4/30以後csv檔的column不一樣
+        1. 上櫃資料從 96/7/2 以後才提供
+        2. 從 109/4/30 開始後 csv 檔的 column 不一樣
         """
 
         table_change_date: datetime.date = datetime.date(2020, 4, 30)
 
-        # date_str: str = date.strftime('%Y%m%d')
         url: str = URLManager.get_url(
             "TPEX_CLOSING_QUOTE_URL",
-            year = date.year,
+            year=date.year,
             month=str(date.month).zfill(2),
             day=str(date.day).zfill(2)
         )
 
         try:
-            r: Optional[requests.Response] = CrawlerUtils.requests_get(url)
+            res: Optional[requests.Response] = CrawlerUtils.requests_get(url)
             logging.info(f"上櫃 URL: {url}")
         except Exception as e:
             logging.info(f"* WARN: Cannot get stock price at {date}")
             logging.info(e)
             return None
 
-        content = r.text.replace('=', '')
+        df: pd.DataFrame = pd.read_html(res.text)[0]
 
-        lines = content.split('\n')
-        lines = list(filter(lambda l: len(l.split('",')) > 10, lines))
-        content = "\n".join(lines)
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.droplevel(0)
 
-        if content == "":
-            return None
-
-        df = pd.read_csv(StringIO(content), header=None)
+        df.drop(
+            columns=["次日漲停價", "次日跌停價"],
+            axis=1,
+            inplace=True
+        )
+        df.insert(0, "date", date)
         df = df.astype(str)
-        df = df.apply(lambda s: s.str.replace(',', ''))
 
         if date >= table_change_date:
-            df.drop(
-                df.columns[[14, 15, 16]],
-                axis=1,
-                inplace=True
-            )
-            # 證券名稱是修改過的，原本是證卷名稱
-            df.columns = ["stock_id", "證券名稱", "收盤價", "漲跌價差", "開盤價", "最高價", "最低價", "成交股數",
-                          "成交金額", "成交筆數", "最後揭示買價", "最後揭示買量", "最後揭示賣價", "最後揭示賣量"]
+            df.columns = [
+                "date",
+                "stock_id",
+                "證券名稱",
+                "收盤價",
+                "漲跌價差",
+                "開盤價",
+                "最高價",
+                "最低價",
+                "成交股數",
+                "成交金額",
+                "成交筆數",
+                "最後揭示買價",
+                "最後揭示買量",
+                "最後揭示賣價",
+                "最後揭示賣量",
+                "發行股數",
+            ]
         else:
-            df.drop(
-                df.columns[[12, 13, 14]],
-                axis=1,
-                inplace=True
-            )
-            df.columns = ["stock_id", "證券名稱", "收盤價", "漲跌價差", "開盤價", "最高價", "最低價", "成交股數",
-                          "成交金額", "成交筆數", "最後揭示買價", "最後揭示賣價"]
-
-        df['date'] = pd.to_datetime(date)
-        df = df.set_index(['stock_id', 'date'])
-
-        for col in df.columns:
-            if col != "證券名稱":
-                df[col] = pd.to_numeric(df[col], errors='coerce')
-
-        df = df[df.columns[df.isnull().all() == False]]
-        df = df[~df['收盤價'].isnull()]
+            df.columns = [
+                "date",
+                "stock_id",
+                "證券名稱",
+                "收盤價",
+                "漲跌價差",
+                "開盤價",
+                "最高價",
+                "最低價",
+                "成交股數",
+                "成交金額",
+                "成交筆數",
+                "最後揭示買價",
+                "最後揭示賣價",
+                "發行股數"
+            ]
+        CrawlerUtils.move_col(df, "收盤價", "最低價")
+        CrawlerUtils.move_col(df, "漲跌價差", "收盤價")
+        CrawlerUtils.convert_col_to_numeric(df, ["date", "stock_id", "證券名稱"])
+        df.to_csv(f"{self.price_dir}/tpex_{date}.csv", index=False)
 
         return df
