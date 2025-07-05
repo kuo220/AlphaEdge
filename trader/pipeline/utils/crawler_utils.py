@@ -56,15 +56,32 @@ class CrawlerUtils:
 
     @classmethod
     def requests_get(cls, *args1, **args2) -> Optional[requests.Response]:
+        """ 使用共用 session 發送 GET 請求，內建重試機制 """
+
+        if cls.ses is None:
+            cls.find_best_session()
+
+        for i in range(3):
+            try:
+                return cls.ses.get(*args1, timeout=10, **args2)
+            except (ConnectionError, ReadTimeout) as error:
+                L.info(error)
+                L.info(f"retry one more time after 60s {2 - i} times left")
+                time.sleep(60)
+                cls.find_best_session()
+        return None
+
+
+    @classmethod
+    def requests_post(cls, *args1, **args2) -> Optional[requests.Response]:
         """ 使用共用 session 發送 POST 請求，內建重試機制 """
 
         if cls.ses is None:
             cls.find_best_session()
 
-        # download data
         for i in range(3):
             try:
-                return cls.ses.get(*args1, timeout=10, **args2)
+                return cls.ses.post(*args1, timeout=10, **args2)
             except (ConnectionError, ReadTimeout) as error:
                 L.info(error)
                 L.info(f"retry one more time after 60s {2 - i} times left")
