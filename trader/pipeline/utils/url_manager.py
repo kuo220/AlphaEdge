@@ -46,16 +46,10 @@ class URLManager:
 
         # 上櫃收盤行情
         # "TPEX_CLOSING_QUOTE_URL": "https://www.tpex.org.tw/web/stock/aftertrading/otc_quotes_no1430/stk_wn1430_result.php?l=zh-tw&o=csv&d={roc_year}/{month}/{day}&se=EW&s=0,asc,0",
-        "TPEX_CLOSING_QUOTE_URL": "https://www.tpex.org.tw/www/zh-tw/afterTrading/dailyQuotes?date={year}%2F{month}%2F{day}&id=&response=html",
+        "TPEX_CLOSING_QUOTE_URL": "https://www.tpex.org.tw/www/zh-tw/afterTrading/otc?date={year}%2F{month}%2F{day}&type=EW&id=&response=html&order=0&sort=asc",
 
         # 上櫃收盤行情（For year = 2005 or year = 2006）
         "TPEX_CLOSING_QUOTE_OLD_1_URL": "https://hist.tpex.org.tw/Hist/STOCK/AFTERTRADING/DAILY_CLOSE_QUOTES/RSTA3104_{date}.HTML",
-
-        # 上櫃收盤行情（# For date 2007/01/02 - 2007/04/20（目前網址已經壞了））
-        "TPEX_CLOSING_QUOTE_OLD_2_URL": "https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotesB/stk_quote_result.php?timestamp=1693758523823",
-
-        # 上櫃收盤行情（# For date 2007/04/20 - 2007/06/29（目前網址已經壞了））
-        "TPEX_CLOSING_QUOTE_OLD_3_URL": "https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotes/stk_quote_result.php?l=zh-tw&o=htm&d={roc_year}/{month}/{day}&s=0,asc,0",
 
         # 上市月營收財報
         "TWSE_MONTHLY_REVENUE_REPORT_URL": "https://mopsov.twse.com.tw/nas/t21/sii/t21sc03_{roc_year}_{month}.html",
@@ -71,11 +65,11 @@ class URLManager:
 
         # 上市上櫃財報（四大報表）爬蟲網站（新方式）
         # 資產負債表
-        "BALANCE_SHEET_URL": "https://mopsov.twse.com.tw/mops/web/ajax_t164sb03",
+        "BALANCE_SHEET_URL": "https://mopsov.twse.com.tw/mops/web/ajax_t163sb05",
         # 綜合損益表
-        "INCOME_STATEMENT_URL": "https://mopsov.twse.com.tw/mops/web/ajax_t164sb04",
+        "INCOME_STATEMENT_URL": "https://mopsov.twse.com.tw/mops/web/ajax_t163sb04",
         # 現金流量表
-        "CASH_FLOW_STATEMENT_URL": "https://mopsov.twse.com.tw/mops/web/ajax_t164sb05",
+        "CASH_FLOW_STATEMENT_URL": "https://mopsov.twse.com.tw/mops/web/ajax_t163sb20",
         # 權益變動表
         "EQUITY_CHANGE_STATEMENT_URL": "https://mopsov.twse.com.tw/mops/web/ajax_t164sb06",
     }

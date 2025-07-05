@@ -70,6 +70,7 @@ class StockPriceCrawler(BaseCrawler):
 
         df = df[df.columns[df.isnull().all() == False]]
         df = df[~df['收盤價'].isnull()]
+        df.to_csv(f"{self.price_dir}/{date}.csv", index=False)
 
         return df
 
@@ -82,19 +83,21 @@ class StockPriceCrawler(BaseCrawler):
         2. 109/4/30以後csv檔的column不一樣
         """
 
-        date_str: str = date.strftime('%Y%m%d')
+        table_change_date: datetime.date = datetime.date(2020, 4, 30)
+
+        # date_str: str = date.strftime('%Y%m%d')
         url: str = URLManager.get_url(
             "TPEX_CLOSING_QUOTE_URL",
-            roc_year = str(date.year - 1911),
-            month=date_str[4:6],
-            day=date_str[6:]
+            year = date.year,
+            month=str(date.month).zfill(2),
+            day=str(date.day).zfill(2)
         )
 
         try:
             r: Optional[requests.Response] = CrawlerUtils.requests_get(url)
             logging.info(f"上櫃 URL: {url}")
         except Exception as e:
-            logging.info(f"* WARN: Cannot get stock price at {date_str}")
+            logging.info(f"* WARN: Cannot get stock price at {date}")
             logging.info(e)
             return None
 
@@ -111,7 +114,7 @@ class StockPriceCrawler(BaseCrawler):
         df = df.astype(str)
         df = df.apply(lambda s: s.str.replace(',', ''))
 
-        if date_str >= str(20200430):
+        if date >= table_change_date:
             df.drop(
                 df.columns[[14, 15, 16]],
                 axis=1,
