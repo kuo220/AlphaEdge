@@ -30,18 +30,7 @@ class Tick:
         self.session: ddb.session = ddb.session()
         self.session.connect(DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
 
-        if (self.session.existsDatabase(TICK_DB_PATH)):
-            print("* Database exists!")
-
-            # set TSDBCacheEngineSize to 5GB (must < 8(maxMemSize) * 0.75 GB)
-            script: str = """
-            memSize = 2
-            setTSDBCacheEngineSize(memSize)
-            print("TSDBCacheEngineSize: " + string(getTSDBCacheEngineSize() / pow(1024, 3)) + "GB")
-            """
-            self.session.run(script)
-        else:
-            print("* Database doesn't exist!")
+        self.setup_api()
 
 
     def get(
@@ -124,3 +113,20 @@ class Tick:
         if tick.empty:
             return pd.DataFrame()
         return tick.iloc[-1:]
+
+
+    def setup_api(self):
+        """ API Setup """
+
+        if (self.session.existsDatabase(TICK_DB_PATH)):
+            print("* Database exists!")
+
+            # set TSDBCacheEngineSize to 5GB (must < 8(maxMemSize) * 0.75 GB)
+            script: str = """
+            memSize = 2
+            setTSDBCacheEngineSize(memSize)
+            print("TSDBCacheEngineSize: " + string(getTSDBCacheEngineSize() / pow(1024, 3)) + "GB")
+            """
+            self.session.run(script)
+        else:
+            print("* Database doesn't exist!")

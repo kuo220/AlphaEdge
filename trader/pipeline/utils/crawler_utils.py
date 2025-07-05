@@ -10,10 +10,10 @@ from dateutil.rrule import DAILY, MONTHLY, rrule
 from fake_useragent import UserAgent
 from requests.exceptions import ReadTimeout
 
-from trader.data_pipeline.utils.url_manager import URLManager
+from trader.pipeline.utils import URLManager
 
 
-class CrawlerTools:
+class CrawlerUtils:
     """ Cralwer Tools """
 
     ses: Optional[requests.Session] = None    # Session
@@ -56,12 +56,11 @@ class CrawlerTools:
 
     @classmethod
     def requests_get(cls, *args1, **args2) -> Optional[requests.Response]:
-        """ 使用共用 session 發送 POST 請求，內建重試機制 """
+        """ 使用共用 session 發送 GET 請求，內建重試機制 """
 
         if cls.ses is None:
             cls.find_best_session()
 
-        # download data
         for i in range(3):
             try:
                 return cls.ses.get(*args1, timeout=10, **args2)
@@ -73,9 +72,27 @@ class CrawlerTools:
         return None
 
 
+    @classmethod
+    def requests_post(cls, *args1, **args2) -> Optional[requests.Response]:
+        """ 使用共用 session 發送 POST 請求，內建重試機制 """
+
+        if cls.ses is None:
+            cls.find_best_session()
+
+        for i in range(3):
+            try:
+                return cls.ses.post(*args1, timeout=10, **args2)
+            except (ConnectionError, ReadTimeout) as error:
+                L.info(error)
+                L.info(f"retry one more time after 60s {2 - i} times left")
+                time.sleep(60)
+                cls.find_best_session()
+        return None
+
+
     @staticmethod
     def move_col(df: pd.DataFrame, col_name: str, ref_col_name: str) -> None:
-        """ 移動 columns 位置"""
+        """ 移動 columns 位置：將 col_name 整個 column 移到 ref_col_name 後方 """
 
         col_data: pd.Series = df.pop(col_name)
         df.insert(df.columns.get_loc(ref_col_name) + 1, col_name, col_data)
@@ -89,6 +106,15 @@ class CrawlerTools:
             last_col_loc: int = df.columns.get_loc(col_name)
             df = df.iloc[:, :last_col_loc + 1]
         return df
+
+
+    @staticmethod
+    def convert_col_to_numeric(df: pd.DataFrame, exclude_cols: List[str]) -> pd.DataFrame:
+        """ 將 exclude_cols 以外的 columns 資料都轉為數字型態（int or float） """
+
+        for col in df.columns:
+            if col not in exclude_cols:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
 
 
     @staticmethod

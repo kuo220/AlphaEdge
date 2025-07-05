@@ -34,7 +34,7 @@ class Action(str, Enum):
     SELL = ACTION_SELL
     OPEN = ACTION_OPEN
     CLOSE = ACTION_CLOSE
-    
+
 class StockPriceType(str, Enum):
     LMT = STOCK_PRICE_TYPE_LIMITPRICE
     MKT = STOCK_PRICE_TYPE_MKT
@@ -44,28 +44,28 @@ class OrderType(str, Enum):
     ROD = ORDER_TYPE_ROD
     IOC = ORDER_TYPE_IOC
     FOK = ORDER_TYPE_FOK
-    
-    
+
+
 class QuoteType(str, Enum):
     Tick = QUOTE_TYPE_TICK
     BidAsk = QUOTE_TYPE_BIDASK
     Quote = QUOTE_TYPE_QUOTE
-    
-    
+
+
 class StockOrderLot(str, Enum):
     Common = STOCK_ORDER_LOT_COMMON  # 整股
     BlockTrade = STOCK_ORDER_LOT_BLOCKTRADE  # 鉅額
     Fixing = STOCK_ORDER_LOT_FIXING  # 定盤
     Odd = STOCK_ORDER_LOT_ODD  # 零股
     IntradayOdd = STOCK_ORDER_LOT_INTRADAY_ODD  # 盤中零股
-    
+
 
 class OrderState(str, Enum):
     StockDeal = "SDEAL"
     StockOrder = "SORDER"
     FuturesOrder = "FORDER"
     FuturesDeal = "FDEAL"
-    
+
 
 class Status(str, Enum):
     Cancelled = "Cancelled"
@@ -76,10 +76,10 @@ class Status(str, Enum):
     PendingSubmit = "PendingSubmit"
     PreSubmitted = "PreSubmitted"
     Submitted = "Submitted"
-    
+
 
 class Commission(float, Enum):
-    """ 券商手續費相關常數 """    
+    """ 券商手續費相關常數 """
     CommRate = 0.001425  # 券商手續費率（commission rate）
     Discount = 0.3  # 券商手續費折扣（commission discount）
     MinFee = 20.0  # 券商最低手續費限制（minimum fee）
@@ -87,21 +87,21 @@ class Commission(float, Enum):
 
 
 class Market(str, Enum):
-    """ 市場類別 """    
+    """ 市場類別 """
     STOCK = "Stock"
-    FUTURES = "Futures"
-    OPTIONS = "Options"
-    
+    FUTURE = "Future"
+    OPTION = "Option"
+
 
 class Scale(str, Enum):
-    """ Kbar 級別 """    
+    """ Kbar 級別 """
     TICK = "TICK"
     DAY = "DAY"
     MIX = "MIX"
-    
+
 
 class PositionType(str, Enum):
-    """ 部位方向 """    
+    """ 部位方向 """
     LONG = "LONG"
     SHORT = "SHORT"
 
@@ -109,5 +109,3 @@ class PositionType(str, Enum):
 class Units(int, Enum):
     """ 股票張數單位 """
     LOT = 1000      # 1 Lot = 1000 Shares
-    
-    

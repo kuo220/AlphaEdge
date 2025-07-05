@@ -26,11 +26,11 @@ from IPython.display import display
 from requests.exceptions import ConnectionError, ReadTimeout
 from tqdm import tqdm, tnrange, tqdm_notebook
 
-from ..utils.crawler_tools import CrawlerTools
+from ..utils.crawler_utils import CrawlerUtils
 from ..utils.url_manager import URLManager
 from trader.config import (
     CRAWLER_DOWNLOADS_PATH,
-    FINANCIAL_STATEMENT_PATH,
+    FINANCIAL_REPORT_PATH,
     QUANTX_DB_PATH,
     CERTS_FILE_PATH
 )
@@ -49,7 +49,7 @@ class QuantXCrawler:
         for i in range(10):
             try:
                 print('獲取新的Session 第', i, '回合')
-                headers = CrawlerTools.generate_random_header()
+                headers = CrawlerUtils.generate_random_header()
                 self.ses = requests.Session()
                 self.ses.get('https://www.twse.com.tw/zh/', headers=headers, timeout=10)
                 self.ses.headers.update(headers)
@@ -112,7 +112,7 @@ class QuantXCrawler:
         print("發行量加權股價報酬指數", url)
 
         # 偽瀏覽器
-        headers = CrawlerTools.generate_random_header()
+        headers = CrawlerUtils.generate_random_header()
 
         # 下載該年月的網站，並用pandas轉換成 dataframe
         r = self.requests_get(url, headers=headers, verify=CERTS_FILE_PATH)
@@ -153,7 +153,7 @@ class QuantXCrawler:
         print("上櫃", url)
 
         # 偽瀏覽器
-        headers = CrawlerTools.generate_random_header()
+        headers = CrawlerUtils.generate_random_header()
 
         # 下載該年月的網站，並用pandas轉換成 dataframe
         r = self.requests_get(url, headers=headers, verify=CERTS_FILE_PATH)
@@ -204,7 +204,7 @@ class QuantXCrawler:
         print("上市", url)
 
         # 偽瀏覽器
-        headers = CrawlerTools.generate_random_header()
+        headers = CrawlerUtils.generate_random_header()
 
         # 下載該年月的網站，並用pandas轉換成 dataframe
         r = self.requests_get(url, headers=headers, verify=CERTS_FILE_PATH)
@@ -260,7 +260,7 @@ class QuantXCrawler:
         print("上櫃", url)
 
         # 偽瀏覽器
-        headers = CrawlerTools.generate_random_header()
+        headers = CrawlerUtils.generate_random_header()
 
         # 下載該年月的網站，並用pandas轉換成 dataframe
         r = self.requests_get(url, headers=headers, verify=CERTS_FILE_PATH)
@@ -308,7 +308,7 @@ class QuantXCrawler:
             print("上市", url)
 
             # 偽瀏覽器
-            headers = CrawlerTools.generate_random_header()
+            headers = CrawlerUtils.generate_random_header()
 
             # 下載該年月的網站，並用pandas轉換成 dataframe
             try:
@@ -509,7 +509,7 @@ class QuantXCrawler:
         # 設置 payload 參數，只包含日期
         payload = {"ajax": "true", "input_date": datestr}  # 修改為你需要的日期
 
-        headers = CrawlerTools.generate_random_header()
+        headers = CrawlerUtils.generate_random_header()
         # 發送 POST 請求
         response = requests.post(url, data=payload, headers=headers)
 
@@ -664,14 +664,14 @@ class QuantXCrawler:
 
     def crawl_tpex_monthly_report(self, date):
         url: str = URLManager.get_url(
-            "TPEX_MONTHLY_REPORT_URL",
+            "TPEX_MONTHLY_REVENUE_REPORT_URL",
             roc_year=(date.year - 1911),
             month=date.month
         )
         print("上櫃：", url)
 
         # 偽瀏覽器
-        headers = CrawlerTools.generate_random_header()
+        headers = CrawlerUtils.generate_random_header()
 
         # 下載該年月的網站，並用pandas轉換成 dataframe
         try:
@@ -739,14 +739,14 @@ class QuantXCrawler:
             return df1
         else:
             url: str = URLManager.get_url(
-                "TWSE_MONTHLY_REPORT_URL",
+                "TWSE_MONTHLY_REVENUE_REPORT_URL",
                 roc_year=(date.year - 1911),
                 month=date.month
             )
             print("上市", url)
 
             # 偽瀏覽器
-            headers = CrawlerTools.generate_random_header()
+            headers = CrawlerUtils.generate_random_header()
 
             # 下載該年月的網站，並用pandas轉換成 dataframe
             try:
@@ -822,7 +822,7 @@ class QuantXCrawler:
             print(url)
             return url
 
-        headers = CrawlerTools.generate_random_header()
+        headers = CrawlerUtils.generate_random_header()
 
         print('start download')
 
@@ -872,8 +872,8 @@ class QuantXCrawler:
 
     # TODO:需要 Refactor（目前有 bug）
     def crawl_finance_statement(self, year, season, stock_ids):
-        if not FINANCIAL_STATEMENT_PATH.is_dir():
-            os.makedirs(FINANCIAL_STATEMENT_PATH)
+        if not FINANCIAL_REPORT_PATH.is_dir():
+            FINANCIAL_REPORT_PATH.mkdir(parents=True, exist_ok=True)
 
         def download_html(year, season, stock_ids, report_type='C'):
 
@@ -884,13 +884,13 @@ class QuantXCrawler:
                 'Connection': 'keep-alive',
                 'Host': 'mops.twse.com.tw',
                 'Upgrade-Insecure-Requests': '1',
-                'User-Agent': CrawlerTools.generate_random_header()["User-Agent"]
+                'User-Agent': CrawlerUtils.generate_random_header()["User-Agent"]
             }
             pbar = tqdm(stock_ids)
             for i in pbar:
 
                 # check if the html is already parsed
-                file = os.path.join(FINANCIAL_STATEMENT_PATH, str(i) + '.html')
+                file = os.path.join(FINANCIAL_REPORT_PATH, str(i) + '.html')
                 if os.path.exists(file) and os.stat(file).st_size > 20000:
                     continue
 
@@ -900,7 +900,7 @@ class QuantXCrawler:
                 if year >= 2019:
                     ty = {"C": "cr", "B": "er", "C": "ir"}
                     url: str = URLManager.get_url(
-                        "FINANCE_STATEMENT_2019_URL",
+                        "FINANCE_REPORT_2019_URL",
                         type=ty[report_type],
                         id=i,
                         year=year,
@@ -908,7 +908,7 @@ class QuantXCrawler:
                     )
                 else:
                     url: str = URLManager.get_url(
-                        "FINANCE_STATEMENT_URL",
+                        "FINANCE_REPORT_URL",
                         id=i,
                         year=year,
                         season=season,
@@ -1223,10 +1223,12 @@ class FinanceDataHandler:
         pass
 
     def afterIFRS(self, year, season):
-        season2date = [ datetime.datetime(year, 5, 15),
-                        datetime.datetime(year, 8, 14),
-                        datetime.datetime(year, 11, 14),
-                        datetime.datetime(year+1, 3, 31)]
+        season2date = [
+            datetime.datetime(year, 5, 15),
+            datetime.datetime(year, 8, 14),
+            datetime.datetime(year, 11, 14),
+            datetime.datetime(year+1, 3, 31)
+        ]
 
         return pd.to_datetime(season2date[season-1].date())
 

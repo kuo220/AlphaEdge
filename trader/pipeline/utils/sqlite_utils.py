@@ -16,7 +16,7 @@ Utility class for common SQLite operations: table check, date retrieval, query e
 Shared across crawlers for reusability and clean separation of logic.
 """
 
-class SQLiteTools:
+class SQLiteUtils:
     @staticmethod
     def check_table_exist(conn: sqlite3.Connection, table_name: str) -> bool:
         """ 檢查 SQLite3 Database 中的 table 是否存在 """

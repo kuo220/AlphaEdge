@@ -8,10 +8,12 @@ import shioaji as sj
 from shioaji.data import Ticks
 from loguru import logger
 from tqdm import tqdm
+from pathlib import Path
 
 from trader.utils import ShioajiAccount, ShioajiAPI, log_thread
-from trader.data_pipeline.utils.stock_tick_tools import StockTickTools
-from .stock_info_crawler import StockInfoCrawler
+from trader.pipeline.crawlers.base import BaseCrawler
+from trader.pipeline.crawlers.stock_info_crawler import StockInfoCrawler
+from trader.pipeline.utils.stock_tick_utils import StockTickUtils
 from trader.config import (
     LOGS_DIR_PATH,
     TICK_DOWNLOADS_PATH,
@@ -27,11 +29,13 @@ From: 2020/03/02 ~ Today
 From 2020/04/01 ~ 2024/05/10
 """
 
-class StockTickCrawler:
+class StockTickCrawler(BaseCrawler):
     """ 爬取上市櫃股票 ticks """
 
     def __init__(self):
         """ 初始化爬蟲設定 """
+
+        super().__init__()
 
         self.api_list: List[sj.Shioaji] = [                                     # Shioaji API List
             api_instance
@@ -42,29 +46,27 @@ class StockTickCrawler:
         self.all_stock_list: List[str] = StockInfoCrawler.crawl_stock_list()           # 爬取所有上市櫃股票清單
         self.split_stock_list: List[List[str]] = []                             # 股票清單分組（後續給多線程用）
         self.table_latest_date: datetime.date = None
+        self.tick_dir: Path = TICK_DOWNLOADS_PATH
+        self.setup()
+
+
+    def crawl(self, dates: List[datetime.date]) -> None:
+        """ Crawl Tick Data """
+
+        self.crawl_ticks_multithreaded(dates)
+
+
+    def setup(self, *args, **kwargs) -> None:
+        """ Set Up the Config of Crawler """
 
         # Set logger
         logger.add(f"{LOGS_DIR_PATH}/crawl_stock_tick.log")
 
-        # Generate downloads directory
-        if not os.path.exists(TICK_DOWNLOADS_PATH):
-            os.makedirs(TICK_DOWNLOADS_PATH)
+        # Create the tick downloads directory
+        self.tick_dir.mkdir(parents=True, exist_ok=True)
 
         # Generate tick_metadata backup
-        StockTickTools.generate_tick_metadata_backup()
-
-
-    def split_list(
-        self,
-        target_list: List[Any],
-        n_parts: int
-    ) -> List[List[str]]:
-        """ 將 list 均分成 n 個 list """
-
-        num_list: int = 0
-        rem: int = 0
-        num_list, rem = divmod(len(target_list), n_parts)
-        return [target_list[i * num_list + min(i, rem) : (i + 1) * num_list + min(i + 1, rem)] for i in range(n_parts)]
+        StockTickUtils.generate_tick_metadata_backup()
 
 
     def crawl_ticks_for_stock(
@@ -94,8 +96,8 @@ class StockTickCrawler:
                 return None
 
         try:
-            formatted_df: pd.DataFrame = StockTickTools.format_tick_data(tick_df, code)
-            formatted_df = StockTickTools.format_time_to_microsec(formatted_df)
+            formatted_df: pd.DataFrame = StockTickUtils.format_tick_data(tick_df, code)
+            formatted_df = StockTickUtils.format_time_to_microsec(formatted_df)
 
             # Save df to csv file
             formatted_df.to_csv(os.path.join(TICK_DOWNLOADS_PATH, f"{code}.csv"), index=False)
@@ -146,8 +148,8 @@ class StockTickCrawler:
             # Format tick data
             try:
                 merged_df: pd.DataFrame = pd.concat(df_list, ignore_index=True)
-                formatted_df: pd.DataFrame = StockTickTools.format_tick_data(merged_df, code)
-                formatted_df = StockTickTools.format_time_to_microsec(formatted_df)
+                formatted_df: pd.DataFrame = StockTickUtils.format_tick_data(merged_df, code)
+                formatted_df = StockTickUtils.format_time_to_microsec(formatted_df)
 
                 # Save df to csv file
                 formatted_df.to_csv(os.path.join(TICK_DOWNLOADS_PATH, f"{code}.csv"), index=False)
@@ -180,8 +182,21 @@ class StockTickCrawler:
                     logger.error(f"Thread execution failed with exception: {e}")
 
         # Update tick table latest date
-        StockTickTools.update_tick_table_latest_date(self.table_latest_date)
+        StockTickUtils.update_tick_table_latest_date(self.table_latest_date)
 
         total_time: float = time.time() - start_time
         total_file: int = len(list(TICK_DOWNLOADS_PATH.glob("*.csv")))
         logger.info(f"All crawling tasks completed and metadata updated. Total file: {total_file}, Total time: {total_time:.2f} seconds")
+
+
+    def split_list(
+        self,
+        target_list: List[Any],
+        n_parts: int
+    ) -> List[List[str]]:
+        """ 將 list 均分成 n 個 list """
+
+        num_list: int = 0
+        rem: int = 0
+        num_list, rem = divmod(len(target_list), n_parts)
+        return [target_list[i * num_list + min(i, rem) : (i + 1) * num_list + min(i + 1, rem)] for i in range(n_parts)]

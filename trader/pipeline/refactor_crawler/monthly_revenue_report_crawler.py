@@ -26,15 +26,19 @@ from IPython.display import display
 from requests.exceptions import ConnectionError, ReadTimeout
 from tqdm import tqdm, tnrange, tqdm_notebook
 
-from trader.data_pipeline.utils.crawler_tools import CrawlerTools
-from trader.data_pipeline.utils.url_manager import URLManager
+from trader.pipeline.crawlers.base import BaseCrawler
+from trader.pipeline.utils import URLManager
+from trader.pipeline.utils.crawler_utils import CrawlerUtils
 from trader.config import (
     CRAWLER_DOWNLOADS_PATH,
-    FINANCIAL_STATEMENT_PATH,
+    FINANCIAL_REPORT_PATH,
     QUANTX_DB_PATH,
     CERTS_FILE_PATH
 )
 
 
-class FinancialReportCrawler:
-    pass
+class MonthlyRevenueReportCrawler(BaseCrawler):
+    """ TWSE & TPEX Monthly Revenue Report Crawler """
+
+    def __init__(self):
+        pass
