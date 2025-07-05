@@ -3,14 +3,15 @@ import random
 import sqlite3
 import datetime
 import time
+from pathlib import Path
 from typing import List, Dict, Optional, Any
 from io import StringIO
 
 import pandas as pd
 import requests
 
-from trader.data_pipeline.utils.crawler_utils import CrawlerUtils
-from trader.data_pipeline.utils.url_manager import URLManager
+from trader.pipeline.crawlers.base import BaseCrawler
+from trader.pipeline.utils.crawler_utils import CrawlerUtils, URLManager
 from trader.config import (
     CHIP_DOWNLOADS_PATH,
     CHIP_DB_PATH,
@@ -29,10 +30,12 @@ from trader.config import (
 """
 
 
-class StockChipCrawler:
+class StockChipCrawler(BaseCrawler):
     """ 爬取上市、上櫃股票三大法人盤後籌碼 """
 
     def __init__(self):
+        super().__init__()
+
         # SQLite Connection
         self.conn: sqlite3.Connection = sqlite3.connect(CHIP_DB_PATH)
 
@@ -44,8 +47,22 @@ class StockChipCrawler:
         self.tpex_first_reform_date: datetime.date = datetime.date(2018, 1, 15)
 
         # Generate downloads directory
-        if not os.path.exists(CHIP_DOWNLOADS_PATH):
-            os.makedirs(CHIP_DOWNLOADS_PATH)
+        self.chip_dir: Path = CHIP_DOWNLOADS_PATH
+        self.setup()
+
+
+    def crawl(self, date: datetime.date) -> None:
+        """ Crawl TWSE & TPEX Chip Data """
+
+        self.crawl_twse_chip(date)
+        self.crawl_tpex_chip(date)
+
+
+    def setup(self, *args, **kwargs) -> None:
+        """ Set Up the Config of Crawler """
+
+        # Generate downloads directory
+        self.chip_dir.mkdir(parents=True, exist_ok=True)
 
 
     def crawl_twse_chip(self, date: datetime.date) -> Optional[pd.DataFrame]:

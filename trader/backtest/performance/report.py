@@ -9,7 +9,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-from trader.data import Data, Chip, Tick, QXData
+from trader.api import Data, Chip, Tick, QXData
 from trader.utils import Market, Scale, PositionType
 from trader.models import StockAccount
 from .base import BaseBacktestAnalyzer

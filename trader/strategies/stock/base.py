@@ -2,7 +2,7 @@ import datetime
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from trader.data import Data, Chip, Tick, QXData
+from trader.api import Data, Chip, Tick, QXData
 from trader.models import (
     StockAccount,
     StockQuote,

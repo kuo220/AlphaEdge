@@ -3,13 +3,28 @@ from typing import List, Optional
 import pandas as pd
 import requests
 
-from trader.data_pipeline.utils.url_manager import URLManager
+from trader.pipeline.crawlers.base import BaseCrawler
+from trader.pipeline.utils import URLManager
 
 
-class StockInfoCrawler:
+class StockInfoCrawler(BaseCrawler):
     """
     Crawls basic information of Taiwanese stocks (e.g., ticker, name, industry category), excluding price and financial data
     """
+
+    def __init__(self):
+        super().__init__()
+
+
+    def crawl(self, *args, **kwargs) -> None:
+        """ Crawl Data """
+        pass
+
+
+    def setup(self, *args, **kwargs) -> None:
+        """ Set Up the Config of Crawler """
+        pass
+
 
     @staticmethod
     def crawl_twse_stock_info() -> pd.DataFrame:
