@@ -21,6 +21,11 @@ class StockInfoCrawler(BaseCrawler):
         pass
 
 
+    def setup(self, *args, **kwargs) -> None:
+        """ Set Up the Config of Crawler """
+        pass
+
+
     @staticmethod
     def crawl_twse_stock_info() -> pd.DataFrame:
         """ 爬取上市公司的基本股票資訊（股票代號、上市日期、產業類別等） """

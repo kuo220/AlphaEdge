@@ -3,6 +3,7 @@ import random
 import sqlite3
 import datetime
 import time
+from pathlib import Path
 from typing import List, Dict, Optional, Any
 from io import StringIO
 
@@ -46,8 +47,8 @@ class StockChipCrawler(BaseCrawler):
         self.tpex_first_reform_date: datetime.date = datetime.date(2018, 1, 15)
 
         # Generate downloads directory
-        if not os.path.exists(CHIP_DOWNLOADS_PATH):
-            os.makedirs(CHIP_DOWNLOADS_PATH)
+        self.chip_dir: Path = CHIP_DOWNLOADS_PATH
+        self.setup()
 
 
     def crawl(self, date: datetime.date) -> None:
@@ -55,6 +56,13 @@ class StockChipCrawler(BaseCrawler):
 
         self.crawl_twse_chip(date)
         self.crawl_tpex_chip(date)
+
+
+    def setup(self, *args, **kwargs) -> None:
+        """ Set Up the Config of Crawler """
+
+        # Generate downloads directory
+        self.chip_dir.mkdir(parents=True, exist_ok=True)
 
 
     def crawl_twse_chip(self, date: datetime.date) -> Optional[pd.DataFrame]:

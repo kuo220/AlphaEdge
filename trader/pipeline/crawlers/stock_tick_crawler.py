@@ -8,6 +8,7 @@ import shioaji as sj
 from shioaji.data import Ticks
 from loguru import logger
 from tqdm import tqdm
+from pathlib import Path
 
 from trader.utils import ShioajiAccount, ShioajiAPI, log_thread
 from trader.pipeline.crawlers.base import BaseCrawler
@@ -45,22 +46,27 @@ class StockTickCrawler(BaseCrawler):
         self.all_stock_list: List[str] = StockInfoCrawler.crawl_stock_list()           # 爬取所有上市櫃股票清單
         self.split_stock_list: List[List[str]] = []                             # 股票清單分組（後續給多線程用）
         self.table_latest_date: datetime.date = None
-
-        # Set logger
-        logger.add(f"{LOGS_DIR_PATH}/crawl_stock_tick.log")
-
-        # Generate downloads directory
-        if not os.path.exists(TICK_DOWNLOADS_PATH):
-            os.makedirs(TICK_DOWNLOADS_PATH)
-
-        # Generate tick_metadata backup
-        StockTickUtils.generate_tick_metadata_backup()
+        self.tick_dir: Path = TICK_DOWNLOADS_PATH
+        self.setup()
 
 
     def crawl(self, dates: List[datetime.date]) -> None:
         """ Crawl Tick Data """
 
         self.crawl_ticks_multithreaded(dates)
+
+
+    def setup(self, *args, **kwargs) -> None:
+        """ Set Up the Config of Crawler """
+
+        # Set logger
+        logger.add(f"{LOGS_DIR_PATH}/crawl_stock_tick.log")
+
+        # Create the tick downloads directory
+        self.tick_dir.mkdir(parents=True, exist_ok=True)
+
+        # Generate tick_metadata backup
+        StockTickUtils.generate_tick_metadata_backup()
 
 
     def crawl_ticks_for_stock(

@@ -25,3 +25,9 @@ class BaseCrawler(ABC):
         }
         """
         pass
+
+
+    @abstractmethod
+    def setup(self, *args, **kwargs) -> None:
+        """ Set Up the Config of Crawler """
+        pass

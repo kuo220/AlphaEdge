@@ -57,8 +57,8 @@ class FinancialReportCrawler(BaseCrawler):
         pass
 
 
-    def setup_crawler(self):
-        """ Set Up Financial Report Crawler """
+    def setup(self, *args, **kwargs):
+        """ Set Up the Config of Crawler """
 
         # Create Downloads Directory For Financial Reports
         self.fr_dir.mkdir(parents=True, exist_ok=True)
