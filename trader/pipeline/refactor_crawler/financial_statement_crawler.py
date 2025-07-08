@@ -32,7 +32,7 @@ from trader.pipeline.utils import URLManager
 from trader.pipeline.utils.crawler_utils import CrawlerUtils
 from trader.config import (
     CRAWLER_DOWNLOADS_PATH,
-    FINANCIAL_REPORT_PATH,
+    FINANCIAL_STATEMENT_PATH,
     QUANTX_DB_PATH,
     CERTS_FILE_PATH
 )
@@ -65,9 +65,15 @@ class FinancialStatementCrawler(BaseCrawler):
     def __init__(self):
         super().__init__()
 
-        # Payload for HTTP requests
+        # Payload For HTTP Requests
         self.payload: FinancialStatementPayload = None
-        self.fr_dir: Path = FINANCIAL_REPORT_PATH
+
+        # Financial Statement Directories Set Up
+        self.fr_dir: Path = FINANCIAL_STATEMENT_PATH
+        self.balance_sheet_dir: Path = self.fr_dir
+        self.income_statement_dir: Path = None
+        self.cash_flow_statement_dir: Path = None
+        self.equity_changes_statement_dir: Path = None
 
 
     def crawl(self, *args, **kwargs) -> None:

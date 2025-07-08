@@ -31,7 +31,6 @@ from trader.pipeline.utils import URLManager
 from trader.pipeline.utils.crawler_utils import CrawlerUtils
 from trader.config import (
     CRAWLER_DOWNLOADS_PATH,
-    FINANCIAL_REPORT_PATH,
     QUANTX_DB_PATH,
     CERTS_FILE_PATH
 )
