@@ -70,10 +70,10 @@ class FinancialStatementCrawler(BaseCrawler):
 
         # Financial Statement Directories Set Up
         self.fr_dir: Path = FINANCIAL_STATEMENT_PATH
-        self.balance_sheet_dir: Path = self.fr_dir
-        self.income_statement_dir: Path = None
-        self.cash_flow_statement_dir: Path = None
-        self.equity_changes_statement_dir: Path = None
+        self.balance_sheet_dir: Path = self.fr_dir / "balance_sheet"
+        self.income_statement_dir: Path = self.fr_dir / "income_statement"
+        self.cash_flow_statement_dir: Path = self.fr_dir / "cash_flow_statement"
+        self.equity_changes_statement_dir: Path = self.fr_dir / "equity_changes_statement"
 
 
     def crawl(self, *args, **kwargs) -> None:
@@ -86,6 +86,10 @@ class FinancialStatementCrawler(BaseCrawler):
 
         # Create Downloads Directory For Financial Reports
         self.fr_dir.mkdir(parents=True, exist_ok=True)
+        self.balance_sheet_dir.mkdir(parents=True, exist_ok=True)
+        self.income_statement_dir.mkdir(parents=True, exist_ok=True)
+        self.cash_flow_statement_dir.mkdir(parents=True, exist_ok=True)
+        self.equity_changes_statement_dir.mkdir(parents=True, exist_ok=True)
 
 
     def crawl_balance_sheet(self):
