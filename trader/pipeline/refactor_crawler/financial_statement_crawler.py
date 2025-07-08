@@ -13,6 +13,7 @@ import zipfile
 from io import StringIO
 from pathlib import Path
 from typing import List, Dict, Optional, Any
+from dataclasses import dataclass, asdict
 
 import ipywidgets as widgets
 import numpy as np
@@ -37,6 +38,22 @@ from trader.config import (
 )
 
 
+@dataclass
+class FinancialStatementPayload:
+    """ 財報查詢用 payload 結構 """
+
+    firstin: Optional[str] = None               # default: 1
+    TYPEK: Optional[str] = None                 # {sii: 上市, otc: 上櫃, all: 全部}
+    year: Optional[str] = None                  # ROC year
+    season: Optional[str] = None                # Season
+    co_id: Optional[str] = None                 # Stock code
+
+
+    def convert_to_clean_dict(self) -> Dict[str, str]:
+        """ Return a dict with all non-None fields """
+        return {key: value for key, value in asdict(self).items() if value is not None}
+
+
 class FinancialStatementCrawler(BaseCrawler):
     """ Crawler for quarterly financial reports """
     """
@@ -48,7 +65,8 @@ class FinancialStatementCrawler(BaseCrawler):
     def __init__(self):
         super().__init__()
 
-        self.payload: Dict[str] = {}
+        # Payload for HTTP requests
+        self.payload: FinancialStatementPayload = None
         self.fr_dir: Path = FINANCIAL_REPORT_PATH
 
 
