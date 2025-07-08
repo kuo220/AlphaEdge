@@ -1,6 +1,5 @@
 import datetime
-from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
 import numpy as np
 import pandas as pd
 import time
@@ -136,3 +135,16 @@ class CrawlerUtils:
     def generate_month_range(start_date: datetime.date, end_date: datetime.date) -> List[datetime.date]:
         """ 產生從 start_date 到 end_date 的每月清單（取每月的起始日） """
         return [dt.date() for dt in rrule(MONTHLY, dtstart=start_date, until=end_date)]
+
+
+    @staticmethod
+    def convert_to_roc_year(year: Union[int, str]) -> str:
+        """ 將西元年轉換成民國年 """
+
+        try:
+            year_int = int(year)
+            if year_int < 1912:
+                raise ValueError("民國元年從 1912 年開始，請輸入有效的西元年份")
+            return str(year_int - 1911)
+        except (ValueError, TypeError):
+            raise ValueError(f"無效的年份輸入：{year}")

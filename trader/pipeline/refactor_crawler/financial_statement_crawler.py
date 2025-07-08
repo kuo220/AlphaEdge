@@ -95,7 +95,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         上櫃: 民國 82 (1993) 年 ~ present
         """
 
-        roc_year: str = str(date.year - 1911)
+        roc_year: str = CrawlerUtils.convert_to_roc_year(date.year)
         self.payload.year = roc_year
         self.payload.season=season
 
@@ -123,14 +123,15 @@ class FinancialStatementCrawler(BaseDataCrawler):
         return df_list
 
 
-    def crawl_comprehensive_income(self):
+    def crawl_comprehensive_income(self, date: datetime.date, season: int) -> Optional[List[pd.DataFrame]]:
         """ Crawl Statement of Comprehensive Income (綜合損益表) """
         """
         資料區間
         上市: 民國 77 (1988) 年 ~ present
         上櫃: 民國 82 (1993) 年 ~ present
         """
-        pass
+
+        roc_year: str = CrawlerUtils.convert_to_roc_year(date.year)
 
 
     def crawl_cash_flow(self):
