@@ -1,31 +1,13 @@
 import datetime
-import os
-import pickle
-import random
-import re
-import shutil
-import sqlite3
-import sys
-import time
-import urllib.request
-import warnings
-import zipfile
-from io import StringIO
-from pathlib import Path
-from typing import List, Dict, Optional, Any
-from dataclasses import dataclass, asdict
-
-import ipywidgets as widgets
-import numpy as np
 import pandas as pd
 import requests
-from bs4 import BeautifulSoup
-from dateutil.relativedelta import relativedelta
-from dateutil.rrule import DAILY, MONTHLY, rrule
-from fake_useragent import UserAgent
-from IPython.display import display
-from requests.exceptions import ConnectionError, ReadTimeout
-from tqdm import tqdm, tnrange, tqdm_notebook
+import random
+import shutil
+from io import StringIO
+from pathlib import Path
+import logging
+from dataclasses import dataclass, asdict
+from typing import List, Dict, Optional, Any
 
 from trader.pipeline.crawlers.base import BaseCrawler
 from trader.pipeline.utils import URLManager
@@ -65,15 +47,17 @@ class FinancialStatementCrawler(BaseCrawler):
     def __init__(self):
         super().__init__()
 
-        # Payload For HTTP Requests
-        self.payload: FinancialStatementPayload = None
-
         # Financial Statement Directories Set Up
         self.fr_dir: Path = FINANCIAL_STATEMENT_PATH
         self.balance_sheet_dir: Path = self.fr_dir / "balance_sheet"
         self.income_statement_dir: Path = self.fr_dir / "income_statement"
         self.cash_flow_statement_dir: Path = self.fr_dir / "cash_flow_statement"
         self.equity_changes_statement_dir: Path = self.fr_dir / "equity_changes_statement"
+
+        # Payload For HTTP Requests
+        self.payload: FinancialStatementPayload = None
+
+        self.setup()
 
 
     def crawl(self, *args, **kwargs) -> None:
@@ -91,15 +75,44 @@ class FinancialStatementCrawler(BaseCrawler):
         self.cash_flow_statement_dir.mkdir(parents=True, exist_ok=True)
         self.equity_changes_statement_dir.mkdir(parents=True, exist_ok=True)
 
+        # Set Up Payload
+        self.payload = FinancialStatementPayload(
+            firstin="1",
+            TYPEK="sii",
+            year="102",
+            season="1",
+            co_id=None
+        )
 
-    def crawl_balance_sheet(self):
+
+    def crawl_balance_sheet(self, date: datetime.date, season: int) -> Optional[List[pd.DataFrame]]:
         """ Crawl Balance Sheet (資產負債表) """
         """
         資料區間
         上市: 民國 79 (1990) 年 ~ present
         上櫃: 民國 82 (1993) 年 ~ present
         """
-        pass
+
+        roc_year: str = str(date.year - 1911)
+        self.payload.year = roc_year
+        self.payload.season=season
+
+        balance_sheet_url: str = URLManager.get_url("BALANCE_SHEET_URL")
+        try:
+            res = requests.post(balance_sheet_url, data=self.payload.convert_to_clean_dict())
+            logging.info(f"上市 URL: {balance_sheet_url}")
+        except Exception as e:
+            logging.info(f"* WARN: Cannot get balance sheet at {date}")
+            logging.info(e)
+
+        try:
+            df_list: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
+        except Exception as e:
+            logging.info("No tables found")
+            logging.info(e)
+            return None
+
+        return df_list
 
 
     def crawl_comprehensive_income(self):
