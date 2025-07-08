@@ -87,8 +87,8 @@ class StockPriceCrawler(BaseDataCrawler):
         url: str = URLManager.get_url(
             "TPEX_CLOSING_QUOTE_URL",
             year=date.year,
-            month=str(date.month).zfill(2),
-            day=str(date.day).zfill(2)
+            month=CrawlerUtils.pad2(date.month),
+            day=CrawlerUtils.pad2(date.day)
         )
 
         try:

@@ -148,3 +148,9 @@ class CrawlerUtils:
             return str(year_int - 1911)
         except (ValueError, TypeError):
             raise ValueError(f"無效的年份輸入：{year}")
+
+
+    @staticmethod
+    def pad2(n: Union[int, str]) -> str:
+        """ 將數字補足為兩位數字字串 """
+        return str(n).zfill(2)
