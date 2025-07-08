@@ -11,7 +11,7 @@ from tqdm import tqdm
 from pathlib import Path
 
 from trader.utils import ShioajiAccount, ShioajiAPI, log_thread
-from trader.pipeline.crawlers.base import BaseCrawler
+from trader.pipeline.crawlers.base import BaseDataCrawler
 from trader.pipeline.crawlers.stock_info_crawler import StockInfoCrawler
 from trader.pipeline.utils.stock_tick_utils import StockTickUtils
 from trader.config import (
@@ -29,7 +29,7 @@ From: 2020/03/02 ~ Today
 From 2020/04/01 ~ 2024/05/10
 """
 
-class StockTickCrawler(BaseCrawler):
+class StockTickCrawler(BaseDataCrawler):
     """ 爬取上市櫃股票 ticks """
 
     def __init__(self):

@@ -9,8 +9,9 @@ import logging
 from dataclasses import dataclass, asdict
 from typing import List, Dict, Optional, Any
 
-from trader.pipeline.crawlers.base import BaseCrawler
+from trader.pipeline.crawlers.base import BaseDataCrawler
 from trader.pipeline.utils import URLManager
+from trader.pipeline.utils import MarketType
 from trader.pipeline.utils.crawler_utils import CrawlerUtils
 from trader.config import (
     CRAWLER_DOWNLOADS_PATH,
@@ -36,7 +37,7 @@ class FinancialStatementPayload:
         return {key: value for key, value in asdict(self).items() if value is not None}
 
 
-class FinancialStatementCrawler(BaseCrawler):
+class FinancialStatementCrawler(BaseDataCrawler):
     """ Crawler for quarterly financial reports """
     """
     目前公開資訊觀測站（mopsov.twse.com）提供的財務報表格式有更改
@@ -56,6 +57,7 @@ class FinancialStatementCrawler(BaseCrawler):
 
         # Payload For HTTP Requests
         self.payload: FinancialStatementPayload = None
+        self.market_types: List[MarketType] = [MarketType.SII, MarketType.OTC]
 
         self.setup()
 
@@ -98,19 +100,25 @@ class FinancialStatementCrawler(BaseCrawler):
         self.payload.season=season
 
         balance_sheet_url: str = URLManager.get_url("BALANCE_SHEET_URL")
-        try:
-            res = requests.post(balance_sheet_url, data=self.payload.convert_to_clean_dict())
-            logging.info(f"上市 URL: {balance_sheet_url}")
-        except Exception as e:
-            logging.info(f"* WARN: Cannot get balance sheet at {date}")
-            logging.info(e)
+        df_list: List[pd.DataFrame] = []
 
-        try:
-            df_list: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
-        except Exception as e:
-            logging.info("No tables found")
-            logging.info(e)
-            return None
+        for market_type in self.market_types:
+            self.payload.TYPEK = market_type.value
+
+            try:
+                res: Optional[requests.Response] = requests.post(balance_sheet_url, data=self.payload.convert_to_clean_dict())
+                logging.info(f"上市 URL: {balance_sheet_url}")
+            except Exception as e:
+                logging.info(f"* WARN: Cannot get balance sheet at {date}")
+                logging.info(e)
+
+            try:
+                dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
+                df_list.extend(dfs)
+            except Exception as e:
+                logging.info("No tables found")
+                logging.info(e)
+                return None
 
         return df_list
 

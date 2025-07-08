@@ -14,8 +14,8 @@ class DataType(str, Enum):
 
 
 class MarketType(str, Enum):
-    SII = "sii",                # 上市（Securities Investment Information）
-    OTC = "otc",                # 上櫃
-    ROTC = "rotc",              # 興櫃
+    SII = "sii"                 # 上市（Securities Investment Information）
+    OTC = "otc"                 # 上櫃
+    ROTC = "rotc"               # 興櫃
     PUB = "pub"                 # 公開發行
     ALL = "all"                 # 全部

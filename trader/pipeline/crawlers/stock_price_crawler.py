@@ -6,13 +6,13 @@ import logging
 from pathlib import Path
 from typing import List, Optional
 
-from trader.pipeline.crawlers.base import BaseCrawler
+from trader.pipeline.crawlers.base import BaseDataCrawler
 from trader.pipeline.utils import URLManager
 from trader.pipeline.utils.crawler_utils import CrawlerUtils
 from trader.config import PRICE_DOWNLOADS_PATH
 
 
-class StockPriceCrawler(BaseCrawler):
+class StockPriceCrawler(BaseDataCrawler):
     """ 爬取上市、上櫃公司的股票收盤行情（OHLC、成交量） """
 
     def __init__(self):

@@ -10,7 +10,7 @@ from io import StringIO
 import pandas as pd
 import requests
 
-from trader.pipeline.crawlers.base import BaseCrawler
+from trader.pipeline.crawlers.base import BaseDataCrawler
 from trader.pipeline.utils.crawler_utils import CrawlerUtils, URLManager
 from trader.config import (
     CHIP_DOWNLOADS_PATH,
@@ -30,7 +30,7 @@ from trader.config import (
 """
 
 
-class StockChipCrawler(BaseCrawler):
+class StockChipCrawler(BaseDataCrawler):
     """ 爬取上市、上櫃股票三大法人盤後籌碼 """
 
     def __init__(self):
