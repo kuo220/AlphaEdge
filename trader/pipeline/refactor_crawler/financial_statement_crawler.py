@@ -94,19 +94,39 @@ class FinancialStatementCrawler(BaseCrawler):
 
     def crawl_balance_sheet(self):
         """ Crawl Balance Sheet (資產負債表) """
+        """
+        資料區間
+        上市: 民國 79 (1990) 年 ~ present
+        上櫃: 民國 82 (1993) 年 ~ present
+        """
         pass
 
 
     def crawl_comprehensive_income(self):
         """ Crawl Statement of Comprehensive Income (綜合損益表) """
+        """
+        資料區間
+        上市: 民國 77 (1988) 年 ~ present
+        上櫃: 民國 82 (1993) 年 ~ present
+        """
         pass
 
 
     def crawl_cash_flow(self):
         """ Crawl Cash Flow Statement (現金流量表) """
+        """
+        資料區間
+        上市: 民國 102 (2013) 年 ~ present
+        上櫃: 民國 102 (2013) 年 ~ present
+        """
         pass
 
 
     def crawl_equity_changes(self):
         """ Crawl Statement of Changes in Equity (權益變動表) """
+        """
+        資料區間
+        上市: 民國 102 (2013) 年 ~ present
+        上櫃: 民國 102 (2013) 年 ~ present
+        """
         pass
