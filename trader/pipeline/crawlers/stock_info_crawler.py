@@ -3,11 +3,11 @@ from typing import List, Optional
 import pandas as pd
 import requests
 
-from trader.pipeline.crawlers.base import BaseCrawler
+from trader.pipeline.crawlers.base import BaseDataCrawler
 from trader.pipeline.utils import URLManager
 
 
-class StockInfoCrawler(BaseCrawler):
+class StockInfoCrawler(BaseDataCrawler):
     """
     Crawls basic information of Taiwanese stocks (e.g., ticker, name, industry category), excluding price and financial data
     """

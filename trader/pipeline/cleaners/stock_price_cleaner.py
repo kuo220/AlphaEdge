@@ -1,0 +1,125 @@
+import datetime
+import pandas as pd
+from pathlib import Path
+
+from trader.pipeline.cleaners.base import BaseDataCleaner
+from trader.pipeline.utils.crawler_utils import CrawlerUtils
+from trader.config import PRICE_DOWNLOADS_PATH
+
+
+class StockPriceCleaner(BaseDataCleaner):
+    """ Stock Price Cleaner (Transform) """
+
+    def __init__(self):
+        super().__init__()
+
+        # TPEX Price Table Change Date
+        self.tpex_table_change_date: datetime.date = datetime.date(2020, 4, 30)
+
+        # Downloads directory
+        self.price_dir: Path = PRICE_DOWNLOADS_PATH
+        self.setup()
+
+
+    def setup(self, *args, **kwargs) -> None:
+        """ Set Up the Config of Cleaner """
+
+        # Generate downloads directory
+        self.price_dir.mkdir(parents=True, exist_ok=True)
+
+
+    def clean_twse_price(
+        self,
+        df: pd.DataFrame,
+        date: datetime.date
+    ) -> pd.DataFrame:
+        """ Clean TWSE Stock Price Data """
+        """
+        TWSE 網站提供資料日期：
+        1. 2004/2/11 ~ present
+        """
+
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.droplevel(0)
+
+        df.drop(
+            columns=["漲跌(+/-)"],
+            axis=1,
+            inplace=True
+        )
+        df.insert(0, "date", date)
+        df = df.rename(columns={"證券代號": "stock_id"})
+        df = df.astype(str)
+        CrawlerUtils.move_col(df, "成交股數", "漲跌價差")
+        CrawlerUtils.move_col(df, "成交金額", "成交股數")
+        CrawlerUtils.move_col(df, "成交筆數", "成交金額")
+        CrawlerUtils.convert_col_to_numeric(df, ["date", "stock_id", "證券名稱"])
+        df.to_csv(self.price_dir / f"twse_{CrawlerUtils.format_date(date)}.csv", index=False)
+
+        return df
+
+
+    def clean_tpex_price(
+        self,
+        df: pd.DataFrame,
+        date: datetime.date
+    ) -> pd.DataFrame:
+        """ Clean TPEX Stock Price Data """
+        """
+        1. 上櫃資料從 96/7/2 以後才提供
+        2. 從 109/4/30 開始後 csv 檔的 column 不一樣
+        """
+
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.droplevel(0)
+
+        df.drop(
+            columns=["次日漲停價", "次日跌停價"],
+            axis=1,
+            inplace=True
+        )
+        df.insert(0, "date", date)
+        df = df.astype(str)
+
+        if date >= self.tpex_table_change_date:
+            df.columns = [
+                "date",
+                "stock_id",
+                "證券名稱",
+                "收盤價",
+                "漲跌價差",
+                "開盤價",
+                "最高價",
+                "最低價",
+                "成交股數",
+                "成交金額",
+                "成交筆數",
+                "最後揭示買價",
+                "最後揭示買量",
+                "最後揭示賣價",
+                "最後揭示賣量",
+                "發行股數",
+            ]
+        else:
+            df.columns = [
+                "date",
+                "stock_id",
+                "證券名稱",
+                "收盤價",
+                "漲跌價差",
+                "開盤價",
+                "最高價",
+                "最低價",
+                "成交股數",
+                "成交金額",
+                "成交筆數",
+                "最後揭示買價",
+                "最後揭示賣價",
+                "發行股數"
+            ]
+        CrawlerUtils.move_col(df, "收盤價", "最低價")
+        CrawlerUtils.move_col(df, "漲跌價差", "收盤價")
+        CrawlerUtils.convert_col_to_numeric(df, ["date", "stock_id", "證券名稱"])
+        df.to_csv(self.price_dir / f"tpex_{CrawlerUtils.format_date(date)}.csv", index=False)
+
+        return df
