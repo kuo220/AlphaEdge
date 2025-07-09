@@ -96,8 +96,9 @@ class FinancialStatementCrawler(BaseDataCrawler):
         """
 
         roc_year: str = CrawlerUtils.convert_to_roc_year(date.year)
+
         self.payload.year = roc_year
-        self.payload.season=season
+        self.payload.season = season
 
         balance_sheet_url: str = URLManager.get_url("BALANCE_SHEET_URL")
         df_list: List[pd.DataFrame] = []
@@ -107,7 +108,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
             try:
                 res: Optional[requests.Response] = requests.post(balance_sheet_url, data=self.payload.convert_to_clean_dict())
-                logging.info(f"上市 URL: {balance_sheet_url}")
+                logging.info(f"Balance Sheet URL: {balance_sheet_url}")
             except Exception as e:
                 logging.info(f"* WARN: Cannot get balance sheet at {date}")
                 logging.info(e)
@@ -132,6 +133,31 @@ class FinancialStatementCrawler(BaseDataCrawler):
         """
 
         roc_year: str = CrawlerUtils.convert_to_roc_year(date.year)
+
+        self.payload.year = roc_year
+        self.payload.season = season
+
+        income_url: str = URLManager.get_url("INCOME_STATEMENT_URL")
+        df_list: List[pd.DataFrame] = []
+
+        for market_type in self.market_types:
+            self.payload.TYPEK = market_type
+
+            try:
+                res: Optional[requests.Response] = requests.post(income_url, data=self.payload.convert_to_clean_dict())
+                logging.info(f"Statement of Comprehensive Income URL: {income_url}")
+            except Exception as e:
+                logging.info(f"* WARN: Cannot get statement of comprehensive income at {date}")
+
+            try:
+                dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
+                df_list.extend(dfs)
+            except Exception as e:
+                logging.info("No tables found")
+                logging.info(e)
+                return None
+
+        return df_list
 
 
     def crawl_cash_flow(self):
