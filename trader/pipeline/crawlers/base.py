@@ -5,6 +5,7 @@ Abstract base class for all crawlers that fetch data for a specific date.
 Subclasses should implement the `crawl(date)` method.
 """
 
+
 class BaseDataCrawler(ABC):
     """ Base Class of Data Crawler """
 

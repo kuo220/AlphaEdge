@@ -138,6 +138,12 @@ class CrawlerUtils:
 
 
     @staticmethod
+    def format_date(date: datetime.date, sep: str="") -> str:
+        """ Format date as 'YYYY{sep}MM{sep}DD' """
+        return date.strftime(f"%Y{sep}%m{sep}%d")
+
+
+    @staticmethod
     def convert_to_roc_year(year: Union[int, str]) -> str:
         """ 將西元年轉換成民國年 """
 

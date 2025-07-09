@@ -65,10 +65,22 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
     def crawl(self, *args, **kwargs) -> Dict[str, List[pd.DataFrame]]:
         """ Crawl Financial Report (Include 4 reports) """
+        """
+        General usage:
+        **kwargs = {
+            "stock_code": str,
+            "date": datetime.date,
+            "season": int
+        }
+        """
 
-        stock_code: str = kwargs["stock_code"]
-        date: datetime.date = kwargs["date"]
-        season: int = kwargs["season"]
+
+        stock_code: str = kwargs.get("stock_code")
+        date: datetime.date = kwargs.get("date")
+        season: int = kwargs.get("season")
+
+        if date is None or season is None:
+            raise ValueError("Missing required parameters: 'date', or 'season'")
 
         df_dict: Dict[str, List[pd.DataFrame]] = {
             "balance_sheet": [],
