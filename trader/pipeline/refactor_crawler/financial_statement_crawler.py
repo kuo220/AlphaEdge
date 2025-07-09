@@ -5,7 +5,7 @@ import random
 import shutil
 from io import StringIO
 from pathlib import Path
-import logging
+from loguru import logger
 from dataclasses import dataclass, asdict
 from typing import List, Dict, Optional, Any
 
@@ -108,17 +108,17 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
             try:
                 res: Optional[requests.Response] = requests.post(balance_sheet_url, data=self.payload.convert_to_clean_dict())
-                logging.info(f"Balance Sheet URL: {balance_sheet_url}")
+                logger.info(f"Balance Sheet URL: {balance_sheet_url}")
             except Exception as e:
-                logging.info(f"* WARN: Cannot get balance sheet at {date}")
-                logging.info(e)
+                logger.info(f"* WARN: Cannot get balance sheet at {date}")
+                logger.info(e)
 
             try:
                 dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
                 df_list.extend(dfs)
             except Exception as e:
-                logging.info("No tables found")
-                logging.info(e)
+                logger.info("No tables found")
+                logger.info(e)
                 return None
 
         return df_list
@@ -145,16 +145,16 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
             try:
                 res: Optional[requests.Response] = requests.post(income_url, data=self.payload.convert_to_clean_dict())
-                logging.info(f"Statement of Comprehensive Income URL: {income_url}")
+                logger.info(f"Statement of Comprehensive Income URL: {income_url}")
             except Exception as e:
-                logging.info(f"* WARN: Cannot get statement of comprehensive income at {date}")
+                logger.info(f"* WARN: Cannot get statement of comprehensive income at {date}")
 
             try:
                 dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
                 df_list.extend(dfs)
             except Exception as e:
-                logging.info("No tables found")
-                logging.info(e)
+                logger.info("No tables found")
+                logger.info(e)
                 return None
 
         return df_list

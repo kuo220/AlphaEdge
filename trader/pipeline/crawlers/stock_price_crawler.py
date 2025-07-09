@@ -2,8 +2,8 @@ import datetime
 import pandas as pd
 from io import StringIO
 import requests
-import logging
 from pathlib import Path
+from loguru import logger
 from typing import List, Optional
 
 from trader.pipeline.crawlers.base import BaseDataCrawler
@@ -46,10 +46,10 @@ class StockPriceCrawler(BaseDataCrawler):
 
         try:
             res: Optional[requests.Response] = CrawlerUtils.requests_get(url)
-            logging.info(f"上市 URL: {url}")
+            logger.info(f"上市 URL: {url}")
         except Exception as e:
-            logging.info(f"* WARN: Cannot get stock price at {date}")
-            logging.info(e)
+            logger.info(f"* WARN: Cannot get stock price at {date}")
+            logger.info(e)
             return None
 
         df: pd.DataFrame = pd.read_html(res.text)[-1]
@@ -93,10 +93,10 @@ class StockPriceCrawler(BaseDataCrawler):
 
         try:
             res: Optional[requests.Response] = CrawlerUtils.requests_get(url)
-            logging.info(f"上櫃 URL: {url}")
+            logger.info(f"上櫃 URL: {url}")
         except Exception as e:
-            logging.info(f"* WARN: Cannot get stock price at {date}")
-            logging.info(e)
+            logger.info(f"* WARN: Cannot get stock price at {date}")
+            logger.info(e)
             return None
 
         df: pd.DataFrame = pd.read_html(res.text)[0]
