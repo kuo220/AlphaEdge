@@ -3,7 +3,7 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python=3.10.13
+  - python==3.10.13
   - plotly
   - numpy
   - sqlite
@@ -20,3 +20,4 @@ dependencies:
   - pydantic
   - orjson
   - lxml
+  - html5lib

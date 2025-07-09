@@ -25,11 +25,12 @@ from trader.config import (
 class FinancialStatementPayload:
     """ 財報查詢用 payload 結構 """
 
-    firstin: Optional[str] = None               # default: 1
+    firstin: Optional[str] = "1"                # default: 1
+    step: Optional[str] = "1"                   # default: 1
     TYPEK: Optional[str] = None                 # {sii: 上市, otc: 上櫃, all: 全部}
+    co_id: Optional[str] = None                 # Stock code
     year: Optional[str] = None                  # ROC year
     season: Optional[str] = None                # Season
-    co_id: Optional[str] = None                 # Stock code
 
 
     def convert_to_clean_dict(self) -> Dict[str, str]:
@@ -80,14 +81,19 @@ class FinancialStatementCrawler(BaseDataCrawler):
         # Set Up Payload
         self.payload = FinancialStatementPayload(
             firstin="1",
+            step="1",
             TYPEK="sii",
+            co_id=None,
             year="102",
             season="1",
-            co_id=None
         )
 
 
-    def crawl_balance_sheet(self, date: datetime.date, season: int) -> Optional[List[pd.DataFrame]]:
+    def crawl_balance_sheet(
+        self,
+        date: datetime.date,
+        season: int
+    ) -> Optional[List[pd.DataFrame]]:
         """ Crawl Balance Sheet (資產負債表) """
         """
         資料區間
@@ -108,7 +114,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
             try:
                 res: Optional[requests.Response] = requests.post(balance_sheet_url, data=self.payload.convert_to_clean_dict())
-                logger.info(f"Balance Sheet URL: {balance_sheet_url}")
+                logger.info(f"{market_type} Balance Sheet URL: {balance_sheet_url}")
             except Exception as e:
                 logger.info(f"* WARN: Cannot get balance sheet at {date}")
                 logger.info(e)
@@ -124,7 +130,11 @@ class FinancialStatementCrawler(BaseDataCrawler):
         return df_list
 
 
-    def crawl_comprehensive_income(self, date: datetime.date, season: int) -> Optional[List[pd.DataFrame]]:
+    def crawl_comprehensive_income(
+        self,
+        date: datetime.date,
+        season: int
+    ) -> Optional[List[pd.DataFrame]]:
         """ Crawl Statement of Comprehensive Income (綜合損益表) """
         """
         資料區間
@@ -141,11 +151,11 @@ class FinancialStatementCrawler(BaseDataCrawler):
         df_list: List[pd.DataFrame] = []
 
         for market_type in self.market_types:
-            self.payload.TYPEK = market_type
-
+            self.payload.TYPEK = market_type.value
+            print(market_type)
             try:
                 res: Optional[requests.Response] = requests.post(income_url, data=self.payload.convert_to_clean_dict())
-                logger.info(f"Statement of Comprehensive Income URL: {income_url}")
+                logger.info(f"{market_type} Statement of Comprehensive Income URL: {income_url}")
             except Exception as e:
                 logger.info(f"* WARN: Cannot get statement of comprehensive income at {date}")
 
@@ -160,21 +170,79 @@ class FinancialStatementCrawler(BaseDataCrawler):
         return df_list
 
 
-    def crawl_cash_flow(self):
+    def crawl_cash_flow(
+        self,
+        date: datetime.date,
+        season: int
+    ) -> Optional[List[pd.DataFrame]]:
         """ Crawl Cash Flow Statement (現金流量表) """
         """
         資料區間
         上市: 民國 102 (2013) 年 ~ present
         上櫃: 民國 102 (2013) 年 ~ present
         """
-        pass
+
+        roc_year: str = CrawlerUtils.convert_to_roc_year(date.year)
+
+        self.payload.year = roc_year
+        self.payload.season = season
+
+        cash_flow_url: str = URLManager.get_url("CASH_FLOW_STATEMENT_URL")
+        df_list: List[pd.DataFrame] = []
+
+        for market_type in self.market_types:
+            self.payload.TYPEK = market_type.value
+
+            try:
+                res: Optional[requests.Response] = requests.post(cash_flow_url, data=self.payload.convert_to_clean_dict())
+                logger.info(f"{market_type} Statement of Cash Flow URL: {cash_flow_url}")
+            except Exception as e:
+                logger.info(f"* WARN: Cannot get cash flow statement at {date}")
+
+            try:
+                dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
+                df_list.extend(dfs)
+            except Exception as e:
+                logger.info("No tables found")
+                logger.info(e)
+                return None
+
+        return df_list
 
 
-    def crawl_equity_changes(self):
+    def crawl_equity_changes(
+        self,
+        stock_code: str,
+        date: datetime.date,
+        season: int
+    ) -> Optional[List[pd.DataFrame]]:
         """ Crawl Statement of Changes in Equity (權益變動表) """
         """
         資料區間
         上市: 民國 102 (2013) 年 ~ present
         上櫃: 民國 102 (2013) 年 ~ present
         """
-        pass
+
+        roc_year: str = CrawlerUtils.convert_to_roc_year(date.year)
+
+        self.payload.TYPEK = None
+        self.payload.co_id = stock_code
+        self.payload.year = roc_year
+        self.payload.season = season
+
+        equity_changes_url: str = URLManager.get_url("EQUITY_CHANGE_STATEMENT_URL")
+
+        try:
+            res: Optional[requests.Response] = requests.post(equity_changes_url, data=self.payload.convert_to_clean_dict())
+            logger.info(f"{equity_changes_url} Statement of Equity Changes URL: {equity_changes_url}")
+        except Exception as e:
+            logger.info(f"* WARN: Cannot get equity changes statement at {date}")
+
+        try:
+            df_list: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
+        except Exception as e:
+            logger.info("No tables found")
+            logger.info(e)
+            return None
+
+        return df_list
