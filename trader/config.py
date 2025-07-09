@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-import logging
 from typing import List, Optional
 from dotenv import load_dotenv
 
@@ -33,7 +32,7 @@ STOCK_STRATEGY_DIR_PATH: Path = get_resolved_path("STOCK_STRATEGY_DIR_PATH")
 
 # === Crawl Data Downloads Path ===
 CRAWLER_DOWNLOADS_PATH: Path = get_resolved_path("CRAWLER_DOWNLOADS_PATH")
-FINANCIAL_REPORT_PATH: Path = get_resolved_path("FINANCIAL_REPORT_PATH")
+FINANCIAL_STATEMENT_PATH: Path = get_resolved_path("FINANCIAL_STATEMENT_PATH")
 PRICE_DOWNLOADS_PATH: Path = get_resolved_path("PRICE_DOWNLOADS_PATH")
 CHIP_DOWNLOADS_PATH: Path = get_resolved_path("CHIP_DOWNLOADS_PATH")
 TICK_DOWNLOADS_PATH: Path = get_resolved_path("TICK_DOWNLOADS_PATH")
@@ -87,11 +86,3 @@ API_LIST: List[ShioajiAPI] = []
 for num in range(NUM_API):
     api: ShioajiAPI = ShioajiAPI(os.getenv(f"API_KEY_{num + 1}"), os.getenv(f"API_SECRET_KEY_{num + 1}"))
     API_LIST.append(api)
-
-
-# Setup logging
-def setup_logging():
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s"
-    )
