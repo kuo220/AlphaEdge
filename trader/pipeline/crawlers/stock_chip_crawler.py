@@ -1,22 +1,13 @@
-import os
-import random
-import sqlite3
 import datetime
+import random
 import time
-from pathlib import Path
-from typing import List, Dict, Optional, Any
+from typing import Dict, Optional
 from io import StringIO
-
 import pandas as pd
 import requests
 
 from trader.pipeline.crawlers.base import BaseDataCrawler
 from trader.pipeline.utils.crawler_utils import CrawlerUtils, URLManager
-from trader.config import (
-    CHIP_DOWNLOADS_PATH,
-    CHIP_DB_PATH,
-)
-
 
 
 """
@@ -36,20 +27,6 @@ class StockChipCrawler(BaseDataCrawler):
     def __init__(self):
         super().__init__()
 
-        # SQLite Connection
-        self.conn: sqlite3.Connection = sqlite3.connect(CHIP_DB_PATH)
-
-        # The date that TWSE chip data format was reformed
-        self.twse_first_reform_date: datetime.date = datetime.date(2014, 12, 1)
-        self.twse_second_reform_date: datetime.date = datetime.date(2017, 12, 18)
-
-        # The date that TPEX chip data format was reformed
-        self.tpex_first_reform_date: datetime.date = datetime.date(2018, 1, 15)
-
-        # Generate downloads directory
-        self.chip_dir: Path = CHIP_DOWNLOADS_PATH
-        self.setup()
-
 
     def crawl(self, date: datetime.date) -> None:
         """ Crawl TWSE & TPEX Chip Data """
@@ -60,9 +37,7 @@ class StockChipCrawler(BaseDataCrawler):
 
     def setup(self, *args, **kwargs) -> None:
         """ Set Up the Config of Crawler """
-
-        # Generate downloads directory
-        self.chip_dir.mkdir(parents=True, exist_ok=True)
+        pass
 
 
     def crawl_twse_chip(self, date: datetime.date) -> Optional[pd.DataFrame]:
@@ -123,7 +98,7 @@ class StockChipCrawler(BaseDataCrawler):
 
         return tpex_df
 
-
+    """ ============================================================================================ """
     # TODO: Refactor 成 ETL 架構後無法使用以下兩個 methods
     def crawl_twse_chip_range(
         self,

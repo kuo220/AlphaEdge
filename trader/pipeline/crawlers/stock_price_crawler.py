@@ -4,7 +4,7 @@ from io import StringIO
 import requests
 from pathlib import Path
 from loguru import logger
-from typing import List, Optional
+from typing import Optional
 
 from trader.pipeline.crawlers.base import BaseDataCrawler
 from trader.pipeline.utils import URLManager
@@ -52,7 +52,7 @@ class StockPriceCrawler(BaseDataCrawler):
             logger.info(e)
             return None
 
-        df: pd.DataFrame = pd.read_html(res.text)[-1]
+        df: pd.DataFrame = pd.read_html(StringIO(res.text))[-1]
 
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.droplevel(0)
@@ -99,7 +99,7 @@ class StockPriceCrawler(BaseDataCrawler):
             logger.info(e)
             return None
 
-        df: pd.DataFrame = pd.read_html(res.text)[0]
+        df: pd.DataFrame = pd.read_html(StringIO(res.text))[0]
 
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.droplevel(0)

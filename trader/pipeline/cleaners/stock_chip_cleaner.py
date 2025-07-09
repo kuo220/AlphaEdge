@@ -1,21 +1,11 @@
-import os
-import random
-import sqlite3
 import datetime
-import time
+from typing import List
 from pathlib import Path
-from typing import List, Dict, Optional, Any
-from io import StringIO
-
 import pandas as pd
-import requests
 
 from trader.pipeline.cleaners.base import BaseDataCleaner
-from trader.pipeline.utils.crawler_utils import CrawlerUtils, URLManager
-from trader.config import (
-    CHIP_DOWNLOADS_PATH,
-    CHIP_DB_PATH,
-)
+from trader.pipeline.utils.crawler_utils import CrawlerUtils
+from trader.config import CHIP_DOWNLOADS_PATH
 
 
 class StockChipCleaner(BaseDataCleaner):
@@ -31,10 +21,18 @@ class StockChipCleaner(BaseDataCleaner):
         # The date that TPEX chip data format was reformed
         self.tpex_first_reform_date: datetime.date = datetime.date(2018, 1, 15)
 
+        # Generate downloads directory
+        self.chip_dir: Path = CHIP_DOWNLOADS_PATH
+
+        # Set Up
+        self.setup()
+
 
     def setup(self, *args, **kwargs) -> None:
         """ Set Up the Config of Cleaner """
-        pass
+
+        # Generate downloads directory
+        self.chip_dir.mkdir(parents=True, exist_ok=True)
 
 
     def clean_twse_chip(
@@ -76,7 +74,7 @@ class StockChipCleaner(BaseDataCleaner):
 
         df = CrawlerUtils.remove_redundant_col(df, '三大法人買賣超股數')
         df = CrawlerUtils.fill_nan(df, 0)
-        df.to_csv(os.path.join(CHIP_DOWNLOADS_PATH, f"twse_{CrawlerUtils.format_date(date)}.csv"), index=False)
+        df.to_csv(self.chip_dir / f"twse_{CrawlerUtils.format_date(date)}.csv", index=False)
 
         return df
 
@@ -134,6 +132,6 @@ class StockChipCleaner(BaseDataCleaner):
         CrawlerUtils.move_col(df, "自營商買賣超股數", "自營商買賣超股數_避險")
         df = CrawlerUtils.remove_redundant_col(df, '三大法人買賣超股數')
         df = CrawlerUtils.fill_nan(df, 0)
-        df.to_csv(os.path.join(CHIP_DOWNLOADS_PATH, f"tpex_{CrawlerUtils.format_date(date)}.csv"), index=False)
+        df.to_csv(self.chip_dir / f"tpex_{CrawlerUtils.format_date(date)}.csv", index=False)
 
         return df
