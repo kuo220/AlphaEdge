@@ -21,7 +21,7 @@ class StockChipCleaner(BaseDataCleaner):
         # The date that TPEX chip data format was reformed
         self.tpex_first_reform_date: datetime.date = datetime.date(2018, 1, 15)
 
-        # Generate downloads directory
+        # Downloads directory
         self.chip_dir: Path = CHIP_DOWNLOADS_PATH
 
         # Set Up
