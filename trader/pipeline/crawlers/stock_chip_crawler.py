@@ -68,8 +68,8 @@ class StockChipCrawler(BaseDataCrawler):
     def crawl_twse_chip(self, date: datetime.date) -> Optional[pd.DataFrame]:
         """ TWSE 三大法人單日爬蟲 """
 
-        date_str: str = date.strftime("%Y%m%d")
-        readable_date: str = date.strftime("%Y/%m/%d")
+        date_str: str = CrawlerUtils.format_date(date)
+        readable_date: str = CrawlerUtils.format_date(date, sep="/")
         print("* Start crawling TWSE institutional investors data...")
         print(readable_date)
 
@@ -87,46 +87,13 @@ class StockChipCrawler(BaseDataCrawler):
             print("It's Holiday!")
             return None
 
-        twse_df.columns = twse_df.columns.droplevel(0)
-        twse_df.insert(0, '日期', date)
-
-        old_col_name: List[str] = ['自營商買進股數(自行買賣)', '自營商賣出股數(自行買賣)', '自營商買賣超股數(自行買賣)',
-                        '自營商買進股數(避險)', '自營商賣出股數(避險)', '自營商買賣超股數(避險)']
-
-        new_col_name: List[str] = ['自營商買進股數_自行買賣', '自營商賣出股數_自行買賣', '自營商買賣超股數_自行買賣',
-                            '自營商買進股數_避險', '自營商賣出股數_避險', '自營商買賣超股數_避險']
-
-        # 第一次格式改制前
-        if date < self.twse_first_reform_date:
-            CrawlerUtils.move_col(twse_df, "自營商買賣超股數", "自營商賣出股數")
-        # 第一次格式改制後，第二次格式改制前
-        elif self.twse_first_reform_date <= date < self.twse_second_reform_date:
-            CrawlerUtils.move_col(twse_df, "自營商買賣超股數", "自營商買賣超股數(避險)")
-            twse_df.rename(columns=dict(zip(old_col_name, new_col_name)), inplace=True)
-        # 第二次格式改制後
-        else:
-            twse_df['外資買進股數'] = twse_df['外陸資買進股數(不含外資自營商)'] + twse_df['外資自營商買進股數']
-            twse_df['外資賣出股數'] = twse_df['外陸資賣出股數(不含外資自營商)'] + twse_df['外資自營商賣出股數']
-            twse_df['外資買賣超股數'] = twse_df['外陸資買賣超股數(不含外資自營商)'] + twse_df['外資自營商買賣超股數']
-            twse_df.drop(columns=['外陸資買進股數(不含外資自營商)', '外陸資賣出股數(不含外資自營商)', '外陸資買賣超股數(不含外資自營商)',
-                                '外資自營商買進股數', '外資自營商賣出股數', '外資自營商買賣超股數'], inplace=True)
-            CrawlerUtils.move_col(twse_df, '外資買進股數', '證券名稱')
-            CrawlerUtils.move_col(twse_df, '外資賣出股數', '外資買進股數')
-            CrawlerUtils.move_col(twse_df, '外資買賣超股數', '外資賣出股數')
-            CrawlerUtils.move_col(twse_df, "自營商買賣超股數", "自營商買賣超股數(避險)")
-            twse_df.rename(columns=dict(zip(old_col_name, new_col_name)), inplace=True)
-
-        twse_df = CrawlerUtils.remove_redundant_col(twse_df, '三大法人買賣超股數')
-        twse_df = CrawlerUtils.fill_nan(twse_df, 0)
-        twse_df.to_csv(os.path.join(CHIP_DOWNLOADS_PATH, f"twse_{date.strftime('%Y%m%d')}.csv"), index=False)
-
         return twse_df
 
 
     def crawl_tpex_chip(self, date: datetime.date) -> Optional[pd.DataFrame]:
         """ TPEX 三大法人單日爬蟲 """
 
-        date_str: str = date.strftime("%Y/%m/%d")
+        date_str: str = CrawlerUtils.format_date(date, sep="/")
         print("* Start crawling TPEX institutional investors data...")
         print(date_str)
 
@@ -154,57 +121,10 @@ class StockChipCrawler(BaseDataCrawler):
             print("It's Holiday!")
             return None
 
-        if isinstance(tpex_df.columns, pd.MultiIndex):
-            tpex_df.columns = tpex_df.columns.droplevel(0)
-
-        new_col_name: List[str] = [
-            '證券代號', '證券名稱', '外資買進股數', '外資賣出股數', '外資買賣超股數',
-            '投信買進股數', '投信賣出股數', '投信買賣超股數', '自營商買賣超股數',
-            '自營商買進股數_自行買賣', '自營商賣出股數_自行買賣', '自營商買賣超股數_自行買賣',
-            '自營商買進股數_避險', '自營商賣出股數_避險', '自營商買賣超股數_避險', '三大法人買賣超股數'
-        ]
-
-        # 格式改制前
-        if date < self.tpex_first_reform_date:
-            old_col_name: List[str] = [
-                '代號', '名稱', '外資 及陸資 買股數', '外資 及陸資 賣股數', '外資 及陸資 淨買股數',
-                '投信 買股數', '投信 賣股數', '投信 淨買股數', '自營商 淨買股數',
-                '自營商 (自行買賣) 買股數', '自營商 (自行買賣) 賣股數', '自營商 (自行買賣) 淨買股數',
-                '自營商 (避險) 買股數', '自營商 (避險) 賣股數', '自營商 (避險) 淨買股數', '三大法人 買賣超股數'
-            ]
-
-            tpex_df.rename(columns=dict(zip(old_col_name, new_col_name)), inplace=True)
-        # 格式改制後
-        else:
-            new_tpex_df: pd.DataFrame = pd.DataFrame(columns=new_col_name)
-            new_tpex_df['證券代號'] = tpex_df.loc[:, ('代號', '代號')]
-            new_tpex_df['證券名稱'] = tpex_df.loc[:, ('名稱', '名稱')]
-            new_tpex_df['外資買進股數'] = tpex_df.loc[:, ('外資及陸資', '買進股數')]
-            new_tpex_df['外資賣出股數'] = tpex_df.loc[:, ('外資及陸資', '賣出股數')]
-            new_tpex_df['外資買賣超股數'] = tpex_df.loc[:, ('外資及陸資', '買賣超股數')]
-            new_tpex_df['投信買進股數'] = tpex_df.loc[:, ('投信', '買進股數')]
-            new_tpex_df['投信賣出股數'] = tpex_df.loc[:, ('投信', '賣出股數')]
-            new_tpex_df['投信買賣超股數'] = tpex_df.loc[:, ('投信', '買賣超股數')]
-            new_tpex_df['自營商買賣超股數'] = tpex_df.loc[:, ('自營商', '買賣超股數')]
-            new_tpex_df['自營商買進股數_自行買賣'] = tpex_df.loc[:, ('自營商(自行買賣)', '買進股數')]
-            new_tpex_df['自營商賣出股數_自行買賣'] = tpex_df.loc[:, ('自營商(自行買賣)', '賣出股數')]
-            new_tpex_df['自營商買賣超股數_自行買賣'] = tpex_df.loc[:, ('自營商(自行買賣)', '買賣超股數')]
-            new_tpex_df['自營商買進股數_避險'] = tpex_df.loc[:, ('自營商(避險)', '買進股數')]
-            new_tpex_df['自營商賣出股數_避險'] = tpex_df.loc[:, ('自營商(避險)', '賣出股數')]
-            new_tpex_df['自營商買賣超股數_避險'] = tpex_df.loc[:, ('自營商(避險)', '買賣超股數')]
-            new_tpex_df['三大法人買賣超股數'] = tpex_df.loc[:, ('三大法人買賣超 股數合計', '三大法人買賣超 股數合計')]
-            tpex_df = new_tpex_df
-
-        tpex_df = tpex_df.iloc[:-1] # 刪掉最後一個 row
-        tpex_df.insert(0, '日期', date)
-        CrawlerUtils.move_col(tpex_df, "自營商買賣超股數", "自營商買賣超股數_避險")
-        tpex_df = CrawlerUtils.remove_redundant_col(tpex_df, '三大法人買賣超股數')
-        tpex_df = CrawlerUtils.fill_nan(tpex_df, 0)
-        tpex_df.to_csv(os.path.join(CHIP_DOWNLOADS_PATH, f"tpex_{date.strftime('%Y%m%d')}.csv"), index=False)
-
         return tpex_df
 
 
+    # TODO: Refactor 成 ETL 架構後無法使用以下兩個 methods
     def crawl_twse_chip_range(
         self,
         start_date: datetime.date,
