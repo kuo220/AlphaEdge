@@ -63,9 +63,26 @@ class FinancialStatementCrawler(BaseDataCrawler):
         self.setup()
 
 
-    def crawl(self, *args, **kwargs) -> None:
+    def crawl(self, *args, **kwargs) -> Dict[str, List[pd.DataFrame]]:
         """ Crawl Financial Report (Include 4 reports) """
-        pass
+
+        stock_code: str = kwargs["stock_code"]
+        date: datetime.date = kwargs["date"]
+        season: int = kwargs["season"]
+
+        df_dict: Dict[str, List[pd.DataFrame]] = {
+            "balance_sheet": [],
+            "comprehensive_income": [],
+            "cash_flow": [],
+            "equity_changes": []
+        }
+
+        df_dict["balance_sheet"].extend(self.crawl_balance_sheet(date, season))
+        df_dict["comprehensive_income"].extend(self.crawl_comprehensive_income(date, season))
+        df_dict["cash_flow"].extend(self.crawl_cash_flow(date, season))
+        df_dict["equity_changes"].extend(self.crawl_equity_changes(stock_code, date, season))
+
+        return df_dict
 
 
     def setup(self, *args, **kwargs):
