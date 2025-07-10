@@ -72,8 +72,8 @@ class StockTickCrawler(BaseDataCrawler):
     def crawl_ticks_for_stock(
         self,
         api: sj.Shioaji,
+        date: datetime.date,
         code: str,
-        date: datetime.date
     ) -> Optional[pd.DataFrame]:
         """ 透過 Shioaji 爬取指定個股的 tick data """
 
@@ -86,35 +86,21 @@ class StockTickCrawler(BaseDataCrawler):
             ticks: Ticks = api.ticks(contract=api.Contracts.Stocks[code], date=date.isoformat())
             tick_df: pd.DataFrame = pd.DataFrame({**ticks})
 
-            if not tick_df.empty:
-                tick_df.ts = pd.to_datetime(tick_df.ts)
-                self.table_latest_date = tick_df.ts.max().date()
-            else:
-                return None
-        except Exception as e:
-                logger.error(f"Error Crawling Tick Data: {code} {date} | {e}")
-                return None
-
-        try:
-            formatted_df: pd.DataFrame = StockTickUtils.format_tick_data(tick_df, code)
-            formatted_df = StockTickUtils.format_time_to_microsec(formatted_df)
-
-            # Save df to csv file
-            formatted_df.to_csv(os.path.join(TICK_DOWNLOADS_PATH, f"{code}.csv"), index=False)
-            logger.info(f"Saved {code}.csv to {TICK_DOWNLOADS_PATH}")
+            return tick_df if not tick_df.empty else None
 
         except Exception as e:
-            logger.error(f"Error processing or saving tick data for stock {code} | {e}")
+            logger.error(f"Error Crawling Tick Data: {code} {date} | {e}")
+            return None
 
-        return formatted_df
 
-
+    """ ============================================================================================ """
+    # TODO: Refactor 成 ETL 架構後，須把以下的 method 移到 Updater
     @log_thread
     def crawl_ticks_for_stock_list(
         self,
         api: sj.Shioaji,
-        stock_list: List[str],
-        dates: List[datetime.date]
+        dates: List[datetime.date],
+        stock_list: List[str]
     ) -> None:
         """ 透過 Shioaji 爬取 stock_list 中的個股 tick data """
 
@@ -172,7 +158,7 @@ class StockTickCrawler(BaseDataCrawler):
         with ThreadPoolExecutor(max_workers=self.num_threads) as executor:
             futures: List[Future] = []
             for api, stock_list in zip(self.api_list, self.split_stock_list):
-                futures.append(executor.submit(self.crawl_ticks_for_stock_list, api=api, stock_list=stock_list, dates=dates))
+                futures.append(executor.submit(self.crawl_ticks_for_stock_list, api=api, dates=dates, stock_list=stock_list))
 
             # 確保執行完所有的 threads 才往下執行其餘程式碼
             for future in tqdm(as_completed(futures), total=len(futures), desc="Thread progress"):

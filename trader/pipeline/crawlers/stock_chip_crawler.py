@@ -99,7 +99,7 @@ class StockChipCrawler(BaseDataCrawler):
         return tpex_df
 
     """ ============================================================================================ """
-    # TODO: Refactor 成 ETL 架構後無法使用以下兩個 methods
+    # TODO: Refactor 成 ETL 架構後，須把以下的 method 移到 Updater
     def crawl_twse_chip_range(
         self,
         start_date: datetime.date,
