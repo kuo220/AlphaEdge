@@ -26,11 +26,11 @@ class FinancialStatementCrawler(BaseDataCrawler):
         super().__init__()
 
         # Financial Statement Directories Set Up
-        self.fr_dir: Path = FINANCIAL_STATEMENT_PATH
-        self.balance_sheet_dir: Path = self.fr_dir / "balance_sheet"
-        self.income_statement_dir: Path = self.fr_dir / "income_statement"
-        self.cash_flow_statement_dir: Path = self.fr_dir / "cash_flow_statement"
-        self.equity_changes_statement_dir: Path = self.fr_dir / "equity_changes_statement"
+        self.fs_dir: Path = FINANCIAL_STATEMENT_PATH
+        self.balance_sheet_dir: Path = self.fs_dir / "balance_sheet"
+        self.income_statement_dir: Path = self.fs_dir / "income_statement"
+        self.cash_flow_statement_dir: Path = self.fs_dir / "cash_flow_statement"
+        self.equity_changes_statement_dir: Path = self.fs_dir / "equity_changes_statement"
 
         # Payload For HTTP Requests
         self.payload: Payload = None
@@ -77,7 +77,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         """ Set Up the Config of Crawler """
 
         # Create Downloads Directory For Financial Reports
-        self.fr_dir.mkdir(parents=True, exist_ok=True)
+        self.fs_dir.mkdir(parents=True, exist_ok=True)
         self.balance_sheet_dir.mkdir(parents=True, exist_ok=True)
         self.income_statement_dir.mkdir(parents=True, exist_ok=True)
         self.cash_flow_statement_dir.mkdir(parents=True, exist_ok=True)
