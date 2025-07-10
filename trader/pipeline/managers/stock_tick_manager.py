@@ -11,7 +11,7 @@ except ModuleNotFoundError:
 
 from trader.pipeline.crawlers.stock_tick_crawler import StockTickCrawler
 from trader.pipeline.managers import BaseDatabaseManager
-from trader.pipeline.utils.crawler_utils import CrawlerUtils
+from trader.pipeline.utils.data_utils import DataUtils
 from trader.pipeline.utils.stock_tick_utils import StockTickUtils
 from trader.config import (
     TICK_DOWNLOADS_PATH,
@@ -147,7 +147,7 @@ class StockTickManager(BaseDatabaseManager):
                 print("Please select both start and end dates.")
                 return
 
-            dates: List[datetime.date] = CrawlerUtils.generate_date_range(start_date, end_date)
+            dates: List[datetime.date] = DataUtils.generate_date_range(start_date, end_date)
 
             if not dates:
                 print("Date range is empty. Please check if the start date is earlier than the end date.")

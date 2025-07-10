@@ -3,7 +3,7 @@ import pandas as pd
 from pathlib import Path
 
 from trader.pipeline.cleaners.base import BaseDataCleaner
-from trader.pipeline.utils.crawler_utils import CrawlerUtils
+from trader.pipeline.utils.data_utils import DataUtils
 from trader.config import PRICE_DOWNLOADS_PATH
 
 
@@ -50,11 +50,11 @@ class StockPriceCleaner(BaseDataCleaner):
         df.insert(0, "date", date)
         df = df.rename(columns={"證券代號": "stock_id"})
         df = df.astype(str)
-        CrawlerUtils.move_col(df, "成交股數", "漲跌價差")
-        CrawlerUtils.move_col(df, "成交金額", "成交股數")
-        CrawlerUtils.move_col(df, "成交筆數", "成交金額")
-        CrawlerUtils.convert_col_to_numeric(df, ["date", "stock_id", "證券名稱"])
-        df.to_csv(self.price_dir / f"twse_{CrawlerUtils.format_date(date)}.csv", index=False)
+        DataUtils.move_col(df, "成交股數", "漲跌價差")
+        DataUtils.move_col(df, "成交金額", "成交股數")
+        DataUtils.move_col(df, "成交筆數", "成交金額")
+        DataUtils.convert_col_to_numeric(df, ["date", "stock_id", "證券名稱"])
+        df.to_csv(self.price_dir / f"twse_{DataUtils.format_date(date)}.csv", index=False)
 
         return df
 
@@ -117,9 +117,9 @@ class StockPriceCleaner(BaseDataCleaner):
                 "最後揭示賣價",
                 "發行股數"
             ]
-        CrawlerUtils.move_col(df, "收盤價", "最低價")
-        CrawlerUtils.move_col(df, "漲跌價差", "收盤價")
-        CrawlerUtils.convert_col_to_numeric(df, ["date", "stock_id", "證券名稱"])
-        df.to_csv(self.price_dir / f"tpex_{CrawlerUtils.format_date(date)}.csv", index=False)
+        DataUtils.move_col(df, "收盤價", "最低價")
+        DataUtils.move_col(df, "漲跌價差", "收盤價")
+        DataUtils.convert_col_to_numeric(df, ["date", "stock_id", "證券名稱"])
+        df.to_csv(self.price_dir / f"tpex_{DataUtils.format_date(date)}.csv", index=False)
 
         return df

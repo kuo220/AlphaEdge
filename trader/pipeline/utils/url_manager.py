@@ -47,17 +47,11 @@ class URLManager:
         # 上櫃收盤行情
         "TPEX_CLOSING_QUOTE_URL": "https://www.tpex.org.tw/www/zh-tw/afterTrading/otc?date={year}%2F{month}%2F{day}&type=EW&id=&response=html&order=0&sort=asc",
 
-        # 上市月營收財報
-        "TWSE_MONTHLY_REVENUE_REPORT_URL": "https://mopsov.twse.com.tw/nas/t21/sii/t21sc03_{roc_year}_{month}.html",
+        # 上市月營收財報（month: m, market_type: {0: 國內上市, 1: 國外上市}）
+        "TWSE_MONTHLY_REVENUE_REPORT_URL": "https://mopsov.twse.com.tw/nas/t21/sii/t21sc03_{roc_year}_{month}_{market_type}.html",
 
-        # 上櫃月營收財報
-        "TPEX_MONTHLY_REVENUE_REPORT_URL": "https://mopsov.twse.com.tw/nas/t21/otc/t21sc03_{roc_year}_{month}.html",
-
-        # 上市上櫃財報（year = 2013 ~ present）
-        # year = 2013 ~ 2018
-        "FINANCIAL_REPORT_LEGACY_URL": "https://mopsov.twse.com.tw/server-java/t164sb01?step=1&CO_ID={id}&SYEAR={year}&SSEASON={season}&REPORT_ID={type}",
-        # year = 2019 ~ present（IFRS制）
-        "FINANCIAL_REPORT_IFRS_URL": "https://mopsov.twse.com.tw/server-java/FileDownLoad?step=9&fileName=tifrs-{year}Q{season}.zip&filePath=/home/html/nas/ifrs/{year}/",
+        # 上櫃月營收財報（month: m, market_type: {0: 國內上櫃, 1: 國外上櫃}）
+        "TPEX_MONTHLY_REVENUE_REPORT_URL": "https://mopsov.twse.com.tw/nas/t21/otc/t21sc03_{roc_year}_{month}_{market_type}.html",
 
         # 上市上櫃財報（四大報表）爬蟲網站（新方式）
         # 資產負債表
