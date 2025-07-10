@@ -19,7 +19,7 @@ class MarketType(str, Enum):
     ROTC = "rotc"               # 興櫃
     PUB = "pub"                 # 公開發行
     ALL = "all"                 # 全部
-    SII0 = "sii0"               # 國內上市（爬月營收會用到）
-    SII1 = "sii1"               # 國外上市
-    OTC0 = "otc0"               # 國內上櫃
-    OTC1 = "otc1"               # 國外上櫃
+    SII0 = "0"                  # 國內上市（爬月營收會用到）
+    SII1 = "1"                  # 國外上市
+    OTC0 = "0"                  # 國內上櫃
+    OTC1 = "1"                  # 國外上櫃

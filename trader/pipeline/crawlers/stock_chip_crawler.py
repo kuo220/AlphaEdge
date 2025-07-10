@@ -1,12 +1,13 @@
 import datetime
 import random
 import time
-from typing import Dict, Optional
+from typing import Optional
 from io import StringIO
 import pandas as pd
 import requests
 
 from trader.pipeline.crawlers.base import BaseDataCrawler
+from trader.pipeline.crawlers.utils.request_utils import RequestUtils
 from trader.pipeline.utils.url_manager import URLManager
 from trader.pipeline.utils.data_utils import DataUtils
 
@@ -50,8 +51,7 @@ class StockChipCrawler(BaseDataCrawler):
         print(readable_date)
 
         twse_url: str = URLManager.get_url("TWSE_CHIP_URL", date=date_str)
-        headers: Dict[str, str] = DataUtils.generate_random_header()
-        twse_response: requests.Response = requests.get(twse_url, headers=headers)
+        twse_response: requests.Response = RequestUtils.requests_get(twse_url)
 
         # 檢查是否為假日 or 單純網站還未更新
         try:
@@ -74,8 +74,7 @@ class StockChipCrawler(BaseDataCrawler):
         print(date_str)
 
         tpex_url: str = URLManager.get_url("TPEX_CHIP_URL", date=date_str)
-        headers: Dict[str, str] = DataUtils.generate_random_header()
-        tpex_response: requests.Response = requests.get(tpex_url, headers=headers)
+        tpex_response: requests.Response = RequestUtils.requests_get(tpex_url)
 
         try:
             tpex_df: pd.DataFrame = pd.read_html(StringIO(tpex_response.text))[0]

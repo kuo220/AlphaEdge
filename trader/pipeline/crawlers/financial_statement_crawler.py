@@ -8,6 +8,7 @@ from dataclasses import dataclass, asdict
 from typing import List, Dict, Optional
 
 from trader.pipeline.crawlers.base import BaseDataCrawler
+from trader.pipeline.crawlers.utils.request_utils import RequestUtils
 from trader.pipeline.crawlers.utils.payload import Payload
 from trader.pipeline.utils import URLManager
 from trader.pipeline.utils import MarketType
@@ -119,7 +120,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
             self.payload.TYPEK = market_type.value
 
             try:
-                res: Optional[requests.Response] = requests.post(balance_sheet_url, data=self.payload.convert_to_clean_dict())
+                res: Optional[requests.Response] = RequestUtils.requests_post(balance_sheet_url, data=self.payload.convert_to_clean_dict())
                 logger.info(f"{market_type} Balance Sheet URL: {balance_sheet_url}")
             except Exception as e:
                 logger.info(f"* WARN: Cannot get balance sheet at {date}")
@@ -158,9 +159,9 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
         for market_type in self.market_types:
             self.payload.TYPEK = market_type.value
-            print(market_type)
+
             try:
-                res: Optional[requests.Response] = requests.post(income_url, data=self.payload.convert_to_clean_dict())
+                res: Optional[requests.Response] = RequestUtils.requests_post(income_url, data=self.payload.convert_to_clean_dict())
                 logger.info(f"{market_type} Statement of Comprehensive Income URL: {income_url}")
             except Exception as e:
                 logger.info(f"* WARN: Cannot get statement of comprehensive income at {date}")
@@ -200,7 +201,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
             self.payload.TYPEK = market_type.value
 
             try:
-                res: Optional[requests.Response] = requests.post(cash_flow_url, data=self.payload.convert_to_clean_dict())
+                res: Optional[requests.Response] = RequestUtils.requests_post(cash_flow_url, data=self.payload.convert_to_clean_dict())
                 logger.info(f"{market_type} Statement of Cash Flow URL: {cash_flow_url}")
             except Exception as e:
                 logger.info(f"* WARN: Cannot get cash flow statement at {date}")
@@ -239,7 +240,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         equity_changes_url: str = URLManager.get_url("EQUITY_CHANGE_STATEMENT_URL")
 
         try:
-            res: Optional[requests.Response] = requests.post(equity_changes_url, data=self.payload.convert_to_clean_dict())
+            res: Optional[requests.Response] = RequestUtils.requests_post(equity_changes_url, data=self.payload.convert_to_clean_dict())
             logger.info(f"{equity_changes_url} Statement of Equity Changes URL: {equity_changes_url}")
         except Exception as e:
             logger.info(f"* WARN: Cannot get equity changes statement at {date}")

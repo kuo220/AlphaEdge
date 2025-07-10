@@ -47,11 +47,11 @@ class URLManager:
         # 上櫃收盤行情
         "TPEX_CLOSING_QUOTE_URL": "https://www.tpex.org.tw/www/zh-tw/afterTrading/otc?date={year}%2F{month}%2F{day}&type=EW&id=&response=html&order=0&sort=asc",
 
-        # 上市月營收財報
-        "TWSE_MONTHLY_REVENUE_REPORT_URL": "https://mopsov.twse.com.tw/nas/t21/sii/t21sc03_{roc_year}_{month}.html",
+        # 上市月營收財報（market_type: {0: 國內上市, 1: 國外上市}）
+        "TWSE_MONTHLY_REVENUE_REPORT_URL": "https://mopsov.twse.com.tw/nas/t21/sii/t21sc03_{roc_year}_{month}_{market_type}.html",
 
-        # 上櫃月營收財報
-        "TPEX_MONTHLY_REVENUE_REPORT_URL": "https://mopsov.twse.com.tw/nas/t21/otc/t21sc03_{roc_year}_{month}.html",
+        # 上櫃月營收財報（market_type: {0: 國內上櫃, 1: 國外上櫃}）
+        "TPEX_MONTHLY_REVENUE_REPORT_URL": "https://mopsov.twse.com.tw/nas/t21/otc/t21sc03_{roc_year}_{month}_{market_type}.html",
 
         # 上市上櫃財報（year = 2013 ~ present）
         # year = 2013 ~ 2018
