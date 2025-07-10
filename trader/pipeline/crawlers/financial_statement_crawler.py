@@ -4,14 +4,12 @@ import requests
 from io import StringIO
 from pathlib import Path
 from loguru import logger
-from dataclasses import dataclass, asdict
 from typing import List, Dict, Optional
 
 from trader.pipeline.crawlers.base import BaseDataCrawler
 from trader.pipeline.crawlers.utils.request_utils import RequestUtils
 from trader.pipeline.crawlers.utils.payload import Payload
-from trader.pipeline.utils import URLManager
-from trader.pipeline.utils import MarketType
+from trader.pipeline.utils import URLManager, MarketType
 from trader.pipeline.utils.data_utils import DataUtils
 from trader.config import FINANCIAL_STATEMENT_PATH
 
