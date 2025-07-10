@@ -50,7 +50,6 @@ class FinancialStatementCrawler(BaseDataCrawler):
         }
         """
 
-
         stock_code: str = kwargs.get("stock_code")
         date: datetime.date = kwargs.get("date")
         season: int = kwargs.get("season")
