@@ -4,7 +4,7 @@ from pathlib import Path
 import pandas as pd
 
 from trader.pipeline.cleaners.base import BaseDataCleaner
-from trader.pipeline.utils.crawler_utils import CrawlerUtils
+from trader.pipeline.utils.data_utils import DataUtils
 from trader.config import CHIP_DOWNLOADS_PATH
 
 
@@ -54,10 +54,10 @@ class StockChipCleaner(BaseDataCleaner):
 
         # 第一次格式改制前
         if date < self.twse_first_reform_date:
-            CrawlerUtils.move_col(df, "自營商買賣超股數", "自營商賣出股數")
+            DataUtils.move_col(df, "自營商買賣超股數", "自營商賣出股數")
         # 第一次格式改制後，第二次格式改制前
         elif self.twse_first_reform_date <= date < self.twse_second_reform_date:
-            CrawlerUtils.move_col(df, "自營商買賣超股數", "自營商買賣超股數(避險)")
+            DataUtils.move_col(df, "自營商買賣超股數", "自營商買賣超股數(避險)")
             df.rename(columns=dict(zip(old_col_name, new_col_name)), inplace=True)
         # 第二次格式改制後
         else:
@@ -66,15 +66,15 @@ class StockChipCleaner(BaseDataCleaner):
             df['外資買賣超股數'] = df['外陸資買賣超股數(不含外資自營商)'] + df['外資自營商買賣超股數']
             df.drop(columns=['外陸資買進股數(不含外資自營商)', '外陸資賣出股數(不含外資自營商)', '外陸資買賣超股數(不含外資自營商)',
                                 '外資自營商買進股數', '外資自營商賣出股數', '外資自營商買賣超股數'], inplace=True)
-            CrawlerUtils.move_col(df, '外資買進股數', '證券名稱')
-            CrawlerUtils.move_col(df, '外資賣出股數', '外資買進股數')
-            CrawlerUtils.move_col(df, '外資買賣超股數', '外資賣出股數')
-            CrawlerUtils.move_col(df, "自營商買賣超股數", "自營商買賣超股數(避險)")
+            DataUtils.move_col(df, '外資買進股數', '證券名稱')
+            DataUtils.move_col(df, '外資賣出股數', '外資買進股數')
+            DataUtils.move_col(df, '外資買賣超股數', '外資賣出股數')
+            DataUtils.move_col(df, "自營商買賣超股數", "自營商買賣超股數(避險)")
             df.rename(columns=dict(zip(old_col_name, new_col_name)), inplace=True)
 
-        df = CrawlerUtils.remove_redundant_col(df, '三大法人買賣超股數')
-        df = CrawlerUtils.fill_nan(df, 0)
-        df.to_csv(self.chip_dir / f"twse_{CrawlerUtils.format_date(date)}.csv", index=False)
+        df = DataUtils.remove_redundant_col(df, '三大法人買賣超股數')
+        df = DataUtils.fill_nan(df, 0)
+        df.to_csv(self.chip_dir / f"twse_{DataUtils.format_date(date)}.csv", index=False)
 
         return df
 
@@ -129,9 +129,9 @@ class StockChipCleaner(BaseDataCleaner):
 
         df = df.iloc[:-1] # 刪掉最後一個 row
         df.insert(0, '日期', date)
-        CrawlerUtils.move_col(df, "自營商買賣超股數", "自營商買賣超股數_避險")
-        df = CrawlerUtils.remove_redundant_col(df, '三大法人買賣超股數')
-        df = CrawlerUtils.fill_nan(df, 0)
-        df.to_csv(self.chip_dir / f"tpex_{CrawlerUtils.format_date(date)}.csv", index=False)
+        DataUtils.move_col(df, "自營商買賣超股數", "自營商買賣超股數_避險")
+        df = DataUtils.remove_redundant_col(df, '三大法人買賣超股數')
+        df = DataUtils.fill_nan(df, 0)
+        df.to_csv(self.chip_dir / f"tpex_{DataUtils.format_date(date)}.csv", index=False)
 
         return df

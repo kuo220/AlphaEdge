@@ -7,7 +7,8 @@ import pandas as pd
 import requests
 
 from trader.pipeline.crawlers.base import BaseDataCrawler
-from trader.pipeline.utils.crawler_utils import CrawlerUtils, URLManager
+from trader.pipeline.utils.url_manager import URLManager
+from trader.pipeline.utils.data_utils import DataUtils
 
 
 """
@@ -43,13 +44,13 @@ class StockChipCrawler(BaseDataCrawler):
     def crawl_twse_chip(self, date: datetime.date) -> Optional[pd.DataFrame]:
         """ TWSE 三大法人單日爬蟲 """
 
-        date_str: str = CrawlerUtils.format_date(date)
-        readable_date: str = CrawlerUtils.format_date(date, sep="/")
+        date_str: str = DataUtils.format_date(date)
+        readable_date: str = DataUtils.format_date(date, sep="/")
         print("* Start crawling TWSE institutional investors data...")
         print(readable_date)
 
         twse_url: str = URLManager.get_url("TWSE_CHIP_URL", date=date_str)
-        headers: Dict[str, str] = CrawlerUtils.generate_random_header()
+        headers: Dict[str, str] = DataUtils.generate_random_header()
         twse_response: requests.Response = requests.get(twse_url, headers=headers)
 
         # 檢查是否為假日 or 單純網站還未更新
@@ -68,12 +69,12 @@ class StockChipCrawler(BaseDataCrawler):
     def crawl_tpex_chip(self, date: datetime.date) -> Optional[pd.DataFrame]:
         """ TPEX 三大法人單日爬蟲 """
 
-        date_str: str = CrawlerUtils.format_date(date, sep="/")
+        date_str: str = DataUtils.format_date(date, sep="/")
         print("* Start crawling TPEX institutional investors data...")
         print(date_str)
 
         tpex_url: str = URLManager.get_url("TPEX_CHIP_URL", date=date_str)
-        headers: Dict[str, str] = CrawlerUtils.generate_random_header()
+        headers: Dict[str, str] = DataUtils.generate_random_header()
         tpex_response: requests.Response = requests.get(tpex_url, headers=headers)
 
         try:

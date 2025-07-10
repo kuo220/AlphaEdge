@@ -28,7 +28,7 @@ from tqdm import tqdm, tnrange, tqdm_notebook
 
 from trader.pipeline.crawlers.base import BaseDataCrawler
 from trader.pipeline.utils import URLManager
-from trader.pipeline.utils.crawler_utils import CrawlerUtils
+from trader.pipeline.utils.data_utils import DataUtils
 from trader.config import (
     CRAWLER_DOWNLOADS_PATH,
     QUANTX_DB_PATH,

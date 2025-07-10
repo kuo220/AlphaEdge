@@ -13,7 +13,7 @@ from tqdm import tqdm_notebook
 
 from trader.pipeline.crawlers.stock_chip_crawler import StockChipCrawler
 from trader.pipeline.managers import BaseDatabaseManager
-from trader.pipeline.utils.crawler_utils import CrawlerUtils
+from trader.pipeline.utils.data_utils import DataUtils
 from trader.pipeline.utils.sqlite_utils import SQLiteUtils
 from trader.config import (
     CHIP_DB_PATH,
@@ -164,7 +164,7 @@ class StockChipManager(BaseDatabaseManager):
                 print("Please select both start and end dates.")
                 return
 
-            dates: List[datetime.date] = CrawlerUtils.generate_date_range(start_date, end_date)
+            dates: List[datetime.date] = DataUtils.generate_date_range(start_date, end_date)
 
             if not dates:
                 print("Date range is empty. Please check if the start date is earlier than the end date.")

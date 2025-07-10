@@ -8,10 +8,10 @@ from dataclasses import dataclass, asdict
 from typing import List, Dict, Optional
 
 from trader.pipeline.crawlers.base import BaseDataCrawler
-from trader.pipeline.crawlers.payload import Payload
+from trader.pipeline.crawlers.utils.payload import Payload
 from trader.pipeline.utils import URLManager
 from trader.pipeline.utils import MarketType
-from trader.pipeline.utils.crawler_utils import CrawlerUtils
+from trader.pipeline.utils.data_utils import DataUtils
 from trader.config import FINANCIAL_STATEMENT_PATH
 
 
@@ -107,7 +107,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         上櫃: 民國 82 (1993) 年 ~ present
         """
 
-        roc_year: str = CrawlerUtils.convert_to_roc_year(date.year)
+        roc_year: str = DataUtils.convert_to_roc_year(date.year)
 
         self.payload.year = roc_year
         self.payload.season = season
@@ -148,7 +148,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         上櫃: 民國 82 (1993) 年 ~ present
         """
 
-        roc_year: str = CrawlerUtils.convert_to_roc_year(date.year)
+        roc_year: str = DataUtils.convert_to_roc_year(date.year)
 
         self.payload.year = roc_year
         self.payload.season = season
@@ -188,7 +188,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         上櫃: 民國 102 (2013) 年 ~ present
         """
 
-        roc_year: str = CrawlerUtils.convert_to_roc_year(date.year)
+        roc_year: str = DataUtils.convert_to_roc_year(date.year)
 
         self.payload.year = roc_year
         self.payload.season = season
@@ -229,7 +229,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         上櫃: 民國 102 (2013) 年 ~ present
         """
 
-        roc_year: str = CrawlerUtils.convert_to_roc_year(date.year)
+        roc_year: str = DataUtils.convert_to_roc_year(date.year)
 
         self.payload.TYPEK = None
         self.payload.co_id = stock_code
