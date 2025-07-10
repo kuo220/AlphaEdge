@@ -35,6 +35,25 @@ class DataUtils:
 
 
     @staticmethod
+    def convert_to_roc_year(year: Union[int, str]) -> str:
+        """ 將西元年轉換成民國年 """
+
+        try:
+            year_int = int(year)
+            if year_int < 1912:
+                raise ValueError("民國元年從 1912 年開始，請輸入有效的西元年份")
+            return str(year_int - 1911)
+        except (ValueError, TypeError):
+            raise ValueError(f"無效的年份輸入：{year}")
+
+
+    @staticmethod
+    def pad2(n: Union[int, str]) -> str:
+        """ 將數字補足為兩位數字字串 """
+        return str(n).zfill(2)
+
+
+    @staticmethod
     def fill_nan(df: pd.DataFrame, value: int=0) -> pd.DataFrame:
         """ 檢查 DataFrame 是否有 NaN 值，若有則將所有 NaN 值填補為指定值 """
 
@@ -59,22 +78,3 @@ class DataUtils:
     def format_date(date: datetime.date, sep: str="") -> str:
         """ Format date as 'YYYY{sep}MM{sep}DD' """
         return date.strftime(f"%Y{sep}%m{sep}%d")
-
-
-    @staticmethod
-    def convert_to_roc_year(year: Union[int, str]) -> str:
-        """ 將西元年轉換成民國年 """
-
-        try:
-            year_int = int(year)
-            if year_int < 1912:
-                raise ValueError("民國元年從 1912 年開始，請輸入有效的西元年份")
-            return str(year_int - 1911)
-        except (ValueError, TypeError):
-            raise ValueError(f"無效的年份輸入：{year}")
-
-
-    @staticmethod
-    def pad2(n: Union[int, str]) -> str:
-        """ 將數字補足為兩位數字字串 """
-        return str(n).zfill(2)
