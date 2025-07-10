@@ -24,7 +24,7 @@ class RequestUtils:
 
 
     @classmethod
-    def find_best_session(cls) -> Optional[requests.Session]:
+    def find_best_session(cls, url: str) -> Optional[requests.Session]:
         """ 嘗試建立可用的 requests.Session 連線 """
 
         for i in range(10):
@@ -32,7 +32,7 @@ class RequestUtils:
                 logger.info('獲取新的Session 第', i, '回合')
                 headers = cls.generate_random_header()
                 ses = requests.Session()
-                ses.get(URLManager.get_url('TWSE_URL'), headers=headers, timeout=10)
+                ses.get(url, headers=headers, timeout=10)
                 ses.headers.update(headers)
                 logger.info('成功！')
                 cls.ses = ses
@@ -49,15 +49,15 @@ class RequestUtils:
 
 
     @classmethod
-    def requests_get(cls, *args, **kwargs) -> Optional[requests.Response]:
+    def requests_get(cls, url: str, *args, **kwargs) -> Optional[requests.Response]:
         """ 使用共用 session 發送 GET 請求，內建重試機制 """
 
         if cls.ses is None:
-            cls.find_best_session()
+            cls.find_best_session(url)
 
         for i in range(3):
             try:
-                return cls.ses.get(*args, timeout=10, **kwargs)
+                return cls.ses.get(url, timeout=10, **kwargs)
             except (ConnectionError, ReadTimeout) as error:
                 logger.info(error)
                 logger.info(f"retry one more time after 60s {2 - i} times left")
@@ -67,15 +67,15 @@ class RequestUtils:
 
 
     @classmethod
-    def requests_post(cls, *args, **kwargs) -> Optional[requests.Response]:
+    def requests_post(cls, url: str, *args, **kwargs) -> Optional[requests.Response]:
         """ 使用共用 session 發送 POST 請求，內建重試機制 """
 
         if cls.ses is None:
-            cls.find_best_session()
+            cls.find_best_session(url)
 
         for i in range(3):
             try:
-                return cls.ses.post(*args, timeout=10, **kwargs)
+                return cls.ses.post(url, timeout=10, **kwargs)
             except (ConnectionError, ReadTimeout) as error:
                 logger.info(error)
                 logger.info(f"retry one more time after 60s {2 - i} times left")
