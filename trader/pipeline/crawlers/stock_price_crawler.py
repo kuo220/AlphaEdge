@@ -7,8 +7,9 @@ from loguru import logger
 from typing import Optional
 
 from trader.pipeline.crawlers.base import BaseDataCrawler
+from trader.pipeline.crawlers.utils.request_utils import RequestUtils
 from trader.pipeline.utils import URLManager
-from trader.pipeline.utils.crawler_utils import CrawlerUtils
+from trader.pipeline.utils.data_utils import DataUtils
 from trader.config import PRICE_DOWNLOADS_PATH
 
 
@@ -45,7 +46,7 @@ class StockPriceCrawler(BaseDataCrawler):
         url: str = URLManager.get_url("TWSE_CLOSING_QUOTE_URL", date=date)
 
         try:
-            res: Optional[requests.Response] = CrawlerUtils.requests_get(url)
+            res: Optional[requests.Response] = RequestUtils.requests_get(url)
             logger.info(f"上市 URL: {url}")
         except Exception as e:
             logger.info(f"* WARN: Cannot get stock price at {date}")
@@ -68,12 +69,12 @@ class StockPriceCrawler(BaseDataCrawler):
         url: str = URLManager.get_url(
             "TPEX_CLOSING_QUOTE_URL",
             year=date.year,
-            month=CrawlerUtils.pad2(date.month),
-            day=CrawlerUtils.pad2(date.day)
+            month=DataUtils.pad2(date.month),
+            day=DataUtils.pad2(date.day)
         )
 
         try:
-            res: Optional[requests.Response] = CrawlerUtils.requests_get(url)
+            res: Optional[requests.Response] = RequestUtils.requests_get(url)
             logger.info(f"上櫃 URL: {url}")
         except Exception as e:
             logger.info(f"* WARN: Cannot get stock price at {date}")

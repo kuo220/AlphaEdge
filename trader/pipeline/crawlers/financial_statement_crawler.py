@@ -1,41 +1,17 @@
 import datetime
 import pandas as pd
 import requests
-import random
-import shutil
 from io import StringIO
 from pathlib import Path
 from loguru import logger
-from dataclasses import dataclass, asdict
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional
 
 from trader.pipeline.crawlers.base import BaseDataCrawler
-from trader.pipeline.utils import URLManager
-from trader.pipeline.utils import MarketType
-from trader.pipeline.utils.crawler_utils import CrawlerUtils
-from trader.config import (
-    CRAWLER_DOWNLOADS_PATH,
-    FINANCIAL_STATEMENT_PATH,
-    QUANTX_DB_PATH,
-    CERTS_FILE_PATH
-)
-
-
-@dataclass
-class FinancialStatementPayload:
-    """ 財報查詢用 payload 結構 """
-
-    firstin: Optional[str] = "1"                # default: 1
-    step: Optional[str] = "1"                   # default: 1
-    TYPEK: Optional[str] = None                 # {sii: 上市, otc: 上櫃, all: 全部}
-    co_id: Optional[str] = None                 # Stock code
-    year: Optional[str] = None                  # ROC year
-    season: Optional[str] = None                # Season
-
-
-    def convert_to_clean_dict(self) -> Dict[str, str]:
-        """ Return a dict with all non-None fields """
-        return {key: value for key, value in asdict(self).items() if value is not None}
+from trader.pipeline.crawlers.utils.request_utils import RequestUtils
+from trader.pipeline.crawlers.utils.payload import Payload
+from trader.pipeline.utils import URLManager, MarketType
+from trader.pipeline.utils.data_utils import DataUtils
+from trader.config import FINANCIAL_STATEMENT_PATH
 
 
 class FinancialStatementCrawler(BaseDataCrawler):
@@ -57,7 +33,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         self.equity_changes_statement_dir: Path = self.fr_dir / "equity_changes_statement"
 
         # Payload For HTTP Requests
-        self.payload: FinancialStatementPayload = None
+        self.payload: Payload = None
         self.market_types: List[MarketType] = [MarketType.SII, MarketType.OTC]
 
         self.setup()
@@ -108,7 +84,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         self.equity_changes_statement_dir.mkdir(parents=True, exist_ok=True)
 
         # Set Up Payload
-        self.payload = FinancialStatementPayload(
+        self.payload = Payload(
             firstin="1",
             step="1",
             TYPEK="sii",
@@ -130,7 +106,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         上櫃: 民國 82 (1993) 年 ~ present
         """
 
-        roc_year: str = CrawlerUtils.convert_to_roc_year(date.year)
+        roc_year: str = DataUtils.convert_to_roc_year(date.year)
 
         self.payload.year = roc_year
         self.payload.season = season
@@ -142,7 +118,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
             self.payload.TYPEK = market_type.value
 
             try:
-                res: Optional[requests.Response] = requests.post(balance_sheet_url, data=self.payload.convert_to_clean_dict())
+                res: Optional[requests.Response] = RequestUtils.requests_post(balance_sheet_url, data=self.payload.convert_to_clean_dict())
                 logger.info(f"{market_type} Balance Sheet URL: {balance_sheet_url}")
             except Exception as e:
                 logger.info(f"* WARN: Cannot get balance sheet at {date}")
@@ -171,7 +147,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         上櫃: 民國 82 (1993) 年 ~ present
         """
 
-        roc_year: str = CrawlerUtils.convert_to_roc_year(date.year)
+        roc_year: str = DataUtils.convert_to_roc_year(date.year)
 
         self.payload.year = roc_year
         self.payload.season = season
@@ -181,9 +157,9 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
         for market_type in self.market_types:
             self.payload.TYPEK = market_type.value
-            print(market_type)
+
             try:
-                res: Optional[requests.Response] = requests.post(income_url, data=self.payload.convert_to_clean_dict())
+                res: Optional[requests.Response] = RequestUtils.requests_post(income_url, data=self.payload.convert_to_clean_dict())
                 logger.info(f"{market_type} Statement of Comprehensive Income URL: {income_url}")
             except Exception as e:
                 logger.info(f"* WARN: Cannot get statement of comprehensive income at {date}")
@@ -211,7 +187,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         上櫃: 民國 102 (2013) 年 ~ present
         """
 
-        roc_year: str = CrawlerUtils.convert_to_roc_year(date.year)
+        roc_year: str = DataUtils.convert_to_roc_year(date.year)
 
         self.payload.year = roc_year
         self.payload.season = season
@@ -223,7 +199,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
             self.payload.TYPEK = market_type.value
 
             try:
-                res: Optional[requests.Response] = requests.post(cash_flow_url, data=self.payload.convert_to_clean_dict())
+                res: Optional[requests.Response] = RequestUtils.requests_post(cash_flow_url, data=self.payload.convert_to_clean_dict())
                 logger.info(f"{market_type} Statement of Cash Flow URL: {cash_flow_url}")
             except Exception as e:
                 logger.info(f"* WARN: Cannot get cash flow statement at {date}")
@@ -252,7 +228,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         上櫃: 民國 102 (2013) 年 ~ present
         """
 
-        roc_year: str = CrawlerUtils.convert_to_roc_year(date.year)
+        roc_year: str = DataUtils.convert_to_roc_year(date.year)
 
         self.payload.TYPEK = None
         self.payload.co_id = stock_code
@@ -262,7 +238,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         equity_changes_url: str = URLManager.get_url("EQUITY_CHANGE_STATEMENT_URL")
 
         try:
-            res: Optional[requests.Response] = requests.post(equity_changes_url, data=self.payload.convert_to_clean_dict())
+            res: Optional[requests.Response] = RequestUtils.requests_post(equity_changes_url, data=self.payload.convert_to_clean_dict())
             logger.info(f"{equity_changes_url} Statement of Equity Changes URL: {equity_changes_url}")
         except Exception as e:
             logger.info(f"* WARN: Cannot get equity changes statement at {date}")
