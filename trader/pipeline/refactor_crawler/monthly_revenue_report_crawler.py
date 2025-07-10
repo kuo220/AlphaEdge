@@ -32,7 +32,8 @@ from trader.pipeline.utils.crawler_utils import CrawlerUtils
 from trader.config import (
     CRAWLER_DOWNLOADS_PATH,
     QUANTX_DB_PATH,
-    CERTS_FILE_PATH
+    CERTS_FILE_PATH,
+    MONTHLY_REVENUE_REPORT_PATH
 )
 
 
@@ -40,4 +41,12 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
     """ TWSE & TPEX Monthly Revenue Report Crawler """
 
     def __init__(self):
-        pass
+
+        self.mrr_dir: Path = MONTHLY_REVENUE_REPORT_PATH
+
+
+    def setup(self, *args, **kwargs) -> None:
+        """ Set Up the Config of Crawler """
+
+        # Create the tick downloads directory
+        self.mrr_dir.mkdir(parents=True, exist_ok=True)
