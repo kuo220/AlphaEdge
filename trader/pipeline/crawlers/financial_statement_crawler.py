@@ -15,22 +15,13 @@ from trader.config import FINANCIAL_STATEMENT_PATH
 
 
 class FinancialStatementCrawler(BaseDataCrawler):
-    """ Crawler for quarterly financial reports """
-    """
-    目前公開資訊觀測站（mopsov.twse.com）提供的財務報表格式有更改
-    1. 舊制：2013 ~ 2018
-    2. 新制：2019 ~ present
-    """
+    """ Crawler for quarterly financial Statement """
 
     def __init__(self):
         super().__init__()
 
         # Financial Statement Directories Set Up
         self.fs_dir: Path = FINANCIAL_STATEMENT_PATH
-        self.balance_sheet_dir: Path = self.fs_dir / "balance_sheet"
-        self.income_statement_dir: Path = self.fs_dir / "income_statement"
-        self.cash_flow_statement_dir: Path = self.fs_dir / "cash_flow_statement"
-        self.equity_changes_statement_dir: Path = self.fs_dir / "equity_changes_statement"
 
         # Payload For HTTP Requests
         self.payload: Payload = None
@@ -77,10 +68,6 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
         # Create Downloads Directory For Financial Reports
         self.fs_dir.mkdir(parents=True, exist_ok=True)
-        self.balance_sheet_dir.mkdir(parents=True, exist_ok=True)
-        self.income_statement_dir.mkdir(parents=True, exist_ok=True)
-        self.cash_flow_statement_dir.mkdir(parents=True, exist_ok=True)
-        self.equity_changes_statement_dir.mkdir(parents=True, exist_ok=True)
 
         # Set Up Payload
         self.payload = Payload(
