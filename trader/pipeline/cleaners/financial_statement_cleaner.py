@@ -1,6 +1,6 @@
 import datetime
 import pandas as pd
-import requests
+import re
 from io import StringIO
 import json
 from pathlib import Path
@@ -68,19 +68,38 @@ class FinancialStatementCleaner(BaseDataCleaner):
         上市: 民國 78 (1989) 年 ~ present
         上櫃: 民國 82 (1993) 年 ~ present
         """
+        # 清理欄位名稱
+        keywords: List[str] = ["總計", "合計"]
+        replacement: str = "總額"
 
-        # Step 1: 清理欄位名稱
-        for df in df_list:
-            df.columns = (
-                df.columns
-                .map(str)
-                .str.replace(r"\s+", "", regex=True)        # 刪除空白
-                .str.replace("（", "(")                     # 全形左括號轉半形
-                .str.replace("）", ")")                     # 全形右括號轉半形
-                .str.replace("－", "")                      # 全形減號 → 刪除
+        # Step 1: 處理 .json Column Names
+        # 指定排序部分 Column Names
+        self.all_balance_sheet_cols = [
+            DataUtils.replace_column_name(
+                self.clean_column_name(col),
+                keywords,
+                replacement
             )
+            for col in self.all_balance_sheet_cols
+        ]
 
+        front_cols: List[str] = ["年度", "季度", "公司代號", "公司名稱"]
+        self.all_balance_sheet_cols = self.reorder_columns(self.all_balance_sheet_cols, front_cols)
+
+
+
+        # Step 2: 清理 df_list 欄位名稱
+        # 篩掉沒有 "公司名稱" 的 df
         df_list: List[pd.DataFrame] = [df for df in df_list if "公司名稱" in df.columns]
+        # 清洗 Column Names
+        for df in df_list:
+            cleaned_cols: List[str] = []
+            for col in df.columns:
+                new_col: str = self.clean_column_name(col)
+                new_col = DataUtils.replace_column_name(new_col, keywords, replacement)
+                cleaned_cols.append(new_col)
+            df.columns = cleaned_cols
+
 
 
     def load_column_names(self) -> None:
@@ -104,3 +123,28 @@ class FinancialStatementCleaner(BaseDataCleaner):
                 continue
 
             setattr(self, attr_name, cols)
+
+
+    def clean_column_name(self, word: str) -> str:
+        """ 清除空白與特殊符號（括號、全形減號），標準化欄位名稱用 """
+
+        word = re.sub(r"\s+", "", word)  # 清除所有空白（包含 tab, 換行, 全形空白）
+        word = (
+            word
+            .replace("（", "(")                     # 全形左括號轉半形
+            .replace("）", ")")                     # 全形右括號轉半形
+            .replace("－", "")                      # 刪除全形減號
+        )
+        return word
+
+
+    def reorder_columns(
+        self,
+        all_columns: List[str],
+        front_columns: List[str]
+    ) -> List[str]:
+        """ 將指定欄位移到最前面，其餘保持原順序 """
+
+        tail_columns = [col for col in all_columns if col not in front_columns]
+        return front_columns + tail_columns
+

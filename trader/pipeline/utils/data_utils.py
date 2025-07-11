@@ -78,3 +78,30 @@ class DataUtils:
     def format_date(date: datetime.date, sep: str="") -> str:
         """ Format date as 'YYYY{sep}MM{sep}DD' """
         return date.strftime(f"%Y{sep}%m{sep}%d")
+
+
+    @staticmethod
+    def replace_column_name(
+        col_name: str,
+        keywords: List[str],
+        replacement: str
+    ) -> str:
+        """
+        - Description:
+            將欄位名稱中出現的指定關鍵字（如「合計」、「總計」）替換為指定詞（如「總額」）
+            e.g. 資產總計 -> 資產總額
+        - Parameters:
+            - col_name: str
+                欄位名稱
+            - keywords: List[str]
+                欲替換的關鍵字列表，例如: 合計"、"總計"
+            - replacement: str
+                要統一替換成的文字，例如: 總額
+        - Return: str
+            - 處理後的欄位名稱
+        """
+
+        for keyword in keywords:
+            if keyword in col_name:
+                return col_name.replace(keyword, replacement)
+        return col_name

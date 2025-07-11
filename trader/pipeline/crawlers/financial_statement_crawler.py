@@ -6,7 +6,6 @@ from io import StringIO
 from pathlib import Path
 import json
 from loguru import logger
-from dateutil.relativedelta import relativedelta
 from typing import List, Dict, Set, Optional
 
 from trader.pipeline.crawlers.base import BaseDataCrawler
@@ -290,16 +289,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
                     all_df_list.extend(df_list)
             time.sleep(random.uniform(1, 3))
 
-        # 清理欄位名稱
         for df in all_df_list:
-            df.columns = (
-                df.columns
-                .map(str)
-                .str.replace(r"\s+", "", regex=True)        # 刪除空白
-                .str.replace("（", "(")                     # 全形左括號轉半形
-                .str.replace("）", ")")                     # 全形右括號轉半形
-                .str.replace("－", "")                      # 全形減號 → 刪除
-            )
             all_columns.update(df.columns)  # 將所有欄位名稱加入 set（自動去除重複）
 
         # Save all columns list as .json
@@ -307,6 +297,6 @@ class FinancialStatementCrawler(BaseDataCrawler):
         output_file = DOWNLOADS_METADATA_DIR_PATH / f"{report_type.value.lower()}_columns.json"
 
         with open(output_file, "w", encoding="big5") as f:
-            json.dump(sorted(all_columns), f, ensure_ascii=False, indent=2)
+            json.dump(list(all_columns), f, ensure_ascii=False, indent=2)
 
         return list(all_columns)
