@@ -38,16 +38,20 @@ PRICE_DOWNLOADS_PATH: Path = get_resolved_path("PRICE_DOWNLOADS_PATH")
 CHIP_DOWNLOADS_PATH: Path = get_resolved_path("CHIP_DOWNLOADS_PATH")
 TICK_DOWNLOADS_PATH: Path = get_resolved_path("TICK_DOWNLOADS_PATH")
 
+# === Crawler Financial Statement Metadata Directory Path ===
+DOWNLOADS_METADATA_DIR_PATH: Path = (CRAWLER_DOWNLOADS_PATH / "meta").resolve()
+
+
 # === Certs.cer ===
 CERTS_DIR_PATH: Path = get_resolved_path("CERTS_DIR_PATH")
 CERTS_FILE_NAME: str = os.getenv("CERTS_FILE_NAME")
 CERTS_FILE_PATH: Path = (CERTS_DIR_PATH / CERTS_FILE_NAME).resolve()
 
 
-# === Metadata Directory Path ===
-METADATA_DIR_PATH: Path = get_resolved_path("METADATA_DIR_PATH")
+# === Tick Metadata Directory Path ===
+DB_METADATA_DIR_PATH: Path = get_resolved_path("DB_METADATA_DIR_PATH")
 TICK_METADATA_NAME: str = os.getenv("TICK_METADATA_NAME")
-TICK_METADATA_PATH: Path = (METADATA_DIR_PATH / TICK_METADATA_NAME).resolve()
+TICK_METADATA_PATH: Path = (DB_METADATA_DIR_PATH / TICK_METADATA_NAME).resolve()
 
 
 # === Full paths to database files ===

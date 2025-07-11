@@ -23,3 +23,10 @@ class MarketType(str, Enum):
     SII1 = "1"                  # 國外上市
     OTC0 = "0"                  # 國內上櫃
     OTC1 = "1"                  # 國外上櫃
+
+
+class FinancialStatementType(str, Enum):
+    BALANCE_SHEET = "BALANCE_SHEET"
+    COMPREHENSIVE_INCOME = "COMPREHENSIVE_INCOME"
+    CASH_FLOW = "CASH_FLOW"
+    EQUITY_CHANGE = "EQUITY_CHANGE"
