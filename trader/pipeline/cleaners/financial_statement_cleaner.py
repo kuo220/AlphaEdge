@@ -2,6 +2,7 @@ import datetime
 import pandas as pd
 import requests
 from io import StringIO
+import json
 from pathlib import Path
 from loguru import logger
 from typing import List, Dict, Optional
@@ -15,7 +16,10 @@ from trader.pipeline.utils import (
     MarketType,
     FinancialStatementType
 )
-from trader.config import FINANCIAL_STATEMENT_PATH
+from trader.config import (
+    FINANCIAL_STATEMENT_PATH,
+    DOWNLOADS_METADATA_DIR_PATH
+)
 
 
 class FinancialStatementCleaner(BaseDataCleaner):
@@ -44,9 +48,12 @@ class FinancialStatementCleaner(BaseDataCleaner):
         # Create Downloads Directory For Financial Reports
         self.fs_dir.mkdir(parents=True, exist_ok=True)
         self.balance_sheet_dir.mkdir(parents=True, exist_ok=True)
-        self.income_statement_dir.mkdir(parents=True, exist_ok=True)
-        self.cash_flow_statement_dir.mkdir(parents=True, exist_ok=True)
-        self.equity_changes_statement_dir.mkdir(parents=True, exist_ok=True)
+        self.comprehensive_income_dir.mkdir(parents=True, exist_ok=True)
+        self.cash_flow_dir.mkdir(parents=True, exist_ok=True)
+        self.equity_changes_dir.mkdir(parents=True, exist_ok=True)
+
+        # Load Report Column Names
+        self.load_column_names()
 
 
     def clean_balance_sheet(
@@ -57,8 +64,8 @@ class FinancialStatementCleaner(BaseDataCleaner):
     ) -> pd.DataFrame:
         """ Cleaner Balance Sheet (資產負債表) """
         """
-        資料區間
-        上市: 民國 79 (1990) 年 ~ present
+        資料區間（但是只有 102 年以後才可以爬）
+        上市: 民國 78 (1989) 年 ~ present
         上櫃: 民國 82 (1993) 年 ~ present
         """
 
@@ -74,3 +81,26 @@ class FinancialStatementCleaner(BaseDataCleaner):
             )
 
         df_list: List[pd.DataFrame] = [df for df in df_list if "公司名稱" in df.columns]
+
+
+    def load_column_names(self) -> None:
+        """ 載入 Report Column Names """
+
+        attr_map: Dict[FinancialStatementType, str] = {
+            FinancialStatementType.BALANCE_SHEET: "all_balance_sheet_cols",
+            FinancialStatementType.COMPREHENSIVE_INCOME: "all_comprehensive_income_cols",
+            FinancialStatementType.CASH_FLOW: "all_cash_flow_cols",
+            FinancialStatementType.EQUITY_CHANGE: "all_equity_changes_cols",
+        }
+
+        for report_type, attr_name in attr_map.items():
+            file_name = DOWNLOADS_METADATA_DIR_PATH / f"{report_type.value.lower()}_columns.json"
+
+            with open(file_name, "r", encoding="big5") as f:
+                cols = json.load(f)
+
+            if not file_name.exists():
+                logger.warning(f"Metadata file not found: {file_name}")
+                continue
+
+            setattr(self, attr_name, cols)

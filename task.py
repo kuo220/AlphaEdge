@@ -65,7 +65,7 @@ if __name__ == "__main__":
 
     start_year: int = start_date.year
     end_year: int = end_date.year
-    report_type: FinancialStatementType = FinancialStatementType.BALANCE_SHEET
+    report_type: FinancialStatementType = FinancialStatementType.EQUITY_CHANGE
 
     cols: List[str] = fs_crawler.get_all_report_columns(
         start_year,

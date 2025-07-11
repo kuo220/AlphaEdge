@@ -97,7 +97,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
     ) -> Optional[List[pd.DataFrame]]:
         """ Crawl Balance Sheet (資產負債表) """
         """
-        資料區間（但是只有 102 年以後可以爬）
+        資料區間（但是只有 102 年以後才可以爬）
         上市: 民國 78 (1989) 年 ~ present
         上櫃: 民國 82 (1993) 年 ~ present
         """
@@ -141,7 +141,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
     ) -> Optional[List[pd.DataFrame]]:
         """ Crawl Statement of Comprehensive Income (綜合損益表) """
         """
-        資料區間（但是只有 102 年以後可以爬）
+        資料區間（但是只有 102 年以後才可以爬）
         上市: 民國 77 (1988) 年 ~ present
         上櫃: 民國 82 (1993) 年 ~ present
         """
@@ -269,7 +269,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         stock_code: str="2330",
         report_type: FinancialStatementType=FinancialStatementType.BALANCE_SHEET
     ) -> List[str]:
-        """ 取得財報的從網站提供日期至今所有不重複的 columns name """
+        """ 取得所有財報的 Columns Name """
 
         year_list: List[int] = list(range(start_year, end_year + 1))
         all_df_list: List[pd.DataFrame] = []
@@ -290,6 +290,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
                     all_df_list.extend(df_list)
             time.sleep(random.uniform(1, 3))
 
+        # 清理欄位名稱
         for df in all_df_list:
             df.columns = (
                 df.columns
