@@ -1,4 +1,5 @@
-import datetime
+import time
+import random
 import pandas as pd
 import requests
 from io import StringIO
@@ -51,10 +52,10 @@ class FinancialStatementCrawler(BaseDataCrawler):
         """
 
         stock_code: str = kwargs.get("stock_code")
-        date: datetime.date = kwargs.get("date")
+        year: int = kwargs.get("year")
         season: int = kwargs.get("season")
 
-        if date is None or season is None:
+        if year is None or season is None:
             raise ValueError("Missing required parameters: 'date', or 'season'")
 
         df_dict: Dict[str, List[pd.DataFrame]] = {
@@ -64,10 +65,10 @@ class FinancialStatementCrawler(BaseDataCrawler):
             "equity_changes": []
         }
 
-        df_dict["balance_sheet"].extend(self.crawl_balance_sheet(date, season))
-        df_dict["comprehensive_income"].extend(self.crawl_comprehensive_income(date, season))
-        df_dict["cash_flow"].extend(self.crawl_cash_flow(date, season))
-        df_dict["equity_changes"].extend(self.crawl_equity_changes(date, season, stock_code))
+        df_dict["balance_sheet"].extend(self.crawl_balance_sheet(year, season))
+        df_dict["comprehensive_income"].extend(self.crawl_comprehensive_income(year, season))
+        df_dict["cash_flow"].extend(self.crawl_cash_flow(year, season))
+        df_dict["equity_changes"].extend(self.crawl_equity_changes(year, season, stock_code))
 
         return df_dict
 
@@ -91,17 +92,17 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
     def crawl_balance_sheet(
         self,
-        date: datetime.date,
+        year: int,
         season: int
     ) -> Optional[List[pd.DataFrame]]:
         """ Crawl Balance Sheet (資產負債表) """
         """
-        資料區間
-        上市: 民國 79 (1990) 年 ~ present
+        資料區間（但是只有 102 年以後可以爬）
+        上市: 民國 78 (1989) 年 ~ present
         上櫃: 民國 82 (1993) 年 ~ present
         """
 
-        roc_year: str = DataUtils.convert_to_roc_year(date.year)
+        roc_year: str = DataUtils.convert_to_roc_year(year)
 
         self.payload.year = roc_year
         self.payload.season = season
@@ -119,7 +120,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
                 )
                 logger.info(f"{market_type} Balance Sheet URL: {balance_sheet_url}")
             except Exception as e:
-                logger.info(f"* WARN: Cannot get balance sheet at {date}")
+                logger.info(f"* WARN: Cannot get balance sheet at {year}Q{season}")
                 logger.info(e)
 
             try:
@@ -135,17 +136,17 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
     def crawl_comprehensive_income(
         self,
-        date: datetime.date,
+        year: int,
         season: int
     ) -> Optional[List[pd.DataFrame]]:
         """ Crawl Statement of Comprehensive Income (綜合損益表) """
         """
-        資料區間
+        資料區間（但是只有 102 年以後可以爬）
         上市: 民國 77 (1988) 年 ~ present
         上櫃: 民國 82 (1993) 年 ~ present
         """
 
-        roc_year: str = DataUtils.convert_to_roc_year(date.year)
+        roc_year: str = DataUtils.convert_to_roc_year(year)
 
         self.payload.year = roc_year
         self.payload.season = season
@@ -163,7 +164,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
                 )
                 logger.info(f"{market_type} Statement of Comprehensive Income URL: {income_url}")
             except Exception as e:
-                logger.info(f"* WARN: Cannot get statement of comprehensive income at {date}")
+                logger.info(f"* WARN: Cannot get statement of comprehensive income at {year}Q{season}")
 
             try:
                 dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
@@ -178,7 +179,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
     def crawl_cash_flow(
         self,
-        date: datetime.date,
+        year: int,
         season: int
     ) -> Optional[List[pd.DataFrame]]:
         """ Crawl Cash Flow Statement (現金流量表) """
@@ -188,7 +189,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         上櫃: 民國 102 (2013) 年 ~ present
         """
 
-        roc_year: str = DataUtils.convert_to_roc_year(date.year)
+        roc_year: str = DataUtils.convert_to_roc_year(year)
 
         self.payload.year = roc_year
         self.payload.season = season
@@ -206,7 +207,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
                 )
                 logger.info(f"{market_type} Statement of Cash Flow URL: {cash_flow_url}")
             except Exception as e:
-                logger.info(f"* WARN: Cannot get cash flow statement at {date}")
+                logger.info(f"* WARN: Cannot get cash flow statement at {year}Q{season}")
 
             try:
                 dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
@@ -221,7 +222,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
     def crawl_equity_changes(
         self,
-        date: datetime.date,
+        year: int,
         season: int,
         stock_code: str,
     ) -> Optional[List[pd.DataFrame]]:
@@ -232,7 +233,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         上櫃: 民國 102 (2013) 年 ~ present
         """
 
-        roc_year: str = DataUtils.convert_to_roc_year(date.year)
+        roc_year: str = DataUtils.convert_to_roc_year(year)
 
         self.payload.TYPEK = None
         self.payload.co_id = stock_code
@@ -248,7 +249,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
             )
             logger.info(f"{equity_changes_url} Statement of Equity Changes URL: {equity_changes_url}")
         except Exception as e:
-            logger.info(f"* WARN: Cannot get equity changes statement at {date}")
+            logger.info(f"* WARN: Cannot get equity changes statement at {year}Q{season}")
 
         try:
             df_list: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
@@ -262,33 +263,32 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
     def get_all_report_columns(
         self,
-        start_date: datetime.date,
-        end_date: datetime.date,
+        start_year: int,
+        end_year: int,
         seasons: List[int] = [1, 2, 3, 4],
         stock_code: str="2330",
         report_type: FinancialStatementType=FinancialStatementType.BALANCE_SHEET
     ) -> List[str]:
         """ 取得財報的從網站提供日期至今所有不重複的 columns name """
 
-        current_date: datetime.date = start_date
+        year_list: List[int] = list(range(start_year, end_year + 1))
         all_df_list: List[pd.DataFrame] = []
         all_columns: Set[str] = set()
 
-        while current_date <= end_date:
+        for year in year_list:
             for season in seasons:
                 if report_type == FinancialStatementType.BALANCE_SHEET:
-                    df_list: Optional[List[pd.DataFrame]] = self.crawl_balance_sheet(current_date, season)
+                    df_list: Optional[List[pd.DataFrame]] = self.crawl_balance_sheet(year, season)
                 elif report_type == FinancialStatementType.COMPREHENSIVE_INCOME:
-                    df_list: Optional[List[pd.DataFrame]] = self.crawl_comprehensive_income(current_date, season)
+                    df_list: Optional[List[pd.DataFrame]] = self.crawl_comprehensive_income(year, season)
                 elif report_type == FinancialStatementType.CASH_FLOW:
-                    df_list: Optional[List[pd.DataFrame]] = self.crawl_cash_flow(current_date, season)
+                    df_list: Optional[List[pd.DataFrame]] = self.crawl_cash_flow(year, season)
                 elif report_type == FinancialStatementType.EQUITY_CHANGE:
-                    df_list: Optional[List[pd.DataFrame]] = self.crawl_equity_changes(current_date, season, stock_code)
+                    df_list: Optional[List[pd.DataFrame]] = self.crawl_equity_changes(year, season, stock_code)
 
                 if df_list is not None:
                     all_df_list.extend(df_list)
-
-            current_date += relativedelta(months=1)
+            time.sleep(random.uniform(1, 3))
 
         for df in all_df_list:
             df.columns = (
