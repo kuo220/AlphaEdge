@@ -22,14 +22,17 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
         self.mrr_dir: Path = MONTHLY_REVENUE_REPORT_PATH
 
         # Market Type
-        self.market_types: List[MarketType] = [MarketType.SII0, MarketType.SII1, MarketType.OTC0, MarketType.OTC1]
+        self.twse_market_types: List[MarketType] = [MarketType.SII0, MarketType.SII1]
+        self.tpex_market_types: List[MarketType] = [MarketType.OTC0, MarketType.OTC1]
 
 
-    def crawl(self, date: datetime.date) -> None:
+    def crawl(self, date: datetime.date) -> Optional[List[pd.DataFrame]]:
         """ Crawl Data """
 
         twse_df: List[pd.DataFrame] = self.crawl_twse_monthly_revenue(date)
         tpex_df: List[pd.DataFrame] = self.crawl_tpex_monthly_revenue(date)
+
+        return twse_df + tpex_df
 
 
     def setup(self, *args, **kwargs) -> None:
@@ -44,7 +47,7 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
 
         df_list: List[pd.DataFrame] = []
 
-        for market_type in self.market_types:
+        for market_type in self.twse_market_types:
             url: str = URLManager.get_url(
                 "TWSE_MONTHLY_REVENUE_REPORT_URL",
                 roc_year=DataUtils.convert_to_roc_year(date.year),
@@ -71,7 +74,7 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
 
         df_list: List[pd.DataFrame] = []
 
-        for market_type in self.market_types:
+        for market_type in self.tpex_market_types:
             url: str = URLManager.get_url(
                 "TPEX_MONTHLY_REVENUE_REPORT_URL",
                 roc_year=DataUtils.convert_to_roc_year(date.year),

@@ -37,3 +37,18 @@ class FinancialStatementCleaner(BaseDataCleaner):
         self.income_statement_dir.mkdir(parents=True, exist_ok=True)
         self.cash_flow_statement_dir.mkdir(parents=True, exist_ok=True)
         self.equity_changes_statement_dir.mkdir(parents=True, exist_ok=True)
+
+
+    def clean_balance_sheet(
+        self,
+        df_list: List[pd.DataFrame],
+        date: datetime.date,
+        season: int
+    ) -> pd.DataFrame:
+        """ Cleaner Balance Sheet (資產負債表) """
+        """
+        資料區間
+        上市: 民國 79 (1990) 年 ~ present
+        上櫃: 民國 82 (1993) 年 ~ present
+        """
+
