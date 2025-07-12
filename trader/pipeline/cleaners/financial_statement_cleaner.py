@@ -85,8 +85,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
 
         front_cols: List[str] = ["年度", "季度", "公司代號", "公司名稱"]
         self.all_balance_sheet_cols = self.reorder_columns(self.all_balance_sheet_cols, front_cols)
-
-
+        new_df: pd.DataFrame = pd.DataFrame(columns=self.all_balance_sheet_cols)
 
         # Step 2: 清理 df_list 欄位名稱
         # 篩掉沒有 "公司名稱" 的 df
@@ -100,6 +99,9 @@ class FinancialStatementCleaner(BaseDataCleaner):
                 cleaned_cols.append(new_col)
             df.columns = cleaned_cols
 
+        # Step 3: 將資料填入 new_df
+        for df in df_list:
+            pass
 
 
     def load_column_names(self) -> None:
