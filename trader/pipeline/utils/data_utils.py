@@ -1,5 +1,5 @@
 import datetime
-from typing import List, Union
+from typing import List, Optional
 import pandas as pd
 from dateutil.rrule import DAILY, MONTHLY, rrule
 
@@ -32,10 +32,11 @@ class DataUtils:
         for col in df.columns:
             if col not in exclude_cols:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
+        return df
 
 
     @staticmethod
-    def convert_to_roc_year(year: Union[int, str]) -> str:
+    def convert_ad_to_roc_year(year: int | str) -> str:
         """ 將西元年轉換成民國年 """
 
         try:
@@ -48,7 +49,17 @@ class DataUtils:
 
 
     @staticmethod
-    def pad2(n: Union[int, str]) -> str:
+    def convert_roc_to_ad_year(year: int | str) -> str:
+        """ 將民國年轉為西元年 """
+
+        try:
+            return int(year) + 1911
+        except (ValueError, TypeError):
+            raise ValueError(f"無效的年份輸入：{year}")
+
+
+    @staticmethod
+    def pad2(n: int | str) -> str:
         """ 將數字補足為兩位數字字串 """
         return str(n).zfill(2)
 
@@ -78,3 +89,116 @@ class DataUtils:
     def format_date(date: datetime.date, sep: str="") -> str:
         """ Format date as 'YYYY{sep}MM{sep}DD' """
         return date.strftime(f"%Y{sep}%m{sep}%d")
+
+
+    @staticmethod
+    def replace_column_name(
+        col_name: str,
+        keywords: List[str],
+        replacement: str
+    ) -> str:
+        """
+        - Description:
+            將欄位名稱中出現的指定關鍵字（如「合計」、「總計」）替換為指定詞（如「總額」）
+            e.g. 資產總計 -> 資產總額
+        - Parameters:
+            - col_name: str
+                欄位名稱
+            - keywords: List[str]
+                欲替換的關鍵字列表，例如: 合計"、"總計"
+            - replacement: str
+                要統一替換成的文字，例如: 總額
+        - Return: str
+            - 處理後的欄位名稱
+        """
+
+        for keyword in keywords:
+            if keyword in col_name:
+                return col_name.replace(keyword, replacement)
+        return col_name
+
+
+    @staticmethod
+    def remove_cols_by_keywords(
+        df: pd.DataFrame,
+        startswith: Optional[List[str]]=None,
+        contains: Optional[List[str]]=None,
+        case_insensitive: bool = True
+    ) -> pd.DataFrame:
+        """
+        - Description:
+            移除以指定字串開頭或包含指定字串的欄位名稱
+        Parameters:
+            - df: 原始 DataFrame
+            - startswith: 欲刪除欄位的開頭關鍵字，例如 ["Unnamed"]
+            - contains: 欲刪除欄位的包含關鍵字，例如 ["錯誤"]
+            - case_insensitive: 是否忽略大小寫（預設 True）
+        Returns:
+            - 已刪除指定欄位的 DataFrame
+        """
+
+        # 確保 startswith / contains 一定是 list 型別，避免為 None 時無法迭代
+        startswith: List[str] = startswith or []
+        contains: List[str] = contains or []
+
+        # 將欄位轉成 str 型別，並保留原始 index
+        columns: pd.Index = df.columns.astype(str)
+
+        # 初始化刪除遮罩（與欄位 index 對齊）
+        columns_to_drop: pd.Series = pd.Series(False, index=columns)
+
+        if case_insensitive:
+            columns = columns.str.lower()
+            startswith = [word.lower() for word in startswith]
+            contains = [word.lower() for word in contains]
+
+        for keyword in startswith:
+            columns_to_drop |= columns.str.startswith(keyword)
+
+        for keyword in contains:
+            columns_to_drop |= columns.str.contains(keyword)
+
+        return df.loc[:, ~columns_to_drop]
+
+
+    @staticmethod
+    def remove_items_by_keywords(
+        items: List[str],
+        startswith: Optional[List[str]] = None,
+        contains: Optional[List[str]] = None,
+        case_insensitive: bool = True
+    ) -> List[str]:
+        """
+        - Description:
+            移除符合指定關鍵字的欄位名稱（以開頭或包含），並回傳保留的欄位清單
+
+        Parameters:
+            - columns: 欲移除的欄位名稱清單
+            - startswith: 欲排除的開頭字串，例如 ["Unnamed"]
+            - contains: 欲排除的部分字串，例如 ["錯誤"]
+            - case_insensitive: 是否忽略大小寫（預設 True）
+
+        Returns:
+            - 過濾後保留的欄位名稱 List[str]
+        """
+
+        startswith = startswith or []
+        contains = contains or []
+
+        def normalize(s: str) -> str:
+            return s.lower() if case_insensitive else s
+
+        norm_starts = [normalize(s) for s in startswith]
+        norm_contains = [normalize(s) for s in contains]
+
+        new_items: List[str] = []
+
+        for item in items:
+            norm_item = normalize(item)
+            if any(norm_item.startswith(s) for s in norm_starts):
+                continue
+            if any(c in norm_item for c in norm_contains):
+                continue
+            new_items.append(norm_item)
+
+        return new_items
