@@ -296,9 +296,9 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
         # Save all columns list as .json
         FINANCIAL_STATEMENT_META_DIR_PATH.mkdir(parents=True, exist_ok=True)
-        output_file = FINANCIAL_STATEMENT_META_DIR_PATH / f"{report_type.value.lower()}_columns.json"
+        file_name = FINANCIAL_STATEMENT_META_DIR_PATH / f"{report_type.value.lower()}_all_columns.json"
 
-        with open(output_file, "w", encoding=FileEncoding.UTF8.value) as f:
+        with open(file_name, "w", encoding=FileEncoding.UTF8.value) as f:
             json.dump(list(all_columns), f, ensure_ascii=False, indent=2)
 
         return list(all_columns)
