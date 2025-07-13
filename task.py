@@ -32,6 +32,7 @@ from trader.pipeline.crawlers.monthly_revenue_report_crawler import MonthlyReven
 from trader.pipeline.cleaners.stock_chip_cleaner import StockChipCleaner
 from trader.pipeline.cleaners.stock_price_cleaner import StockPriceCleaner
 from trader.pipeline.cleaners.stock_tick_cleaner import StockTickCleaner
+from trader.pipeline.cleaners.financial_statement_cleaner import FinancialStatementCleaner
 from trader.pipeline.utils.data_utils import DataUtils
 from trader.pipeline.utils import (
     URLManager,
@@ -60,6 +61,7 @@ code = '2330'
 
 if __name__ == "__main__":
     fs_crawler: FinancialStatementCrawler = FinancialStatementCrawler()
+    fs_cleaner: FinancialStatementCleaner = FinancialStatementCleaner()
 
     print("* Start Crawling Report's Columns")
 
@@ -71,10 +73,14 @@ if __name__ == "__main__":
     #     if report_type == FinancialStatementType.EQUITY_CHANGE:
     #         continue
 
-    cols: List[str] = fs_crawler.get_all_report_columns(
-        start_year,
-        end_year,
-        report_type=report_type
-    )
+    # cols: List[str] = fs_crawler.get_all_report_columns(
+    #     start_year,
+    #     end_year,
+    #     report_type=report_type
+    # )
 
-    print(cols)
+    # print(cols)
+
+    for year in range(start_date.year, end_date.year):
+        df = fs_crawler.crawl_balance_sheet(year, season)
+        df = fs_cleaner.clean_balance_sheet(df, year, season)

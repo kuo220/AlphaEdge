@@ -32,6 +32,7 @@ class DataUtils:
         for col in df.columns:
             if col not in exclude_cols:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
+        return df
 
 
     @staticmethod
@@ -118,7 +119,7 @@ class DataUtils:
 
 
     @staticmethod
-    def remove_columns_by_keywords(
+    def remove_cols_by_keywords(
         df: pd.DataFrame,
         startswith: Optional[List[str]]=None,
         contains: Optional[List[str]]=None,
@@ -158,3 +159,46 @@ class DataUtils:
             columns_to_drop |= columns.str.contains(keyword)
 
         return df.loc[:, ~columns_to_drop]
+
+
+    @staticmethod
+    def remove_items_by_keywords(
+        items: List[str],
+        startswith: Optional[List[str]] = None,
+        contains: Optional[List[str]] = None,
+        case_insensitive: bool = True
+    ) -> List[str]:
+        """
+        - Description:
+            移除符合指定關鍵字的欄位名稱（以開頭或包含），並回傳保留的欄位清單
+
+        Parameters:
+            - columns: 欲移除的欄位名稱清單
+            - startswith: 欲排除的開頭字串，例如 ["Unnamed"]
+            - contains: 欲排除的部分字串，例如 ["錯誤"]
+            - case_insensitive: 是否忽略大小寫（預設 True）
+
+        Returns:
+            - 過濾後保留的欄位名稱 List[str]
+        """
+
+        startswith = startswith or []
+        contains = contains or []
+
+        def normalize(s: str) -> str:
+            return s.lower() if case_insensitive else s
+
+        norm_starts = [normalize(s) for s in startswith]
+        norm_contains = [normalize(s) for s in contains]
+
+        new_items: List[str] = []
+
+        for item in items:
+            norm_item = normalize(item)
+            if any(norm_item.startswith(s) for s in norm_starts):
+                continue
+            if any(c in norm_item for c in norm_contains):
+                continue
+            new_items.append(norm_item)
+
+        return new_items

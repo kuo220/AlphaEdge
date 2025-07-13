@@ -32,15 +32,25 @@ class FinancialStatementCleaner(BaseDataCleaner):
 
         # Raw column names for each report type
         self.balance_sheet_cols: List[str] = []
+        self.balance_sheet_cleaned_cols: List[str] = []
         self.comprehensive_income_cols: List[str] = []
+        self.comprehensive_income_cleaned_cols: List[str] = []
         self.cash_flow_cols: List[str] = []
+        self.cash_flow_cleaned_cols: List[str] = []
         self.equity_changes_cols: List[str] = []
+        self.equity_changes_cleaned_cols: List[str] = []
 
         # Column mapping for each report type
         self.balance_sheet_column_map: Dict[str, List[str]] = {}
         self.comprehensive_income_map: Dict[str, List[str]] = {}
         self.cash_flow_map: Dict[str, List[str]] = {}
         self.equity_changes_map: Dict[str, List[str]] = {}
+
+        # Reports Cleaned Columns Path
+        self.balance_sheet_cleaned_cols_path: Path = FINANCIAL_STATEMENT_META_DIR_PATH / "balance_sheet_cleaned_columns.json"
+        self.comprehensive_income_cols_path: Path = FINANCIAL_STATEMENT_META_DIR_PATH / "comprehensive_sheet_cleaned_columns.json"
+        self.cash_flow_cleaned_cols: Path = FINANCIAL_STATEMENT_META_DIR_PATH / "cash_flow_cleaned_columns.json"
+        self.equity_changes_cleaned_cols: Path = FINANCIAL_STATEMENT_META_DIR_PATH / "equity_changes_cleaned_columns.json"
 
         # Output directories for each report
         self.fs_dir: Path = FINANCIAL_STATEMENT_PATH
@@ -79,35 +89,22 @@ class FinancialStatementCleaner(BaseDataCleaner):
         上市: 民國 78 (1989) 年 ~ present
         上櫃: 民國 82 (1993) 年 ~ present
         """
-        # 清理欄位名稱
-        keywords: List[str] = ["總計", "合計"]
-        replacement: str = "總額"
 
-        # Step 1: 處理 .json Column Names
-        self.balance_sheet_cols = [
-            self.map_column_name(
-                self.clean_column_name(col),
-                self.balance_sheet_column_map
-            )
-            for col in self.balance_sheet_cols
-        ]
-
-        # 指定排序部分 Column Names
-        front_cols: List[str] = ["年度", "季度", "公司代號", "公司名稱"]
-        self.balance_sheet_cols = self.reorder_columns(self.balance_sheet_cols, front_cols)
-        # 移除重複欄位，保留順序
-        self.balance_sheet_cols = list(dict.fromkeys(self.balance_sheet_cols))
+        # Step 1: 載入已清洗欄位，若未成功則執行清洗流程
+        if not self.balance_sheet_cleaned_cols:
+            self.load_balance_sheet_cleaned_columns()
+        if not self.balance_sheet_cleaned_cols:
+            self.clean_balance_sheet_columns()
 
         # Step 2: 清理 df_list 欄位名稱
         # 建立涵蓋所有 columns 的 df
-        new_df: pd.DataFrame = pd.DataFrame(columns=self.balance_sheet_cols)
+        new_df: pd.DataFrame = pd.DataFrame(columns=self.balance_sheet_cleaned_cols)
         # 篩掉沒有 "公司名稱" 的 df
         df_list: List[pd.DataFrame] = [df for df in df_list if "公司名稱" in df.columns]
+        appended_df_list: List[pd.DataFrame] = []
 
-        # 清洗 Column Names
-        cleaned_cols: List[str] = []
-        cleaned_df_list: List[pd.DataFrame] = []
         for df in df_list:
+            # 清洗 Column Names
             cleaned_cols = [
                 self.map_column_name(
                     self.clean_column_name(col),
@@ -116,20 +113,19 @@ class FinancialStatementCleaner(BaseDataCleaner):
                 for col in df.columns
             ]
             df.columns = cleaned_cols
-            cleaned_df_list.append(df)
+            DataUtils.remove_cols_by_keywords(
+                df,
+                startswith=["Unnamed", "0"]
+            )
 
-        # Step 3: 將資料填入新建立的 new_df
-        appended_df_list: List[pd.DataFrame] = []
-        for df in cleaned_df_list:
+            # 對齊欄位並補上欄位
             aligned_df: pd.DataFrame = df.reindex(columns=new_df.columns)
             aligned_df["年度"] = year
             aligned_df["季度"] = season
             appended_df_list.append(aligned_df)
+
         new_df = pd.concat(appended_df_list, ignore_index=True)
-
-        # Step 4: 清洗特定 columns
-        new_df = DataUtils.remove_columns_by_keywords(new_df, startswith=["Unname", "0"])
-
+        new_df = DataUtils.convert_col_to_numeric(new_df, ["公司代號", "公司名稱"])
         new_df.to_csv(
             self.balance_sheet_dir / f"balance_sheet_{year}Q{season}.csv",
             index=False,
@@ -137,6 +133,47 @@ class FinancialStatementCleaner(BaseDataCleaner):
         )
 
         return new_df
+
+
+    def clean_balance_sheet_columns(self) -> None:
+        """ 清洗 Balance Sheet Columns """
+
+        self.balance_sheet_cleaned_cols = [
+            self.map_column_name(
+                self.clean_column_name(col),
+                self.balance_sheet_column_map
+            )
+            for col in self.balance_sheet_cols
+        ]
+
+        # 清洗特定 columns
+        self.balance_sheet_cleaned_cols = DataUtils.remove_items_by_keywords(
+            self.balance_sheet_cleaned_cols,
+            startswith=["Unnamed", "0"]
+        )
+
+        # 指定排序
+        front_cols = ["年度", "季度", "公司代號", "公司名稱"]
+        self.balance_sheet_cleaned_cols = self.reorder_columns(self.balance_sheet_cleaned_cols, front_cols)
+
+        # 去除重複欄位
+        self.balance_sheet_cleaned_cols = list(dict.fromkeys(self.balance_sheet_cleaned_cols))
+
+        # 儲存清洗後結果
+        with open(self.balance_sheet_cleaned_cols_path, "w", encoding=FileEncoding.UTF8.value) as f:
+            json.dump(self.balance_sheet_cleaned_cols, f, ensure_ascii=False, indent=2)
+        logger.info("已儲存清洗後欄位名稱: balance_sheet_columns_cleaned.json")
+
+
+    def load_balance_sheet_cleaned_columns(self) -> None:
+        """ 載入已清洗過的 Balance Sheet Columns """
+
+        if self.balance_sheet_cleaned_cols_path.exists():
+            try:
+                with open(self.balance_sheet_cleaned_cols_path, "r", encoding=FileEncoding.UTF8.value) as f:
+                    self.balance_sheet_cleaned_cols = json.load(f)
+            except json.JSONDecodeError:
+                logger.warning("Balance Sheet Columns Cache Doesn't Exists!")
 
 
     def load_column_names(self) -> None:
