@@ -1,25 +1,18 @@
-import datetime
-import pandas as pd
 import re
-from io import StringIO
 import json
+import pandas as pd
 from pathlib import Path
 from loguru import logger
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 from trader.pipeline.cleaners.base import BaseDataCleaner
-from trader.pipeline.crawlers.utils.request_utils import RequestUtils
-from trader.pipeline.crawlers.utils.payload import Payload
 from trader.pipeline.utils.data_utils import DataUtils
 from trader.pipeline.utils import (
-    URLManager,
-    MarketType,
     FinancialStatementType,
     FileEncoding
 )
 from trader.config import (
     FINANCIAL_STATEMENT_PATH,
-    DOWNLOADS_METADATA_DIR_PATH,
     FINANCIAL_STATEMENT_META_DIR_PATH
 )
 
