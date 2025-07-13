@@ -8,7 +8,11 @@ import requests
 
 from trader.pipeline.crawlers.base import BaseDataCrawler
 from trader.pipeline.crawlers.utils.request_utils import RequestUtils
-from trader.pipeline.utils import URLManager, MarketType
+from trader.pipeline.utils import (
+    URLManager,
+    MarketType,
+    FileEncoding
+)
 from trader.pipeline.utils.data_utils import DataUtils
 from trader.config import MONTHLY_REVENUE_REPORT_PATH
 
@@ -50,14 +54,14 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
         for market_type in self.twse_market_types:
             url: str = URLManager.get_url(
                 "TWSE_MONTHLY_REVENUE_REPORT_URL",
-                roc_year=DataUtils.convert_to_roc_year(date.year),
+                roc_year=DataUtils.convert_ad_to_roc_year(date.year),
                 month=date.month,
                 market_type=market_type.value
             )
 
             try:
                 res: requests.Response = RequestUtils.requests_get(url)
-                res.encoding = 'big5'
+                res.encoding = FileEncoding.BIG5.value
             except Exception as e:
                 logger.info(f"* WARN: Cannot get TWSE Monthly Revenue Report at {date}")
                 logger.info(e)
@@ -77,14 +81,14 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
         for market_type in self.tpex_market_types:
             url: str = URLManager.get_url(
                 "TPEX_MONTHLY_REVENUE_REPORT_URL",
-                roc_year=DataUtils.convert_to_roc_year(date.year),
+                roc_year=DataUtils.convert_ad_to_roc_year(date.year),
                 month=date.month,
                 market_type=market_type.value
             )
 
             try:
                 res: requests.Response = RequestUtils.requests_get(url)
-                res.encoding = 'big5'
+                res.encoding = FileEncoding.BIG5.value
             except Exception as e:
                 logger.info(f"* WARN: Cannot get TWSE Monthly Revenue Report at {date}")
                 logger.info(e)

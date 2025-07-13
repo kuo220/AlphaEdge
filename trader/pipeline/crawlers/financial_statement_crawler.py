@@ -14,7 +14,8 @@ from trader.pipeline.crawlers.utils.payload import Payload
 from trader.pipeline.utils import (
     URLManager,
     MarketType,
-    FinancialStatementType
+    FinancialStatementType,
+    FileEncoding
 )
 from trader.pipeline.utils.data_utils import DataUtils
 from trader.config import (
@@ -101,7 +102,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         上櫃: 民國 82 (1993) 年 ~ present
         """
 
-        roc_year: str = DataUtils.convert_to_roc_year(year)
+        roc_year: str = DataUtils.convert_ad_to_roc_year(year)
 
         self.payload.year = roc_year
         self.payload.season = season
@@ -145,7 +146,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         上櫃: 民國 82 (1993) 年 ~ present
         """
 
-        roc_year: str = DataUtils.convert_to_roc_year(year)
+        roc_year: str = DataUtils.convert_ad_to_roc_year(year)
 
         self.payload.year = roc_year
         self.payload.season = season
@@ -188,7 +189,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         上櫃: 民國 102 (2013) 年 ~ present
         """
 
-        roc_year: str = DataUtils.convert_to_roc_year(year)
+        roc_year: str = DataUtils.convert_ad_to_roc_year(year)
 
         self.payload.year = roc_year
         self.payload.season = season
@@ -232,7 +233,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         上櫃: 民國 102 (2013) 年 ~ present
         """
 
-        roc_year: str = DataUtils.convert_to_roc_year(year)
+        roc_year: str = DataUtils.convert_ad_to_roc_year(year)
 
         self.payload.TYPEK = None
         self.payload.co_id = stock_code
@@ -296,7 +297,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         DOWNLOADS_METADATA_DIR_PATH.mkdir(parents=True, exist_ok=True)
         output_file = DOWNLOADS_METADATA_DIR_PATH / f"{report_type.value.lower()}_columns.json"
 
-        with open(output_file, "w", encoding="big5") as f:
+        with open(output_file, "w", encoding=FileEncoding.UTF8.value) as f:
             json.dump(list(all_columns), f, ensure_ascii=False, indent=2)
 
         return list(all_columns)

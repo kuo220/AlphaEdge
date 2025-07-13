@@ -1,5 +1,5 @@
 import datetime
-from typing import List, Union
+from typing import List, Optional
 import pandas as pd
 from dateutil.rrule import DAILY, MONTHLY, rrule
 
@@ -35,7 +35,7 @@ class DataUtils:
 
 
     @staticmethod
-    def convert_to_roc_year(year: Union[int, str]) -> str:
+    def convert_ad_to_roc_year(year: int | str) -> str:
         """ 將西元年轉換成民國年 """
 
         try:
@@ -48,7 +48,17 @@ class DataUtils:
 
 
     @staticmethod
-    def pad2(n: Union[int, str]) -> str:
+    def convert_roc_to_ad_year(year: int | str) -> str:
+        """ 將民國年轉為西元年 """
+
+        try:
+            return int(year) + 1911
+        except (ValueError, TypeError):
+            raise ValueError(f"無效的年份輸入：{year}")
+
+
+    @staticmethod
+    def pad2(n: int | str) -> str:
         """ 將數字補足為兩位數字字串 """
         return str(n).zfill(2)
 
@@ -105,3 +115,46 @@ class DataUtils:
             if keyword in col_name:
                 return col_name.replace(keyword, replacement)
         return col_name
+
+
+    @staticmethod
+    def remove_columns_by_keywords(
+        df: pd.DataFrame,
+        startswith: Optional[List[str]]=None,
+        contains: Optional[List[str]]=None,
+        case_insensitive: bool = True
+    ) -> pd.DataFrame:
+        """
+        - Description:
+            移除以指定字串開頭或包含指定字串的欄位名稱
+        Parameters:
+            - df: 原始 DataFrame
+            - startswith: 欲刪除欄位的開頭關鍵字，例如 ["Unnamed"]
+            - contains: 欲刪除欄位的包含關鍵字，例如 ["錯誤"]
+            - case_insensitive: 是否忽略大小寫（預設 True）
+        Returns:
+            - 已刪除指定欄位的 DataFrame
+        """
+
+        # 確保 startswith / contains 一定是 list 型別，避免為 None 時無法迭代
+        startswith: List[str] = startswith or []
+        contains: List[str] = contains or []
+
+        # 將欄位轉成 str 型別，並保留原始 index
+        columns: pd.Index = df.columns.astype(str)
+
+        # 初始化刪除遮罩（與欄位 index 對齊）
+        columns_to_drop: pd.Series = pd.Series(False, index=columns)
+
+        if case_insensitive:
+            columns = columns.str.lower()
+            startswith = [word.lower() for word in startswith]
+            contains = [word.lower() for word in contains]
+
+        for keyword in startswith:
+            columns_to_drop |= columns.str.startswith(keyword)
+
+        for keyword in contains:
+            columns_to_drop |= columns.str.contains(keyword)
+
+        return df.loc[:, ~columns_to_drop]

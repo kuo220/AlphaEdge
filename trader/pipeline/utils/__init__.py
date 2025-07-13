@@ -3,5 +3,6 @@ from .constant import (
     InstrumentType,
     DataType,
     MarketType,
-    FinancialStatementType
+    FinancialStatementType,
+    FileEncoding
 )
