@@ -19,7 +19,8 @@ from trader.pipeline.utils import (
 )
 from trader.config import (
     FINANCIAL_STATEMENT_PATH,
-    DOWNLOADS_METADATA_DIR_PATH
+    DOWNLOADS_METADATA_DIR_PATH,
+    FINANCIAL_STATEMENT_META_DIR_PATH
 )
 
 
@@ -84,10 +85,9 @@ class FinancialStatementCleaner(BaseDataCleaner):
 
         # Step 1: 處理 .json Column Names
         self.balance_sheet_cols = [
-            DataUtils.replace_column_name(
+            self.map_column_name(
                 self.clean_column_name(col),
-                keywords,
-                replacement
+                self.balance_sheet_column_map
             )
             for col in self.balance_sheet_cols
         ]
@@ -109,10 +109,9 @@ class FinancialStatementCleaner(BaseDataCleaner):
         cleaned_df_list: List[pd.DataFrame] = []
         for df in df_list:
             cleaned_cols = [
-                DataUtils.replace_column_name(
+                self.map_column_name(
                     self.clean_column_name(col),
-                    keywords,
-                    replacement
+                    self.balance_sheet_column_map
                 )
                 for col in df.columns
             ]
@@ -151,7 +150,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
         }
 
         for report_type, attr_name in attr_map.items():
-            file_name = DOWNLOADS_METADATA_DIR_PATH / f"{report_type.value.lower()}_columns.json"
+            file_name = FINANCIAL_STATEMENT_META_DIR_PATH / f"{report_type.value.lower()}_columns.json"
 
             if not file_name.exists():
                 logger.warning(f"Metadata file not found: {file_name}")
@@ -171,14 +170,14 @@ class FinancialStatementCleaner(BaseDataCleaner):
         """ 載入 Report Column Maps """
 
         attr_map: Dict[FinancialStatementType, str] = {
-            FinancialStatementType.BALANCE_SHEET: "balance_sheet_map",
-            FinancialStatementType.COMPREHENSIVE_INCOME: "comprehensive_income_map",
-            FinancialStatementType.CASH_FLOW: "cash_flow_map",
-            FinancialStatementType.EQUITY_CHANGE: "equity_changes_map",
+            FinancialStatementType.BALANCE_SHEET: "balance_sheet_column_map",
+            FinancialStatementType.COMPREHENSIVE_INCOME: "comprehensive_income_column_map",
+            FinancialStatementType.CASH_FLOW: "cash_flow_column_map",
+            FinancialStatementType.EQUITY_CHANGE: "equity_changes_column_map",
         }
 
         for report_type, attr_name in attr_map.items():
-            file_name = DOWNLOADS_METADATA_DIR_PATH / f"{report_type.value.lower()}_column_map.json"
+            file_name = FINANCIAL_STATEMENT_META_DIR_PATH / f"{report_type.value.lower()}_column_map.json"
 
             if not file_name.exists():
                 logger.warning(f"Metadata file not found: {file_name}")
@@ -224,3 +223,15 @@ class FinancialStatementCleaner(BaseDataCleaner):
         tail_columns = [col for col in all_columns if col not in front_columns]
         return front_columns + tail_columns
 
+
+    def map_column_name(
+        self,
+        col: str,
+        column_map: Dict[str, List[str]]
+    ) -> str:
+        """ 將欄位名稱對應至標準名稱，若無對應則回傳原名 """
+
+        for std_col, variants in column_map.items():
+            if col in variants:
+                return std_col
+        return col

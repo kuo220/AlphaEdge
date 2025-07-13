@@ -20,7 +20,8 @@ from trader.pipeline.utils import (
 from trader.pipeline.utils.data_utils import DataUtils
 from trader.config import (
     FINANCIAL_STATEMENT_PATH,
-    DOWNLOADS_METADATA_DIR_PATH
+    DOWNLOADS_METADATA_DIR_PATH,
+    FINANCIAL_STATEMENT_META_DIR_PATH
 )
 
 
@@ -294,8 +295,8 @@ class FinancialStatementCrawler(BaseDataCrawler):
             all_columns.update(df.columns)  # 將所有欄位名稱加入 set（自動去除重複）
 
         # Save all columns list as .json
-        DOWNLOADS_METADATA_DIR_PATH.mkdir(parents=True, exist_ok=True)
-        output_file = DOWNLOADS_METADATA_DIR_PATH / f"{report_type.value.lower()}_columns.json"
+        FINANCIAL_STATEMENT_META_DIR_PATH.mkdir(parents=True, exist_ok=True)
+        output_file = FINANCIAL_STATEMENT_META_DIR_PATH / f"{report_type.value.lower()}_columns.json"
 
         with open(output_file, "w", encoding=FileEncoding.UTF8.value) as f:
             json.dump(list(all_columns), f, ensure_ascii=False, indent=2)

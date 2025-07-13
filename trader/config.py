@@ -40,6 +40,7 @@ TICK_DOWNLOADS_PATH: Path = get_resolved_path("TICK_DOWNLOADS_PATH")
 
 # === Crawler Financial Statement Metadata Directory Path ===
 DOWNLOADS_METADATA_DIR_PATH: Path = (CRAWLER_DOWNLOADS_PATH / "meta").resolve()
+FINANCIAL_STATEMENT_META_DIR_PATH: Path = (DOWNLOADS_METADATA_DIR_PATH / "financial_statement").resolve()
 
 
 # === Certs.cer ===
