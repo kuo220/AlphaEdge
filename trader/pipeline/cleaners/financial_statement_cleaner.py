@@ -63,7 +63,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
 
         # Load Report Column Names & Map
         self.load_column_names()
-        self.load_column__maps()
+        self.load_column_maps()
 
 
     def clean_balance_sheet(
@@ -132,7 +132,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
         new_df = DataUtils.remove_columns_by_keywords(new_df, startswith=["Unname", "0"])
 
         new_df.to_csv(
-            self.balance_sheet_dir / f"balance_sheet_{year}Q{season}",
+            self.balance_sheet_dir / f"balance_sheet_{year}Q{season}.csv",
             index=False,
             encoding=FileEncoding.UTF8.value
         )
@@ -167,7 +167,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
                 logger.error(f"JSON 格式錯誤: {file_name}")
 
 
-    def load_column__maps(self) -> None:
+    def load_column_maps(self) -> None:
         """ 載入 Report Column Maps """
 
         attr_map: Dict[FinancialStatementType, str] = {
