@@ -42,18 +42,17 @@ class StockPriceCleaner(BaseDataCleaner):
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.droplevel(0)
 
-        df.drop(
-            columns=["漲跌(+/-)"],
-            axis=1,
-            inplace=True
+        df: pd.DataFrame = (
+            df.drop(columns=["漲跌(+/-)"])
+            .rename(columns={"證券代號": "stock_id"})
+            .astype(str)
+            .pipe(DataUtils.convert_col_to_numeric, exclude_cols=["date", "stock_id", "證券名稱"])
         )
         df.insert(0, "date", date)
-        df = df.rename(columns={"證券代號": "stock_id"})
-        df = df.astype(str)
         DataUtils.move_col(df, "成交股數", "漲跌價差")
         DataUtils.move_col(df, "成交金額", "成交股數")
         DataUtils.move_col(df, "成交筆數", "成交金額")
-        df = DataUtils.convert_col_to_numeric(df, ["date", "stock_id", "證券名稱"])
+
         df.to_csv(self.price_dir / f"twse_{DataUtils.format_date(date)}.csv", index=False)
 
         return df
@@ -73,13 +72,11 @@ class StockPriceCleaner(BaseDataCleaner):
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.droplevel(0)
 
-        df.drop(
-            columns=["次日漲停價", "次日跌停價"],
-            axis=1,
-            inplace=True
+        df: pd.DataFrame = (
+            df.drop(columns=["次日漲停價", "次日跌停價"])
+            .astype(str)
         )
         df.insert(0, "date", date)
-        df = df.astype(str)
 
         if date >= self.tpex_table_change_date:
             df.columns = [

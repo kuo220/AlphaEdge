@@ -66,7 +66,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
         self.equity_changes_dir.mkdir(parents=True, exist_ok=True)
 
         # Load Report Column Names & Map
-        self.load_column_names()
+        self.load_all_column_names()
         self.load_column_maps()
 
 
@@ -113,12 +113,17 @@ class FinancialStatementCleaner(BaseDataCleaner):
 
             # 對齊欄位並補上欄位
             aligned_df: pd.DataFrame = df.reindex(columns=new_df.columns)
-            aligned_df["年度"] = year
-            aligned_df["季度"] = season
+            aligned_df["year"] = year
+            aligned_df["season"] = season
             appended_df_list.append(aligned_df)
 
-        new_df = pd.concat(appended_df_list, ignore_index=True)
-        new_df = DataUtils.convert_col_to_numeric(new_df, ["公司代號", "公司名稱"])
+        new_df = (
+            pd.concat(appended_df_list, ignore_index=True)
+            .astype(str)
+            .rename(columns={"公司代號": "股票代號"})
+            .pipe(DataUtils.convert_col_to_numeric, exclude_cols=["股票代號", "公司名稱"])
+        )
+
         new_df.to_csv(
             self.balance_sheet_dir / f"balance_sheet_{year}Q{season}.csv",
             index=False,
@@ -146,7 +151,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
         )
 
         # 指定排序
-        front_cols = ["年度", "季度", "公司代號", "公司名稱"]
+        front_cols = ["year", "season", "公司代號", "公司名稱"]
         self.balance_sheet_cleaned_cols = self.reorder_columns(self.balance_sheet_cleaned_cols, front_cols)
 
         # 去除重複欄位
@@ -169,7 +174,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
                 logger.warning("Balance Sheet Columns Cache Doesn't Exists!")
 
 
-    def load_column_names(self) -> None:
+    def load_all_column_names(self) -> None:
         """ 載入 Report Column Names """
 
         attr_map: Dict[FinancialStatementType, str] = {
@@ -180,7 +185,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
         }
 
         for report_type, attr_name in attr_map.items():
-            file_name = FINANCIAL_STATEMENT_META_DIR_PATH / f"{report_type.value.lower()}_columns.json"
+            file_name = FINANCIAL_STATEMENT_META_DIR_PATH / f"{report_type.value.lower()}_all_columns.json"
 
             if not file_name.exists():
                 logger.warning(f"Metadata file not found: {file_name}")
