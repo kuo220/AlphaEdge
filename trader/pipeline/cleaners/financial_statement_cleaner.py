@@ -76,7 +76,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
         year: int,
         season: int
     ) -> pd.DataFrame:
-        """ Cleaner Balance Sheet (資產負債表) """
+        """ Clean Balance Sheet (資產負債表) """
         """
         資料區間（但是只有 102 年以後才可以爬）
         上市: 民國 78 (1989) 年 ~ present
@@ -131,6 +131,36 @@ class FinancialStatementCleaner(BaseDataCleaner):
         )
 
         return new_df
+
+
+    def clean_comprehensive_income(self) -> pd.DataFrame:
+        """ Clean Statement of Comprehensive Income (綜合損益表) """
+        """
+        資料區間（但是只有 102 年以後才可以爬）
+        上市: 民國 77 (1988) 年 ~ present
+        上櫃: 民國 82 (1993) 年 ~ present
+        """
+        pass
+
+
+    def clean_cash_flow(self) -> pd.DataFrame:
+        """ Clean Cash flow Statement (現金流量表) """
+        """
+        資料區間
+        上市: 民國 102 (2013) 年 ~ present
+        上櫃: 民國 102 (2013) 年 ~ present
+        """
+        pass
+
+
+    def clean_equity_changes(self) -> pd.DataFrame:
+        """ Clean Statement of Changes in Equity (權益變動表) """
+        """
+        資料區間
+        上市: 民國 102 (2013) 年 ~ present
+        上櫃: 民國 102 (2013) 年 ~ present
+        """
+        pass
 
 
     def clean_balance_sheet_columns(self) -> None:
