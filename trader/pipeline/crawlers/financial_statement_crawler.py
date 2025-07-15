@@ -264,13 +264,18 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
     def get_all_report_columns(
         self,
-        start_year: int=102,
-        end_year: int=114,
+        start_year: int=2013,
+        end_year: int=2025,
         seasons: List[int]=[1, 2, 3, 4],
         stock_code: str="2330",
         report_type: FinancialStatementType=FinancialStatementType.BALANCE_SHEET
     ) -> List[str]:
         """ 取得所有財報的 Columns Name """
+        """
+        目前能爬取的資料區間
+        上市: 民國 102 (2013) 年 ~ present
+        上櫃: 民國 102 (2013) 年 ~ present
+        """
 
         year_list: List[int] = list(range(start_year, end_year + 1))
         all_df_list: List[pd.DataFrame] = []
