@@ -1,9 +1,10 @@
 import datetime
+import re
 import json
 import pandas as pd
 from loguru import logger
 from pathlib import Path
-from typing import List, Optional, Any
+from typing import List, Dict, Optional, Any
 
 from trader.pipeline.utils import FileEncoding
 
@@ -52,6 +53,47 @@ class DataUtils:
         if df.isnull().values.any():
             df.fillna(value, inplace=True)
         return df
+
+
+    @staticmethod
+    def standardize_column_name(
+        word: str,
+        replace_pairs: Dict[str, str]={"（": "(", "）": ")", "：": ":"},
+        remove_chars: List[str]=[],
+        remove_dash: List[str]=["－", "-", "—", "–", "─"],
+        remove_whitespace: bool=True,
+    ) -> str:
+        """
+        - Description:
+            清除空白與特殊符號（括號、全半形減號），標準化欄位名稱用
+        - Parameters:
+            - word: str
+                欲清理的欄位名稱
+            - replace_pairs: Dict[str, str]
+                要替換的字元對 (如 {"（": "(", "）": ")"})
+            - remove_chars: List[str]
+                要統一替換成的文字，例如: 總額
+            - remove_dash: List[str]
+                要刪除的 dash (Default: ["－", "-", "—", "–", "─"])
+            - remove_whitespace: bool
+                是否移除所有空白 (包含 tab、全形空白)
+        - Return: str
+            - 處理後的欄位名稱
+        """
+
+        word = str(word)
+
+        if remove_whitespace:
+            word = re.sub(r"\s+", "", word)     # 清除所有空白（包含 tab, 換行, 全形空白）
+
+        for old, new in replace_pairs.items():
+            word = word.replace(old, new)
+        for char in remove_chars:
+            word = word.replace(char, "")
+        for dash in remove_dash:
+            word = word.replace(dash, "")
+
+        return word
 
 
     @staticmethod
@@ -134,13 +176,11 @@ class DataUtils:
         """
         - Description:
             移除符合指定關鍵字的欄位名稱（以開頭或包含），並回傳保留的欄位清單
-
         Parameters:
             - columns: 欲移除的欄位名稱清單
             - startswith: 欲排除的開頭字串，例如 ["Unnamed"]
             - contains: 欲排除的部分字串，例如 ["錯誤"]
             - case_insensitive: 是否忽略大小寫（預設 True）
-
         Returns:
             - 過濾後保留的欄位名稱 List[str]
         """
@@ -178,7 +218,6 @@ class DataUtils:
         """
         - Description:
             將資料儲存成 JSON 檔案
-
         - Parameters:
             - data: Any
                 要儲存的 Python 資料結構（如 dict 或 list）
@@ -205,13 +244,11 @@ class DataUtils:
         """
         - Description:
             從指定 JSON 檔案讀取資料。
-
         - Parameters:
             - file_path: Path
                 JSON 檔案的完整路徑
             - encoding: str
                 檔案編碼（預設為 utf-8）
-
         - Returns: Any
             從 JSON 載入的 Python 資料（通常為 dict 或 list）
         """
