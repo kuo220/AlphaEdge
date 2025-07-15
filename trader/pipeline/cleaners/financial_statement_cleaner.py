@@ -50,12 +50,12 @@ class FinancialStatementCleaner(BaseDataCleaner):
             / FinancialStatementType.COMPREHENSIVE_INCOME.lower()
             / f"{FinancialStatementType.COMPREHENSIVE_INCOME.lower()}_cleaned_columns.json"
         )
-        self.cash_flow_cleaned_cols: Path = (
+        self.cash_flow_cleaned_cols_path: Path = (
             FINANCIAL_STATEMENT_META_DIR_PATH
             / FinancialStatementType.CASH_FLOW.lower()
             / f"{FinancialStatementType.CASH_FLOW.lower()}_cleaned_columns.json"
         )
-        self.equity_change_cleaned_cols: Path = (
+        self.equity_change_cleaned_cols_path: Path = (
             FINANCIAL_STATEMENT_META_DIR_PATH
             / FinancialStatementType.EQUITY_CHANGE.lower()
             / f"{FinancialStatementType.EQUITY_CHANGE.lower()}_cleaned_columns.json"
@@ -94,7 +94,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
         self.equity_change_dir.mkdir(parents=True, exist_ok=True)
 
         # Load Report Column Names & Map
-        self.load_all_columns()
+        self.load_all_column_names()
         self.load_column_maps()
 
 
@@ -113,7 +113,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
 
         # Step 1: 載入已清洗欄位，若未成功則執行清洗流程
         if not self.balance_sheet_cleaned_cols:
-            self.load_balance_sheet_cleaned_columns()
+            self.load_cleaned_column_names(report_type=FinancialStatementType.BALANCE_SHEET)
             if not self.balance_sheet_cleaned_cols:
                 self.clean_balance_sheet_columns()
 
@@ -223,14 +223,23 @@ class FinancialStatementCleaner(BaseDataCleaner):
         logger.info("已儲存清洗後欄位名稱: balance_sheet_columns_cleaned.json")
 
 
-    def load_balance_sheet_cleaned_columns(self) -> None:
-        """ 載入已清洗過的 Balance Sheet Columns """
+    def load_cleaned_column_names(self, report_type: FinancialStatementType) -> None:
+        """ 根據報表類型載入已清洗過的 Column Names """
 
-        if self.balance_sheet_cleaned_cols_path.exists():
-            self.balance_sheet_cleaned_cols = DataUtils.load_json(file_path=self.balance_sheet_cleaned_cols_path)
+        attr_name: str = f"{report_type.lower()}_cleaned_cols"
+        file_path: Path = (
+            FINANCIAL_STATEMENT_META_DIR_PATH
+            / report_type.lower()
+            / f"{report_type.lower()}_cleaned_columns.json"
+        )
+
+        if file_path.exists():
+            cleaned_cols: List[str] = DataUtils.load_json(file_path=file_path)
+            if hasattr(self, attr_name):
+                setattr(self, attr_name, cleaned_cols)
 
 
-    def load_all_columns(self) -> None:
+    def load_all_column_names(self) -> None:
         """ 載入 Report Column Names """
 
         attr_map: Dict[FinancialStatementType, str] = {
