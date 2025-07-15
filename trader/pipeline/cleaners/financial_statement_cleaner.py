@@ -94,7 +94,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
         self.equity_change_dir.mkdir(parents=True, exist_ok=True)
 
         # Load Report Column Names & Map
-        self.load_all_column_names()
+        self.load_all_columns()
         self.load_column_maps()
 
 
@@ -230,7 +230,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
             self.balance_sheet_cleaned_cols = DataUtils.load_json(file_path=self.balance_sheet_cleaned_cols_path)
 
 
-    def load_all_column_names(self) -> None:
+    def load_all_columns(self) -> None:
         """ 載入 Report Column Names """
 
         attr_map: Dict[FinancialStatementType, str] = {
