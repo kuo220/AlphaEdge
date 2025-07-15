@@ -264,9 +264,9 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
     def get_all_report_columns(
         self,
-        start_year: int,
-        end_year: int,
-        seasons: List[int] = [1, 2, 3, 4],
+        start_year: int=102,
+        end_year: int=114,
+        seasons: List[int]=[1, 2, 3, 4],
         stock_code: str="2330",
         report_type: FinancialStatementType=FinancialStatementType.BALANCE_SHEET
     ) -> List[str]:
@@ -294,11 +294,12 @@ class FinancialStatementCrawler(BaseDataCrawler):
         for df in all_df_list:
             all_columns.update(df.columns)  # 將所有欄位名稱加入 set（自動去除重複）
 
-        # Save all columns list as .json
-        FINANCIAL_STATEMENT_META_DIR_PATH.mkdir(parents=True, exist_ok=True)
-        file_name = FINANCIAL_STATEMENT_META_DIR_PATH / f"{report_type.value.lower()}_all_columns.json"
+        # Save all columns list as .json in pipeline/downloads/meta/financial_statement
+        dir_path: Path = FINANCIAL_STATEMENT_META_DIR_PATH / report_type.lower()
+        dir_path.mkdir(parents=True, exist_ok=True)
 
-        with open(file_name, "w", encoding=FileEncoding.UTF8.value) as f:
+        file_path: Path = dir_path / f"{report_type.lower()}_all_columns.json"
+        with open(file_path, "w", encoding=FileEncoding.UTF8.value) as f:
             json.dump(list(all_columns), f, ensure_ascii=False, indent=2)
 
         return list(all_columns)
