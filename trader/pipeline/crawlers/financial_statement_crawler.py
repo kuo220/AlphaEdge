@@ -264,13 +264,18 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
     def get_all_report_columns(
         self,
-        start_year: int,
-        end_year: int,
-        seasons: List[int] = [1, 2, 3, 4],
+        start_year: int=2013,
+        end_year: int=2025,
+        seasons: List[int]=[1, 2, 3, 4],
         stock_code: str="2330",
         report_type: FinancialStatementType=FinancialStatementType.BALANCE_SHEET
     ) -> List[str]:
         """ 取得所有財報的 Columns Name """
+        """
+        目前能爬取的資料區間
+        上市: 民國 102 (2013) 年 ~ present
+        上櫃: 民國 102 (2013) 年 ~ present
+        """
 
         year_list: List[int] = list(range(start_year, end_year + 1))
         all_df_list: List[pd.DataFrame] = []
@@ -294,11 +299,12 @@ class FinancialStatementCrawler(BaseDataCrawler):
         for df in all_df_list:
             all_columns.update(df.columns)  # 將所有欄位名稱加入 set（自動去除重複）
 
-        # Save all columns list as .json
-        FINANCIAL_STATEMENT_META_DIR_PATH.mkdir(parents=True, exist_ok=True)
-        output_file = FINANCIAL_STATEMENT_META_DIR_PATH / f"{report_type.value.lower()}_columns.json"
+        # Save all columns list as .json in pipeline/downloads/meta/financial_statement
+        dir_path: Path = FINANCIAL_STATEMENT_META_DIR_PATH / report_type.lower()
+        dir_path.mkdir(parents=True, exist_ok=True)
 
-        with open(output_file, "w", encoding=FileEncoding.UTF8.value) as f:
+        file_path: Path = dir_path / f"{report_type.lower()}_all_columns.json"
+        with open(file_path, "w", encoding=FileEncoding.UTF8.value) as f:
             json.dump(list(all_columns), f, ensure_ascii=False, indent=2)
 
         return list(all_columns)

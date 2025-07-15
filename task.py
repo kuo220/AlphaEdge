@@ -63,8 +63,6 @@ if __name__ == "__main__":
     fs_crawler: FinancialStatementCrawler = FinancialStatementCrawler()
     fs_cleaner: FinancialStatementCleaner = FinancialStatementCleaner()
 
-    print("* Start Crawling Report's Columns")
-
     start_year: int = start_date.year
     end_year: int = end_date.year
     report_type = FinancialStatementType.BALANCE_SHEET
@@ -73,14 +71,14 @@ if __name__ == "__main__":
     #     if report_type == FinancialStatementType.EQUITY_CHANGE:
     #         continue
 
-    # cols: List[str] = fs_crawler.get_all_report_columns(
-    #     start_year,
-    #     end_year,
-    #     report_type=report_type
-    # )
+    cols: List[str] = fs_crawler.get_all_report_columns(
+        start_year,
+        end_year,
+        report_type=report_type
+    )
 
-    # print(cols)
+    print(cols)
 
-    for year in range(start_date.year, end_date.year):
-        df = fs_crawler.crawl_balance_sheet(year, season)
-        df = fs_cleaner.clean_balance_sheet(df, year, season)
+    # for year in range(start_date.year, end_date.year):
+    #     df = fs_crawler.crawl_balance_sheet(year, season)
+    #     df = fs_cleaner.clean_balance_sheet(df, year, season)
