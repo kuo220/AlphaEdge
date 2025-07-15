@@ -120,7 +120,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
                     balance_sheet_url,
                     data=self.payload.convert_to_clean_dict()
                 )
-                logger.info(f"{market_type} Balance Sheet URL: {balance_sheet_url}")
+                logger.info(f"{market_type} {year}Q{season} Balance Sheet URL: {balance_sheet_url}")
             except Exception as e:
                 logger.info(f"* WARN: Cannot get balance sheet at {year}Q{season}")
                 logger.info(e)
@@ -164,7 +164,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
                     income_url,
                     data=self.payload.convert_to_clean_dict()
                 )
-                logger.info(f"{market_type} Statement of Comprehensive Income URL: {income_url}")
+                logger.info(f"{market_type} {year}Q{season} Statement of Comprehensive Income URL: {income_url}")
             except Exception as e:
                 logger.info(f"* WARN: Cannot get statement of comprehensive income at {year}Q{season}")
 
@@ -207,7 +207,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
                     cash_flow_url,
                     data=self.payload.convert_to_clean_dict()
                 )
-                logger.info(f"{market_type} Statement of Cash Flow URL: {cash_flow_url}")
+                logger.info(f"{market_type} {year}Q{season} Statement of Cash Flow URL: {cash_flow_url}")
             except Exception as e:
                 logger.info(f"* WARN: Cannot get cash flow statement at {year}Q{season}")
 
@@ -249,7 +249,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
                 equity_changes_url,
                 data=self.payload.convert_to_clean_dict()
             )
-            logger.info(f"{equity_changes_url} Statement of Equity Changes URL: {equity_changes_url}")
+            logger.info(f"{equity_changes_url} {year}Q{season} Statement of Equity Changes URL: {equity_changes_url}")
         except Exception as e:
             logger.info(f"* WARN: Cannot get equity changes statement at {year}Q{season}")
 
@@ -279,8 +279,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         """
 
         year_list: List[int] = list(range(start_year, end_year + 1))
-        all_df_list: List[pd.DataFrame] = []
-        all_columns: Set[str] = set()
+        all_columns: List[str] = []
 
         for year in year_list:
             for season in seasons:
@@ -292,19 +291,22 @@ class FinancialStatementCrawler(BaseDataCrawler):
                     df_list: Optional[List[pd.DataFrame]] = self.crawl_cash_flow(year, season)
                 elif report_type == FinancialStatementType.EQUITY_CHANGE:
                     df_list: Optional[List[pd.DataFrame]] = self.crawl_equity_changes(year, season, stock_code)
+                else:
+                    df_list: Optional[List[pd.DataFrame]] = None
 
-                if df_list is not None:
-                    all_df_list.extend(df_list)
+                if df_list:
+                    for df in df_list:
+                        all_columns.extend(df.columns)
             time.sleep(random.uniform(1, 3))
 
-        for df in all_df_list:
-            all_columns.update(df.columns)  # 將所有欄位名稱加入 set（自動去除重複）
+        # 去除重複欄位並保留順序
+        unique_columns: List[str] = list(dict.fromkeys(all_columns))
 
         # Save all columns list as .json in pipeline/downloads/meta/financial_statement
         dir_path: Path = FINANCIAL_STATEMENT_META_DIR_PATH / report_type.lower()
         dir_path.mkdir(parents=True, exist_ok=True)
 
         file_path: Path = dir_path / f"{report_type.lower()}_all_columns.json"
-        DataUtils.save_json(data=list(all_columns), file_path=file_path)
+        DataUtils.save_json(data=unique_columns, file_path=file_path)
 
-        return list(all_columns)
+        return unique_columns
