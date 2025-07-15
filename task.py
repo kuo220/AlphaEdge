@@ -65,7 +65,7 @@ if __name__ == "__main__":
 
     start_year: int = start_date.year
     end_year: int = end_date.year
-    report_type = FinancialStatementType.BALANCE_SHEET
+    report_type = FinancialStatementType.COMPREHENSIVE_INCOME
 
     # for report_type in FinancialStatementType:
     #     if report_type == FinancialStatementType.EQUITY_CHANGE:

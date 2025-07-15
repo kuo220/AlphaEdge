@@ -10,6 +10,7 @@ from trader.pipeline.crawlers.base import BaseDataCrawler
 from trader.pipeline.crawlers.utils.request_utils import RequestUtils
 from trader.pipeline.utils.url_manager import URLManager
 from trader.pipeline.utils.data_utils import DataUtils
+from trader.utils import TimeUtils
 
 
 """
@@ -45,8 +46,8 @@ class StockChipCrawler(BaseDataCrawler):
     def crawl_twse_chip(self, date: datetime.date) -> Optional[pd.DataFrame]:
         """ TWSE 三大法人單日爬蟲 """
 
-        date_str: str = DataUtils.format_date(date)
-        readable_date: str = DataUtils.format_date(date, sep="/")
+        date_str: str = TimeUtils.format_date(date)
+        readable_date: str = TimeUtils.format_date(date, sep="/")
         print("* Start crawling TWSE institutional investors data...")
         print(readable_date)
 
@@ -69,7 +70,7 @@ class StockChipCrawler(BaseDataCrawler):
     def crawl_tpex_chip(self, date: datetime.date) -> Optional[pd.DataFrame]:
         """ TPEX 三大法人單日爬蟲 """
 
-        date_str: str = DataUtils.format_date(date, sep="/")
+        date_str: str = TimeUtils.format_date(date, sep="/")
         print("* Start crawling TPEX institutional investors data...")
         print(date_str)
 
