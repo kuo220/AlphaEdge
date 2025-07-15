@@ -4,7 +4,18 @@ from .time import TimeUtils
 from .order import OrderUtils
 from .callback import Callback
 from .instrument import StockUtils
-from .constant import (Action, OrderType, StockPriceType, QuoteType,
-                       StockOrderLot, OrderState, Status, Commission,
-                       Market, Scale, PositionType, Units)
+from .constant import (
+    Action,
+    OrderType,
+    StockPriceType,
+    QuoteType,
+    StockOrderLot,
+    OrderState,
+    Status,
+    Commission,
+    Market,
+    Scale,
+    PositionType,
+    Units
+)
 from .decorators import log_thread

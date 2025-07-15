@@ -18,6 +18,7 @@ from trader.pipeline.utils import (
     FileEncoding
 )
 from trader.pipeline.utils.data_utils import DataUtils
+from trader.utils import TimeUtils
 from trader.config import (
     FINANCIAL_STATEMENT_PATH,
     DOWNLOADS_METADATA_DIR_PATH,
@@ -103,7 +104,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         上櫃: 民國 82 (1993) 年 ~ present
         """
 
-        roc_year: str = DataUtils.convert_ad_to_roc_year(year)
+        roc_year: str = TimeUtils.convert_ad_to_roc_year(year)
 
         self.payload.year = roc_year
         self.payload.season = season
@@ -147,7 +148,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         上櫃: 民國 82 (1993) 年 ~ present
         """
 
-        roc_year: str = DataUtils.convert_ad_to_roc_year(year)
+        roc_year: str = TimeUtils.convert_ad_to_roc_year(year)
 
         self.payload.year = roc_year
         self.payload.season = season
@@ -190,7 +191,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         上櫃: 民國 102 (2013) 年 ~ present
         """
 
-        roc_year: str = DataUtils.convert_ad_to_roc_year(year)
+        roc_year: str = TimeUtils.convert_ad_to_roc_year(year)
 
         self.payload.year = roc_year
         self.payload.season = season
@@ -234,7 +235,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         上櫃: 民國 102 (2013) 年 ~ present
         """
 
-        roc_year: str = DataUtils.convert_ad_to_roc_year(year)
+        roc_year: str = TimeUtils.convert_ad_to_roc_year(year)
 
         self.payload.TYPEK = None
         self.payload.co_id = stock_code
@@ -304,7 +305,6 @@ class FinancialStatementCrawler(BaseDataCrawler):
         dir_path.mkdir(parents=True, exist_ok=True)
 
         file_path: Path = dir_path / f"{report_type.lower()}_all_columns.json"
-        with open(file_path, "w", encoding=FileEncoding.UTF8.value) as f:
-            json.dump(list(all_columns), f, ensure_ascii=False, indent=2)
+        DataUtils.save_json(data=list(all_columns), file_path=file_path)
 
         return list(all_columns)

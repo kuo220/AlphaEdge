@@ -5,6 +5,7 @@ import pandas as pd
 
 from trader.pipeline.cleaners.base import BaseDataCleaner
 from trader.pipeline.utils.data_utils import DataUtils
+from trader.utils import TimeUtils
 from trader.config import CHIP_DOWNLOADS_PATH
 
 
@@ -94,7 +95,7 @@ class StockChipCleaner(BaseDataCleaner):
 
         df = DataUtils.remove_redundant_col(df, '三大法人買賣超股數')
         df = DataUtils.fill_nan(df, 0)
-        df.to_csv(self.chip_dir / f"twse_{DataUtils.format_date(date)}.csv", index=False)
+        df.to_csv(self.chip_dir / f"twse_{TimeUtils.format_date(date)}.csv", index=False)
 
         return df
 
@@ -176,6 +177,6 @@ class StockChipCleaner(BaseDataCleaner):
         DataUtils.move_col(df, "自營商買賣超股數", "自營商買賣超股數_避險")
         df = DataUtils.remove_redundant_col(df, '三大法人買賣超股數')
         df = DataUtils.fill_nan(df, 0)
-        df.to_csv(self.chip_dir / f"tpex_{DataUtils.format_date(date)}.csv", index=False)
+        df.to_csv(self.chip_dir / f"tpex_{TimeUtils.format_date(date)}.csv", index=False)
 
         return df

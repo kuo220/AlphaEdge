@@ -114,8 +114,8 @@ class FinancialStatementCleaner(BaseDataCleaner):
         # Step 1: 載入已清洗欄位，若未成功則執行清洗流程
         if not self.balance_sheet_cleaned_cols:
             self.load_balance_sheet_cleaned_columns()
-        if not self.balance_sheet_cleaned_cols:
-            self.clean_balance_sheet_columns()
+            if not self.balance_sheet_cleaned_cols:
+                self.clean_balance_sheet_columns()
 
         # Step 2: 清理 df_list 欄位名稱
         # 建立涵蓋所有 columns 的 df
@@ -216,8 +216,10 @@ class FinancialStatementCleaner(BaseDataCleaner):
         self.balance_sheet_cleaned_cols = list(dict.fromkeys(self.balance_sheet_cleaned_cols))
 
         # 儲存清洗後結果
-        with open(self.balance_sheet_cleaned_cols_path, "w", encoding=FileEncoding.UTF8.value) as f:
-            json.dump(self.balance_sheet_cleaned_cols, f, ensure_ascii=False, indent=2)
+        DataUtils.save_json(
+            data=self.balance_sheet_cleaned_cols,
+            file_path=self.balance_sheet_cleaned_cols_path
+        )
         logger.info("已儲存清洗後欄位名稱: balance_sheet_columns_cleaned.json")
 
 
@@ -225,11 +227,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
         """ 載入已清洗過的 Balance Sheet Columns """
 
         if self.balance_sheet_cleaned_cols_path.exists():
-            try:
-                with open(self.balance_sheet_cleaned_cols_path, "r", encoding=FileEncoding.UTF8.value) as f:
-                    self.balance_sheet_cleaned_cols = json.load(f)
-            except json.JSONDecodeError:
-                logger.warning("Balance Sheet Cleaned Columns Doesn't Exists!")
+            self.balance_sheet_cleaned_cols = DataUtils.load_json(file_path=self.balance_sheet_cleaned_cols_path)
 
 
     def load_all_column_names(self) -> None:
@@ -253,14 +251,10 @@ class FinancialStatementCleaner(BaseDataCleaner):
                 logger.warning(f"Metadata file not found: {file_path}")
                 continue
 
-            try:
-                with open(file_path, "r", encoding=FileEncoding.UTF8.value) as f:
-                    cols: List[str] = json.load(f)
+            cols: List[str] = DataUtils.load_json(file_path=file_path)
 
-                if hasattr(self, attr_name):
-                    setattr(self, attr_name, cols)
-            except json.JSONDecodeError:
-                logger.error(f"JSON 格式錯誤: {file_path}")
+            if hasattr(self, attr_name):
+                setattr(self, attr_name, cols)
 
 
     def load_column_maps(self) -> None:
@@ -284,14 +278,10 @@ class FinancialStatementCleaner(BaseDataCleaner):
                 logger.warning(f"Metadata file not found: {file_path}")
                 continue
 
-            try:
-                with open(file_path, "r", encoding=FileEncoding.UTF8.value) as f:
-                    col_map: Dict[str, List[str]] = json.load(f)
+            col_map: Dict[str, List[str]] = DataUtils.load_json(file_path=file_path)
 
-                if hasattr(self, attr_name):
-                    setattr(self, attr_name, col_map)
-            except json.JSONDecodeError:
-                logger.error(f"JSON 格式錯誤: {file_path}")
+            if hasattr(self, attr_name):
+                setattr(self, attr_name, col_map)
 
 
     def clean_column_name(self, word: str) -> str:

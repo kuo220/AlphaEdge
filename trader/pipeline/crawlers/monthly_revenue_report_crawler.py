@@ -14,6 +14,7 @@ from trader.pipeline.utils import (
     FileEncoding
 )
 from trader.pipeline.utils.data_utils import DataUtils
+from trader.utils import TimeUtils
 from trader.config import MONTHLY_REVENUE_REPORT_PATH
 
 
@@ -54,7 +55,7 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
         for market_type in self.twse_market_types:
             url: str = URLManager.get_url(
                 "TWSE_MONTHLY_REVENUE_REPORT_URL",
-                roc_year=DataUtils.convert_ad_to_roc_year(date.year),
+                roc_year=TimeUtils.convert_ad_to_roc_year(date.year),
                 month=date.month,
                 market_type=market_type.value
             )
@@ -81,7 +82,7 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
         for market_type in self.tpex_market_types:
             url: str = URLManager.get_url(
                 "TPEX_MONTHLY_REVENUE_REPORT_URL",
-                roc_year=DataUtils.convert_ad_to_roc_year(date.year),
+                roc_year=TimeUtils.convert_ad_to_roc_year(date.year),
                 month=date.month,
                 market_type=market_type.value
             )

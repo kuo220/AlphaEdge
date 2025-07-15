@@ -1,7 +1,11 @@
 import datetime
-from typing import List, Optional
+import json
 import pandas as pd
-from dateutil.rrule import DAILY, MONTHLY, rrule
+from loguru import logger
+from pathlib import Path
+from typing import List, Optional, Any
+
+from trader.pipeline.utils import FileEncoding
 
 
 class DataUtils:
@@ -36,29 +40,6 @@ class DataUtils:
 
 
     @staticmethod
-    def convert_ad_to_roc_year(year: int | str) -> str:
-        """ 將西元年轉換成民國年 """
-
-        try:
-            year_int = int(year)
-            if year_int < 1912:
-                raise ValueError("民國元年從 1912 年開始，請輸入有效的西元年份")
-            return str(year_int - 1911)
-        except (ValueError, TypeError):
-            raise ValueError(f"無效的年份輸入：{year}")
-
-
-    @staticmethod
-    def convert_roc_to_ad_year(year: int | str) -> str:
-        """ 將民國年轉為西元年 """
-
-        try:
-            return int(year) + 1911
-        except (ValueError, TypeError):
-            raise ValueError(f"無效的年份輸入：{year}")
-
-
-    @staticmethod
     def pad2(n: int | str) -> str:
         """ 將數字補足為兩位數字字串 """
         return str(n).zfill(2)
@@ -71,24 +52,6 @@ class DataUtils:
         if df.isnull().values.any():
             df.fillna(value, inplace=True)
         return df
-
-
-    @staticmethod
-    def generate_date_range(start_date: datetime.date, end_date: datetime.date) -> List[datetime.date]:
-        """ 產生從 start_date 到 end_date 的每日日期清單 """
-        return [dt.date() for dt in rrule(DAILY, dtstart=start_date, until=end_date)]
-
-
-    @staticmethod
-    def generate_month_range(start_date: datetime.date, end_date: datetime.date) -> List[datetime.date]:
-        """ 產生從 start_date 到 end_date 的每月清單（取每月的起始日） """
-        return [dt.date() for dt in rrule(MONTHLY, dtstart=start_date, until=end_date)]
-
-
-    @staticmethod
-    def format_date(date: datetime.date, sep: str="") -> str:
-        """ Format date as 'YYYY{sep}MM{sep}DD' """
-        return date.strftime(f"%Y{sep}%m{sep}%d")
 
 
     @staticmethod
@@ -202,3 +165,59 @@ class DataUtils:
             new_items.append(norm_item)
 
         return new_items
+
+
+    @staticmethod
+    def save_json(
+        data: Any,
+        file_path: Path,
+        encoding: str=FileEncoding.UTF8.value,
+        ensure_ascii: bool=False,
+        indent: int=2
+    ) -> None:
+        """
+        - Description:
+            將資料儲存成 JSON 檔案
+
+        - Parameters:
+            - data: Any
+                要儲存的 Python 資料結構（如 dict 或 list）
+            - file_path: Path
+                儲存檔案的完整路徑
+            - encoding: str
+                檔案編碼（預設為 utf-8）
+            - ensure_ascii: bool
+                是否轉成 ASCII 編碼（預設 False，可保留中文）
+            - indent: int
+                JSON 排版的縮排層級（預設為 2）
+        """
+
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(file_path, "w", encoding=encoding) as f:
+            json.dump(data, f, ensure_ascii=ensure_ascii, indent=indent)
+
+
+    @staticmethod
+    def load_json(
+        file_path: Path,
+        encoding: str=FileEncoding.UTF8.value
+    ) -> Any:
+        """
+        - Description:
+            從指定 JSON 檔案讀取資料。
+
+        - Parameters:
+            - file_path: Path
+                JSON 檔案的完整路徑
+            - encoding: str
+                檔案編碼（預設為 utf-8）
+
+        - Returns: Any
+            從 JSON 載入的 Python 資料（通常為 dict 或 list）
+        """
+
+        try:
+            with open(file_path, "r", encoding=encoding) as f:
+                return json.load(f)
+        except json.JSONEncoder:
+            logger.error(f"JSON 格式錯誤: {file_path}")
