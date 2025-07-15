@@ -43,7 +43,12 @@ class StockPriceCrawler(BaseDataCrawler):
         1. 2004/2/11 ~ present
         """
 
-        url: str = URLManager.get_url("TWSE_CLOSING_QUOTE_URL", date=date)
+        url: str = URLManager.get_url(
+            "TWSE_CLOSING_QUOTE_URL",
+            year=date.year,
+            month=DataUtils.pad2(date.month),
+            day=DataUtils.pad2(date.day)
+        )
 
         try:
             res: Optional[requests.Response] = RequestUtils.requests_get(url)

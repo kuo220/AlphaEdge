@@ -72,9 +72,15 @@ class StockTickCleaner(BaseDataCleaner):
         df.rename(columns={'ts': 'time'}, inplace=True)
         df['stock_id'] = stock_id
         new_columns_order: List[str] = [
-            'stock_id','time', 'close',
-            'volume', 'bid_price', 'bid_volume',
-            'ask_price', 'ask_volume', 'tick_type'
+            'stock_id',
+            'time',
+            'close',
+            'volume',
+            'bid_price',
+            'bid_volume',
+            'ask_price',
+            'ask_volume',
+            'tick_type'
         ]
         df = df[new_columns_order]
 

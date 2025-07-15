@@ -30,27 +30,55 @@ class FinancialStatementCleaner(BaseDataCleaner):
         self.comprehensive_income_cleaned_cols: List[str] = []
         self.cash_flow_cols: List[str] = []
         self.cash_flow_cleaned_cols: List[str] = []
-        self.equity_changes_cols: List[str] = []
-        self.equity_changes_cleaned_cols: List[str] = []
+        self.equity_change_cols: List[str] = []
+        self.equity_change_cleaned_cols: List[str] = []
 
         # Column mapping for each report type
-        self.balance_sheet_column_map: Dict[str, List[str]] = {}
-        self.comprehensive_income_map: Dict[str, List[str]] = {}
-        self.cash_flow_map: Dict[str, List[str]] = {}
-        self.equity_changes_map: Dict[str, List[str]] = {}
+        self.balance_sheet_col_map: Dict[str, List[str]] = {}
+        self.comprehensive_income_col_map: Dict[str, List[str]] = {}
+        self.cash_flow_col_map: Dict[str, List[str]] = {}
+        self.equity_change_col_map: Dict[str, List[str]] = {}
 
         # Reports Cleaned Columns Path
-        self.balance_sheet_cleaned_cols_path: Path = FINANCIAL_STATEMENT_META_DIR_PATH / "balance_sheet_cleaned_columns.json"
-        self.comprehensive_income_cols_path: Path = FINANCIAL_STATEMENT_META_DIR_PATH / "comprehensive_sheet_cleaned_columns.json"
-        self.cash_flow_cleaned_cols: Path = FINANCIAL_STATEMENT_META_DIR_PATH / "cash_flow_cleaned_columns.json"
-        self.equity_changes_cleaned_cols: Path = FINANCIAL_STATEMENT_META_DIR_PATH / "equity_changes_cleaned_columns.json"
+        self.balance_sheet_cleaned_cols_path: Path = (
+            FINANCIAL_STATEMENT_META_DIR_PATH
+            / FinancialStatementType.BALANCE_SHEET.lower()
+            / f"{FinancialStatementType.BALANCE_SHEET.lower()}_cleaned_columns.json"
+        )
+        self.comprehensive_income_cols_path: Path = (
+            FINANCIAL_STATEMENT_META_DIR_PATH
+            / FinancialStatementType.COMPREHENSIVE_INCOME.lower()
+            / f"{FinancialStatementType.COMPREHENSIVE_INCOME.lower()}_cleaned_columns.json"
+        )
+        self.cash_flow_cleaned_cols: Path = (
+            FINANCIAL_STATEMENT_META_DIR_PATH
+            / FinancialStatementType.CASH_FLOW.lower()
+            / f"{FinancialStatementType.CASH_FLOW.lower()}_cleaned_columns.json"
+        )
+        self.equity_change_cleaned_cols: Path = (
+            FINANCIAL_STATEMENT_META_DIR_PATH
+            / FinancialStatementType.EQUITY_CHANGE.lower()
+            / f"{FinancialStatementType.EQUITY_CHANGE.lower()}_cleaned_columns.json"
+        )
 
         # Output directories for each report
         self.fs_dir: Path = FINANCIAL_STATEMENT_PATH
-        self.balance_sheet_dir: Path = self.fs_dir / "balance_sheet"
-        self.comprehensive_income_dir: Path = self.fs_dir / "comprehensive_income"
-        self.cash_flow_dir: Path = self.fs_dir / "cash_flow"
-        self.equity_changes_dir: Path = self.fs_dir / "equity_changes"
+        self.balance_sheet_dir: Path = (
+            self.fs_dir
+            / FinancialStatementType.BALANCE_SHEET.lower()
+        )
+        self.comprehensive_income_dir: Path = (
+            self.fs_dir
+            / FinancialStatementType.COMPREHENSIVE_INCOME.lower()
+        )
+        self.cash_flow_dir: Path = (
+            self.fs_dir
+            / FinancialStatementType.CASH_FLOW.lower()
+        )
+        self.equity_change_dir: Path = (
+            self.fs_dir
+            / FinancialStatementType.EQUITY_CHANGE.lower()
+        )
 
         self.setup()
 
@@ -63,10 +91,10 @@ class FinancialStatementCleaner(BaseDataCleaner):
         self.balance_sheet_dir.mkdir(parents=True, exist_ok=True)
         self.comprehensive_income_dir.mkdir(parents=True, exist_ok=True)
         self.cash_flow_dir.mkdir(parents=True, exist_ok=True)
-        self.equity_changes_dir.mkdir(parents=True, exist_ok=True)
+        self.equity_change_dir.mkdir(parents=True, exist_ok=True)
 
         # Load Report Column Names & Map
-        self.load_column_names()
+        self.load_all_column_names()
         self.load_column_maps()
 
 
@@ -76,7 +104,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
         year: int,
         season: int
     ) -> pd.DataFrame:
-        """ Cleaner Balance Sheet (資產負債表) """
+        """ Clean Balance Sheet (資產負債表) """
         """
         資料區間（但是只有 102 年以後才可以爬）
         上市: 民國 78 (1989) 年 ~ present
@@ -101,7 +129,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
             cleaned_cols = [
                 self.map_column_name(
                     self.clean_column_name(col),
-                    self.balance_sheet_column_map
+                    self.balance_sheet_col_map
                 )
                 for col in df.columns
             ]
@@ -113,12 +141,17 @@ class FinancialStatementCleaner(BaseDataCleaner):
 
             # 對齊欄位並補上欄位
             aligned_df: pd.DataFrame = df.reindex(columns=new_df.columns)
-            aligned_df["年度"] = year
-            aligned_df["季度"] = season
+            aligned_df["year"] = year
+            aligned_df["season"] = season
             appended_df_list.append(aligned_df)
 
-        new_df = pd.concat(appended_df_list, ignore_index=True)
-        new_df = DataUtils.convert_col_to_numeric(new_df, ["公司代號", "公司名稱"])
+        new_df = (
+            pd.concat(appended_df_list, ignore_index=True)
+            .astype(str)
+            .rename(columns={"公司代號": "股票代號"})
+            .pipe(DataUtils.convert_col_to_numeric, exclude_cols=["股票代號", "公司名稱"])
+        )
+
         new_df.to_csv(
             self.balance_sheet_dir / f"balance_sheet_{year}Q{season}.csv",
             index=False,
@@ -128,13 +161,43 @@ class FinancialStatementCleaner(BaseDataCleaner):
         return new_df
 
 
+    def clean_comprehensive_income(self) -> pd.DataFrame:
+        """ Clean Statement of Comprehensive Income (綜合損益表) """
+        """
+        資料區間（但是只有 102 年以後才可以爬）
+        上市: 民國 77 (1988) 年 ~ present
+        上櫃: 民國 82 (1993) 年 ~ present
+        """
+        pass
+
+
+    def clean_cash_flow(self) -> pd.DataFrame:
+        """ Clean Cash flow Statement (現金流量表) """
+        """
+        資料區間
+        上市: 民國 102 (2013) 年 ~ present
+        上櫃: 民國 102 (2013) 年 ~ present
+        """
+        pass
+
+
+    def clean_equity_changes(self) -> pd.DataFrame:
+        """ Clean Statement of Changes in Equity (權益變動表) """
+        """
+        資料區間
+        上市: 民國 102 (2013) 年 ~ present
+        上櫃: 民國 102 (2013) 年 ~ present
+        """
+        pass
+
+
     def clean_balance_sheet_columns(self) -> None:
         """ 清洗 Balance Sheet Columns """
 
         self.balance_sheet_cleaned_cols = [
             self.map_column_name(
                 self.clean_column_name(col),
-                self.balance_sheet_column_map
+                self.balance_sheet_col_map
             )
             for col in self.balance_sheet_cols
         ]
@@ -146,7 +209,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
         )
 
         # 指定排序
-        front_cols = ["年度", "季度", "公司代號", "公司名稱"]
+        front_cols = ["year", "season", "公司代號", "公司名稱"]
         self.balance_sheet_cleaned_cols = self.reorder_columns(self.balance_sheet_cleaned_cols, front_cols)
 
         # 去除重複欄位
@@ -166,61 +229,69 @@ class FinancialStatementCleaner(BaseDataCleaner):
                 with open(self.balance_sheet_cleaned_cols_path, "r", encoding=FileEncoding.UTF8.value) as f:
                     self.balance_sheet_cleaned_cols = json.load(f)
             except json.JSONDecodeError:
-                logger.warning("Balance Sheet Columns Cache Doesn't Exists!")
+                logger.warning("Balance Sheet Cleaned Columns Doesn't Exists!")
 
 
-    def load_column_names(self) -> None:
+    def load_all_column_names(self) -> None:
         """ 載入 Report Column Names """
 
         attr_map: Dict[FinancialStatementType, str] = {
-            FinancialStatementType.BALANCE_SHEET: "balance_sheet_cols",
-            FinancialStatementType.COMPREHENSIVE_INCOME: "comprehensive_income_cols",
-            FinancialStatementType.CASH_FLOW: "cash_flow_cols",
-            FinancialStatementType.EQUITY_CHANGE: "equity_changes_cols",
+            FinancialStatementType.BALANCE_SHEET: f"{FinancialStatementType.BALANCE_SHEET.lower()}_cols",
+            FinancialStatementType.COMPREHENSIVE_INCOME: f"{FinancialStatementType.COMPREHENSIVE_INCOME.lower()}_cols",
+            FinancialStatementType.CASH_FLOW: f"{FinancialStatementType.CASH_FLOW.lower()}_cols",
+            FinancialStatementType.EQUITY_CHANGE: f"{FinancialStatementType.EQUITY_CHANGE.lower()}_cols",
         }
 
         for report_type, attr_name in attr_map.items():
-            file_name = FINANCIAL_STATEMENT_META_DIR_PATH / f"{report_type.value.lower()}_columns.json"
+            file_path: Path = (
+                FINANCIAL_STATEMENT_META_DIR_PATH
+                / report_type.lower()
+                / f"{report_type.lower()}_all_columns.json"
+            )
 
-            if not file_name.exists():
-                logger.warning(f"Metadata file not found: {file_name}")
+            if not file_path.exists():
+                logger.warning(f"Metadata file not found: {file_path}")
                 continue
 
             try:
-                with open(file_name, "r", encoding=FileEncoding.UTF8.value) as f:
-                    cols = json.load(f)
+                with open(file_path, "r", encoding=FileEncoding.UTF8.value) as f:
+                    cols: List[str] = json.load(f)
 
                 if hasattr(self, attr_name):
                     setattr(self, attr_name, cols)
             except json.JSONDecodeError:
-                logger.error(f"JSON 格式錯誤: {file_name}")
+                logger.error(f"JSON 格式錯誤: {file_path}")
 
 
     def load_column_maps(self) -> None:
         """ 載入 Report Column Maps """
 
         attr_map: Dict[FinancialStatementType, str] = {
-            FinancialStatementType.BALANCE_SHEET: "balance_sheet_column_map",
-            FinancialStatementType.COMPREHENSIVE_INCOME: "comprehensive_income_column_map",
-            FinancialStatementType.CASH_FLOW: "cash_flow_column_map",
-            FinancialStatementType.EQUITY_CHANGE: "equity_changes_column_map",
+            FinancialStatementType.BALANCE_SHEET: f"{FinancialStatementType.BALANCE_SHEET.lower()}_col_map",
+            FinancialStatementType.COMPREHENSIVE_INCOME: f"{FinancialStatementType.COMPREHENSIVE_INCOME.lower()}_col_map",
+            FinancialStatementType.CASH_FLOW: f"{FinancialStatementType.CASH_FLOW.lower()}_col_map",
+            FinancialStatementType.EQUITY_CHANGE: f"{FinancialStatementType.EQUITY_CHANGE.lower()}_col_map",
         }
 
         for report_type, attr_name in attr_map.items():
-            file_name = FINANCIAL_STATEMENT_META_DIR_PATH / f"{report_type.value.lower()}_column_map.json"
+            file_path: Path = (
+                FINANCIAL_STATEMENT_META_DIR_PATH
+                / report_type.lower()
+                / f"{report_type.lower()}_column_map.json"
+            )
 
-            if not file_name.exists():
-                logger.warning(f"Metadata file not found: {file_name}")
+            if not file_path.exists():
+                logger.warning(f"Metadata file not found: {file_path}")
                 continue
 
             try:
-                with open(file_name, "r", encoding=FileEncoding.UTF8.value) as f:
-                    col_map = json.load(f)
+                with open(file_path, "r", encoding=FileEncoding.UTF8.value) as f:
+                    col_map: Dict[str, List[str]] = json.load(f)
 
                 if hasattr(self, attr_name):
                     setattr(self, attr_name, col_map)
             except json.JSONDecodeError:
-                logger.error(f"JSON 格式錯誤: {file_name}")
+                logger.error(f"JSON 格式錯誤: {file_path}")
 
 
     def clean_column_name(self, word: str) -> str:
@@ -250,7 +321,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
     ) -> List[str]:
         """ 將指定欄位移到最前面，其餘保持原順序 """
 
-        tail_columns = [col for col in all_columns if col not in front_columns]
+        tail_columns: List[str] = [col for col in all_columns if col not in front_columns]
         return front_columns + tail_columns
 
 
