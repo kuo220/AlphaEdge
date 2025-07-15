@@ -219,5 +219,9 @@ class DataUtils:
         try:
             with open(file_path, "r", encoding=encoding) as f:
                 return json.load(f)
-        except json.JSONEncoder:
+        except FileNotFoundError:
+            logger.error(f"找不到檔案: {file_path}")
+            return None
+        except json.JSONDecodeError:
             logger.error(f"JSON 格式錯誤: {file_path}")
+            return None
