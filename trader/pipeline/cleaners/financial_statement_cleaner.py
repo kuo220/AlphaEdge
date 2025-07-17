@@ -100,14 +100,15 @@ class FinancialStatementCleaner(BaseDataCleaner):
                 report_type=FinancialStatementType.BALANCE_SHEET
             )
             if not self.balance_sheet_cleaned_cols:
-                self.clean_report_column_names(
+                self.balance_sheet_cleaned_cols = self.clean_report_column_names(
                     raw_cols=self.balance_sheet_cols,
                     col_map=self.balance_sheet_col_map,
                     front_cols=["year", "season", "公司代號", "公司名稱"],
                     save_path=self.balance_sheet_cleaned_cols_path,
                 )
 
-        # Step 2: 清理 df_list 欄位名稱 & 建立涵蓋所有 columns 的 df
+        # Step 2: 清理 df_list 欄位名稱
+        # 建立涵蓋所有 columns 的 df
         new_df: pd.DataFrame = pd.DataFrame(columns=self.balance_sheet_cleaned_cols)
         # 篩掉沒有 "公司名稱" 的 df
         required_cols: List[str] = ["公司名稱"]
@@ -116,11 +117,11 @@ class FinancialStatementCleaner(BaseDataCleaner):
             for df in df_list
             if DataUtils.check_required_columns(df=df, required_cols=required_cols)
         ]
-        appended_df_list: List[pd.DataFrame] = []
 
+        # 清洗 df Column Names
+        appended_df_list: List[pd.DataFrame] = []
         for df in df_list:
-            # 清洗 df Column Names
-            cleaned_cols = [
+            cleaned_cols: List[str] = [
                 self.map_column_name(
                     DataUtils.standardize_column_name(col), self.balance_sheet_col_map
                 )
@@ -168,14 +169,15 @@ class FinancialStatementCleaner(BaseDataCleaner):
                 report_type=FinancialStatementType.COMPREHENSIVE_INCOME
             )
             if not self.comprehensive_income_cleaned_cols:
-                self.clean_report_column_names(
+                self.comprehensive_income_cleaned_cols = self.clean_report_column_names(
                     raw_cols=self.comprehensive_income_cols,
                     col_map=self.comprehensive_income_col_map,
                     front_cols=["year", "season", "公司代號", "公司名稱"],
                     save_path=self.comprehensive_income_cleaned_cols_path,
                 )
 
-        # Step 2: 清理 df_list 欄位名稱 & 建立涵蓋所有 columns 的 df
+        # Step 2: 清理 df_list 欄位名稱
+        # 建立涵蓋所有 columns 的 df
         new_df: pd.DataFrame = pd.DataFrame(
             columns=self.comprehensive_income_cleaned_cols
         )
@@ -186,11 +188,11 @@ class FinancialStatementCleaner(BaseDataCleaner):
             for df in df_list
             if DataUtils.check_required_columns(df=df, required_cols=required_cols)
         ]
-        appended_df_list: List[pd.DataFrame] = []
 
+        # 清洗 df Column Names
+        appended_df_list: List[pd.DataFrame] = []
         for df in df_list:
-            # 清洗 df Column Names
-            cleaned_cols = [
+            cleaned_cols: List[str] = [
                 self.map_column_name(
                     DataUtils.standardize_column_name(col),
                     self.comprehensive_income_col_map,
@@ -236,14 +238,15 @@ class FinancialStatementCleaner(BaseDataCleaner):
         if not self.cash_flow_cleaned_cols:
             self.load_cleaned_column_names(report_type=FinancialStatementType.CASH_FLOW)
             if not self.cash_flow_cleaned_cols:
-                self.clean_report_column_names(
+                self.cash_flow_cleaned_cols = self.clean_report_column_names(
                     raw_cols=self.cash_flow_cols,
                     col_map=self.cash_flow_col_map,
                     front_cols=["year", "season", "公司代號", "公司名稱"],
                     save_path=self.cash_flow_cleaned_cols_path,
                 )
 
-        # Step 2: 清理 df_list 欄位名稱 & 建立涵蓋所有 columns 的 df
+        # Step 2: 清理 df_list 欄位名稱
+        # 建立涵蓋所有 columns 的 df
         new_df: pd.DataFrame = pd.DataFrame(columns=self.cash_flow_cleaned_cols)
         # 篩掉沒有 "公司名稱" 的 df
         required_cols: List[str] = ["公司名稱"]
@@ -252,11 +255,11 @@ class FinancialStatementCleaner(BaseDataCleaner):
             for df in df_list
             if DataUtils.check_required_columns(df=df, required_cols=required_cols)
         ]
-        appended_df_list: List[pd.DataFrame] = []
 
+        # 清洗 df Column Names
+        appended_df_list: List[pd.DataFrame] = []
         for df in df_list:
-            # 清洗 df Column Names
-            cleaned_cols = [
+            cleaned_cols: List[str] = [
                 self.map_column_name(
                     DataUtils.standardize_column_name(col), self.cash_flow_col_map
                 )
