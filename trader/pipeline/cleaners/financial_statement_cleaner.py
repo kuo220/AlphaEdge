@@ -1,4 +1,3 @@
-import re
 import pandas as pd
 from pathlib import Path
 from loguru import logger
@@ -298,6 +297,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
         上市: 民國 102 (2013) 年 ~ present
         上櫃: 民國 102 (2013) 年 ~ present
         """
+        # TODO: 有空再做
         pass
 
     def clean_report_column_names(

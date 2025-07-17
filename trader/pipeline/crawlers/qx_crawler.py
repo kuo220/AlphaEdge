@@ -1017,7 +1017,6 @@ class QuantXCrawler:
             FINANCIAL_REPORT_PATH.mkdir(parents=True, exist_ok=True)
 
         def download_html(year, season, stock_ids, report_type="C"):
-
             headers = {
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3"
                 "Accept-Encoding: gzip, deflate",
@@ -1030,7 +1029,6 @@ class QuantXCrawler:
             }
             pbar = tqdm(stock_ids)
             for i in pbar:
-
                 # check if the html is already parsed
                 file = os.path.join(FINANCIAL_REPORT_PATH, str(i) + ".html")
                 if os.path.exists(file) and os.stat(file).st_size > 20000:
@@ -1235,7 +1233,6 @@ class QuantXCrawler:
         )
 
         for d in progress:
-
             print("crawling", d)
             progress.set_description("crawl" + table_name + str(d))
 
@@ -1289,7 +1286,6 @@ class QuantXCrawler:
         dfs = {}
 
         for d in progress:
-
             print("crawling", d)
 
             # 呼叫crawl_function return df
@@ -1399,7 +1395,6 @@ class FinanceDataHandler:
         return pd.to_datetime(season2date[season - 1].date())
 
     def clean(self, year, season, balance_sheet):
-
         if len(balance_sheet) == 0:
             print("**WARRN: no data to parse")
             return balance_sheet
@@ -1448,7 +1443,6 @@ class FinanceDataHandler:
         )
 
         def neg(s):
-
             if isinstance(s, float):
                 return s
 
@@ -1481,7 +1475,6 @@ class FinanceDataHandler:
         pbar = tqdm(os.listdir(directory))
 
         for i in pbar:
-
             # 將檔案路徑建立好
             file = os.path.join(directory, i)
 
@@ -1583,7 +1576,6 @@ class FinanceDataHandler:
         return ret
 
     def combine(self, d):
-
         tnames = [
             "balance_sheet",
             "cash_flows",
@@ -1615,7 +1607,6 @@ class FinanceDataHandler:
         years = set(tbs["income_sheet_cumulate"].index.levels[1].year)
 
         for y in years:
-
             # get rows of the dataframe that is season 4
             ys = tbs["income_sheet_cumulate"].reset_index("stock_id").index.year == y
             ds4 = tbs["income_sheet_cumulate"].reset_index("stock_id").index.month == 3

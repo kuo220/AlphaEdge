@@ -181,8 +181,8 @@ class StockChipManager(BaseDatabaseManager):
         if SQLiteUtils.check_table_exist(self.conn, CHIP_TABLE_NAME):
             label: widgets.Label = widgets.Label(
                 f"""
-                {CHIP_TABLE_NAME} (from {SQLiteUtils.get_table_earliest_date(self.conn, CHIP_TABLE_NAME, '日期').strftime('%Y-%m-%d')} to
-                {SQLiteUtils.get_table_latest_date(self.conn, CHIP_TABLE_NAME, '日期').strftime('%Y-%m-%d')})
+                {CHIP_TABLE_NAME} (from {SQLiteUtils.get_table_earliest_date(self.conn, CHIP_TABLE_NAME, "日期").strftime("%Y-%m-%d")} to
+                {SQLiteUtils.get_table_latest_date(self.conn, CHIP_TABLE_NAME, "日期").strftime("%Y-%m-%d")})
                 """
             )
         else:

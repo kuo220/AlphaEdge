@@ -31,7 +31,6 @@ class StockTradeRecord:
         realized_pnl: float = 0.0,
         roi: float = 0.0,
     ):
-
         # Basic Info
         self.id: int = id  # 每一筆買入就是一個id
         self.code: str = code  # 股票代號

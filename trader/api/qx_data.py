@@ -13,7 +13,6 @@ class QXData:
     """QuantX Data API"""
 
     def __init__(self, date=datetime.datetime.now().date()):
-
         self.macro_eco_db: List[str] = [
             "tw_total_pmi",
             "tw_total_nmi",
@@ -33,11 +32,9 @@ class QXData:
         # 找到所有的column名稱，對應到的table名稱
         self.col2table = {}
         for tname in table_names:
-
             # 獲取所有column名稱
             c = self.conn.execute("PRAGMA table_info(" + tname + ");")
             for cname in [i[1] for i in list(c)]:
-
                 # 將column名稱對應到的table名稱assign到self.col2table中
                 if cname not in self.col2table:
                     self.col2table[cname] = [tname]
@@ -96,7 +93,6 @@ class QXData:
                     ).sort_index()
 
     def get(self, table, name, n):
-
         # 確認名稱是否存在於資料庫
         if name not in self.col2table or n == 0:
             print("Data: **ERROR: cannot find", name, "in database")
@@ -152,7 +148,6 @@ class QXData:
         return ret
 
     def get_stock_id_date_ohlcva(self, table, names, stock_id, n):
-
         # 確認名稱是否存在於資料庫
         for name in names:
             if name not in self.col2table or n == 0:
@@ -206,7 +201,6 @@ class QXData:
         return ret
 
     def get_stock_id_date_margin_transactions(self, table, stock_id, n):
-
         # 找出欲爬取的時間段（startdate, enddate）
         df = self.dates[table].loc[: self.date].iloc[-n:]
 

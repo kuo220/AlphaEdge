@@ -4,9 +4,8 @@ import pandas as pd
 import requests
 from io import StringIO
 from pathlib import Path
-import json
 from loguru import logger
-from typing import List, Dict, Set, Optional
+from typing import List, Dict, Optional
 
 from trader.pipeline.crawlers.base import BaseDataCrawler
 from trader.pipeline.crawlers.utils.request_utils import RequestUtils
@@ -15,13 +14,11 @@ from trader.pipeline.utils import (
     URLManager,
     MarketType,
     FinancialStatementType,
-    FileEncoding,
 )
 from trader.pipeline.utils.data_utils import DataUtils
 from trader.utils import TimeUtils
 from trader.config import (
     FINANCIAL_STATEMENT_PATH,
-    DOWNLOADS_METADATA_DIR_PATH,
     FINANCIAL_STATEMENT_META_DIR_PATH,
 )
 

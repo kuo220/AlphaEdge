@@ -38,7 +38,6 @@ class MomentumStrategy(BaseStockStrategy):
             return None
 
         for stock_quote in stock_quotes:
-
             # Condition 1: 當日漲 > 9% 的股票
             yesterday: datetime.date = stock_quote.date - datetime.timedelta(days=1)
             self.qx_data.date = yesterday
