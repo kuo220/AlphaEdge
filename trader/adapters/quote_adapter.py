@@ -10,16 +10,9 @@ from trader.models import (
     TickQuote,
     StockQuote,
     StockOrder,
-    StockTradeRecord
+    StockTradeRecord,
 )
-from trader.utils import (
-    StockUtils,
-    Commission,
-    Market,
-    Scale,
-    PositionType,
-    Units
-)
+from trader.utils import StockUtils, Commission, Market, Scale, PositionType, Units
 
 
 class StockQuoteAdapter:
@@ -30,34 +23,32 @@ class StockQuoteAdapter:
     - 適用於回測框架中資料與策略之間的適配轉換
     """
 
-
     @staticmethod
     def convert_to_tick_quotes(data: Tick, date: datetime.date) -> List[StockQuote]:
-        """ 將指定日期的 Tick 資料轉換為 StockQuote 物件列表，用於 Tick 級回測 """
+        """將指定日期的 Tick 資料轉換為 StockQuote 物件列表，用於 Tick 級回測"""
 
         # 一次取一天的 tick 資料，避免資料量太大 RAM 爆掉
         ticks: pd.DataFrame = data.get_ordered_ticks(date, date)
 
         return StockQuoteAdapter.generate_stock_quotes(ticks, date, Scale.TICK)
 
-
     @staticmethod
     def convert_to_day_quotes(data: QXData, date: datetime.date) -> List[StockQuote]:
-        """ 將指定日期的 QXData 日資料轉換為 StockQuote 物件列表，用於日級回測 """
+        """將指定日期的 QXData 日資料轉換為 StockQuote 物件列表，用於日級回測"""
 
         # Set QXData database date
         data.date = date
 
         day_data: Dict[str, pd.Series] = {
-            'open': data.get('price', '開盤價', 1).iloc[0],
-            'high': data.get('price', '最高價', 1).iloc[0],
-            'low': data.get('price', '最低價', 1).iloc[0],
-            'close': data.get('price', '收盤價', 1).iloc[0],
-            'volume': data.get('price', '成交股數', 1).iloc[0] / Units.LOT,     # 將股數轉為張數
+            "open": data.get("price", "開盤價", 1).iloc[0],
+            "high": data.get("price", "最高價", 1).iloc[0],
+            "low": data.get("price", "最低價", 1).iloc[0],
+            "close": data.get("price", "收盤價", 1).iloc[0],
+            "volume": data.get("price", "成交股數", 1).iloc[0]
+            / Units.LOT,  # 將股數轉為張數
         }
 
         return StockQuoteAdapter.generate_stock_quotes(day_data, date, Scale.DAY)
-
 
     @staticmethod
     def generate_stock_quotes(
@@ -81,23 +72,22 @@ class StockQuoteAdapter:
             ]
 
         elif scale == Scale.DAY:
-            codes: List[str] = StockUtils.filter_common_stocks(list(data['open'].index))
+            codes: List[str] = StockUtils.filter_common_stocks(list(data["open"].index))
 
             return [
                 StockQuoteAdapter.generate_stock_quote(data, code, date, scale)
                 for code in codes
-                if code in data['open'].index
+                if code in data["open"].index
             ]
-
 
     @staticmethod
     def generate_stock_quote(
         data: Union[Dict[str, pd.Series], Any],
         code: str,
         date: datetime.date,
-        scale: Scale
+        scale: Scale,
     ) -> StockQuote:
-        """ 建立個股的 Stock Quote """
+        """建立個股的 Stock Quote"""
 
         if scale == Scale.TICK:
             tick_quote: TickQuote = TickQuote(
@@ -109,13 +99,10 @@ class StockQuoteAdapter:
                 bid_volume=data.bid_volume,
                 ask_price=data.ask_price,
                 ask_volume=data.ask_volume,
-                tick_type=data.tick_type
+                tick_type=data.tick_type,
             )
             return StockQuote(
-                code=data.stock_id,
-                scale=scale,
-                date=date,
-                tick=tick_quote
+                code=data.stock_id, scale=scale, date=date, tick=tick_quote
             )
 
         elif scale == Scale.DAY:
@@ -123,12 +110,12 @@ class StockQuoteAdapter:
                 code=code,
                 scale=scale,
                 date=date,
-                cur_price=data['close'][code],
-                volume=data['volume'][code],
-                open=data['open'][code],
-                high=data['high'][code],
-                low=data['low'][code],
-                close=data['close'][code]
+                cur_price=data["close"][code],
+                volume=data["volume"][code],
+                open=data["open"][code],
+                high=data["high"][code],
+                low=data["low"][code],
+                close=data["close"][code],
             )
 
         raise ValueError(f"Unsupported scale: {scale.name}")

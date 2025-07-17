@@ -5,7 +5,7 @@ from shioaji.order import Order
 
 
 class OrderUtils:
-    """ 執行買入、賣出等下單操作 """
+    """執行買入、賣出等下單操作"""
 
     @staticmethod
     # place buy or sell order
@@ -25,19 +25,21 @@ class OrderUtils:
         """
 
         # 商品檔
-        contract: Contract = api.Contracts.Stocks.TSE.get(order['code']) or api.Contracts.Stocks.OTC.get(order['code'])
+        contract: Contract = api.Contracts.Stocks.TSE.get(
+            order["code"]
+        ) or api.Contracts.Stocks.OTC.get(order["code"])
 
         # 委託單
         order: Order = api.Order(
-            price=order['price'],
-            quantity=order['volume'],
-            action=order['action'],
-            price_type=order['price_type'],
-            order_type=order['order_type'],
-            order_lot=order['order_lot'],
+            price=order["price"],
+            quantity=order["volume"],
+            action=order["action"],
+            price_type=order["price_type"],
+            order_type=order["order_type"],
+            order_lot=order["order_lot"],
             # daytrade_short = False,
             # custom_field="test",
-            account=api.stock_account
+            account=api.stock_account,
         )
 
         api.place_order(contract, order)

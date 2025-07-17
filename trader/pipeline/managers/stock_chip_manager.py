@@ -16,15 +16,11 @@ from trader.pipeline.managers import BaseDatabaseManager
 from trader.pipeline.utils.data_utils import DataUtils
 from trader.utils import TimeUtils
 from trader.pipeline.utils.sqlite_utils import SQLiteUtils
-from trader.config import (
-    CHIP_DB_PATH,
-    CHIP_TABLE_NAME,
-    CHIP_DOWNLOADS_PATH
-)
+from trader.config import CHIP_DB_PATH, CHIP_TABLE_NAME, CHIP_DOWNLOADS_PATH
 
 
 class StockChipManager(BaseDatabaseManager):
-    """ 管理上市與上櫃股票的三大法人籌碼資料，整合爬取、清洗與寫入資料庫等流程 """
+    """管理上市與上櫃股票的三大法人籌碼資料，整合爬取、清洗與寫入資料庫等流程"""
 
     def __init__(self):
         super().__init__()
@@ -36,24 +32,21 @@ class StockChipManager(BaseDatabaseManager):
         # Chip Crawler
         self.crawler: StockChipCrawler = StockChipCrawler()
 
-
     def connect(self) -> None:
-        """ Connect to the Database """
+        """Connect to the Database"""
 
         if self.conn is None:
             self.conn = sqlite3.connect(CHIP_DB_PATH)
 
-
     def disconnect(self) -> None:
-        """ Disconnect the Database """
+        """Disconnect the Database"""
 
         if self.conn:
             self.conn.close()
             self.conn = None
 
-
     def create_db(self) -> None:
-        """ 創建三大法人盤後籌碼db """
+        """創建三大法人盤後籌碼db"""
 
         cursor: sqlite3.Cursor = self.conn.cursor()
 
@@ -90,28 +83,26 @@ class StockChipManager(BaseDatabaseManager):
         self.conn.commit()
         self.disconnect()
 
-
     def add_to_db(self) -> None:
-        """ 將資料夾中的所有 CSV 檔存入指定 SQLite 資料庫中的指定資料表。 """
+        """將資料夾中的所有 CSV 檔存入指定 SQLite 資料庫中的指定資料表。"""
 
         file_cnt: int = 0
         for file_name in os.listdir(CHIP_DOWNLOADS_PATH):
             # Skip non-CSV files
-            if not file_name.endswith('.csv'):
+            if not file_name.endswith(".csv"):
                 continue
             df: pd.DataFrame = pd.read_csv(os.path.join(CHIP_DOWNLOADS_PATH, file_name))
-            df.to_sql(CHIP_TABLE_NAME, self.conn, if_exists='append', index=False)
+            df.to_sql(CHIP_TABLE_NAME, self.conn, if_exists="append", index=False)
             print(f"Save {file_name} into database.")
             file_cnt += 1
         self.disconnect()
         shutil.rmtree(CHIP_DOWNLOADS_PATH)
         print(f"Total file: {file_cnt}")
 
-
     def update_table(self, dates: List[datetime.date]) -> None:
-        """ Chip Database 資料更新 """
+        """Chip Database 資料更新"""
 
-        print(f'* Start updating chip data')
+        print(f"* Start updating chip data")
 
         progress: Any = tqdm_notebook(dates)
         crawl_cnt: int = 0
@@ -141,20 +132,25 @@ class StockChipManager(BaseDatabaseManager):
         # Save chip data to database
         self.add_to_db()
 
-
     def widget(self) -> None:
-        """ Chip Database 資料更新的 UI """
+        """Chip Database 資料更新的 UI"""
 
         # Set update date
-        date_picker_from: widgets.DatePicker = widgets.DatePicker(description='from', disabled=False)
-        date_picker_to: widgets.DatePicker = widgets.DatePicker(description='to', disabled=False)
+        date_picker_from: widgets.DatePicker = widgets.DatePicker(
+            description="from", disabled=False
+        )
+        date_picker_to: widgets.DatePicker = widgets.DatePicker(
+            description="to", disabled=False
+        )
 
         if SQLiteUtils.check_table_exist(self.conn, CHIP_TABLE_NAME):
-            date_picker_from.value = SQLiteUtils.get_table_latest_date(self.conn, CHIP_TABLE_NAME, '日期') + datetime.timedelta(days=1)
+            date_picker_from.value = SQLiteUtils.get_table_latest_date(
+                self.conn, CHIP_TABLE_NAME, "日期"
+            ) + datetime.timedelta(days=1)
         date_picker_to.value = datetime.datetime.now().date()
 
         # Set update button
-        btn: widgets.Button = widgets.Button(description='update')
+        btn: widgets.Button = widgets.Button(description="update")
 
         # Define update button behavior
         def onupdate(_):
@@ -165,13 +161,19 @@ class StockChipManager(BaseDatabaseManager):
                 print("Please select both start and end dates.")
                 return
 
-            dates: List[datetime.date] = TimeUtils.generate_date_range(start_date, end_date)
+            dates: List[datetime.date] = TimeUtils.generate_date_range(
+                start_date, end_date
+            )
 
             if not dates:
-                print("Date range is empty. Please check if the start date is earlier than the end date.")
+                print(
+                    "Date range is empty. Please check if the start date is earlier than the end date."
+                )
                 return
 
-            print(f"Updating data for table '{CHIP_TABLE_NAME}' from {dates[0]} to {dates[-1]}...")
+            print(
+                f"Updating data for table '{CHIP_TABLE_NAME}' from {dates[0]} to {dates[-1]}..."
+            )
             self.update_table(dates)
 
         btn.on_click(onupdate)

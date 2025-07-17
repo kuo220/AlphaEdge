@@ -14,7 +14,7 @@ from trader.config import PRICE_DOWNLOADS_PATH
 
 
 class StockPriceCrawler(BaseDataCrawler):
-    """ 爬取上市、上櫃公司的股票收盤行情（OHLC、成交量） """
+    """爬取上市、上櫃公司的股票收盤行情（OHLC、成交量）"""
 
     def __init__(self):
         super().__init__()
@@ -22,22 +22,19 @@ class StockPriceCrawler(BaseDataCrawler):
         self.price_dir: Path = PRICE_DOWNLOADS_PATH
         self.setup()
 
-
     def crawl(self, date: datetime.date) -> None:
-        """ Crawl Price Data """
+        """Crawl Price Data"""
 
         twse_price_df: pd.DataFrame = self.crawl_twse_price(date)
         tpex_price_df: pd.DataFrame = self.crawl_tpex_price(date)
 
-
     def setup(self, *args, **kwargs) -> None:
-        """ Set Up the Config of Crawler """
+        """Set Up the Config of Crawler"""
 
         self.price_dir.mkdir(parents=True, exist_ok=True)
 
-
     def crawl_twse_price(self, date: datetime.date) -> Optional[pd.DataFrame]:
-        """ 爬取上市公司股票收盤行情 """
+        """爬取上市公司股票收盤行情"""
         """
         TWSE 網站提供資料日期：
         1. 2004/2/11 ~ present
@@ -47,7 +44,7 @@ class StockPriceCrawler(BaseDataCrawler):
             "TWSE_CLOSING_QUOTE_URL",
             year=date.year,
             month=DataUtils.pad2(date.month),
-            day=DataUtils.pad2(date.day)
+            day=DataUtils.pad2(date.day),
         )
 
         try:
@@ -62,9 +59,8 @@ class StockPriceCrawler(BaseDataCrawler):
 
         return df
 
-
     def crawl_tpex_price(self, date: datetime.date) -> Optional[pd.DataFrame]:
-        """ 爬取上櫃公司股票收盤行情 """
+        """爬取上櫃公司股票收盤行情"""
 
         """
         1. 上櫃資料從 96/7/2 以後才提供
@@ -75,7 +71,7 @@ class StockPriceCrawler(BaseDataCrawler):
             "TPEX_CLOSING_QUOTE_URL",
             year=date.year,
             month=DataUtils.pad2(date.month),
-            day=DataUtils.pad2(date.day)
+            day=DataUtils.pad2(date.day),
         )
 
         try:
