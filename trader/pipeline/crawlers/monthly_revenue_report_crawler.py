@@ -44,6 +44,10 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
         self, date: datetime.date
     ) -> Optional[List[pd.DataFrame]]:
         """Crawl TWSE Monthly Revenue Report"""
+        """
+        資料區間
+        上市: 民國 93 (2004) 年/2/11 ~ present
+        """
 
         df_list: List[pd.DataFrame] = []
 
@@ -72,6 +76,10 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
         self, date: datetime.date
     ) -> Optional[List[pd.DataFrame]]:
         """Crawl TPEX Monthly Revenue Report"""
+        """
+        資料區間
+        上櫃: 民國 96 (2007) 年/7/1 ~ present
+        """
 
         df_list: List[pd.DataFrame] = []
 
