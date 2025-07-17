@@ -338,9 +338,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
         )
 
         # Step 3: 欄位排序
-        tail_columns: List[str] = [
-            col for col in cleaned_cols if col not in front_cols
-        ]
+        tail_columns: List[str] = [col for col in cleaned_cols if col not in front_cols]
         cleaned_cols = front_cols + tail_columns
 
         # Step 4: 去除重複欄位（保留順序）
@@ -423,7 +421,6 @@ class FinancialStatementCleaner(BaseDataCleaner):
 
             if hasattr(self, attr_name):
                 setattr(self, attr_name, col_map)
-
 
     def map_column_name(self, col: str, column_map: Dict[str, List[str]]) -> str:
         """將欄位名稱對應至標準名稱，若無對應則回傳原名"""

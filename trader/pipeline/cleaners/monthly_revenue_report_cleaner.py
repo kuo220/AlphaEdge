@@ -11,7 +11,10 @@ from trader.pipeline.crawlers.utils.request_utils import RequestUtils
 from trader.pipeline.utils import URLManager, DataType, MarketType, FileEncoding
 from trader.pipeline.utils.data_utils import DataUtils
 from trader.utils import TimeUtils
-from trader.config import MONTHLY_REVENUE_REPORT_PATH, MONTHLY_REVENUE_REPORT_META_DIR_PATH
+from trader.config import (
+    MONTHLY_REVENUE_REPORT_PATH,
+    MONTHLY_REVENUE_REPORT_META_DIR_PATH,
+)
 
 
 class MonthlyRevenueReportCleaner(BaseDataCleaner):
@@ -34,10 +37,12 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
         self.mrr_dir: Path = MONTHLY_REVENUE_REPORT_PATH
 
         # Clean Set Up
-        self.removed_cols: List[str] = ["因自102年1月起適用IFRSs申報月合併營收，故無101年12月合併營收之申報資料。", "備註"]
+        self.removed_cols: List[str] = [
+            "因自102年1月起適用IFRSs申報月合併營收，故無101年12月合併營收之申報資料。",
+            "備註",
+        ]
 
         self.setup()
-
 
     def setup(self) -> None:
         """Set Up the Config of Cleaner"""
@@ -48,12 +53,8 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
         # Load MMR Column Names
         self.load_all_column_names()
 
-
     def clean_monthly_revenue(
-        self,
-        df_list: List[pd.DataFrame],
-        year: int,
-        month: int
+        self, df_list: List[pd.DataFrame], year: int, month: int
     ) -> pd.DataFrame:
         """Clean TWSE Monthly Revenue Report"""
         """
@@ -61,20 +62,26 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
         上市: 102（2013）年前資料無區分國內外（目前先從 102 年開始爬）
         """
         print(f"monthly revenue report cols: {self.monthly_revenue_report_cols}")
-        print(f"1 monthly revenue report cleaned cols: {self.monthly_revenue_report_cleaned_cols}")
+        print(
+            f"1 monthly revenue report cleaned cols: {self.monthly_revenue_report_cleaned_cols}"
+        )
         # Step 1: 載入已清洗欄位，若未成功則執行清洗流程
         if not self.monthly_revenue_report_cleaned_cols:
             self.load_cleaned_column_names()
             if not self.monthly_revenue_report_cleaned_cols:
                 self.monthly_revenue_report_cleaned_cols = self.clean_mrr_column_names(
                     raw_cols=self.monthly_revenue_report_cols,
-                    front_cols=["year", "month"]
+                    front_cols=["year", "month"],
                 )
-        print(f"2 monthly revenue report cleaned cols: {self.monthly_revenue_report_cleaned_cols}")
+        print(
+            f"2 monthly revenue report cleaned cols: {self.monthly_revenue_report_cleaned_cols}"
+        )
 
         # Step 2: 清理 df_list 欄位名稱
         # 建立涵蓋所有 columns 的 df
-        new_df: pd.DataFrame = pd.DataFrame(columns=self.monthly_revenue_report_cleaned_cols)
+        new_df: pd.DataFrame = pd.DataFrame(
+            columns=self.monthly_revenue_report_cleaned_cols
+        )
         # 將 df 的 MultiIndex 降為一層
         new_df_list: List[pd.DataFrame] = []
         for df in df_list:
@@ -93,8 +100,7 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
         appended_df_list: List[pd.DataFrame] = []
         for df in new_df_list:
             cleaned_cols: List[str] = [
-                DataUtils.standardize_column_name(col)
-                for col in df.columns
+                DataUtils.standardize_column_name(col) for col in df.columns
             ]
             df.columns = cleaned_cols
             DataUtils.remove_cols_by_keywords(df, startswith=self.removed_cols)
@@ -122,11 +128,8 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
 
         return new_df
 
-
     def clean_mrr_column_names(
-        self,
-        raw_cols: List[str],
-        front_cols: List[str]
+        self, raw_cols: List[str], front_cols: List[str]
     ) -> List[str]:
         """
         - Description:
@@ -147,8 +150,7 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
 
         # Step 1: 清洗欄位
         cleaned_cols: List[str] = [
-            DataUtils.standardize_column_name(word=col)
-            for col in raw_cols
+            DataUtils.standardize_column_name(word=col) for col in raw_cols
         ]
 
         # Step 2: 移除不必要欄位
@@ -157,20 +159,21 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
         )
 
         # Step 3: 欄位排序
-        tail_columns: List[str] = [
-            col for col in cleaned_cols if col not in front_cols
-        ]
+        tail_columns: List[str] = [col for col in cleaned_cols if col not in front_cols]
         cleaned_cols = front_cols + tail_columns
 
         # Step 4: 去除重複欄位（保留順序）
         cleaned_cols = list(dict.fromkeys(cleaned_cols))
 
         # Step 5: 儲存清洗結果
-        DataUtils.save_json(data=cleaned_cols, file_path=self.monthly_revenue_report_cleaned_cols_path)
-        logger.info(f"已儲存清洗後欄位名稱: {self.monthly_revenue_report_cleaned_cols_path.name}")
+        DataUtils.save_json(
+            data=cleaned_cols, file_path=self.monthly_revenue_report_cleaned_cols_path
+        )
+        logger.info(
+            f"已儲存清洗後欄位名稱: {self.monthly_revenue_report_cleaned_cols_path.name}"
+        )
 
         return cleaned_cols
-
 
     def load_all_column_names(self) -> None:
         """載入 MMR Column Names"""
@@ -186,12 +189,15 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
 
         self.monthly_revenue_report_cols = DataUtils.load_json(file_path=file_path)
 
-
     def load_cleaned_column_names(self) -> None:
         """載入已清洗過的 MMR Column Names"""
 
         if not self.monthly_revenue_report_cleaned_cols_path.exists():
-            logger.warning(f"Metadata file not found: {self.monthly_revenue_report_cleaned_cols_path}")
+            logger.warning(
+                f"Metadata file not found: {self.monthly_revenue_report_cleaned_cols_path}"
+            )
             return
 
-        self.monthly_revenue_report_cleaned_cols = DataUtils.load_json(file_path=self.monthly_revenue_report_cleaned_cols_path)
+        self.monthly_revenue_report_cleaned_cols = DataUtils.load_json(
+            file_path=self.monthly_revenue_report_cleaned_cols_path
+        )

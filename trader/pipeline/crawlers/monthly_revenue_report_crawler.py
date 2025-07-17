@@ -13,7 +13,10 @@ from trader.pipeline.crawlers.utils.request_utils import RequestUtils
 from trader.pipeline.utils import URLManager, DataType, MarketType, FileEncoding
 from trader.pipeline.utils.data_utils import DataUtils
 from trader.utils import TimeUtils
-from trader.config import MONTHLY_REVENUE_REPORT_PATH, MONTHLY_REVENUE_REPORT_META_DIR_PATH
+from trader.config import (
+    MONTHLY_REVENUE_REPORT_PATH,
+    MONTHLY_REVENUE_REPORT_META_DIR_PATH,
+)
 
 
 class MonthlyRevenueReportCrawler(BaseDataCrawler):
@@ -42,9 +45,7 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
         self.mrr_dir.mkdir(parents=True, exist_ok=True)
 
     def crawl_twse_monthly_revenue(
-        self,
-        year: int,
-        month: int
+        self, year: int, month: int
     ) -> Optional[List[pd.DataFrame]]:
         """Crawl TWSE Monthly Revenue Report"""
         """
@@ -66,7 +67,9 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
                 res: requests.Response = RequestUtils.requests_get(url)
                 res.encoding = FileEncoding.BIG5.value
             except Exception as e:
-                logger.info(f"* WARN: Cannot get TWSE Monthly Revenue Report at {year}/{month}")
+                logger.info(
+                    f"* WARN: Cannot get TWSE Monthly Revenue Report at {year}/{month}"
+                )
                 logger.info(e)
                 return None
 
@@ -76,9 +79,7 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
         return df_list
 
     def crawl_tpex_monthly_revenue(
-        self,
-        year: int,
-        month: int
+        self, year: int, month: int
     ) -> Optional[List[pd.DataFrame]]:
         """Crawl TPEX Monthly Revenue Report"""
         """
@@ -100,7 +101,9 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
                 res: requests.Response = RequestUtils.requests_get(url)
                 res.encoding = FileEncoding.BIG5.value
             except Exception as e:
-                logger.info(f"* WARN: Cannot get TWSE Monthly Revenue Report at {year}/{month}")
+                logger.info(
+                    f"* WARN: Cannot get TWSE Monthly Revenue Report at {year}/{month}"
+                )
                 logger.info(e)
                 return None
 
@@ -110,9 +113,7 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
         return df_list
 
     def get_all_mrr_columns(
-        self,
-        start_date: datetime.date,
-        end_date: datetime.date
+        self, start_date: datetime.date, end_date: datetime.date
     ) -> List[str]:
         """取得所有月營收財報的 Columns Name"""
 
@@ -122,18 +123,28 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
 
         for year in year_list:
             for month in month_list:
-                twse_df_list: List[pd.DataFrame] = self.crawl_twse_monthly_revenue(year=year, month=month)
-                tpex_df_list: List[pd.DataFrame] = self.crawl_tpex_monthly_revenue(year=year, month=month)
+                twse_df_list: List[pd.DataFrame] = self.crawl_twse_monthly_revenue(
+                    year=year, month=month
+                )
+                tpex_df_list: List[pd.DataFrame] = self.crawl_tpex_monthly_revenue(
+                    year=year, month=month
+                )
 
                 if twse_df_list:
                     for df in twse_df_list:
-                        if isinstance(df.columns, pd.MultiIndex) and df.columns.nlevels > 1:
+                        if (
+                            isinstance(df.columns, pd.MultiIndex)
+                            and df.columns.nlevels > 1
+                        ):
                             df.columns = df.columns.droplevel(0)
                             all_columns.extend(df.columns)
 
                 if tpex_df_list:
                     for df in tpex_df_list:
-                        if isinstance(df.columns, pd.MultiIndex) and df.columns.nlevels > 1:
+                        if (
+                            isinstance(df.columns, pd.MultiIndex)
+                            and df.columns.nlevels > 1
+                        ):
                             df.columns = df.columns.droplevel(0)
                             all_columns.extend(df.columns)
             time.sleep(random.uniform(1, 3))

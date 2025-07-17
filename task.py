@@ -75,9 +75,7 @@ if __name__ == "__main__":
     #         continue
 
     # Crawl Report All Columns
-    all_cols: List[str] = mrr_crawler.get_all_mrr_columns(
-        start_date, end_date
-    )
+    all_cols: List[str] = mrr_crawler.get_all_mrr_columns(start_date, end_date)
     print(all_cols)
 
     # for year in range(start_date.year, end_date.year):
