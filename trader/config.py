@@ -38,10 +38,13 @@ PRICE_DOWNLOADS_PATH: Path = get_resolved_path("PRICE_DOWNLOADS_PATH")
 CHIP_DOWNLOADS_PATH: Path = get_resolved_path("CHIP_DOWNLOADS_PATH")
 TICK_DOWNLOADS_PATH: Path = get_resolved_path("TICK_DOWNLOADS_PATH")
 
-# === Crawler Financial Statement Metadata Directory Path ===
+# === Crawler Downloads Metadata Directory Path ===
 DOWNLOADS_METADATA_DIR_PATH: Path = (CRAWLER_DOWNLOADS_PATH / "meta").resolve()
 FINANCIAL_STATEMENT_META_DIR_PATH: Path = (
     DOWNLOADS_METADATA_DIR_PATH / "financial_statement"
+).resolve()
+MONTHLY_REVENUE_REPORT_META_DIR_PATH: Path = (
+    DOWNLOADS_METADATA_DIR_PATH / "monthly_revenue_report"
 ).resolve()
 
 

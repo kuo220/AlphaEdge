@@ -56,14 +56,15 @@ from trader.config import (
 
 
 start_date = datetime.date(2013, 1, 1)
-end_date = datetime.date(2025, 7, 1)
+end_date = datetime.date(2025, 6, 1)
 season = 1
 code = "2330"
 
 
 if __name__ == "__main__":
-    fs_crawler: FinancialStatementCrawler = FinancialStatementCrawler()
-    fs_cleaner: FinancialStatementCleaner = FinancialStatementCleaner()
+    # fs_crawler: FinancialStatementCrawler = FinancialStatementCrawler()
+    # fs_cleaner: FinancialStatementCleaner = FinancialStatementCleaner()
+    mrr_crawler = MonthlyRevenueReportCrawler()
 
     start_year: int = start_date.year
     end_year: int = end_date.year
@@ -74,9 +75,7 @@ if __name__ == "__main__":
     #         continue
 
     # Crawl Report All Columns
-    all_cols: List[str] = fs_crawler.get_all_report_columns(
-        start_year, end_year, report_type=report_type
-    )
+    all_cols: List[str] = mrr_crawler.get_all_mrr_columns(start_date, end_date)
     print(all_cols)
 
     # for year in range(start_date.year, end_date.year):
