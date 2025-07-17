@@ -107,8 +107,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
                     save_path=self.balance_sheet_cleaned_cols_path,
                 )
 
-        # Step 2: 清理 df_list 欄位名稱
-        # 建立涵蓋所有 columns 的 df
+        # Step 2: 清理 df_list 欄位名稱 & 建立涵蓋所有 columns 的 df
         new_df: pd.DataFrame = pd.DataFrame(columns=self.balance_sheet_cleaned_cols)
         # 篩掉沒有 "公司名稱" 的 df
         required_cols: List[str] = ["公司名稱"]
@@ -176,8 +175,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
                     save_path=self.comprehensive_income_cleaned_cols_path,
                 )
 
-        # Step 2: 清理 df_list 欄位名稱
-        # 建立涵蓋所有 columns 的 df
+        # Step 2: 清理 df_list 欄位名稱 & 建立涵蓋所有 columns 的 df
         new_df: pd.DataFrame = pd.DataFrame(
             columns=self.comprehensive_income_cleaned_cols
         )
@@ -245,8 +243,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
                     save_path=self.cash_flow_cleaned_cols_path,
                 )
 
-        # Step 2: 清理 df_list 欄位名稱
-        # 建立涵蓋所有 columns 的 df
+        # Step 2: 清理 df_list 欄位名稱 & 建立涵蓋所有 columns 的 df
         new_df: pd.DataFrame = pd.DataFrame(columns=self.cash_flow_cleaned_cols)
         # 篩掉沒有 "公司名稱" 的 df
         required_cols: List[str] = ["公司名稱"]
@@ -338,7 +335,10 @@ class FinancialStatementCleaner(BaseDataCleaner):
         )
 
         # Step 3: 欄位排序
-        cleaned_cols = self.reorder_columns(cleaned_cols, front_cols)
+        tail_columns: List[str] = [
+            col for col in cleaned_cols if col not in front_cols
+        ]
+        cleaned_cols = front_cols + tail_columns
 
         # Step 4: 去除重複欄位（保留順序）
         cleaned_cols = list(dict.fromkeys(cleaned_cols))
@@ -421,15 +421,6 @@ class FinancialStatementCleaner(BaseDataCleaner):
             if hasattr(self, attr_name):
                 setattr(self, attr_name, col_map)
 
-    def reorder_columns(
-        self, all_columns: List[str], front_columns: List[str]
-    ) -> List[str]:
-        """將指定欄位移到最前面，其餘保持原順序"""
-
-        tail_columns: List[str] = [
-            col for col in all_columns if col not in front_columns
-        ]
-        return front_columns + tail_columns
 
     def map_column_name(self, col: str, column_map: Dict[str, List[str]]) -> str:
         """將欄位名稱對應至標準名稱，若無對應則回傳原名"""
