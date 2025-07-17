@@ -10,7 +10,7 @@ import requests
 
 from trader.pipeline.crawlers.base import BaseDataCrawler
 from trader.pipeline.crawlers.utils.request_utils import RequestUtils
-from trader.pipeline.utils import URLManager, MarketType, FileEncoding
+from trader.pipeline.utils import URLManager, DataType, MarketType, FileEncoding
 from trader.pipeline.utils.data_utils import DataUtils
 from trader.utils import TimeUtils
 from trader.config import MONTHLY_REVENUE_REPORT_PATH, MONTHLY_REVENUE_REPORT_META_DIR_PATH
@@ -109,7 +109,7 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
 
         return df_list
 
-    def get_all_mmr_columns(
+    def get_all_mrr_columns(
         self,
         start_date: datetime.date,
         end_date: datetime.date
@@ -145,7 +145,7 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
         dir_path: Path = MONTHLY_REVENUE_REPORT_META_DIR_PATH
         dir_path.mkdir(parents=True, exist_ok=True)
 
-        file_path: Path = dir_path / "monthly_revenue_report_all_columns.json"
+        file_path: Path = dir_path / f"{DataType.MRR.lower()}_all_columns.json"
         DataUtils.save_json(data=unique_columns, file_path=file_path)
 
         return unique_columns

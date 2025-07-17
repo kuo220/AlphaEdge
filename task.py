@@ -64,7 +64,7 @@ code = "2330"
 if __name__ == "__main__":
     # fs_crawler: FinancialStatementCrawler = FinancialStatementCrawler()
     # fs_cleaner: FinancialStatementCleaner = FinancialStatementCleaner()
-    mmr_crawler = MonthlyRevenueReportCrawler()
+    mrr_crawler = MonthlyRevenueReportCrawler()
 
     start_year: int = start_date.year
     end_year: int = end_date.year
@@ -75,7 +75,7 @@ if __name__ == "__main__":
     #         continue
 
     # Crawl Report All Columns
-    all_cols: List[str] = mmr_crawler.get_all_mmr_columns(
+    all_cols: List[str] = mrr_crawler.get_all_mmr_columns(
         start_date, end_date
     )
     print(all_cols)

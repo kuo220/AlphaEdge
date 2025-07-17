@@ -15,7 +15,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
     def __init__(self):
         super().__init__()
 
-        # Raw column names for each report type (Load from .json)
+        # Raw and cleaned column names for each report type (Load from .json)
         self.balance_sheet_cols: List[str] = []
         self.balance_sheet_cleaned_cols: List[str] = []
         self.comprehensive_income_cols: List[str] = []
