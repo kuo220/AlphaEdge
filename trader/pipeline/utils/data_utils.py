@@ -56,6 +56,35 @@ class DataUtils:
 
 
     @staticmethod
+    def check_required_columns(
+        df: pd.DataFrame,
+        required_cols: List[str],
+        required_all: bool=True
+    ) -> bool:
+        """
+        - Description:
+            檢查 DataFrame 是否包含必要欄位，可設定為必須全數存在或至少存在一個。
+            常用於清洗資料前驗證欄位完整性。
+
+        - Parameters:
+            - df: pd.DataFrame
+                欲檢查的 DataFrame。
+            - required_cols: List[str]
+                欲確認是否存在的欄位名稱列表。
+            - require_all: bool
+                預設為 True，表示所有欄位皆需存在；若為 False，表示只要存在任一欄位即可通過。
+
+        - Return: bool
+            - 是否符合條件（True: 符合，False: 不符合）
+        """
+
+        if required_all:
+            return all(col in df.columns for col in required_cols)
+        else:
+            return any(col in df.columns for col in required_cols)
+
+
+    @staticmethod
     def standardize_column_name(
         word: str,
         replace_pairs: Dict[str, str]={"（": "(", "）": ")", "：": ":"},
@@ -66,6 +95,7 @@ class DataUtils:
         """
         - Description:
             清除空白與特殊符號（括號、全半形減號），標準化欄位名稱用
+
         - Parameters:
             - word: str
                 欲清理的欄位名稱
@@ -77,6 +107,7 @@ class DataUtils:
                 要刪除的 dash (Default: ["－", "-", "—", "–", "─"])
             - remove_whitespace: bool
                 是否移除所有空白 (包含 tab、全形空白)
+
         - Return: str
             - 處理後的欄位名稱
         """
@@ -106,6 +137,7 @@ class DataUtils:
         - Description:
             將欄位名稱中出現的指定關鍵字（如「合計」、「總計」）替換為指定詞（如「總額」）
             e.g. 資產總計 -> 資產總額
+
         - Parameters:
             - col_name: str
                 欄位名稱
@@ -113,6 +145,7 @@ class DataUtils:
                 欲替換的關鍵字列表，例如: 合計"、"總計"
             - replacement: str
                 要統一替換成的文字，例如: 總額
+
         - Return: str
             - 處理後的欄位名稱
         """
@@ -133,12 +166,14 @@ class DataUtils:
         """
         - Description:
             移除以指定字串開頭或包含指定字串的欄位名稱
-        Parameters:
+
+        - Parameters:
             - df: 原始 DataFrame
             - startswith: 欲刪除欄位的開頭關鍵字，例如 ["Unnamed"]
             - contains: 欲刪除欄位的包含關鍵字，例如 ["錯誤"]
             - case_insensitive: 是否忽略大小寫（預設 True）
-        Returns:
+
+        - Returns:
             - 已刪除指定欄位的 DataFrame
         """
 
@@ -176,12 +211,14 @@ class DataUtils:
         """
         - Description:
             移除符合指定關鍵字的欄位名稱（以開頭或包含），並回傳保留的欄位清單
-        Parameters:
+
+        - Parameters:
             - columns: 欲移除的欄位名稱清單
             - startswith: 欲排除的開頭字串，例如 ["Unnamed"]
             - contains: 欲排除的部分字串，例如 ["錯誤"]
             - case_insensitive: 是否忽略大小寫（預設 True）
-        Returns:
+
+        - Returns:
             - 過濾後保留的欄位名稱 List[str]
         """
 
@@ -218,6 +255,7 @@ class DataUtils:
         """
         - Description:
             將資料儲存成 JSON 檔案
+
         - Parameters:
             - data: Any
                 要儲存的 Python 資料結構（如 dict 或 list）
@@ -244,11 +282,13 @@ class DataUtils:
         """
         - Description:
             從指定 JSON 檔案讀取資料。
+
         - Parameters:
             - file_path: Path
                 JSON 檔案的完整路徑
             - encoding: str
                 檔案編碼（預設為 utf-8）
+
         - Returns: Any
             從 JSON 載入的 Python 資料（通常為 dict 或 list）
         """

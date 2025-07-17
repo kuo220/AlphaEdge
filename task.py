@@ -20,25 +20,27 @@ import zipfile
 from dataclasses import dataclass, asdict
 
 from trader.utils import ShioajiAccount, Units
-from trader.api import (Data, Tick)
+from trader.api import Data, Tick
 from trader.pipeline.crawlers.utils.payload import Payload
 from trader.pipeline.crawlers.utils.request_utils import RequestUtils
 from trader.pipeline.crawlers.stock_price_crawler import StockPriceCrawler
 from trader.pipeline.crawlers.stock_chip_crawler import StockChipCrawler
 from trader.pipeline.crawlers.stock_tick_crawler import StockTickCrawler
 from trader.pipeline.crawlers.stock_info_crawler import StockInfoCrawler
-from trader.pipeline.crawlers.financial_statement_crawler import FinancialStatementCrawler
-from trader.pipeline.crawlers.monthly_revenue_report_crawler import MonthlyRevenueReportCrawler
+from trader.pipeline.crawlers.financial_statement_crawler import (
+    FinancialStatementCrawler,
+)
+from trader.pipeline.crawlers.monthly_revenue_report_crawler import (
+    MonthlyRevenueReportCrawler,
+)
 from trader.pipeline.cleaners.stock_chip_cleaner import StockChipCleaner
 from trader.pipeline.cleaners.stock_price_cleaner import StockPriceCleaner
 from trader.pipeline.cleaners.stock_tick_cleaner import StockTickCleaner
-from trader.pipeline.cleaners.financial_statement_cleaner import FinancialStatementCleaner
-from trader.pipeline.utils.data_utils import DataUtils
-from trader.pipeline.utils import (
-    URLManager,
-    MarketType,
-    FinancialStatementType
+from trader.pipeline.cleaners.financial_statement_cleaner import (
+    FinancialStatementCleaner,
 )
+from trader.pipeline.utils.data_utils import DataUtils
+from trader.pipeline.utils import URLManager, MarketType, FinancialStatementType
 from trader.pipeline import URLManager
 from trader.config import (
     CRAWLER_DOWNLOADS_PATH,
@@ -49,14 +51,14 @@ from trader.config import (
     CHIP_DB_PATH,
     CHIP_TABLE_NAME,
     TICK_METADATA_PATH,
-    API_LIST
+    API_LIST,
 )
 
 
 start_date = datetime.date(2013, 1, 1)
 end_date = datetime.date(2025, 7, 1)
 season = 1
-code = '2330'
+code = "2330"
 
 
 if __name__ == "__main__":
@@ -73,9 +75,7 @@ if __name__ == "__main__":
 
     # Crawl Report All Columns
     all_cols: List[str] = fs_crawler.get_all_report_columns(
-        start_year,
-        end_year,
-        report_type=report_type
+        start_year, end_year, report_type=report_type
     )
     print(all_cols)
 

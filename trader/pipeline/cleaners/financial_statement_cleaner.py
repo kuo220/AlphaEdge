@@ -125,7 +125,12 @@ class FinancialStatementCleaner(BaseDataCleaner):
         # 建立涵蓋所有 columns 的 df
         new_df: pd.DataFrame = pd.DataFrame(columns=self.balance_sheet_cleaned_cols)
         # 篩掉沒有 "公司名稱" 的 df
-        df_list: List[pd.DataFrame] = [df for df in df_list if "公司名稱" in df.columns]
+        required_cols: List[str] = ["公司名稱"]
+        df_list: List[pd.DataFrame] = [
+            df
+            for df in df_list
+            if DataUtils.check_required_columns(df=df, required_cols=required_cols)
+        ]
         appended_df_list: List[pd.DataFrame] = []
 
         for df in df_list:
@@ -190,7 +195,12 @@ class FinancialStatementCleaner(BaseDataCleaner):
         # 建立涵蓋所有 columns 的 df
         new_df: pd.DataFrame = pd.DataFrame(columns=self.comprehensive_income_cleaned_cols)
         # 篩掉沒有 "公司名稱" 的 df
-        df_list: List[pd.DataFrame] = [df for df in df_list if "公司名稱" in df.columns]
+        required_cols: List[str] = ["公司名稱"]
+        df_list: List[pd.DataFrame] = [
+            df
+            for df in df_list
+            if DataUtils.check_required_columns(df=df, required_cols=required_cols)
+        ]
         appended_df_list: List[pd.DataFrame] = []
 
         for df in df_list:
@@ -226,14 +236,73 @@ class FinancialStatementCleaner(BaseDataCleaner):
         return new_df
 
 
-    def clean_cash_flow(self) -> pd.DataFrame:
+    def clean_cash_flow(
+        self,
+        df_list: List[pd.DataFrame],
+        year: int,
+        season: int
+    ) -> pd.DataFrame:
         """ Clean Cash flow Statement (現金流量表) """
         """
         資料區間
         上市: 民國 102 (2013) 年 ~ present
         上櫃: 民國 102 (2013) 年 ~ present
         """
-        pass
+
+        # Step 1: 載入已清洗欄位，若未成功則執行清洗流程
+        if not self.cash_flow_cleaned_cols:
+            self.load_cleaned_column_names(report_type=FinancialStatementType.CASH_FLOW)
+            if not self.cash_flow_cleaned_cols:
+                self.clean_report_column_names(
+                    raw_cols=self.cash_flow_cols,
+                    col_map=self.cash_flow_col_map,
+                    front_cols=["year", "season", "公司代號", "公司名稱"],
+                    save_path=self.cash_flow_cleaned_cols_path
+                )
+
+        # Step 2: 清理 df_list 欄位名稱
+        # 建立涵蓋所有 columns 的 df
+        new_df: pd.DataFrame = pd.DataFrame(columns=self.cash_flow_cleaned_cols)
+        # 篩掉沒有 "公司名稱" 的 df
+        required_cols: List[str] = ["公司名稱"]
+        df_list: List[pd.DataFrame] = [
+            df
+            for df in df_list
+            if DataUtils.check_required_columns(df=df, required_cols=required_cols)
+        ]
+        appended_df_list: List[pd.DataFrame] = []
+
+        for df in df_list:
+            # 清洗 df Column Names
+            cleaned_cols = [
+                self.map_column_name(
+                    DataUtils.standardize_column_name(col),
+                    self.cash_flow_col_map
+                )
+                for col in df.columns
+            ]
+            df.columns = cleaned_cols
+            DataUtils.remove_cols_by_keywords(df, startswith=["0"])
+
+            aligned_df: pd.DataFrame = df.reindex(columns=new_df.columns)
+            aligned_df["year"] = year
+            aligned_df["season"] = season
+            appended_df_list.append(aligned_df)
+
+        new_df = (
+            pd.concat(appended_df_list, ignore_index=True)
+            .astype(str)
+            .rename(columns={"公司代號": "股票代號"})
+            .pipe(DataUtils.convert_col_to_numeric, exclude_cols=["股票代號", "公司名稱"])
+        )
+
+        new_df.to_csv(
+            self.cash_flow_dir / f"cash_flow_{year}Q{season}.csv",
+            index=False,
+            encoding=FileEncoding.UTF8.value
+        )
+
+        return new_df
 
 
     def clean_equity_changes(self) -> pd.DataFrame:
@@ -297,25 +366,6 @@ class FinancialStatementCleaner(BaseDataCleaner):
         return cleaned_cols
 
 
-    def load_cleaned_column_names(self, report_type: FinancialStatementType) -> List[str]:
-        """ 根據報表類型載入已清洗過的 Column Names """
-
-        cleaned_cols: List[str] = []
-        attr_name: str = f"{report_type.lower()}_cleaned_cols"
-        file_path: Path = (
-            FINANCIAL_STATEMENT_META_DIR_PATH
-            / report_type.lower()
-            / f"{report_type.lower()}_cleaned_columns.json"
-        )
-
-        if file_path.exists():
-            cleaned_cols = DataUtils.load_json(file_path=file_path)
-            if hasattr(self, attr_name):
-                setattr(self, attr_name, cleaned_cols)
-
-        return cleaned_cols
-
-
     def load_all_column_names(self) -> None:
         """ 載入 Report Column Names """
 
@@ -341,6 +391,25 @@ class FinancialStatementCleaner(BaseDataCleaner):
 
             if hasattr(self, attr_name):
                 setattr(self, attr_name, cols)
+
+
+    def load_cleaned_column_names(self, report_type: FinancialStatementType) -> List[str]:
+        """ 根據報表類型載入已清洗過的 Column Names """
+
+        cleaned_cols: List[str] = []
+        attr_name: str = f"{report_type.lower()}_cleaned_cols"
+        file_path: Path = (
+            FINANCIAL_STATEMENT_META_DIR_PATH
+            / report_type.lower()
+            / f"{report_type.lower()}_cleaned_columns.json"
+        )
+
+        if file_path.exists():
+            cleaned_cols = DataUtils.load_json(file_path=file_path)
+            if hasattr(self, attr_name):
+                setattr(self, attr_name, cleaned_cols)
+
+        return cleaned_cols
 
 
     def load_column_maps(self) -> None:
