@@ -205,12 +205,6 @@ class FinancialStatementCleaner(BaseDataCleaner):
             df.columns = cleaned_cols
             DataUtils.remove_cols_by_keywords(df, startswith=["0"])
 
-            # 檢查重複欄位名稱
-            # duplicated_cols = df.columns[df.columns.duplicated()].tolist()
-            # if duplicated_cols:
-            #     print(f"❗發現重複欄位: {duplicated_cols}")
-
-            # 對齊欄位並補上欄位
             aligned_df: pd.DataFrame = df.reindex(columns=new_df.columns)
             aligned_df["year"] = year
             aligned_df["season"] = season

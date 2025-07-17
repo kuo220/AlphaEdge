@@ -65,19 +65,19 @@ if __name__ == "__main__":
 
     start_year: int = start_date.year
     end_year: int = end_date.year
-    report_type = FinancialStatementType.COMPREHENSIVE_INCOME
+    report_type = FinancialStatementType.CASH_FLOW
 
     # for report_type in FinancialStatementType:
     #     if report_type == FinancialStatementType.EQUITY_CHANGE:
     #         continue
 
-    cols: List[str] = fs_crawler.get_all_report_columns(
+    # Crawl Report All Columns
+    all_cols: List[str] = fs_crawler.get_all_report_columns(
         start_year,
         end_year,
         report_type=report_type
     )
-
-    print(cols)
+    print(all_cols)
 
     # for year in range(start_date.year, end_date.year):
     #     df = fs_crawler.crawl_balance_sheet(year, season)
