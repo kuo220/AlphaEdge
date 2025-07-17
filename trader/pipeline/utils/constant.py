@@ -15,6 +15,8 @@ class DataType(str, Enum):
     PRICE = "Price"
     CHIP = "Chip"
     TICK = "Tick"
+    MRR = "MONTHLY_REVENUE_REPORT"
+    FS = "FINANCIAL_STATEMENT"
 
 
 class MarketType(str, Enum):

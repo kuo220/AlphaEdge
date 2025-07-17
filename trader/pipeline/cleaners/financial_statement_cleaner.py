@@ -1,4 +1,3 @@
-import re
 import pandas as pd
 from pathlib import Path
 from loguru import logger
@@ -16,7 +15,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
     def __init__(self):
         super().__init__()
 
-        # Raw column names for each report type (Load from .json)
+        # Raw and cleaned column names for each report type (Load from .json)
         self.balance_sheet_cols: List[str] = []
         self.balance_sheet_cleaned_cols: List[str] = []
         self.comprehensive_income_cols: List[str] = []
@@ -101,7 +100,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
                 report_type=FinancialStatementType.BALANCE_SHEET
             )
             if not self.balance_sheet_cleaned_cols:
-                self.clean_report_column_names(
+                self.balance_sheet_cleaned_cols = self.clean_report_column_names(
                     raw_cols=self.balance_sheet_cols,
                     col_map=self.balance_sheet_col_map,
                     front_cols=["year", "season", "公司代號", "公司名稱"],
@@ -118,11 +117,11 @@ class FinancialStatementCleaner(BaseDataCleaner):
             for df in df_list
             if DataUtils.check_required_columns(df=df, required_cols=required_cols)
         ]
-        appended_df_list: List[pd.DataFrame] = []
 
+        # 清洗 df Column Names
+        appended_df_list: List[pd.DataFrame] = []
         for df in df_list:
-            # 清洗 df Column Names
-            cleaned_cols = [
+            cleaned_cols: List[str] = [
                 self.map_column_name(
                     DataUtils.standardize_column_name(col), self.balance_sheet_col_map
                 )
@@ -170,7 +169,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
                 report_type=FinancialStatementType.COMPREHENSIVE_INCOME
             )
             if not self.comprehensive_income_cleaned_cols:
-                self.clean_report_column_names(
+                self.comprehensive_income_cleaned_cols = self.clean_report_column_names(
                     raw_cols=self.comprehensive_income_cols,
                     col_map=self.comprehensive_income_col_map,
                     front_cols=["year", "season", "公司代號", "公司名稱"],
@@ -189,11 +188,11 @@ class FinancialStatementCleaner(BaseDataCleaner):
             for df in df_list
             if DataUtils.check_required_columns(df=df, required_cols=required_cols)
         ]
-        appended_df_list: List[pd.DataFrame] = []
 
+        # 清洗 df Column Names
+        appended_df_list: List[pd.DataFrame] = []
         for df in df_list:
-            # 清洗 df Column Names
-            cleaned_cols = [
+            cleaned_cols: List[str] = [
                 self.map_column_name(
                     DataUtils.standardize_column_name(col),
                     self.comprehensive_income_col_map,
@@ -239,7 +238,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
         if not self.cash_flow_cleaned_cols:
             self.load_cleaned_column_names(report_type=FinancialStatementType.CASH_FLOW)
             if not self.cash_flow_cleaned_cols:
-                self.clean_report_column_names(
+                self.cash_flow_cleaned_cols = self.clean_report_column_names(
                     raw_cols=self.cash_flow_cols,
                     col_map=self.cash_flow_col_map,
                     front_cols=["year", "season", "公司代號", "公司名稱"],
@@ -256,11 +255,11 @@ class FinancialStatementCleaner(BaseDataCleaner):
             for df in df_list
             if DataUtils.check_required_columns(df=df, required_cols=required_cols)
         ]
-        appended_df_list: List[pd.DataFrame] = []
 
+        # 清洗 df Column Names
+        appended_df_list: List[pd.DataFrame] = []
         for df in df_list:
-            # 清洗 df Column Names
-            cleaned_cols = [
+            cleaned_cols: List[str] = [
                 self.map_column_name(
                     DataUtils.standardize_column_name(col), self.cash_flow_col_map
                 )
@@ -298,6 +297,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
         上市: 民國 102 (2013) 年 ~ present
         上櫃: 民國 102 (2013) 年 ~ present
         """
+        # TODO: 有空再做
         pass
 
     def clean_report_column_names(
@@ -338,7 +338,8 @@ class FinancialStatementCleaner(BaseDataCleaner):
         )
 
         # Step 3: 欄位排序
-        cleaned_cols = self.reorder_columns(cleaned_cols, front_cols)
+        tail_columns: List[str] = [col for col in cleaned_cols if col not in front_cols]
+        cleaned_cols = front_cols + tail_columns
 
         # Step 4: 去除重複欄位（保留順序）
         cleaned_cols = list(dict.fromkeys(cleaned_cols))
@@ -420,16 +421,6 @@ class FinancialStatementCleaner(BaseDataCleaner):
 
             if hasattr(self, attr_name):
                 setattr(self, attr_name, col_map)
-
-    def reorder_columns(
-        self, all_columns: List[str], front_columns: List[str]
-    ) -> List[str]:
-        """將指定欄位移到最前面，其餘保持原順序"""
-
-        tail_columns: List[str] = [
-            col for col in all_columns if col not in front_columns
-        ]
-        return front_columns + tail_columns
 
     def map_column_name(self, col: str, column_map: Dict[str, List[str]]) -> str:
         """將欄位名稱對應至標準名稱，若無對應則回傳原名"""

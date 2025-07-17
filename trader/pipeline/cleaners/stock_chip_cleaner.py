@@ -37,7 +37,8 @@ class StockChipCleaner(BaseDataCleaner):
     def clean_twse_chip(self, df: pd.DataFrame, date: datetime.date) -> pd.DataFrame:
         """Clean TWSE Stock Chip Data"""
 
-        df.columns = df.columns.droplevel(0)
+        if isinstance(df.columns, pd.MultiIndex) and df.columns.nlevels > 1:
+            df.columns = df.columns.droplevel(0)
 
         df.insert(0, "日期", date)
 
@@ -104,7 +105,7 @@ class StockChipCleaner(BaseDataCleaner):
     def clean_tpex_chip(self, df: pd.DataFrame, date: datetime.date) -> pd.DataFrame:
         """Clean TPEX Stock Chip Data"""
 
-        if isinstance(df.columns, pd.MultiIndex):
+        if isinstance(df.columns, pd.MultiIndex) and df.columns.nlevels > 1:
             df.columns = df.columns.droplevel(0)
 
         new_col_name: List[str] = [

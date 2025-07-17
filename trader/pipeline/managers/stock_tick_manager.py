@@ -32,7 +32,6 @@ class StockTickManager(BaseDatabaseManager):
     """管理上市與上櫃股票的三大法人 tick 資料，整合爬取、清洗與寫入資料庫等流程"""
 
     def __init__(self):
-
         # Connect to DolphinDB
         self.session: ddb.session = None
         self.connect()

@@ -228,7 +228,6 @@ def calculate_account_financial_num(apiLoginList: list) -> dict:
     realizeddict = dict()
 
     for api in apiLoginList:
-
         accountBalance += api.account_balance().acc_balance
         # print("accountBalance: " + str(accountBalance))
 
@@ -375,7 +374,6 @@ def re_evaluate_holding(
 def net_worth_ds(
     apiLoginList: list, test=True, strategy_id=1, add_dividend=False, linebot=[]
 ):
-
     # The walkaround for quantx pool: qx_strategy + kms_strategy
     # if strategy_id == 1:
     #     # qx pool
@@ -777,12 +775,12 @@ def api_usage_query(apiLoginList: list):
         APIusage_message = api.usage()
 
         return_message += f"Connections:{APIusage_message.connections} "
-        return_message += f"Used:{round(APIusage_message.bytes / (1024 ** 2), 2)} mb "
+        return_message += f"Used:{round(APIusage_message.bytes / (1024**2), 2)} mb "
         return_message += (
-            f"Limits:{round(APIusage_message.limit_bytes / (1024 ** 2), 2)} mb "
+            f"Limits:{round(APIusage_message.limit_bytes / (1024**2), 2)} mb "
         )
         return_message += (
-            f"Remaining:{round(APIusage_message.remaining_bytes / (1024 ** 2), 2)} mb\n"
+            f"Remaining:{round(APIusage_message.remaining_bytes / (1024**2), 2)} mb\n"
         )
 
     return return_message

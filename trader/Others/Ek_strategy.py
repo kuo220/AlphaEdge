@@ -96,7 +96,6 @@ class EnergyStrategy(Strategy):
             # Buy stocks
             # TODO: limit up
             if len(self.stocks_inventory) < self.buy_stock_num:
-
                 if len(stock_list.columns) > 0:
                     _, _ = self.produce_portfolio(stock_list, self.accumulated_capital)
                 else:
@@ -686,7 +685,7 @@ class EnergyStrategy(Strategy):
             {
                 "Date": dates,
                 "Energy Strategy MDD": pd.Series(mdd, index=dates).values,
-                f'{self.params["benchmark_id"]} MDD': pd.Series(
+                f"{self.params['benchmark_id']} MDD": pd.Series(
                     mdd_0050, index=dates
                 ).values,
             }
@@ -695,7 +694,7 @@ class EnergyStrategy(Strategy):
         mdd_fig = px.line(
             mdd_df,
             x="Date",
-            y=["Energy Strategy MDD", f'{self.params["benchmark_id"]} MDD'],
+            y=["Energy Strategy MDD", f"{self.params['benchmark_id']} MDD"],
         )
         mdd_fig_path = os.path.join(file_path, f"MDD_{self.buy_stock_num}.png")
         set_fig_layout(
@@ -725,7 +724,7 @@ class EnergyStrategy(Strategy):
                     "Energy Strategy Net Worth": pd.Series(
                         accumulated_capital, index=dates
                     ).values,
-                    f'{self.params["benchmark_id"]} Net Worth': pd.Series(
+                    f"{self.params['benchmark_id']} Net Worth": pd.Series(
                         benchmark_net_worth, index=dates
                     ).values,
                 }
@@ -736,7 +735,7 @@ class EnergyStrategy(Strategy):
                 x="Date",
                 y=[
                     "Energy Strategy Net Worth",
-                    f'{self.params["benchmark_id"]} Net Worth',
+                    f"{self.params['benchmark_id']} Net Worth",
                 ],
             )
             net_worth_fig_path = os.path.join(
@@ -748,7 +747,7 @@ class EnergyStrategy(Strategy):
             )
             compare_info = (
                 f"Strategy Total ROI(%): {total_roi}%\n"
-                + f'{self.params["benchmark_id"]} Total ROI(%): {benchmark_roi}%'
+                + f"{self.params['benchmark_id']} Total ROI(%): {benchmark_roi}%"
             )
 
             set_fig_layout(
