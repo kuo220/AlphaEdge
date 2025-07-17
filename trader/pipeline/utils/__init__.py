@@ -4,5 +4,5 @@ from .constant import (
     DataType,
     MarketType,
     FinancialStatementType,
-    FileEncoding
+    FileEncoding,
 )

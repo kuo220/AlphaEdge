@@ -3,6 +3,7 @@ import os
 import sqlite3
 from pathlib import Path
 import pandas as pd
+
 try:
     import dolphindb as ddb
 except ModuleNotFoundError:
@@ -14,7 +15,7 @@ from .qx_data import QXData
 
 
 class Data:
-    """ 股市資料 API """
+    """股市資料 API"""
 
     def __init__(self):
         self.chip: Chip = Chip()

@@ -35,6 +35,7 @@ class Action(str, Enum):
     OPEN = ACTION_OPEN
     CLOSE = ACTION_CLOSE
 
+
 class StockPriceType(str, Enum):
     LMT = STOCK_PRICE_TYPE_LIMITPRICE
     MKT = STOCK_PRICE_TYPE_MKT
@@ -79,33 +80,38 @@ class Status(str, Enum):
 
 
 class Commission(float, Enum):
-    """ 券商手續費相關常數 """
+    """券商手續費相關常數"""
+
     CommRate = 0.001425  # 券商手續費率（commission rate）
     Discount = 0.3  # 券商手續費折扣（commission discount）
     MinFee = 20.0  # 券商最低手續費限制（minimum fee）
-    TaxRate = 0.003 # 證券交易稅（Securities Transaction Tax Rate）
+    TaxRate = 0.003  # 證券交易稅（Securities Transaction Tax Rate）
 
 
 class Market(str, Enum):
-    """ 市場類別 """
+    """市場類別"""
+
     STOCK = "Stock"
     FUTURE = "Future"
     OPTION = "Option"
 
 
 class Scale(str, Enum):
-    """ Kbar 級別 """
+    """Kbar 級別"""
+
     TICK = "TICK"
     DAY = "DAY"
     MIX = "MIX"
 
 
 class PositionType(str, Enum):
-    """ 部位方向 """
+    """部位方向"""
+
     LONG = "LONG"
     SHORT = "SHORT"
 
 
 class Units(int, Enum):
-    """ 股票張數單位 """
-    LOT = 1000      # 1 Lot = 1000 Shares
+    """股票張數單位"""
+
+    LOT = 1000  # 1 Lot = 1000 Shares

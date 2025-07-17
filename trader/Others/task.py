@@ -4,9 +4,22 @@ import sqlite3
 import pytz
 from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
-from .crawler import table_latest_date, date_range, update_table, crawl_price, month_range, crawl_monthly_report, \
-    season_range, crawl_finance_statement_by_date, crawl_benchmark_return, crawl_tw_total_pmi, crawl_tw_total_nmi, \
-    crawl_tw_business_indicator, crawl_margin_balance, crawl_margin_transactions
+from .crawler import (
+    table_latest_date,
+    date_range,
+    update_table,
+    crawl_price,
+    month_range,
+    crawl_monthly_report,
+    season_range,
+    crawl_finance_statement_by_date,
+    crawl_benchmark_return,
+    crawl_tw_total_pmi,
+    crawl_tw_total_nmi,
+    crawl_tw_business_indicator,
+    crawl_margin_balance,
+    crawl_margin_transactions,
+)
 import requests
 from .data import Data
 from .utlis import portfolio
@@ -16,23 +29,23 @@ from dotenv import load_dotenv
 import shioaji as sj
 import pandas as pd
 from .shared_list import stock_not_for_quantx
-import yfinance as yf 
+import yfinance as yf
 from .mysqldb import Mysqldb
 import openai
 
-desired_timezone = pytz.timezone('Asia/Taipei')
+desired_timezone = pytz.timezone("Asia/Taipei")
 
 
 def crawl_data():
-    conn = sqlite3.connect(os.path.join('data', "data.db"))
+    conn = sqlite3.connect(os.path.join("data", "data.db"))
     fromd = table_latest_date(conn, "price")
     tod = datetime.now(desired_timezone).date()
     # update price table
     dates = date_range(fromd, tod)
     if len(dates) == 0:
-        print('price no data to parse')
+        print("price no data to parse")
     else:
-        update_table(conn, 'price', crawl_price, dates)
+        update_table(conn, "price", crawl_price, dates)
 
     # update monthly revenue table
     fromd = table_latest_date(conn, "monthly_revenue")
@@ -45,25 +58,35 @@ def crawl_data():
         fromd = fromd - relativedelta(months=1)
     dates = month_range(fromd, tod)
     if len(dates) == 0:
-        print('monthly_revenue no data to parse')
+        print("monthly_revenue no data to parse")
     else:
-        update_table(conn, 'monthly_revenue', crawl_monthly_report, dates)
+        update_table(conn, "monthly_revenue", crawl_monthly_report, dates)
 
     # update seasonal revenue table 季報更新時間就是3/1~4/15, 4/26~5/31, 7/26~8/31, 10/24~11/30
     tod = datetime.now(desired_timezone).date()
     dates = []
-    if (tod.month == 4 and 26 <= tod.day <= 30) or (tod.month == 5 and 1 <= tod.day <= 31):
+    if (tod.month == 4 and 26 <= tod.day <= 30) or (
+        tod.month == 5 and 1 <= tod.day <= 31
+    ):
         dates = [datetime(tod.year, 5, 15).date()]
-    elif (tod.month == 7 and 26 <= tod.day <= 31) or (tod.month == 8 and 1 <= tod.day <= 31):
+    elif (tod.month == 7 and 26 <= tod.day <= 31) or (
+        tod.month == 8 and 1 <= tod.day <= 31
+    ):
         dates = [datetime(tod.year, 8, 14).date()]
-    elif (tod.month == 10 and 24 <= tod.day <= 31) or tod.month == 11 and 1 <= tod.day <= 30:
+    elif (
+        (tod.month == 10 and 24 <= tod.day <= 31)
+        or tod.month == 11
+        and 1 <= tod.day <= 30
+    ):
         dates = [datetime(tod.year, 11, 14).date()]
-    elif tod.month == 3 and 1 <= tod.day <= 31 or (tod.month == 4 and 1 <= tod.day <= 15):
+    elif (
+        tod.month == 3 and 1 <= tod.day <= 31 or (tod.month == 4 and 1 <= tod.day <= 15)
+    ):
         dates = [datetime(tod.year, 3, 31).date()]
     if len(dates) == 0:
-        print('finance_statement no data to parse')
+        print("finance_statement no data to parse")
     else:
-        update_table(conn, 'finance_statement', crawl_finance_statement_by_date, dates)
+        update_table(conn, "finance_statement", crawl_finance_statement_by_date, dates)
 
     # update benchmark_return
     fromd = table_latest_date(conn, "benchmark_return")
@@ -71,9 +94,9 @@ def crawl_data():
     tod = datetime.now(desired_timezone).date()
     dates = month_range(fromd, tod)
     if len(dates) == 0:
-        print('benchmark_return no data to parse')
+        print("benchmark_return no data to parse")
     else:
-        update_table(conn, 'benchmark_return', crawl_benchmark_return, dates)
+        update_table(conn, "benchmark_return", crawl_benchmark_return, dates)
 
     # # update tw_total_pmi tw_total_nmi
     # # tw_total_pmi
@@ -112,9 +135,9 @@ def crawl_data():
     # update price table
     dates = date_range(fromd, tod)
     if len(dates) == 0:
-        print('margin_balance no data to parse')
+        print("margin_balance no data to parse")
     else:
-        update_table(conn, 'margin_balance', crawl_margin_balance, dates)
+        update_table(conn, "margin_balance", crawl_margin_balance, dates)
 
     # update margin_transactions
     fromd = table_latest_date(conn, "margin_transactions")
@@ -122,27 +145,34 @@ def crawl_data():
     # update price table
     dates = date_range(fromd, tod)
     if len(dates) == 0:
-        print('margin_transactions no data to parse')
+        print("margin_transactions no data to parse")
     else:
-        update_table(conn, 'margin_transactions', crawl_margin_transactions, dates)
+        update_table(conn, "margin_transactions", crawl_margin_transactions, dates)
 
     return
 
 
 def check_crawl_datanum(data: Data):
-    price = data.get('price', '收盤價', 1)
+    price = data.get("price", "收盤價", 1)
     priceLatestDate = price.index[-1]
     priceDataNum = price.shape[1]
 
-    monReport = data.get('monthly_revenue', "上月比較增減(%)", 1)
+    monReport = data.get("monthly_revenue", "上月比較增減(%)", 1)
     monReportNum = monReport.shape[1]
     monReportLatestDate = monReport.index[-1]
 
-    seasonReport = data.get('balance_sheet', "普通股股本", 1)
+    seasonReport = data.get("balance_sheet", "普通股股本", 1)
     seasonReportNum = seasonReport.shape[1]
     seasonReportLatestDate = seasonReport.index[-1]
 
-    return priceLatestDate, priceDataNum, monReportLatestDate, monReportNum, seasonReportLatestDate, seasonReportNum
+    return (
+        priceLatestDate,
+        priceDataNum,
+        monReportLatestDate,
+        monReportNum,
+        seasonReportLatestDate,
+        seasonReportNum,
+    )
 
 
 def calculate_account_financial_num(apiLoginList: list) -> dict:
@@ -165,9 +195,9 @@ def calculate_account_financial_num(apiLoginList: list) -> dict:
         else:
             revenue_holdDays.append(date(year, m, 11))
 
-    today = datetime.now(desired_timezone).strftime('%Y-%m-%d')
+    today = datetime.now(desired_timezone).strftime("%Y-%m-%d")
     # turn the today into datetime.date type
-    today = datetime.strptime(today, '%Y-%m-%d').date()
+    today = datetime.strptime(today, "%Y-%m-%d").date()
 
     # check which interval of today in monthly_revenue_holdDays
     for i in range(len(revenue_holdDays)):
@@ -180,11 +210,11 @@ def calculate_account_financial_num(apiLoginList: list) -> dict:
     if today <= date(year, 1, 11):
         begin = date(year - 1, 12, 11)
 
-    begin = (begin + timedelta(days=1)).strftime('%Y-%m-%d')
+    begin = (begin + timedelta(days=1)).strftime("%Y-%m-%d")
 
     print("begin: ", begin)
 
-    today = datetime.now(desired_timezone).strftime('%Y-%m-%d')
+    today = datetime.now(desired_timezone).strftime("%Y-%m-%d")
 
     accountBalance = 0
     totalCost = 0
@@ -211,12 +241,12 @@ def calculate_account_financial_num(apiLoginList: list) -> dict:
         try:
             rPnl_list = api.list_profit_loss(api.stock_account, begin, today)
             rPnl_list = pd.DataFrame(pnl.__dict__ for pnl in rPnl_list)
-            rPnlGrouped = rPnl_list.groupby('code').sum(numeric_only=False)
+            rPnlGrouped = rPnl_list.groupby("code").sum(numeric_only=False)
             rPnlGrouped = rPnlGrouped.reset_index()
 
         except:
             # set rPnlGrouped to be empty if there is no deliveryPayment
-            rPnlGrouped = pd.DataFrame(columns=['code', 'quantity', 'price', 'pnl'])
+            rPnlGrouped = pd.DataFrame(columns=["code", "quantity", "price", "pnl"])
             noRPnl = True
 
         # deliveryPayment
@@ -237,7 +267,11 @@ def calculate_account_financial_num(apiLoginList: list) -> dict:
             u_position_cost = position.quantity * position.price * 1000
             uCost += u_position_cost
             if str(position.code) not in unRealizeddict:
-                unRealizeddict[str(position.code)] = [position.pnl, u_position_cost, position.quantity]
+                unRealizeddict[str(position.code)] = [
+                    position.pnl,
+                    u_position_cost,
+                    position.quantity,
+                ]
             else:
                 unRealizeddict[str(position.code)][0] += position.pnl
                 unRealizeddict[str(position.code)][1] += u_position_cost
@@ -250,17 +284,21 @@ def calculate_account_financial_num(apiLoginList: list) -> dict:
                     continue
                 # 計算買入成本
                 r_position_cost = 0
-                for each_sell_row in rPnl_list[rPnl_list["code"] == row[1]["code"]].iterrows():
-                    profitloss_detail = api.list_profit_loss_detail(api.stock_account, each_sell_row[1]["id"])
+                for each_sell_row in rPnl_list[
+                    rPnl_list["code"] == row[1]["code"]
+                ].iterrows():
+                    profitloss_detail = api.list_profit_loss_detail(
+                        api.stock_account, each_sell_row[1]["id"]
+                    )
                     for each_detail in profitloss_detail:
                         r_position_cost += each_detail["cost"]
-                if str(row[1]['code']) not in realizeddict:
-                    realizeddict[str(row[1]['code'])] = [row[1]['pnl'], r_position_cost]
+                if str(row[1]["code"]) not in realizeddict:
+                    realizeddict[str(row[1]["code"])] = [row[1]["pnl"], r_position_cost]
                 else:
-                    realizeddict[str(row[1]['code'])][0] += row[1]['pnl']
-                    realizeddict[str(row[1]['code'])][1] += r_position_cost
+                    realizeddict[str(row[1]["code"])][0] += row[1]["pnl"]
+                    realizeddict[str(row[1]["code"])][1] += r_position_cost
 
-                rPnl += row[1]['pnl']
+                rPnl += row[1]["pnl"]
                 rCost += r_position_cost
 
     # 股息還沒正式入帳之前先手寫存在temp_dividend
@@ -276,12 +314,23 @@ def calculate_account_financial_num(apiLoginList: list) -> dict:
     netWorth = uNetWorth + accountBalance
 
     # remove dNetWorth
-    return {"netWorth": netWorth, "totalPnl": totalPnl, "accountBalance": accountBalance, "totalCost": totalCost,
-            "uNetWorth": uNetWorth, "uPnl": uPnl, "rPnl": rPnl, "unRealizeddict": unRealizeddict,
-            "realizeddict": realizeddict, "tempDividendSum": temp_dividend_sum}
+    return {
+        "netWorth": netWorth,
+        "totalPnl": totalPnl,
+        "accountBalance": accountBalance,
+        "totalCost": totalCost,
+        "uNetWorth": uNetWorth,
+        "uPnl": uPnl,
+        "rPnl": rPnl,
+        "unRealizeddict": unRealizeddict,
+        "realizeddict": realizeddict,
+        "tempDividendSum": temp_dividend_sum,
+    }
 
 
-def re_evaluate_holding(apiLoginList: list, date, earlySellMonth, earlySellSeason) -> str:
+def re_evaluate_holding(
+    apiLoginList: list, date, earlySellMonth, earlySellSeason
+) -> str:
     stockListPosition = []
     for api in apiLoginList:
         list_positions = api.list_positions(api.stock_account)
@@ -289,7 +338,11 @@ def re_evaluate_holding(apiLoginList: list, date, earlySellMonth, earlySellSeaso
             if str(position.code) in stock_not_for_quantx:
                 continue
             stockListPosition.append(str(position.code))
-    params = {"earlySellMonth": earlySellMonth, "earlySellSeason": earlySellSeason, "initial_capital": 1000000}
+    params = {
+        "earlySellMonth": earlySellMonth,
+        "earlySellSeason": earlySellSeason,
+        "initial_capital": 1000000,
+    }
     strategy = QuantxStrategy(params)
     strategy.update_data_date(date)
     stockListAll = strategy.run()
@@ -302,7 +355,11 @@ def re_evaluate_holding(apiLoginList: list, date, earlySellMonth, earlySellSeaso
     Res = []
     for i in range(len(stockListPosition)):
         try:
-            Res.append(str(stockListPosition[i]) + " : " + str(stockListAll[stockListPosition[i]]))
+            Res.append(
+                str(stockListPosition[i])
+                + " : "
+                + str(stockListAll[stockListPosition[i]])
+            )
         except:
             message += "Missing " + str(stockListPosition[i]) + " in reevaluate.\n"
 
@@ -315,7 +372,9 @@ def re_evaluate_holding(apiLoginList: list, date, earlySellMonth, earlySellSeaso
     return message
 
 
-def net_worth_ds(apiLoginList: list, test=True, strategy_id=1, add_dividend=False, linebot=[]):
+def net_worth_ds(
+    apiLoginList: list, test=True, strategy_id=1, add_dividend=False, linebot=[]
+):
 
     # The walkaround for quantx pool: qx_strategy + kms_strategy
     # if strategy_id == 1:
@@ -340,8 +399,12 @@ def net_worth_ds(apiLoginList: list, test=True, strategy_id=1, add_dividend=Fals
 
     for k, v in financial_num["unRealizeddict"].items():
         stock_data = {
-            'strategy_id': strategy_id, 'stock_id': k, 'quantity': v[2], 'networth': round(v[0] + v[1], 1),
-            'pnl': round(v[0], 1), 'pnl_percentage': round((float(v[0]) / float(v[1])) * 100, 2),
+            "strategy_id": strategy_id,
+            "stock_id": k,
+            "quantity": v[2],
+            "networth": round(v[0] + v[1], 1),
+            "pnl": round(v[0], 1),
+            "pnl_percentage": round((float(v[0]) / float(v[1])) * 100, 2),
         }
         stock_datas.append(stock_data)
         message += f"{k}: {v[2]}  {round(v[0] + v[1], 1)}  {round(v[0], 1)}  {round((float(v[0]) / float(v[1])) * 100, 2)}%\n"
@@ -352,7 +415,9 @@ def net_worth_ds(apiLoginList: list, test=True, strategy_id=1, add_dividend=Fals
     message += f"stockId--PnL--PnL(%)\n"
 
     for k, v in financial_num["realizeddict"].items():
-        message += f"{k}: {round(v[0], 1)}  {round((float(v[0]) / float(v[1])) * 100, 2)}%\n"
+        message += (
+            f"{k}: {round(v[0], 1)}  {round((float(v[0]) / float(v[1])) * 100, 2)}%\n"
+        )
 
     message += f"Total Realized Pnl: {financial_num['rPnl']}\n"
 
@@ -385,9 +450,16 @@ def net_worth_ds(apiLoginList: list, test=True, strategy_id=1, add_dividend=Fals
     if not test:
         # write data into cloudsql
         strategy_data = [
-            {'strategy_id': strategy_id, 'networth': netWorth, 'unrealized_pnl': financial_num["uPnl"],
-             'realized_pnl': financial_num["rPnl"], 'pnl': totalPnl,
-             'roi_algo': roiOfAlgo, 'roi_fund': roiOfAllFund, 'remain_cash': financial_num["accountBalance"]},
+            {
+                "strategy_id": strategy_id,
+                "networth": netWorth,
+                "unrealized_pnl": financial_num["uPnl"],
+                "realized_pnl": financial_num["rPnl"],
+                "pnl": totalPnl,
+                "roi_algo": roiOfAlgo,
+                "roi_fund": roiOfAllFund,
+                "remain_cash": financial_num["accountBalance"],
+            },
         ]
 
         mysqldb = Mysqldb()
@@ -406,19 +478,24 @@ def net_worth_ds(apiLoginList: list, test=True, strategy_id=1, add_dividend=Fals
     # discord bot message
     return message
 
+
 def line_notify_message(token, msg):
     headers = {
         "Authorization": "Bearer " + token,
-        "Content-Type": "application/x-www-form-urlencoded"
+        "Content-Type": "application/x-www-form-urlencoded",
     }
 
-    payload = {'message': msg}
-    r = requests.post("https://notify-api.line.me/api/notify", headers=headers, params=payload)
+    payload = {"message": msg}
+    r = requests.post(
+        "https://notify-api.line.me/api/notify", headers=headers, params=payload
+    )
 
     return r.status_code
 
 
-def stock_list_quantx_ds(pool: str, apiLoginList: list, investpercentage: float = 0.9, test=True):
+def stock_list_quantx_ds(
+    pool: str, apiLoginList: list, investpercentage: float = 0.9, test=True
+):
     return_message = list()
     # 策略清單
     earlySellMonth = False
@@ -437,13 +514,19 @@ def stock_list_quantx_ds(pool: str, apiLoginList: list, investpercentage: float 
     if day.month == 3 and 1 <= day.day < 31:
         day = datetime(day.year, 3, 31).date()
         earlySellSeason = True
-    if (day.month == 4 and 26 <= day.day <= 30) or (day.month == 5 and 1 <= day.day <= 15):
+    if (day.month == 4 and 26 <= day.day <= 30) or (
+        day.month == 5 and 1 <= day.day <= 15
+    ):
         day = datetime(day.year, 5, 15).date()
         earlySellSeason = True
-    if (day.month == 7 and 26 <= day.day <= 31) or (day.month == 8 and 1 <= day.day <= 14):
+    if (day.month == 7 and 26 <= day.day <= 31) or (
+        day.month == 8 and 1 <= day.day <= 14
+    ):
         day = datetime(day.year, 8, 14).date()
         earlySellSeason = True
-    if (day.month == 10 and 24 <= day.day <= 31) or (day.month == 11 and 1 <= day.day <= 14):
+    if (day.month == 10 and 24 <= day.day <= 31) or (
+        day.month == 11 and 1 <= day.day <= 14
+    ):
         day = datetime(day.year, 11, 14).date()
         earlySellSeason = True
 
@@ -452,7 +535,8 @@ def stock_list_quantx_ds(pool: str, apiLoginList: list, investpercentage: float 
     print("Begin...")
 
     message = "\n{} price data num: {}\n{} monthly report data num: {}\n{} seasonal report data num: {}".format(
-        *check_crawl_datanum(data))
+        *check_crawl_datanum(data)
+    )
 
     # early sale reevaluate
 
@@ -470,17 +554,34 @@ def stock_list_quantx_ds(pool: str, apiLoginList: list, investpercentage: float 
     strategy.update_data_date(day)
     stock_list = strategy.run()
     # 要notify的info
-    message += "\n" + datetime.now(desired_timezone).strftime('%Y-%m-%d') + "'s stock list:"
-    eps = data.get('income_sheet', "基本每股盈餘合計", 1)
+    message += (
+        "\n" + datetime.now(desired_timezone).strftime("%Y-%m-%d") + "'s stock list:"
+    )
+    eps = data.get("income_sheet", "基本每股盈餘合計", 1)
     for i in range(len(stock_list)):
         # 計算該產業季報eps開了幾%
-        indu_k = eps.reindex(columns=indu_id[indu[str(stock_list.index[i])][1]]).dropna(axis=1)
+        indu_k = eps.reindex(columns=indu_id[indu[str(stock_list.index[i])][1]]).dropna(
+            axis=1
+        )
         seasonal_report_announcement_percentage = int(
-            len(indu_k.T) / len(indu_id[indu[str(stock_list.index[i])][1]]) * 100)
+            len(indu_k.T) / len(indu_id[indu[str(stock_list.index[i])][1]]) * 100
+        )
 
-        message += "\n" + str(i + 1) + ". " + str(stock_list.index[i]) + " " + str(stock_list[i]) + " " + \
-                   indu[str(stock_list.index[i])][0] + " " + indu[str(stock_list.index[i])][1] + " SRAP: " + \
-                   str(seasonal_report_announcement_percentage) + "%"
+        message += (
+            "\n"
+            + str(i + 1)
+            + ". "
+            + str(stock_list.index[i])
+            + " "
+            + str(stock_list[i])
+            + " "
+            + indu[str(stock_list.index[i])][0]
+            + " "
+            + indu[str(stock_list.index[i])][1]
+            + " SRAP: "
+            + str(seasonal_report_announcement_percentage)
+            + "%"
+        )
 
     return_message.append(message)
 
@@ -497,15 +598,21 @@ def stock_list_quantx_ds(pool: str, apiLoginList: list, investpercentage: float 
                 invest_money += 50000
                 continue
             # 要notify的info
-            message = "\n" + "下注比例 : {}% : ".format(round(total_invest_money / netWorth * 100))
+            message = "\n" + "下注比例 : {}% : ".format(
+                round(total_invest_money / netWorth * 100)
+            )
 
             message += "\n\n" + "networth : " + str(netWorth)
 
-            message += "\n\n" + "actual investing money : " + str(total_invest_money) + "\n\n"
+            message += (
+                "\n\n" + "actual investing money : " + str(total_invest_money) + "\n\n"
+            )
 
             message += "預計投資部位:"
             for i, v in p.iteritems():
-                message += "\n" + str(i) + " " + indu[str(i)][0] + " 投資 " + str(v) + "張"
+                message += (
+                    "\n" + str(i) + " " + indu[str(i)][0] + " 投資 " + str(v) + "張"
+                )
 
             print(message)
 
@@ -530,15 +637,21 @@ def stock_list_quantx_ds(pool: str, apiLoginList: list, investpercentage: float 
                 invest_money += 50000
                 continue
             # 要notify的info
-            message = "\n" + "下注比例 : {}% : ".format(round(total_invest_money / netWorth * 100))
+            message = "\n" + "下注比例 : {}% : ".format(
+                round(total_invest_money / netWorth * 100)
+            )
 
             message += "\n\n" + "networth : " + str(netWorth)
 
-            message += "\n\n" + "actual investing money : " + str(total_invest_money) + "\n\n"
+            message += (
+                "\n\n" + "actual investing money : " + str(total_invest_money) + "\n\n"
+            )
 
             message += "預計投資部位:"
             for i, v in p.iteritems():
-                message += "\n" + str(i) + " " + indu[str(i)][0] + " 投資 " + str(v) + "張"
+                message += (
+                    "\n" + str(i) + " " + indu[str(i)][0] + " 投資 " + str(v) + "張"
+                )
 
             print(message)
 
@@ -556,69 +669,103 @@ def stock_list_quantx_ds(pool: str, apiLoginList: list, investpercentage: float 
 
 def compare_roi():
     # For getting the ROI of 0050
-    today = datetime.today().strftime('%Y-%m-%d')
+    today = datetime.today().strftime("%Y-%m-%d")
 
-    end_day = (datetime.today() - timedelta(days=60)).strftime('%Y-%m-%d')
+    end_day = (datetime.today() - timedelta(days=60)).strftime("%Y-%m-%d")
 
     yf_df = yf.download("0050.TW", start=end_day, end=today)
 
     # ROI of last week
-    today0050 = yf_df.iloc[-1]['Adj Close']
-    last_one_week0050 = yf_df.iloc[-6]['Adj Close']
+    today0050 = yf_df.iloc[-1]["Adj Close"]
+    last_one_week0050 = yf_df.iloc[-6]["Adj Close"]
 
     # ROI of last two week
-    last_two_week0050 = yf_df.iloc[-11]['Adj Close']
+    last_two_week0050 = yf_df.iloc[-11]["Adj Close"]
 
     # ROI of last three week
-    last_three_week0050 = yf_df.iloc[-16]['Adj Close']
+    last_three_week0050 = yf_df.iloc[-16]["Adj Close"]
 
     # ROI of last four week
-    last_four_week0050 = yf_df.iloc[-21]['Adj Close']
+    last_four_week0050 = yf_df.iloc[-21]["Adj Close"]
 
-    ROI_of_0050_one = round((today0050 - last_one_week0050) * 100 / last_one_week0050, 2)
-    ROI_of_0050_two = round((today0050 - last_two_week0050) * 100 / last_two_week0050, 2)
-    ROI_of_0050_three = round((today0050 - last_three_week0050) * 100 / last_three_week0050, 2)
-    ROI_of_0050_four = round((today0050 - last_four_week0050) * 100 / last_four_week0050, 2)
+    ROI_of_0050_one = round(
+        (today0050 - last_one_week0050) * 100 / last_one_week0050, 2
+    )
+    ROI_of_0050_two = round(
+        (today0050 - last_two_week0050) * 100 / last_two_week0050, 2
+    )
+    ROI_of_0050_three = round(
+        (today0050 - last_three_week0050) * 100 / last_three_week0050, 2
+    )
+    ROI_of_0050_four = round(
+        (today0050 - last_four_week0050) * 100 / last_four_week0050, 2
+    )
 
     # For getting the ROI of QuantX
-    QX_df = pd.read_csv('ActualPerformance.csv', index_col=0, parse_dates=True)
+    QX_df = pd.read_csv("ActualPerformance.csv", index_col=0, parse_dates=True)
 
     try:
         # ROI of today
-        todayQX = QX_df.iloc[-1]['net_worth']
+        todayQX = QX_df.iloc[-1]["net_worth"]
         # ROI of last week
-        last_one_weekQX = QX_df.iloc[-6]['net_worth']
+        last_one_weekQX = QX_df.iloc[-6]["net_worth"]
         ROI_of_QX_one = round((todayQX - last_one_weekQX) * 100 / last_one_weekQX, 2)
     except:
         ROI_of_QX_one = "Nan"
 
     try:
         # ROI of last two week
-        last_two_weekQX = QX_df.iloc[-11]['net_worth']
+        last_two_weekQX = QX_df.iloc[-11]["net_worth"]
         ROI_of_QX_two = round((todayQX - last_two_weekQX) * 100 / last_two_weekQX, 2)
     except:
         ROI_of_QX_two = "Nan"
 
     try:
         # ROI of last three week
-        last_three_weekQX = QX_df.iloc[-16]['net_worth']
-        ROI_of_QX_three = round((todayQX - last_three_weekQX) * 100 / last_three_weekQX, 2)
+        last_three_weekQX = QX_df.iloc[-16]["net_worth"]
+        ROI_of_QX_three = round(
+            (todayQX - last_three_weekQX) * 100 / last_three_weekQX, 2
+        )
     except:
         ROI_of_QX_three = "Nan"
 
     try:
         # ROI of last four week
-        last_four_weekQX = QX_df.iloc[-21]['net_worth']
+        last_four_weekQX = QX_df.iloc[-21]["net_worth"]
         ROI_of_QX_four = round((todayQX - last_four_weekQX) * 100 / last_four_weekQX, 2)
     except:
         ROI_of_QX_four = "Nan"
 
     return_message = ""
     return_message += "=====QuantX======0050=====\n"
-    return_message += "This week:            " + str(ROI_of_QX_one) + "% v.s. " + str(ROI_of_0050_one) + "%\n"
-    return_message += "Last week:            " + str(ROI_of_QX_two) + "% v.s. " + str(ROI_of_0050_two) + "%\n"
-    return_message += "Last two week:    " + str(ROI_of_QX_three) + "% v.s. " + str(ROI_of_0050_three) + "%\n"
-    return_message += "Last three week: " + str(ROI_of_QX_four) + "% v.s. " + str(ROI_of_0050_four) + "%\n"
+    return_message += (
+        "This week:            "
+        + str(ROI_of_QX_one)
+        + "% v.s. "
+        + str(ROI_of_0050_one)
+        + "%\n"
+    )
+    return_message += (
+        "Last week:            "
+        + str(ROI_of_QX_two)
+        + "% v.s. "
+        + str(ROI_of_0050_two)
+        + "%\n"
+    )
+    return_message += (
+        "Last two week:    "
+        + str(ROI_of_QX_three)
+        + "% v.s. "
+        + str(ROI_of_0050_three)
+        + "%\n"
+    )
+    return_message += (
+        "Last three week: "
+        + str(ROI_of_QX_four)
+        + "% v.s. "
+        + str(ROI_of_0050_four)
+        + "%\n"
+    )
 
     return return_message
 
@@ -631,8 +778,12 @@ def api_usage_query(apiLoginList: list):
 
         return_message += f"Connections:{APIusage_message.connections} "
         return_message += f"Used:{round(APIusage_message.bytes / (1024 ** 2), 2)} mb "
-        return_message += f"Limits:{round(APIusage_message.limit_bytes / (1024 ** 2), 2)} mb "
-        return_message += f"Remaining:{round(APIusage_message.remaining_bytes / (1024 ** 2), 2)} mb\n"
+        return_message += (
+            f"Limits:{round(APIusage_message.limit_bytes / (1024 ** 2), 2)} mb "
+        )
+        return_message += (
+            f"Remaining:{round(APIusage_message.remaining_bytes / (1024 ** 2), 2)} mb\n"
+        )
 
     return return_message
 
@@ -675,7 +826,7 @@ def generate_trading_report(apiLoginList: list, test=True):
     Today's trading reflected a challenging market environment with significant losses in several stocks. Although some gains were noted, the overall financial performance resulted in a negative ROI for both the algorithm and the overall funds. Moving forward, a reassessment of the current investment strategy and risk management practices might be necessary to mitigate further losses and enhance returns.
     """
 
-    prompt = f"Here is the template {template}, Please generate today\'s trading report for the investor on the data: {message}"
+    prompt = f"Here is the template {template}, Please generate today's trading report for the investor on the data: {message}"
 
     completion = openai.chat.completions.create(
         model="gpt-3.5-turbo",

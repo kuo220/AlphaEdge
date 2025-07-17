@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 import os
 import sqlite3
+
 try:
     import dolphindb as ddb
 except ModuleNotFoundError:
@@ -15,7 +16,7 @@ from dateutil.rrule import rrule, DAILY, MONTHLY
 from dateutil.relativedelta import relativedelta
 
 from trader.utils import ShioajiAccount
-from trader.pipeline import (StockChipCrawler, StockTickCrawler, QuantXCrawler)
+from trader.pipeline import StockChipCrawler, StockTickCrawler, QuantXCrawler
 from trader.config import QUANTX_DB_PATH
 
 

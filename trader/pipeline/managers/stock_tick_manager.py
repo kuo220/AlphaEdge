@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import List, Optional
 import ipywidgets as widgets
 from IPython.display import display
+
 try:
     import dolphindb as ddb
 except ModuleNotFoundError:
@@ -23,12 +24,12 @@ from trader.config import (
     DDB_HOST,
     DDB_PORT,
     DDB_USER,
-    DDB_PASSWORD
+    DDB_PASSWORD,
 )
 
 
 class StockTickManager(BaseDatabaseManager):
-    """ 管理上市與上櫃股票的三大法人 tick 資料，整合爬取、清洗與寫入資料庫等流程 """
+    """管理上市與上櫃股票的三大法人 tick 資料，整合爬取、清洗與寫入資料庫等流程"""
 
     def __init__(self):
 
@@ -42,25 +43,22 @@ class StockTickManager(BaseDatabaseManager):
         # Set up database
         self.setup_db()
 
-
     def connect(self) -> None:
-        """ Connect to the Database """
+        """Connect to the Database"""
 
         self.session = ddb.session()
         self.session.connect(DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
 
-
     def disconnect(self) -> None:
-        """ Disconnect the Database """
+        """Disconnect the Database"""
 
         self.session.close()
 
-
     def create_db(self) -> None:
-        """ 創建 dolphinDB """
+        """創建 dolphinDB"""
 
-        start_time: str = '2020.03.01'
-        end_time: str = '2030.12.31'
+        start_time: str = "2020.03.01"
+        end_time: str = "2030.12.31"
 
         if self.session.existsDatabase(TICK_DB_PATH):
             print("Database exists!")
@@ -94,18 +92,16 @@ class StockTickManager(BaseDatabaseManager):
             except Exception as e:
                 print(f"dolphinDB create unsuccessfully!\n{e}")
 
-
     def add_to_db(self) -> None:
-        """ 將資料夾中的所有 CSV 檔存入 tick 的 DolphinDB 中 """
+        """將資料夾中的所有 CSV 檔存入 tick 的 DolphinDB 中"""
 
         self.append_all_csv_to_dolphinDB(TICK_DOWNLOADS_PATH)
         shutil.rmtree(TICK_DOWNLOADS_PATH)
 
-
     def setup_db(self):
-        """ 檢查資料庫是否存在，並設定 TSDB Cache Engine """
+        """檢查資料庫是否存在，並設定 TSDB Cache Engine"""
 
-        if (self.session.existsDatabase(TICK_DB_PATH)):
+        if self.session.existsDatabase(TICK_DB_PATH):
             print("Database exists!")
 
             # Set TSDBCacheEngineSize to 5GB (must < 8(maxMemSize) * 0.75 GB)
@@ -118,26 +114,30 @@ class StockTickManager(BaseDatabaseManager):
         else:
             print("Database doesn't exist!")
 
-
     def update_table(self, dates: List[datetime.date]) -> None:
-        """ Tick Database 資料更新（Multi-threading） """
+        """Tick Database 資料更新（Multi-threading）"""
 
         self.crawler.crawl_ticks_multithreaded(dates)
         self.add_to_db()
 
-
     def widget(self) -> None:
-        """ Tick Database 資料更新 UI """
+        """Tick Database 資料更新 UI"""
 
         # Set update date
-        date_picker_from: widgets.DatePicker = widgets.DatePicker(description='from', disabled=False)
-        date_picker_to: widgets.DatePicker = widgets.DatePicker(description='to', disabled=False)
+        date_picker_from: widgets.DatePicker = widgets.DatePicker(
+            description="from", disabled=False
+        )
+        date_picker_to: widgets.DatePicker = widgets.DatePicker(
+            description="to", disabled=False
+        )
 
-        date_picker_from.value = StockTickUtils.get_table_latest_date() + datetime.timedelta(days=1)
+        date_picker_from.value = (
+            StockTickUtils.get_table_latest_date() + datetime.timedelta(days=1)
+        )
         date_picker_to.value = datetime.date.today()
 
         # Set update button
-        btn: widgets.Button = widgets.Button(description='update')
+        btn: widgets.Button = widgets.Button(description="update")
 
         # Define update button behavior
         def onupdate(_):
@@ -148,13 +148,19 @@ class StockTickManager(BaseDatabaseManager):
                 print("Please select both start and end dates.")
                 return
 
-            dates: List[datetime.date] = TimeUtils.generate_date_range(start_date, end_date)
+            dates: List[datetime.date] = TimeUtils.generate_date_range(
+                start_date, end_date
+            )
 
             if not dates:
-                print("Date range is empty. Please check if the start date is earlier than the end date.")
+                print(
+                    "Date range is empty. Please check if the start date is earlier than the end date."
+                )
                 return
 
-            print(f"Updating data for table '{TICK_TABLE_NAME}' from {dates[0]} to {dates[-1]}...")
+            print(
+                f"Updating data for table '{TICK_TABLE_NAME}' from {dates[0]} to {dates[-1]}..."
+            )
             self.update_table(dates)
 
         btn.on_click(onupdate)
@@ -168,9 +174,8 @@ class StockTickManager(BaseDatabaseManager):
         items: List[widgets.Widget] = [date_picker_from, date_picker_to, btn]
         display(widgets.VBox([label, widgets.HBox(items)]))
 
-
     def append_csv_to_dolphinDB(self, csv_path: str) -> None:
-        """ 將單一 CSV 資料添加到已建立的 DolphinDB 資料表 """
+        """將單一 CSV 資料添加到已建立的 DolphinDB 資料表"""
 
         script: str = f"""
         db = database("{TICK_DB_PATH}")
@@ -195,9 +200,8 @@ class StockTickManager(BaseDatabaseManager):
         except Exception as e:
             print(f"The csv file fail to save into database and table!\n{e}")
 
-
     def append_all_csv_to_dolphinDB(self, dir_path: Path) -> None:
-        """ 將資料夾內所有 CSV 檔案附加到已建立的 DolphinDB 資料表 """
+        """將資料夾內所有 CSV 檔案附加到已建立的 DolphinDB 資料表"""
 
         # read all csv files in dir_path (.as_posix => replace \\ with / (for windows os))
         csv_files: List[str] = [str(csv.as_posix()) for csv in dir_path.glob("*.csv")]
@@ -234,18 +238,16 @@ class StockTickManager(BaseDatabaseManager):
         except Exception as e:
             print(f"All csv files fail to save into database and table!\n{e}")
 
-
     def clear_all_cache(self) -> None:
-        """ 清除 Cache Data """
+        """清除 Cache Data"""
 
         script: str = """
         clearAllCache()
         """
         self.session.run(script)
 
-
     def delete_dolphinDB(self, db_path: str) -> None:
-        """ 刪除資料庫 """
+        """刪除資料庫"""
 
         print("Start deleting database...")
 
@@ -256,7 +258,7 @@ class StockTickManager(BaseDatabaseManager):
         """
         self.session.run(script)
 
-        if (self.session.existsDatabase(db_path)):
+        if self.session.existsDatabase(db_path):
             print("Delete database unsuccessfully!")
         else:
             print("Delete database successfully!")
