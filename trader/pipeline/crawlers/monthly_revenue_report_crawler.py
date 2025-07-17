@@ -8,18 +8,14 @@ import requests
 
 from trader.pipeline.crawlers.base import BaseDataCrawler
 from trader.pipeline.crawlers.utils.request_utils import RequestUtils
-from trader.pipeline.utils import (
-    URLManager,
-    MarketType,
-    FileEncoding
-)
+from trader.pipeline.utils import URLManager, MarketType, FileEncoding
 from trader.pipeline.utils.data_utils import DataUtils
 from trader.utils import TimeUtils
 from trader.config import MONTHLY_REVENUE_REPORT_PATH
 
 
 class MonthlyRevenueReportCrawler(BaseDataCrawler):
-    """ TWSE & TPEX Monthly Revenue Report Crawler """
+    """TWSE & TPEX Monthly Revenue Report Crawler"""
 
     def __init__(self):
 
@@ -30,25 +26,24 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
         self.twse_market_types: List[MarketType] = [MarketType.SII0, MarketType.SII1]
         self.tpex_market_types: List[MarketType] = [MarketType.OTC0, MarketType.OTC1]
 
-
     def crawl(self, date: datetime.date) -> Optional[List[pd.DataFrame]]:
-        """ Crawl Data """
+        """Crawl Data"""
 
         twse_df: List[pd.DataFrame] = self.crawl_twse_monthly_revenue(date)
         tpex_df: List[pd.DataFrame] = self.crawl_tpex_monthly_revenue(date)
 
         return twse_df + tpex_df
 
-
     def setup(self, *args, **kwargs) -> None:
-        """ Set Up the Config of Crawler """
+        """Set Up the Config of Crawler"""
 
         # Create the tick downloads directory
         self.mrr_dir.mkdir(parents=True, exist_ok=True)
 
-
-    def crawl_twse_monthly_revenue(self, date: datetime.date) -> Optional[List[pd.DataFrame]]:
-        """ Crawl TWSE Monthly Revenue Report """
+    def crawl_twse_monthly_revenue(
+        self, date: datetime.date
+    ) -> Optional[List[pd.DataFrame]]:
+        """Crawl TWSE Monthly Revenue Report"""
 
         df_list: List[pd.DataFrame] = []
 
@@ -57,7 +52,7 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
                 "TWSE_MONTHLY_REVENUE_REPORT_URL",
                 roc_year=TimeUtils.convert_ad_to_roc_year(date.year),
                 month=date.month,
-                market_type=market_type.value
+                market_type=market_type.value,
             )
 
             try:
@@ -73,9 +68,10 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
 
         return df_list
 
-
-    def crawl_tpex_monthly_revenue(self, date: datetime.date) -> Optional[List[pd.DataFrame]]:
-        """ Crawl TPEX Monthly Revenue Report """
+    def crawl_tpex_monthly_revenue(
+        self, date: datetime.date
+    ) -> Optional[List[pd.DataFrame]]:
+        """Crawl TPEX Monthly Revenue Report"""
 
         df_list: List[pd.DataFrame] = []
 
@@ -84,7 +80,7 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
                 "TPEX_MONTHLY_REVENUE_REPORT_URL",
                 roc_year=TimeUtils.convert_ad_to_roc_year(date.year),
                 month=date.month,
-                market_type=market_type.value
+                market_type=market_type.value,
             )
 
             try:

@@ -3,6 +3,7 @@ import datetime
 from pathlib import Path
 from typing import Optional
 import pandas as pd
+
 try:
     import dolphindb as ddb
 except ModuleNotFoundError:
@@ -15,12 +16,12 @@ from trader.config import (
     DDB_HOST,
     DDB_PORT,
     DDB_USER,
-    DDB_PASSWORD
+    DDB_PASSWORD,
 )
 
 
 class Tick:
-    """ Tick data API """
+    """Tick data API"""
 
     def __init__(self):
         self.default_stock_id: str = "2330"
@@ -32,19 +33,14 @@ class Tick:
 
         self.setup_api()
 
-
-    def get(
-        self,
-        start_date: datetime.date,
-        end_date: datetime.date
-    ) -> pd.DataFrame:
-        """ 取得所有個股各自排序好 tick 資料（個股沒有混在一起排序） """
+    def get(self, start_date: datetime.date, end_date: datetime.date) -> pd.DataFrame:
+        """取得所有個股各自排序好 tick 資料（個股沒有混在一起排序）"""
 
         if start_date > end_date:
             return pd.DataFrame()
 
-        start_date: str = start_date.strftime('%Y.%m.%d')
-        end_date: str = (end_date + datetime.timedelta(days=1)).strftime('%Y.%m.%d')
+        start_date: str = start_date.strftime("%Y.%m.%d")
+        end_date: str = (end_date + datetime.timedelta(days=1)).strftime("%Y.%m.%d")
         script: str = f"""
         db = database("{TICK_DB_PATH}")
         table = loadTable(db, "{TICK_TABLE_NAME}")
@@ -54,20 +50,17 @@ class Tick:
         tick: pd.DataFrame = self.session.run(script)
         return tick
 
-
     def get_ordered_ticks(
-        self,
-        start_date: datetime.date,
-        end_date: datetime.date
+        self, start_date: datetime.date, end_date: datetime.date
     ) -> pd.DataFrame:
-        """ 取得排序好的 tick 資料（所有個股混在一起以時間排序） """
+        """取得排序好的 tick 資料（所有個股混在一起以時間排序）"""
         """ 模擬市場盤中情形 """
 
         if start_date > end_date:
             return pd.DataFrame()
 
-        start_date: str = start_date.strftime('%Y.%m.%d')
-        end_date: str = (end_date + datetime.timedelta(days=1)).strftime('%Y.%m.%d')
+        start_date: str = start_date.strftime("%Y.%m.%d")
+        end_date: str = (end_date + datetime.timedelta(days=1)).strftime("%Y.%m.%d")
         script: str = f"""
         db = database("{TICK_DB_PATH}")
         table = loadTable(db, "{TICK_TABLE_NAME}")
@@ -77,20 +70,16 @@ class Tick:
         tick: pd.DataFrame = self.session.run(script)
         return tick
 
-
     def get_stock_ticks(
-        self,
-        stock_id: str,
-        start_date: datetime.date,
-        end_date: datetime.date
+        self, stock_id: str, start_date: datetime.date, end_date: datetime.date
     ) -> pd.DataFrame:
-        """ 取得個股 tick 資料 """
+        """取得個股 tick 資料"""
 
         if start_date > end_date:
             return pd.DataFrame()
 
-        start_date: str = start_date.strftime('%Y.%m.%d')
-        end_date: str = (end_date + datetime.timedelta(days=1)).strftime('%Y.%m.%d')
+        start_date: str = start_date.strftime("%Y.%m.%d")
+        end_date: str = (end_date + datetime.timedelta(days=1)).strftime("%Y.%m.%d")
         script: str = f"""
         db = database("{TICK_DB_PATH}")
         table = loadTable(db, "{TICK_TABLE_NAME}")
@@ -100,13 +89,8 @@ class Tick:
         tick: pd.DataFrame = self.session.run(script)
         return tick
 
-
-    def get_last_tick(
-        self,
-        stock_id: str,
-        date: datetime.date
-    ) -> pd.DataFrame:
-        """ 取得當日最後一筆 tick """
+    def get_last_tick(self, stock_id: str, date: datetime.date) -> pd.DataFrame:
+        """取得當日最後一筆 tick"""
 
         tick: pd.DataFrame = self.get_stock_ticks(stock_id, date, date)
 
@@ -114,11 +98,10 @@ class Tick:
             return pd.DataFrame()
         return tick.iloc[-1:]
 
-
     def setup_api(self):
-        """ API Setup """
+        """API Setup"""
 
-        if (self.session.existsDatabase(TICK_DB_PATH)):
+        if self.session.existsDatabase(TICK_DB_PATH):
             print("* Database exists!")
 
             # set TSDBCacheEngineSize to 5GB (must < 8(maxMemSize) * 0.75 GB)

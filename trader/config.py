@@ -10,11 +10,11 @@ load_dotenv()
 
 
 # Root Directory
-BASE_DIR: Path = Path(__file__).resolve().parent # trader
+BASE_DIR: Path = Path(__file__).resolve().parent  # trader
 
 
 # === Helper: Load and resolve path from .env ===
-def get_resolved_path(env_key: str, default: str=None) -> Path:
+def get_resolved_path(env_key: str, default: str = None) -> Path:
     value: Optional[str] = os.getenv(env_key, default)
     if value is None:
         raise ValueError(f"Missing required environment variable: {env_key}")
@@ -40,7 +40,9 @@ TICK_DOWNLOADS_PATH: Path = get_resolved_path("TICK_DOWNLOADS_PATH")
 
 # === Crawler Financial Statement Metadata Directory Path ===
 DOWNLOADS_METADATA_DIR_PATH: Path = (CRAWLER_DOWNLOADS_PATH / "meta").resolve()
-FINANCIAL_STATEMENT_META_DIR_PATH: Path = (DOWNLOADS_METADATA_DIR_PATH / "financial_statement").resolve()
+FINANCIAL_STATEMENT_META_DIR_PATH: Path = (
+    DOWNLOADS_METADATA_DIR_PATH / "financial_statement"
+).resolve()
 
 
 # === Certs.cer ===
@@ -90,5 +92,7 @@ API_LIST: List[ShioajiAPI] = []
 
 # Add API from 11 ~ 17 and add API_1 (Mine)
 for num in range(NUM_API):
-    api: ShioajiAPI = ShioajiAPI(os.getenv(f"API_KEY_{num + 1}"), os.getenv(f"API_SECRET_KEY_{num + 1}"))
+    api: ShioajiAPI = ShioajiAPI(
+        os.getenv(f"API_KEY_{num + 1}"), os.getenv(f"API_SECRET_KEY_{num + 1}")
+    )
     API_LIST.append(api)

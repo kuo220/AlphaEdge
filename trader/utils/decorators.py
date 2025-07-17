@@ -11,4 +11,5 @@ def log_thread(func: Callable) -> Callable:
         thread_name = threading.current_thread().name
         logger.info(f"Thread started: id={thread_id}, name={thread_name}")
         return func(*args, **kwargs)
+
     return wrapper

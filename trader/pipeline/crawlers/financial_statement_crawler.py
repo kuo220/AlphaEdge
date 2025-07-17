@@ -15,19 +15,19 @@ from trader.pipeline.utils import (
     URLManager,
     MarketType,
     FinancialStatementType,
-    FileEncoding
+    FileEncoding,
 )
 from trader.pipeline.utils.data_utils import DataUtils
 from trader.utils import TimeUtils
 from trader.config import (
     FINANCIAL_STATEMENT_PATH,
     DOWNLOADS_METADATA_DIR_PATH,
-    FINANCIAL_STATEMENT_META_DIR_PATH
+    FINANCIAL_STATEMENT_META_DIR_PATH,
 )
 
 
 class FinancialStatementCrawler(BaseDataCrawler):
-    """ Crawler for quarterly financial Statement """
+    """Crawler for quarterly financial Statement"""
 
     def __init__(self):
         super().__init__()
@@ -41,9 +41,8 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
         self.setup()
 
-
     def crawl(self, *args, **kwargs) -> Dict[str, List[pd.DataFrame]]:
-        """ Crawl Financial Report (Include 4 reports) """
+        """Crawl Financial Report (Include 4 reports)"""
         """
         General usage:
         **kwargs = {
@@ -64,19 +63,22 @@ class FinancialStatementCrawler(BaseDataCrawler):
             "balance_sheet": [],
             "comprehensive_income": [],
             "cash_flow": [],
-            "equity_changes": []
+            "equity_changes": [],
         }
 
         df_dict["balance_sheet"].extend(self.crawl_balance_sheet(year, season))
-        df_dict["comprehensive_income"].extend(self.crawl_comprehensive_income(year, season))
+        df_dict["comprehensive_income"].extend(
+            self.crawl_comprehensive_income(year, season)
+        )
         df_dict["cash_flow"].extend(self.crawl_cash_flow(year, season))
-        df_dict["equity_changes"].extend(self.crawl_equity_changes(year, season, stock_code))
+        df_dict["equity_changes"].extend(
+            self.crawl_equity_changes(year, season, stock_code)
+        )
 
         return df_dict
 
-
     def setup(self, *args, **kwargs):
-        """ Set Up the Config of Crawler """
+        """Set Up the Config of Crawler"""
 
         # Create Downloads Directory For Financial Reports
         self.fs_dir.mkdir(parents=True, exist_ok=True)
@@ -91,13 +93,10 @@ class FinancialStatementCrawler(BaseDataCrawler):
             season="1",
         )
 
-
     def crawl_balance_sheet(
-        self,
-        year: int,
-        season: int
+        self, year: int, season: int
     ) -> Optional[List[pd.DataFrame]]:
-        """ Crawl Balance Sheet (資產負債表) """
+        """Crawl Balance Sheet (資產負債表)"""
         """
         資料區間（但是只有 102 年以後才可以爬）
         上市: 民國 78 (1989) 年 ~ present
@@ -117,10 +116,11 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
             try:
                 res: Optional[requests.Response] = RequestUtils.requests_post(
-                    balance_sheet_url,
-                    data=self.payload.convert_to_clean_dict()
+                    balance_sheet_url, data=self.payload.convert_to_clean_dict()
                 )
-                logger.info(f"{market_type} {year}Q{season} Balance Sheet URL: {balance_sheet_url}")
+                logger.info(
+                    f"{market_type} {year}Q{season} Balance Sheet URL: {balance_sheet_url}"
+                )
             except Exception as e:
                 logger.info(f"* WARN: Cannot get balance sheet at {year}Q{season}")
                 logger.info(e)
@@ -135,13 +135,10 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
         return df_list
 
-
     def crawl_comprehensive_income(
-        self,
-        year: int,
-        season: int
+        self, year: int, season: int
     ) -> Optional[List[pd.DataFrame]]:
-        """ Crawl Statement of Comprehensive Income (綜合損益表) """
+        """Crawl Statement of Comprehensive Income (綜合損益表)"""
         """
         資料區間（但是只有 102 年以後才可以爬）
         上市: 民國 77 (1988) 年 ~ present
@@ -161,12 +158,15 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
             try:
                 res: Optional[requests.Response] = RequestUtils.requests_post(
-                    income_url,
-                    data=self.payload.convert_to_clean_dict()
+                    income_url, data=self.payload.convert_to_clean_dict()
                 )
-                logger.info(f"{market_type} {year}Q{season} Statement of Comprehensive Income URL: {income_url}")
+                logger.info(
+                    f"{market_type} {year}Q{season} Statement of Comprehensive Income URL: {income_url}"
+                )
             except Exception as e:
-                logger.info(f"* WARN: Cannot get statement of comprehensive income at {year}Q{season}")
+                logger.info(
+                    f"* WARN: Cannot get statement of comprehensive income at {year}Q{season}"
+                )
 
             try:
                 dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
@@ -178,13 +178,8 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
         return df_list
 
-
-    def crawl_cash_flow(
-        self,
-        year: int,
-        season: int
-    ) -> Optional[List[pd.DataFrame]]:
-        """ Crawl Cash Flow Statement (現金流量表) """
+    def crawl_cash_flow(self, year: int, season: int) -> Optional[List[pd.DataFrame]]:
+        """Crawl Cash Flow Statement (現金流量表)"""
         """
         資料區間
         上市: 民國 102 (2013) 年 ~ present
@@ -204,12 +199,15 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
             try:
                 res: Optional[requests.Response] = RequestUtils.requests_post(
-                    cash_flow_url,
-                    data=self.payload.convert_to_clean_dict()
+                    cash_flow_url, data=self.payload.convert_to_clean_dict()
                 )
-                logger.info(f"{market_type} {year}Q{season} Statement of Cash Flow URL: {cash_flow_url}")
+                logger.info(
+                    f"{market_type} {year}Q{season} Statement of Cash Flow URL: {cash_flow_url}"
+                )
             except Exception as e:
-                logger.info(f"* WARN: Cannot get cash flow statement at {year}Q{season}")
+                logger.info(
+                    f"* WARN: Cannot get cash flow statement at {year}Q{season}"
+                )
 
             try:
                 dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
@@ -221,14 +219,13 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
         return df_list
 
-
     def crawl_equity_changes(
         self,
         year: int,
         season: int,
         stock_code: str,
     ) -> Optional[List[pd.DataFrame]]:
-        """ Crawl Statement of Changes in Equity (權益變動表) """
+        """Crawl Statement of Changes in Equity (權益變動表)"""
         """
         資料區間
         上市: 民國 102 (2013) 年 ~ present
@@ -246,12 +243,15 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
         try:
             res: Optional[requests.Response] = RequestUtils.requests_post(
-                equity_changes_url,
-                data=self.payload.convert_to_clean_dict()
+                equity_changes_url, data=self.payload.convert_to_clean_dict()
             )
-            logger.info(f"{equity_changes_url} {year}Q{season} Statement of Equity Changes URL: {equity_changes_url}")
+            logger.info(
+                f"{equity_changes_url} {year}Q{season} Statement of Equity Changes URL: {equity_changes_url}"
+            )
         except Exception as e:
-            logger.info(f"* WARN: Cannot get equity changes statement at {year}Q{season}")
+            logger.info(
+                f"* WARN: Cannot get equity changes statement at {year}Q{season}"
+            )
 
         try:
             df_list: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
@@ -262,16 +262,15 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
         return df_list
 
-
     def get_all_report_columns(
         self,
-        start_year: int=2013,
-        end_year: int=2025,
-        seasons: List[int]=[1, 2, 3, 4],
-        stock_code: str="2330",
-        report_type: FinancialStatementType=FinancialStatementType.BALANCE_SHEET
+        start_year: int = 2013,
+        end_year: int = 2025,
+        seasons: List[int] = [1, 2, 3, 4],
+        stock_code: str = "2330",
+        report_type: FinancialStatementType = FinancialStatementType.BALANCE_SHEET,
     ) -> List[str]:
-        """ 取得所有財報的 Columns Name """
+        """取得所有財報的 Columns Name"""
         """
         目前能爬取的資料區間
         上市: 民國 102 (2013) 年 ~ present
@@ -284,13 +283,21 @@ class FinancialStatementCrawler(BaseDataCrawler):
         for year in year_list:
             for season in seasons:
                 if report_type == FinancialStatementType.BALANCE_SHEET:
-                    df_list: Optional[List[pd.DataFrame]] = self.crawl_balance_sheet(year, season)
+                    df_list: Optional[List[pd.DataFrame]] = self.crawl_balance_sheet(
+                        year, season
+                    )
                 elif report_type == FinancialStatementType.COMPREHENSIVE_INCOME:
-                    df_list: Optional[List[pd.DataFrame]] = self.crawl_comprehensive_income(year, season)
+                    df_list: Optional[List[pd.DataFrame]] = (
+                        self.crawl_comprehensive_income(year, season)
+                    )
                 elif report_type == FinancialStatementType.CASH_FLOW:
-                    df_list: Optional[List[pd.DataFrame]] = self.crawl_cash_flow(year, season)
+                    df_list: Optional[List[pd.DataFrame]] = self.crawl_cash_flow(
+                        year, season
+                    )
                 elif report_type == FinancialStatementType.EQUITY_CHANGE:
-                    df_list: Optional[List[pd.DataFrame]] = self.crawl_equity_changes(year, season, stock_code)
+                    df_list: Optional[List[pd.DataFrame]] = self.crawl_equity_changes(
+                        year, season, stock_code
+                    )
                 else:
                     df_list: Optional[List[pd.DataFrame]] = None
 

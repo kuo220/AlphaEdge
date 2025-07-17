@@ -8,44 +8,42 @@ from trader.models import (
     StockQuote,
     StockOrder,
 )
-from trader.utils import (
-    Action,
-    Market,
-    Scale,
-    PositionType
-)
+from trader.utils import Action, Market, Scale, PositionType
 
 
 class BaseStockStrategy(ABC):
-    """ Stock Strategy Framework (Base Template) """
+    """Stock Strategy Framework (Base Template)"""
 
     def __init__(self):
-        """ === Account Setting === """
-        self.account: StockAccount = None               # 虛擬帳戶資訊
+        """=== Account Setting ==="""
+        self.account: StockAccount = None  # 虛擬帳戶資訊
 
         """ === Strategy Setting === """
-        self.strategy_name: str = ""                    # Strategy name
-        self.market: str = Market.STOCK                 # Stock or Futures
-        self.position_type: str = PositionType.LONG     # Long or Short
-        self.enable_intraday: bool = True               # Allow day trade or not
-        self.init_capital: float = 0                    # Initial capital
-        self.max_holdings: Optional[int] = 0            # Maximum number of holdings allowed
+        self.strategy_name: str = ""  # Strategy name
+        self.market: str = Market.STOCK  # Stock or Futures
+        self.position_type: str = PositionType.LONG  # Long or Short
+        self.enable_intraday: bool = True  # Allow day trade or not
+        self.init_capital: float = 0  # Initial capital
+        self.max_holdings: Optional[int] = 0  # Maximum number of holdings allowed
 
         """ === Backtest Setting === """
-        self.is_backtest: bool = True                   # Whether it's used for backtest or not
-        self.scale: str = Scale.DAY                     # Backtest scale: Day/Tick/ALL
-        self.start_date: datetime.date = None           # Optional: if is_backtest == True, then set start date in backtest
-        self.end_date: datetime.date = None             # Optional: if is_backtest == True, then set end date in backtest
+        self.is_backtest: bool = True  # Whether it's used for backtest or not
+        self.scale: str = Scale.DAY  # Backtest scale: Day/Tick/ALL
+        self.start_date: datetime.date = (
+            None  # Optional: if is_backtest == True, then set start date in backtest
+        )
+        self.end_date: datetime.date = (
+            None  # Optional: if is_backtest == True, then set end date in backtest
+        )
 
         """ === Datasets Setting=== """
         self.data: Data = Data()
-        self.chip: Chip = self.data.chip                # Chips data
-        self.tick: Optional[Tick] = None                # Ticks data
-        self.qx_data: QXData = self.data.qx_data        # Day price data, Financial data, etc
+        self.chip: Chip = self.data.chip  # Chips data
+        self.tick: Optional[Tick] = None  # Ticks data
+        self.qx_data: QXData = self.data.qx_data  # Day price data, Financial data, etc
 
         if self.scale in (Scale.TICK, Scale.MIX):
             self.tick: Tick = self.data.tick
-
 
     @abstractmethod
     def set_account(self, account: StockAccount):
@@ -54,7 +52,6 @@ class BaseStockStrategy(ABC):
             載入虛擬帳戶資訊
         """
         pass
-
 
     @abstractmethod
     def check_open_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
@@ -72,7 +69,6 @@ class BaseStockStrategy(ABC):
         """
         pass
 
-
     @abstractmethod
     def check_close_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
         """
@@ -89,9 +85,10 @@ class BaseStockStrategy(ABC):
         """
         pass
 
-
     @abstractmethod
-    def check_stop_loss_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
+    def check_stop_loss_signal(
+        self, stock_quotes: List[StockQuote]
+    ) -> List[StockOrder]:
         """
         - Description:
             設定停損機制
@@ -106,12 +103,9 @@ class BaseStockStrategy(ABC):
         """
         pass
 
-
     @abstractmethod
     def calculate_position_size(
-        self,
-        stock_quotes: List[StockQuote],
-        action: Action
+        self, stock_quotes: List[StockQuote], action: Action
     ) -> List[StockOrder]:
         """
         - Description:

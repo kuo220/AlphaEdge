@@ -1,4 +1,4 @@
-from .account import (ShioajiAccount, ShioajiAPI)
+from .account import ShioajiAccount, ShioajiAPI
 from .notify import Notification
 from .time import TimeUtils
 from .order import OrderUtils
@@ -16,6 +16,6 @@ from .constant import (
     Market,
     Scale,
     PositionType,
-    Units
+    Units,
 )
 from .decorators import log_thread

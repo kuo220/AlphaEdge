@@ -8,13 +8,12 @@ from trader.strategies.stock import BaseStockStrategy
 import trader.strategies.stock as stock_strategies_pkg
 
 
-
 class StrategyLoader:
-    """ 自動載入 strategies 資料夾下所有策略類別 """
+    """自動載入 strategies 資料夾下所有策略類別"""
 
     @staticmethod
     def load_stock_strategies() -> Dict[str, Type[BaseStockStrategy]]:
-        """ 載入所有 stock 策略 """
+        """載入所有 stock 策略"""
 
         stock_strategies: Dict[str, Type[BaseStockStrategy]] = {}
 

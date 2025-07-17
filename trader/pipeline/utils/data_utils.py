@@ -10,56 +10,51 @@ from trader.pipeline.utils import FileEncoding
 
 
 class DataUtils:
-    """ Data Tools """
+    """Data Tools"""
 
     @staticmethod
     def move_col(df: pd.DataFrame, col_name: str, ref_col_name: str) -> None:
-        """ 移動 columns 位置：將 col_name 整個 column 移到 ref_col_name 後方 """
+        """移動 columns 位置：將 col_name 整個 column 移到 ref_col_name 後方"""
 
         col_data: pd.Series = df.pop(col_name)
         df.insert(df.columns.get_loc(ref_col_name) + 1, col_name, col_data)
 
-
     @staticmethod
     def remove_redundant_col(df: pd.DataFrame, col_name: str) -> pd.DataFrame:
-        """ 刪除 DataFrame 中指定欄位後面的所有欄位 """
+        """刪除 DataFrame 中指定欄位後面的所有欄位"""
 
         if col_name in df.columns:
             last_col_loc: int = df.columns.get_loc(col_name)
-            df = df.iloc[:, :last_col_loc + 1]
+            df = df.iloc[:, : last_col_loc + 1]
         return df
 
-
     @staticmethod
-    def convert_col_to_numeric(df: pd.DataFrame, exclude_cols: List[str]) -> pd.DataFrame:
-        """ 將 exclude_cols 以外的 columns 資料都轉為數字型態（int or float） """
+    def convert_col_to_numeric(
+        df: pd.DataFrame, exclude_cols: List[str]
+    ) -> pd.DataFrame:
+        """將 exclude_cols 以外的 columns 資料都轉為數字型態（int or float）"""
 
         for col in df.columns:
             if col not in exclude_cols:
-                df[col] = pd.to_numeric(df[col], errors='coerce')
+                df[col] = pd.to_numeric(df[col], errors="coerce")
         return df
-
 
     @staticmethod
     def pad2(n: int | str) -> str:
-        """ 將數字補足為兩位數字字串 """
+        """將數字補足為兩位數字字串"""
         return str(n).zfill(2)
 
-
     @staticmethod
-    def fill_nan(df: pd.DataFrame, value: int=0) -> pd.DataFrame:
-        """ 檢查 DataFrame 是否有 NaN 值，若有則將所有 NaN 值填補為指定值 """
+    def fill_nan(df: pd.DataFrame, value: int = 0) -> pd.DataFrame:
+        """檢查 DataFrame 是否有 NaN 值，若有則將所有 NaN 值填補為指定值"""
 
         if df.isnull().values.any():
             df.fillna(value, inplace=True)
         return df
 
-
     @staticmethod
     def check_required_columns(
-        df: pd.DataFrame,
-        required_cols: List[str],
-        required_all: bool=True
+        df: pd.DataFrame, required_cols: List[str], required_all: bool = True
     ) -> bool:
         """
         - Description:
@@ -83,14 +78,13 @@ class DataUtils:
         else:
             return any(col in df.columns for col in required_cols)
 
-
     @staticmethod
     def standardize_column_name(
         word: str,
-        replace_pairs: Dict[str, str]={"（": "(", "）": ")", "：": ":"},
-        remove_chars: List[str]=[],
-        remove_dash: List[str]=["－", "-", "—", "–", "─"],
-        remove_whitespace: bool=True,
+        replace_pairs: Dict[str, str] = {"（": "(", "）": ")", "：": ":"},
+        remove_chars: List[str] = [],
+        remove_dash: List[str] = ["－", "-", "—", "–", "─"],
+        remove_whitespace: bool = True,
     ) -> str:
         """
         - Description:
@@ -115,7 +109,7 @@ class DataUtils:
         word = str(word)
 
         if remove_whitespace:
-            word = re.sub(r"\s+", "", word)     # 清除所有空白（包含 tab, 換行, 全形空白）
+            word = re.sub(r"\s+", "", word)  # 清除所有空白（包含 tab, 換行, 全形空白）
 
         for old, new in replace_pairs.items():
             word = word.replace(old, new)
@@ -126,12 +120,9 @@ class DataUtils:
 
         return word
 
-
     @staticmethod
     def replace_column_name(
-        col_name: str,
-        keywords: List[str],
-        replacement: str
+        col_name: str, keywords: List[str], replacement: str
     ) -> str:
         """
         - Description:
@@ -155,13 +146,12 @@ class DataUtils:
                 return col_name.replace(keyword, replacement)
         return col_name
 
-
     @staticmethod
     def remove_cols_by_keywords(
         df: pd.DataFrame,
-        startswith: Optional[List[str]]=None,
-        contains: Optional[List[str]]=None,
-        case_insensitive: bool = True
+        startswith: Optional[List[str]] = None,
+        contains: Optional[List[str]] = None,
+        case_insensitive: bool = True,
     ) -> pd.DataFrame:
         """
         - Description:
@@ -200,13 +190,12 @@ class DataUtils:
 
         return df.loc[:, ~columns_to_drop]
 
-
     @staticmethod
     def remove_items_by_keywords(
         items: List[str],
         startswith: Optional[List[str]] = None,
         contains: Optional[List[str]] = None,
-        case_insensitive: bool = True
+        case_insensitive: bool = True,
     ) -> List[str]:
         """
         - Description:
@@ -243,14 +232,13 @@ class DataUtils:
 
         return new_items
 
-
     @staticmethod
     def save_json(
         data: Any,
         file_path: Path,
-        encoding: str=FileEncoding.UTF8.value,
-        ensure_ascii: bool=False,
-        indent: int=2
+        encoding: str = FileEncoding.UTF8.value,
+        ensure_ascii: bool = False,
+        indent: int = 2,
     ) -> None:
         """
         - Description:
@@ -273,12 +261,8 @@ class DataUtils:
         with open(file_path, "w", encoding=encoding) as f:
             json.dump(data, f, ensure_ascii=ensure_ascii, indent=indent)
 
-
     @staticmethod
-    def load_json(
-        file_path: Path,
-        encoding: str=FileEncoding.UTF8.value
-    ) -> Any:
+    def load_json(file_path: Path, encoding: str = FileEncoding.UTF8.value) -> Any:
         """
         - Description:
             從指定 JSON 檔案讀取資料。

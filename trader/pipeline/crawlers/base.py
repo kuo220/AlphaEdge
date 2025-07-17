@@ -7,15 +7,14 @@ Subclasses should implement the `crawl(date)` method.
 
 
 class BaseDataCrawler(ABC):
-    """ Base Class of Data Crawler """
+    """Base Class of Data Crawler"""
 
     def __init__(self):
         pass
 
-
     @abstractmethod
     def crawl(self, *args, **kwargs) -> None:
-        """ Crawl Data """
+        """Crawl Data"""
         """
         General case:
         **kwargs = {
@@ -27,8 +26,7 @@ class BaseDataCrawler(ABC):
         """
         pass
 
-
     @abstractmethod
     def setup(self, *args, **kwargs) -> None:
-        """ Set Up the Config of Crawler """
+        """Set Up the Config of Crawler"""
         pass

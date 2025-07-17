@@ -7,13 +7,12 @@ Subclasses should implement the `load(df)` method.
 
 
 class BaseDataLoader(ABC):
-    """ Base Class of Data Loader """
+    """Base Class of Data Loader"""
 
     def __init__(self):
         pass
 
-
     @abstractmethod
     def setup(self, *args, **kwargs) -> None:
-        """ Set Up the Config of Loader """
+        """Set Up the Config of Loader"""
         pass

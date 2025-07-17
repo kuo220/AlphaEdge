@@ -25,26 +25,23 @@ from trader.utils import TimeUtils
 
 
 class StockChipCrawler(BaseDataCrawler):
-    """ 爬取上市、上櫃股票三大法人盤後籌碼 """
+    """爬取上市、上櫃股票三大法人盤後籌碼"""
 
     def __init__(self):
         super().__init__()
 
-
     def crawl(self, date: datetime.date) -> None:
-        """ Crawl TWSE & TPEX Chip Data """
+        """Crawl TWSE & TPEX Chip Data"""
 
         self.crawl_twse_chip(date)
         self.crawl_tpex_chip(date)
 
-
     def setup(self, *args, **kwargs) -> None:
-        """ Set Up the Config of Crawler """
+        """Set Up the Config of Crawler"""
         pass
 
-
     def crawl_twse_chip(self, date: datetime.date) -> Optional[pd.DataFrame]:
-        """ TWSE 三大法人單日爬蟲 """
+        """TWSE 三大法人單日爬蟲"""
 
         date_str: str = TimeUtils.format_date(date)
         readable_date: str = TimeUtils.format_date(date, sep="/")
@@ -66,9 +63,8 @@ class StockChipCrawler(BaseDataCrawler):
 
         return twse_df
 
-
     def crawl_tpex_chip(self, date: datetime.date) -> Optional[pd.DataFrame]:
-        """ TPEX 三大法人單日爬蟲 """
+        """TPEX 三大法人單日爬蟲"""
 
         date_str: str = TimeUtils.format_date(date, sep="/")
         print("* Start crawling TPEX institutional investors data...")
@@ -84,7 +80,9 @@ class StockChipCrawler(BaseDataCrawler):
             return None
 
         try:
-            tpex_df.drop(index=tpex_df.index[0], columns=tpex_df.columns[-1], inplace=True)
+            tpex_df.drop(
+                index=tpex_df.index[0], columns=tpex_df.columns[-1], inplace=True
+            )
         except Exception:
             print("TPEX table structure unexpected.")
             return None
@@ -100,13 +98,12 @@ class StockChipCrawler(BaseDataCrawler):
         return tpex_df
 
     """ ============================================================================================ """
+
     # TODO: Refactor 成 ETL 架構後，須把以下的 method 移到 Updater
     def crawl_twse_chip_range(
-        self,
-        start_date: datetime.date,
-        end_date: datetime.date=datetime.date.today()
+        self, start_date: datetime.date, end_date: datetime.date = datetime.date.today()
     ) -> None:
-        """ TWSE 三大法人日期範圍爬蟲 """
+        """TWSE 三大法人日期範圍爬蟲"""
 
         cur_date: datetime.date = start_date
 
@@ -128,13 +125,10 @@ class StockChipCrawler(BaseDataCrawler):
                 delay = random.randint(1, 5)
                 time.sleep(delay)
 
-
     def crawl_tpex_chip_range(
-        self,
-        start_date: datetime.date,
-        end_date: datetime.date=datetime.date.today()
+        self, start_date: datetime.date, end_date: datetime.date = datetime.date.today()
     ) -> None:
-        """ TPEX 三大法人日期範圍爬蟲  """
+        """TPEX 三大法人日期範圍爬蟲"""
 
         cur_date: datetime.date = start_date
 
