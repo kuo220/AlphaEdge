@@ -29,7 +29,7 @@ class StockChipLoader(BaseDataLoader):
 
         self.setup()
 
-    def setup(self) -> None:
+    def setup(self, *args, **kwargs) -> None:
         """Set Up the Config of Loader"""
 
         self.connect()
