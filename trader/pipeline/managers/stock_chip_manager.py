@@ -98,6 +98,10 @@ class StockChipManager(BaseDatabaseManager):
         shutil.rmtree(CHIP_DOWNLOADS_PATH)
         print(f"Total file: {file_cnt}")
 
+
+    """ ============================================================================================ """
+    # TODO: 以下部分為 Updater
+
     def update_table(self, dates: List[datetime.date]) -> None:
         """Chip Database 資料更新"""
 

@@ -23,8 +23,17 @@ class StockChipLoader(BaseDataLoader):
 
         # SQLite Connection
         self.conn: sqlite3.Connection = None
-        self.connect()
 
+        # Downloads directory
+        self.chip_dir: Path = CHIP_DOWNLOADS_PATH
+
+        self.setup()
+
+    def setup(self) -> None:
+        """Set Up the Config of Loader"""
+
+        self.connect()
+        self.chip_dir.mkdir(parents=True, exist_ok=True)
 
     def connect(self) -> None:
         """Connect to the Database"""
@@ -62,7 +71,8 @@ class StockChipLoader(BaseDataLoader):
             自營商賣出股數_避險 INT,
             自營商買賣超股數_避險 INT,
             自營商買賣超股數 INT NOT NULL,
-            三大法人買賣超股數 INT NOT NULL
+            三大法人買賣超股數 INT NOT NULL,
+            PRIMARY KEY (日期, 證券代號)
         );
         """
         cursor.execute(create_table_query)
@@ -77,19 +87,25 @@ class StockChipLoader(BaseDataLoader):
         self.conn.commit()
         self.disconnect()
 
-    def add_to_db(self) -> None:
-            """將資料夾中的所有 CSV 檔存入指定 SQLite 資料庫中的指定資料表。"""
+    def add_to_db(self, remove_files: bool = False) -> None:
+        """將資料夾中的所有 CSV 檔存入指定 SQLite 資料庫中的指定資料表。"""
 
-            chip_dir: Path = CHIP_DOWNLOADS_PATH
-            file_cnt: int = 0
-            for file_path in chip_dir.iterdir():
-                # Skip non-CSV files
-                if file_path.suffix != ".csv":
-                    continue
-                df: pd.DataFrame = pd.read_csv(file_path)
-                df.to_sql(CHIP_TABLE_NAME, self.conn, if_exists="append", index=False)
-                print(f"Save {file_path} into database.")
-                file_cnt += 1
-            self.disconnect()
+        if self.conn is None:
+            self.connect()
+
+        file_cnt: int = 0
+        for file_path in self.chip_dir.iterdir():
+            # Skip non-CSV files
+            if file_path.suffix != ".csv":
+                continue
+            df: pd.DataFrame = pd.read_csv(file_path)
+            df.to_sql(CHIP_TABLE_NAME, self.conn, if_exists="append", index=False)
+            print(f"Save {file_path} into database.")
+            file_cnt += 1
+
+        self.conn.commit()
+        self.disconnect()
+
+        if remove_files:
             shutil.rmtree(CHIP_DOWNLOADS_PATH)
-            print(f"Total file: {file_cnt}")
+        print(f"Total file: {file_cnt}")
