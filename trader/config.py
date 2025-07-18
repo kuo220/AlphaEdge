@@ -60,14 +60,14 @@ TICK_METADATA_NAME: str = os.getenv("TICK_METADATA_NAME")
 TICK_METADATA_PATH: Path = (DB_METADATA_DIR_PATH / TICK_METADATA_NAME).resolve()
 
 
-# === Full paths to database files ===
+# === Database Files Full Paths ===
 CHIP_DB_NAME: str = os.getenv("CHIP_DB_NAME", "chip.db")
 TICK_DB_NAME: str = os.getenv("TICK_DB_NAME", "tickDB")
-QUANTX_DB_NAME: str = os.getenv("QUANTX_DB_NAME", "data.db")
+DB_NAME: str = os.getenv("DB_NAME", "data.db")
 
 CHIP_DB_PATH: Path = (DATABASE_DIR_PATH / CHIP_DB_NAME).resolve()
 TICK_DB_PATH: str = f"{os.getenv('DDB_PATH')}{TICK_DB_NAME}"
-QUANTX_DB_PATH: Path = (DATABASE_DIR_PATH / QUANTX_DB_NAME).resolve()
+DB_PATH: Path = (DATABASE_DIR_PATH / DB_NAME).resolve()
 
 
 # === Table names ===

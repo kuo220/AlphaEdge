@@ -4,7 +4,7 @@ import random
 import sqlite3
 import datetime
 import time
-from typing import List, Dict, Optional, Any
+from typing import List, Optional, Any
 
 import pandas as pd
 import ipywidgets as widgets
@@ -12,10 +12,9 @@ from IPython.display import display
 from tqdm import tqdm_notebook
 
 from trader.pipeline.crawlers.stock_chip_crawler import StockChipCrawler
-from trader.pipeline.managers import BaseDatabaseManager
-from trader.pipeline.utils.data_utils import DataUtils
-from trader.utils import TimeUtils
+from trader.pipeline.managers.base import BaseDatabaseManager
 from trader.pipeline.utils.sqlite_utils import SQLiteUtils
+from trader.utils import TimeUtils
 from trader.config import CHIP_DB_PATH, CHIP_TABLE_NAME, CHIP_DOWNLOADS_PATH
 
 

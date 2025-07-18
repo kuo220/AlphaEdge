@@ -16,3 +16,23 @@ class BaseDataLoader(ABC):
     def setup(self, *args, **kwargs) -> None:
         """Set Up the Config of Loader"""
         pass
+
+    @abstractmethod
+    def connect(self) -> None:
+        """Connect to the Database"""
+        pass
+
+    @abstractmethod
+    def disconnect(self) -> None:
+        """Disconnect the Database"""
+        pass
+
+    @abstractmethod
+    def create_db(self) -> None:
+        """Create New Database"""
+        pass
+
+    @abstractmethod
+    def add_to_db(self) -> None:
+        """Add Data into Database"""
+        pass
