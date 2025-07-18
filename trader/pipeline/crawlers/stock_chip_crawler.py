@@ -1,15 +1,14 @@
 import datetime
 import random
 import time
-from typing import Optional
-from io import StringIO
-import pandas as pd
 import requests
+import pandas as pd
+from io import StringIO
+from typing import Optional
 
 from trader.pipeline.crawlers.base import BaseDataCrawler
 from trader.pipeline.crawlers.utils.request_utils import RequestUtils
 from trader.pipeline.utils.url_manager import URLManager
-from trader.pipeline.utils.data_utils import DataUtils
 from trader.utils import TimeUtils
 
 
