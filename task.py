@@ -20,7 +20,6 @@ import zipfile
 from dataclasses import dataclass, asdict
 
 from trader.utils import ShioajiAccount, Units
-from trader.api import Data, Tick
 from trader.pipeline.crawlers.utils.payload import Payload
 from trader.pipeline.crawlers.utils.request_utils import RequestUtils
 from trader.pipeline.crawlers.stock_price_crawler import StockPriceCrawler
@@ -54,7 +53,7 @@ from trader.config import (
     API_LIST,
 )
 
-
+# ROC: 102 ~ 114
 start_date = datetime.date(2013, 1, 1)
 end_date = datetime.date(2025, 6, 1)
 season = 1
@@ -62,12 +61,14 @@ code = "2330"
 
 
 if __name__ == "__main__":
-    # fs_crawler: FinancialStatementCrawler = FinancialStatementCrawler()
+    fs_crawler: FinancialStatementCrawler = FinancialStatementCrawler()
     # fs_cleaner: FinancialStatementCleaner = FinancialStatementCleaner()
     mrr_crawler = MonthlyRevenueReportCrawler()
 
     start_year: int = start_date.year
+    start_month: int = start_date.month
     end_year: int = end_date.year
+    end_month: int = end_date.month
     report_type = FinancialStatementType.CASH_FLOW
 
     # for report_type in FinancialStatementType:
@@ -75,7 +76,8 @@ if __name__ == "__main__":
     #         continue
 
     # Crawl Report All Columns
-    all_cols: List[str] = mrr_crawler.get_all_mrr_columns(start_date, end_date)
+    # all_cols: List[str] = mrr_crawler.get_all_mrr_columns(start_year, start_month, end_year, end_month)
+    all_cols: List[str] = fs_crawler.get_all_report_columns(start_year, end_year)
     print(all_cols)
 
     # for year in range(start_date.year, end_date.year):
