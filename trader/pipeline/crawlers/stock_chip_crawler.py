@@ -70,6 +70,7 @@ class StockChipCrawler(BaseDataCrawler):
         print(date_str)
 
         tpex_url: str = URLManager.get_url("TPEX_CHIP_URL", date=date_str)
+        print(tpex_url)
         tpex_response: requests.Response = RequestUtils.requests_get(tpex_url)
 
         try:

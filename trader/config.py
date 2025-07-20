@@ -71,6 +71,7 @@ DB_PATH: Path = (DATABASE_DIR_PATH / DB_NAME).resolve()
 
 
 # === Table names ===
+PRICE_TABLE_NAME: str = os.getenv("PRICE_TABLE_NAME", "price")
 CHIP_TABLE_NAME: str = os.getenv("CHIP_TABLE_NAME", "chip")
 TICK_TABLE_NAME: str = os.getenv("TICK_TABLE_NAME", "tick")
 TICK_METADATA_TABLE_NAME: str = os.getenv("TICK_METADATA_TABLE_NAME", "tick_metadata")

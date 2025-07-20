@@ -1,5 +1,5 @@
 import datetime
-from typing import List
+from typing import List, Dict
 from pathlib import Path
 import pandas as pd
 
@@ -40,9 +40,8 @@ class StockChipCleaner(BaseDataCleaner):
         if isinstance(df.columns, pd.MultiIndex) and df.columns.nlevels > 1:
             df.columns = df.columns.droplevel(0)
 
-        df.insert(0, "日期", date)
-
         old_col_name: List[str] = [
+            "證券代號",
             "自營商買進股數(自行買賣)",
             "自營商賣出股數(自行買賣)",
             "自營商買賣超股數(自行買賣)",
@@ -52,6 +51,7 @@ class StockChipCleaner(BaseDataCleaner):
         ]
 
         new_col_name: List[str] = [
+            "stock_id",
             "自營商買進股數_自行買賣",
             "自營商賣出股數_自行買賣",
             "自營商買賣超股數_自行買賣",
@@ -60,13 +60,15 @@ class StockChipCleaner(BaseDataCleaner):
             "自營商買賣超股數_避險",
         ]
 
+        rename_map: Dict[str, str] = dict(zip(old_col_name, new_col_name))
+
         # 第一次格式改制前
         if date < self.twse_first_reform_date:
             DataUtils.move_col(df, "自營商買賣超股數", "自營商賣出股數")
         # 第一次格式改制後，第二次格式改制前
         elif self.twse_first_reform_date <= date < self.twse_second_reform_date:
             DataUtils.move_col(df, "自營商買賣超股數", "自營商買賣超股數(避險)")
-            df.rename(columns=dict(zip(old_col_name, new_col_name)), inplace=True)
+            df = df.rename(columns=rename_map)
         # 第二次格式改制後
         else:
             df["外資買進股數"] = (
@@ -92,8 +94,9 @@ class StockChipCleaner(BaseDataCleaner):
             DataUtils.move_col(df, "外資賣出股數", "外資買進股數")
             DataUtils.move_col(df, "外資買賣超股數", "外資賣出股數")
             DataUtils.move_col(df, "自營商買賣超股數", "自營商買賣超股數(避險)")
-            df.rename(columns=dict(zip(old_col_name, new_col_name)), inplace=True)
+            df = df.rename(columns=rename_map)
 
+        df.insert(0, "date", date)
         df = DataUtils.remove_redundant_col(df, "三大法人買賣超股數")
         df = DataUtils.fill_nan(df, 0)
         df.to_csv(
@@ -109,7 +112,7 @@ class StockChipCleaner(BaseDataCleaner):
             df.columns = df.columns.droplevel(0)
 
         new_col_name: List[str] = [
-            "證券代號",
+            "stock_id",
             "證券名稱",
             "外資買進股數",
             "外資賣出股數",
@@ -148,11 +151,12 @@ class StockChipCleaner(BaseDataCleaner):
                 "三大法人 買賣超股數",
             ]
 
-            df.rename(columns=dict(zip(old_col_name, new_col_name)), inplace=True)
+            rename_map = dict(zip(old_col_name, new_col_name))
+            df = df.rename(columns=rename_map)
         # 格式改制後
         else:
             new_df: pd.DataFrame = pd.DataFrame(columns=new_col_name)
-            new_df["證券代號"] = df.loc[:, ("代號", "代號")]
+            new_df["stock_id"] = df.loc[:, ("代號", "代號")]
             new_df["證券名稱"] = df.loc[:, ("名稱", "名稱")]
             new_df["外資買進股數"] = df.loc[:, ("外資及陸資", "買進股數")]
             new_df["外資賣出股數"] = df.loc[:, ("外資及陸資", "賣出股數")]
@@ -179,7 +183,7 @@ class StockChipCleaner(BaseDataCleaner):
             df = new_df
 
         df = df.iloc[:-1]  # 刪掉最後一個 row
-        df.insert(0, "日期", date)
+        df.insert(0, "date", date)
         DataUtils.move_col(df, "自營商買賣超股數", "自營商買賣超股數_避險")
         df = DataUtils.remove_redundant_col(df, "三大法人買賣超股數")
         df = DataUtils.fill_nan(df, 0)

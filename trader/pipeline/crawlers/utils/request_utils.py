@@ -2,7 +2,7 @@ import time
 import requests
 from loguru import logger
 from fake_useragent import UserAgent
-from requests.exceptions import ReadTimeout
+from requests.exceptions import ReadTimeout, ChunkedEncodingError
 from typing import List, Dict, Optional, Union
 
 from trader.pipeline.utils import URLManager
@@ -60,7 +60,7 @@ class RequestUtils:
         for i in range(3):
             try:
                 return cls.ses.get(url, timeout=10, **kwargs)
-            except (ConnectionError, ReadTimeout) as error:
+            except (ConnectionError, ReadTimeout, ChunkedEncodingError) as error:
                 logger.info(error)
                 logger.info(f"retry one more time after 60s {2 - i} times left")
                 time.sleep(60)
