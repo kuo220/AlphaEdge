@@ -70,11 +70,15 @@ TICK_DB_PATH: str = f"{os.getenv('DDB_PATH')}{TICK_DB_NAME}"
 DB_PATH: Path = (DATABASE_DIR_PATH / DB_NAME).resolve()
 
 
-# === Table names ===
-PRICE_TABLE_NAME: str = os.getenv("PRICE_TABLE_NAME", "price")
-CHIP_TABLE_NAME: str = os.getenv("CHIP_TABLE_NAME", "chip")
-TICK_TABLE_NAME: str = os.getenv("TICK_TABLE_NAME", "tick")
-TICK_METADATA_TABLE_NAME: str = os.getenv("TICK_METADATA_TABLE_NAME", "tick_metadata")
+# === Database Table names ===
+PRICE_TABLE_NAME: str = "price"
+CHIP_TABLE_NAME: str = "chip"
+TICK_TABLE_NAME: str = "tick"
+BALANCE_SHEET_TABLE_NAME: str = "balance_sheet"
+COMPREHENSIVE_INCOME_TABLE_NAME: str = "comprehensive_income"
+CASH_FLOW_TABLE_NAME: str = "cash_flow"
+EQUITY_CHANGE_TABLE_NAME: str = "equity_change"
+TICK_METADATA_TABLE_NAME: str = "TICK_METADATA_TABLE_NAME"
 
 
 # === DolphinDB server setting ===
