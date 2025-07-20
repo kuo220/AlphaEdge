@@ -51,22 +51,22 @@ class StockPriceLoader(BaseDataLoader):
 
         create_table_query: str = f"""
         CREATE TABLE IF NOT EXISTS {PRICE_TABLE_NAME}(
-            date TEXT NOT NULL,
-            stock_id TEXT NOT NULL,
-            證券名稱 TEXT NOT NULL,
-            開盤價 REAL,
-            最高價 REAL,
-            最低價 REAL,
-            收盤價 REAL,
-            漲跌價差 REAL,
-            成交股數 INTEGER,
-            成交金額 INTEGER,
-            成交筆數 INTEGER,
-            最後揭示買價 REAL,
-            最後揭示買量 INTEGER,
-            最後揭示賣價 REAL,
-            最後揭示賣量 INTEGER,
-            本益比 REAL,
+            "date" TEXT NOT NULL,
+            "stock_id" TEXT NOT NULL,
+            "證券名稱" TEXT NOT NULL,
+            "開盤價" REAL,
+            "最高價" REAL,
+            "最低價" REAL,
+            "收盤價" REAL,
+            "漲跌價差" REAL,
+            "成交股數" INTEGER,
+            "成交金額" INTEGER,
+            "成交筆數" INTEGER,
+            "最後揭示買價" REAL,
+            "最後揭示買量" INTEGER,
+            "最後揭示賣價" REAL,
+            "最後揭示賣量" INTEGER,
+            "本益比" REAL,
             PRIMARY KEY (date, stock_id)
         );
         """

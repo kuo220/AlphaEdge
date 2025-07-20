@@ -101,11 +101,11 @@ class StockTickLoader(BaseDataLoader):
             try:
                 self.session.run(script)
                 if self.session.existsDatabase(TICK_DB_PATH):
-                    print("dolphinDB create successfully!")
+                    print("Tick dolphinDB create successfully!")
                 else:
-                    print("dolphinDB create unsuccessfully!")
+                    print("Tick dolphinDB create unsuccessfully!")
             except Exception as e:
-                print(f"dolphinDB create unsuccessfully!\n{e}")
+                print(f"Tick dolphinDB create unsuccessfully!\n{e}")
 
     def add_to_db(self, remove_files: bool = False) -> None:
         """將資料夾中的所有 CSV 檔存入 tick 的 DolphinDB 中"""

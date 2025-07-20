@@ -47,23 +47,23 @@ class StockChipLoader(BaseDataLoader):
 
         create_table_query: str = f"""
         CREATE TABLE IF NOT EXISTS {CHIP_TABLE_NAME}(
-            date TEXT NOT NULL,
-            stock_id TEXT NOT NULL,
-            證券名稱 TEXT NOT NULL,
-            外資買進股數 INT NOT NULL,
-            外資賣出股數 INT NOT NULL,
-            外資買賣超股數 INT NOT NULL,
-            投信買進股數 INT NOT NULL,
-            投信賣出股數 INT NOT NULL,
-            投信買賣超股數 INT NOT NULL,
-            自營商買進股數_自行買賣 INT,
-            自營商賣出股數_自行買賣 INT,
-            自營商買賣超股數_自行買賣 INT,
-            自營商買進股數_避險 INT,
-            自營商賣出股數_避險 INT,
-            自營商買賣超股數_避險 INT,
-            自營商買賣超股數 INT NOT NULL,
-            三大法人買賣超股數 INT NOT NULL,
+            "date" TEXT NOT NULL,
+            "stock_id" TEXT NOT NULL,
+            "證券名稱" TEXT NOT NULL,
+            "外資買進股數" INT NOT NULL,
+            "外資賣出股數" INT NOT NULL,
+            "外資買賣超股數" INT NOT NULL,
+            "投信買進股數" INT NOT NULL,
+            "投信賣出股數" INT NOT NULL,
+            "投信買賣超股數" INT NOT NULL,
+            "自營商買進股數_自行買賣" INT,
+            "自營商賣出股數_自行買賣" INT,
+            "自營商買賣超股數_自行買賣" INT,
+            "自營商買進股數_避險" INT,
+            "自營商賣出股數_避險" INT,
+            "自營商買賣超股數_避險" INT,
+            "自營商買賣超股數" INT NOT NULL,
+            "三大法人買賣超股數" INT NOT NULL,
             PRIMARY KEY (date, stock_id)
         );
         """
@@ -81,6 +81,8 @@ class StockChipLoader(BaseDataLoader):
 
     def add_to_db(self, remove_files: bool = False) -> None:
         """將資料夾中的所有 CSV 檔存入指定 SQLite 資料庫中的指定資料表。"""
+
+
 
         if self.conn is None:
             self.connect()

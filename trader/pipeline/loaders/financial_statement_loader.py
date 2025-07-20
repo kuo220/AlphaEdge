@@ -2,11 +2,15 @@ import shutil
 import sqlite3
 import pandas as pd
 from pathlib import Path
+from typing import List, Dict, Set
 
 from trader.pipeline.loaders.base import BaseDataLoader
+from trader.pipeline.utils.data_utils import DataUtils
+from trader.pipeline.utils import FinancialStatementType, FileEncoding
 from trader.config import (
     DB_PATH,
     FINANCIAL_STATEMENT_DOWNLOADS_PATH,
+    FINANCIAL_STATEMENT_META_DIR_PATH,
     BALANCE_SHEET_TABLE_NAME,
     COMPREHENSIVE_INCOME_TABLE_NAME,
     CASH_FLOW_TABLE_NAME,
@@ -23,8 +27,47 @@ class FinancialStatementLoader(BaseDataLoader):
         # SQLite Connection
         self.conn: sqlite3.Connection = None
 
+        # Specify column data types
+        self.text_not_null_cols: List[str] = ["date", "stock_id", "公司名稱"]
+        self.int_not_null_cols: List[str] = ["year", "season"]
+
+
+        # Reports Cleaned Columns Path
+        self.balance_sheet_cleaned_cols_path: Path = (
+            FINANCIAL_STATEMENT_META_DIR_PATH
+            / FinancialStatementType.BALANCE_SHEET.lower()
+            / f"{FinancialStatementType.BALANCE_SHEET.lower()}_cleaned_columns.json"
+        )
+        self.comprehensive_income_cleaned_cols_path: Path = (
+            FINANCIAL_STATEMENT_META_DIR_PATH
+            / FinancialStatementType.COMPREHENSIVE_INCOME.lower()
+            / f"{FinancialStatementType.COMPREHENSIVE_INCOME.lower()}_cleaned_columns.json"
+        )
+        self.cash_flow_cleaned_cols_path: Path = (
+            FINANCIAL_STATEMENT_META_DIR_PATH
+            / FinancialStatementType.CASH_FLOW.lower()
+            / f"{FinancialStatementType.CASH_FLOW.lower()}_cleaned_columns.json"
+        )
+        self.equity_change_cleaned_cols_path: Path = (
+            FINANCIAL_STATEMENT_META_DIR_PATH
+            / FinancialStatementType.EQUITY_CHANGE.lower()
+            / f"{FinancialStatementType.EQUITY_CHANGE.lower()}_cleaned_columns.json"
+        )
+
         # Downloads directory
         self.fs_dir: Path = FINANCIAL_STATEMENT_DOWNLOADS_PATH
+        self.balance_sheet_dir: Path = (
+            self.fs_dir / FinancialStatementType.BALANCE_SHEET.lower()
+        )
+        self.comprehensive_income_dir: Path = (
+            self.fs_dir / FinancialStatementType.COMPREHENSIVE_INCOME.lower()
+        )
+        self.cash_flow_dir: Path = (
+            self.fs_dir / FinancialStatementType.CASH_FLOW.lower()
+        )
+        self.equity_change_dir: Path = (
+            self.fs_dir / FinancialStatementType.EQUITY_CHANGE.lower()
+        )
 
         self.setup()
 
@@ -33,6 +76,10 @@ class FinancialStatementLoader(BaseDataLoader):
 
         self.connect()
         self.fs_dir.mkdir(parents=True, exist_ok=True)
+        self.balance_sheet_dir.mkdir(parents=True, exist_ok=True)
+        self.comprehensive_income_dir.mkdir(parents=True, exist_ok=True)
+        self.cash_flow_dir.mkdir(parents=True, exist_ok=True)
+        self.equity_change_dir.mkdir(parents=True, exist_ok=True)
 
 
     def connect(self) -> None:
@@ -50,16 +97,130 @@ class FinancialStatementLoader(BaseDataLoader):
             self.conn = None
 
 
-    def create_db(self) -> None:
+    def create_db(
+        self,
+        table_name: str,
+        cleaned_cols_path: Path,
+    ) -> None:
         """Create New Database"""
-        pass
+
+        cursor: sqlite3.Cursor = self.conn.cursor()
+
+        # Step 1: 讀取欄位定義 JSON
+        cols: List[str] = DataUtils.load_json(file_path=cleaned_cols_path)
+        col_defs: List[str] = []
+
+        # Step 2: 指定欄位型別
+        for col in cols:
+            col_name = f'"{col}"'
+
+            if col in self.text_not_null_cols:
+                col_defs.append(f"{col_name} TEXT NOT NULL")
+            elif col in self.int_not_null_cols:
+                col_defs.append(f"{col_name} INT NOT NULL")
+            else:
+                col_defs.append(f"{col_name} REAL")
+
+        # Step 3: 加 PRIMARY KEY
+        col_defs.append("PRIMARY KEY (year, season, stock_id)")
+
+        # Step 4: 組建 SQL
+        col_defs_sql: str = ",\n            ".join(col_defs)
+        create_table_query: str = f"""
+        CREATE TABLE IF NOT EXISTS {table_name}(
+            {col_defs_sql}
+        )
+        """
+        cursor.execute(create_table_query)
+
+        # 檢查是否成功建立 table
+        cursor.execute(f"PRAGMA table_info('{table_name}')")
+        if cursor.fetchall():
+            print(f"Table {table_name} create successfully!")
+            print(create_table_query)
+        else:
+            print(f"Table {table_name} create unsuccessfully!")
+
+        self.conn.commit()
+        self.disconnect()
 
 
-    def add_to_db(self, remove_files: bool = False) -> None:
+    def add_to_db(
+        self,
+        dir_path: Path,
+        table_name: str,
+        remove_files: bool = False
+    ) -> None:
         """Add Data into Database"""
-        pass
+
+        if self.conn is None:
+            self.connect()
+
+        file_cnt: int = 0
+        for file_path in dir_path.iterdir():
+            # Skip non-CSV files
+            if file_path.suffix != ".csv":
+                continue
+            try:
+                df: pd.DataFrame = pd.read_csv(file_path)
+                df.to_sql(table_name, self.conn, if_exists="append", index=False)
+                print(f"Save {file_path} into database.")
+                file_cnt += 1
+            except Exception as e:
+                print(f"Error saving {file_path}: {e}")
+
+            self.conn.commit()
+            self.disconnect()
+
+            if remove_files:
+                shutil.rmtree(dir_path)
+            print(f"Total file processed: {file_cnt}")
 
 
-    def create_balance_sheet_table(self) -> None:
-        """ Create Balance Sheet Table """
-        pass
+
+    # def create_balance_sheet_table(self) -> None:
+    #     """ Create Balance Sheet Table """
+
+    #     cursor: sqlite3.Cursor = self.conn.cursor()
+
+    #     # Step 1: 讀取欄位定義 JSON
+    #     cols: List[str] = DataUtils.load_json(file_path=self.balance_sheet_cleaned_cols_path)
+    #     col_defs: List[str] = [
+    #         '"year" INT NOT NULL',
+    #         '"season" INT NOT NULL',
+    #     ]
+
+    #     # Step 2: 指定欄位型別
+    #     for col in cols:
+    #         col_name = f'"{col}"'
+
+    #         if col in self.text_not_null_cols:
+    #             col_defs.append(f"{col_name} TEXT NOT NULL")
+    #         elif col in self.int_not_null_cols:
+    #             col_defs.append(f"{col_name} INT NOT NULL")
+    #         else:
+    #             col_defs.append(f"{col_name} REAL")
+
+    #     # Step 3: 加 PRIMARY KEY
+    #     col_defs.append("PRIMARY KEY (year, season, stock_id)")
+
+    #     # Step 4: 組建 SQL
+    #     col_defs_sql: str = ",\n            ".join(col_defs)
+    #     create_table_query: str = f"""
+    #     CREATE TABLE IF NOT EXISTS {BALANCE_SHEET_TABLE_NAME}(
+    #         {col_defs_sql}
+    #     )
+    #     """
+
+    #     cursor.execute(create_table_query)
+
+    #     # 檢查是否成功建立 table
+    #     cursor.execute(f"PRAGMA table_info('{BALANCE_SHEET_TABLE_NAME}')")
+    #     if cursor.fetchall():
+    #         print(f"Table {BALANCE_SHEET_TABLE_NAME} create successfully!")
+    #         print(create_table_query)
+    #     else:
+    #         print(f"Table {BALANCE_SHEET_TABLE_NAME} create unsuccessfully!")
+
+    #     self.conn.commit()
+    #     self.disconnect()
