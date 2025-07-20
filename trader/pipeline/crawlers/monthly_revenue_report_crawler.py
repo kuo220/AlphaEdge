@@ -113,11 +113,7 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
         return df_list
 
     def get_all_mrr_columns(
-        self,
-        start_year: int,
-        start_month: int,
-        end_year: int,
-        end_month: int
+        self, start_year: int, start_month: int, end_year: int, end_month: int
     ) -> List[str]:
         """取得所有月營收財報的 Columns Name"""
 

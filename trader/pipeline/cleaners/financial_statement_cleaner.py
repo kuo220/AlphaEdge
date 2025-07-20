@@ -6,7 +6,10 @@ from typing import List, Dict
 from trader.pipeline.cleaners.base import BaseDataCleaner
 from trader.pipeline.utils.data_utils import DataUtils
 from trader.pipeline.utils import FinancialStatementType, FileEncoding
-from trader.config import FINANCIAL_STATEMENT_DOWNLOADS_PATH, FINANCIAL_STATEMENT_META_DIR_PATH
+from trader.config import (
+    FINANCIAL_STATEMENT_DOWNLOADS_PATH,
+    FINANCIAL_STATEMENT_META_DIR_PATH,
+)
 
 
 class FinancialStatementCleaner(BaseDataCleaner):

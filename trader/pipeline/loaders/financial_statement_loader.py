@@ -31,7 +31,6 @@ class FinancialStatementLoader(BaseDataLoader):
         self.text_not_null_cols: List[str] = ["date", "stock_id", "公司名稱"]
         self.int_not_null_cols: List[str] = ["year", "season"]
 
-
         # Reports Cleaned Columns Path
         self.balance_sheet_cleaned_cols_path: Path = (
             FINANCIAL_STATEMENT_META_DIR_PATH
@@ -81,13 +80,11 @@ class FinancialStatementLoader(BaseDataLoader):
         self.cash_flow_dir.mkdir(parents=True, exist_ok=True)
         self.equity_change_dir.mkdir(parents=True, exist_ok=True)
 
-
     def connect(self) -> None:
         """Connect to the Database"""
 
         if self.conn is None:
             self.conn = sqlite3.connect(DB_PATH)
-
 
     def disconnect(self) -> None:
         """Disconnect the Database"""
@@ -95,7 +92,6 @@ class FinancialStatementLoader(BaseDataLoader):
         if self.conn:
             self.conn.close()
             self.conn = None
-
 
     def create_db(
         self,
@@ -144,12 +140,8 @@ class FinancialStatementLoader(BaseDataLoader):
         self.conn.commit()
         self.disconnect()
 
-
     def add_to_db(
-        self,
-        dir_path: Path,
-        table_name: str,
-        remove_files: bool = False
+        self, dir_path: Path, table_name: str, remove_files: bool = False
     ) -> None:
         """Add Data into Database"""
 
@@ -175,8 +167,6 @@ class FinancialStatementLoader(BaseDataLoader):
             if remove_files:
                 shutil.rmtree(dir_path)
             print(f"Total file processed: {file_cnt}")
-
-
 
     # def create_balance_sheet_table(self) -> None:
     #     """ Create Balance Sheet Table """

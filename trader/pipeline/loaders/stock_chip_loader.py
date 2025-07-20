@@ -82,8 +82,6 @@ class StockChipLoader(BaseDataLoader):
     def add_to_db(self, remove_files: bool = False) -> None:
         """將資料夾中的所有 CSV 檔存入指定 SQLite 資料庫中的指定資料表。"""
 
-
-
         if self.conn is None:
             self.connect()
 
