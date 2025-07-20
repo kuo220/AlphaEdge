@@ -1,17 +1,9 @@
-import os
 import shutil
-import datetime
-import random
-import time
 import sqlite3
 import pandas as pd
 from pathlib import Path
-from typing import List, Dict, Optional, Any
 
 from trader.pipeline.loaders.base import BaseDataLoader
-from trader.pipeline.utils.data_utils import DataUtils
-from trader.pipeline.utils.sqlite_utils import SQLiteUtils
-from trader.utils import TimeUtils
 from trader.config import CHIP_TABLE_NAME, CHIP_DOWNLOADS_PATH, DB_PATH
 
 
@@ -55,8 +47,8 @@ class StockChipLoader(BaseDataLoader):
 
         create_table_query: str = f"""
         CREATE TABLE IF NOT EXISTS {CHIP_TABLE_NAME}(
-            日期 TEXT NOT NULL,
-            證券代號 TEXT NOT NULL,
+            date TEXT NOT NULL,
+            stock_id TEXT NOT NULL,
             證券名稱 TEXT NOT NULL,
             外資買進股數 INT NOT NULL,
             外資賣出股數 INT NOT NULL,
@@ -72,7 +64,7 @@ class StockChipLoader(BaseDataLoader):
             自營商買賣超股數_避險 INT,
             自營商買賣超股數 INT NOT NULL,
             三大法人買賣超股數 INT NOT NULL,
-            PRIMARY KEY (日期, 證券代號)
+            PRIMARY KEY (date, stock_id)
         );
         """
         cursor.execute(create_table_query)
@@ -98,14 +90,17 @@ class StockChipLoader(BaseDataLoader):
             # Skip non-CSV files
             if file_path.suffix != ".csv":
                 continue
-            df: pd.DataFrame = pd.read_csv(file_path)
-            df.to_sql(CHIP_TABLE_NAME, self.conn, if_exists="append", index=False)
-            print(f"Save {file_path} into database.")
-            file_cnt += 1
+            try:
+                df: pd.DataFrame = pd.read_csv(file_path)
+                df.to_sql(CHIP_TABLE_NAME, self.conn, if_exists="append", index=False)
+                print(f"Save {file_path} into database.")
+                file_cnt += 1
+            except Exception as e:
+                print(f"Error saving {file_path}: {e}")
 
         self.conn.commit()
         self.disconnect()
 
         if remove_files:
             shutil.rmtree(CHIP_DOWNLOADS_PATH)
-        print(f"Total file: {file_cnt}")
+        print(f"Total file processed: {file_cnt}")

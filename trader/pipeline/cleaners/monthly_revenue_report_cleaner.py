@@ -114,9 +114,9 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
         new_df = (
             pd.concat(appended_df_list, ignore_index=True)
             .astype(str)
-            .rename(columns={"公司代號": "股票代號"})
+            .rename(columns={"公司代號": "stock_id"})
             .pipe(
-                DataUtils.convert_col_to_numeric, exclude_cols=["股票代號", "公司名稱"]
+                DataUtils.convert_col_to_numeric, exclude_cols=["stock_id", "公司名稱"]
             )
         )
 
