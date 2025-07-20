@@ -13,3 +13,28 @@ class StockPriceLoader(BaseDataLoader):
 
     def __init__(self):
         super().__init__()
+
+
+    def setup(self, *args, **kwargs) -> None:
+        """Set Up the Config of Loader"""
+        pass
+
+
+    def connect(self) -> None:
+        """Connect to the Database"""
+        pass
+
+
+    def disconnect(self) -> None:
+        """Disconnect the Database"""
+        pass
+
+
+    def create_db(self) -> None:
+        """Create New Database"""
+        pass
+
+
+    def add_to_db(self) -> None:
+        """Add Data into Database"""
+        pass
