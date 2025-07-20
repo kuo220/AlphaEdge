@@ -1,5 +1,5 @@
 import datetime
-from typing import List
+from typing import List, Dict
 from pathlib import Path
 import pandas as pd
 
@@ -60,13 +60,15 @@ class StockChipCleaner(BaseDataCleaner):
             "自營商買賣超股數_避險",
         ]
 
+        rename_map: Dict[str, str] = dict(zip(old_col_name, new_col_name))
+
         # 第一次格式改制前
         if date < self.twse_first_reform_date:
             DataUtils.move_col(df, "自營商買賣超股數", "自營商賣出股數")
         # 第一次格式改制後，第二次格式改制前
         elif self.twse_first_reform_date <= date < self.twse_second_reform_date:
             DataUtils.move_col(df, "自營商買賣超股數", "自營商買賣超股數(避險)")
-            df.rename(columns=dict(zip(old_col_name, new_col_name)), inplace=True)
+            df = df.rename(columns=rename_map)
         # 第二次格式改制後
         else:
             df["外資買進股數"] = (
@@ -92,8 +94,7 @@ class StockChipCleaner(BaseDataCleaner):
             DataUtils.move_col(df, "外資賣出股數", "外資買進股數")
             DataUtils.move_col(df, "外資買賣超股數", "外資賣出股數")
             DataUtils.move_col(df, "自營商買賣超股數", "自營商買賣超股數(避險)")
-            rename_map = dict(zip(old_col_name, new_col_name))
-            df = df.rename(columns=rename_map)\
+            df = df.rename(columns=rename_map)
 
         df.insert(0, "date", date)
         df = DataUtils.remove_redundant_col(df, "三大法人買賣超股數")
