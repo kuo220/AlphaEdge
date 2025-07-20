@@ -4,8 +4,6 @@ import pandas as pd
 from pathlib import Path
 
 from trader.pipeline.loaders.base import BaseDataLoader
-from trader.pipeline.utils.data_utils import DataUtils
-from trader.utils import TimeUtils
 from trader.config import PRICE_DOWNLOADS_PATH, PRICE_TABLE_NAME, DB_PATH
 
 
@@ -23,20 +21,17 @@ class StockPriceLoader(BaseDataLoader):
 
         self.setup()
 
-
     def setup(self, *args, **kwargs) -> None:
         """Set Up the Config of Loader"""
 
         self.connect()
         self.price_dir.mkdir(parents=True, exist_ok=True)
 
-
     def connect(self) -> None:
         """Connect to the Database"""
 
         if self.conn is None:
             self.conn = sqlite3.connect(DB_PATH)
-
 
     def disconnect(self) -> None:
         """Disconnect the Database"""
@@ -45,7 +40,6 @@ class StockPriceLoader(BaseDataLoader):
             self.conn.close()
             self.conn = None
 
-
     def create_db(self) -> None:
         """Create New Database"""
 
@@ -53,22 +47,22 @@ class StockPriceLoader(BaseDataLoader):
 
         create_table_query: str = f"""
         CREATE TABLE IF NOT EXISTS {PRICE_TABLE_NAME}(
-            date TEXT NOT NULL,
-            stock_id TEXT NOT NULL,
-            證券名稱 TEXT NOT NULL,
-            開盤價 REAL,
-            最高價 REAL,
-            最低價 REAL,
-            收盤價 REAL,
-            漲跌價差 REAL,
-            成交股數 INTEGER,
-            成交金額 INTEGER,
-            成交筆數 INTEGER,
-            最後揭示買價 REAL,
-            最後揭示買量 INTEGER,
-            最後揭示賣價 REAL,
-            最後揭示賣量 INTEGER,
-            本益比 REAL,
+            "date" TEXT NOT NULL,
+            "stock_id" TEXT NOT NULL,
+            "證券名稱" TEXT NOT NULL,
+            "開盤價" REAL,
+            "最高價" REAL,
+            "最低價" REAL,
+            "收盤價" REAL,
+            "漲跌價差" REAL,
+            "成交股數" INTEGER,
+            "成交金額" INTEGER,
+            "成交筆數" INTEGER,
+            "最後揭示買價" REAL,
+            "最後揭示買量" INTEGER,
+            "最後揭示賣價" REAL,
+            "最後揭示賣量" INTEGER,
+            "本益比" REAL,
             PRIMARY KEY (date, stock_id)
         );
         """
@@ -83,7 +77,6 @@ class StockPriceLoader(BaseDataLoader):
 
         self.conn.commit()
         self.disconnect()
-
 
     def add_to_db(self, remove_files: bool = False) -> None:
         """Add Data into Database"""

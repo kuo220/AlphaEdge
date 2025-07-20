@@ -12,7 +12,7 @@ from trader.pipeline.utils import URLManager, DataType, MarketType, FileEncoding
 from trader.pipeline.utils.data_utils import DataUtils
 from trader.utils import TimeUtils
 from trader.config import (
-    MONTHLY_REVENUE_REPORT_PATH,
+    MONTHLY_REVENUE_REPORT_DOWNLOADS_PATH,
     MONTHLY_REVENUE_REPORT_META_DIR_PATH,
 )
 
@@ -34,7 +34,7 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
         )
 
         # Downloads Directory
-        self.mrr_dir: Path = MONTHLY_REVENUE_REPORT_PATH
+        self.mrr_dir: Path = MONTHLY_REVENUE_REPORT_DOWNLOADS_PATH
 
         # Clean Set Up
         self.removed_cols: List[str] = [

@@ -28,11 +28,11 @@ class BaseDataLoader(ABC):
         pass
 
     @abstractmethod
-    def create_db(self) -> None:
+    def create_db(self, *args, **kwargs) -> None:
         """Create New Database"""
         pass
 
     @abstractmethod
-    def add_to_db(self) -> None:
+    def add_to_db(self, *args, **kwargs) -> None:
         """Add Data into Database"""
         pass
