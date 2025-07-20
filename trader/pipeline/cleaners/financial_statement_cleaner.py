@@ -6,7 +6,10 @@ from typing import List, Dict
 from trader.pipeline.cleaners.base import BaseDataCleaner
 from trader.pipeline.utils.data_utils import DataUtils
 from trader.pipeline.utils import FinancialStatementType, FileEncoding
-from trader.config import FINANCIAL_STATEMENT_PATH, FINANCIAL_STATEMENT_META_DIR_PATH
+from trader.config import (
+    FINANCIAL_STATEMENT_DOWNLOADS_PATH,
+    FINANCIAL_STATEMENT_META_DIR_PATH,
+)
 
 
 class FinancialStatementCleaner(BaseDataCleaner):
@@ -54,7 +57,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
         )
 
         # Output directories for each report
-        self.fs_dir: Path = FINANCIAL_STATEMENT_PATH
+        self.fs_dir: Path = FINANCIAL_STATEMENT_DOWNLOADS_PATH
         self.balance_sheet_dir: Path = (
             self.fs_dir / FinancialStatementType.BALANCE_SHEET.lower()
         )
@@ -326,20 +329,20 @@ class FinancialStatementCleaner(BaseDataCleaner):
                 已清洗、排序、去重後的欄位名稱清單
         """
 
-        # Step 1: 清洗欄位並做名稱對應
-        cleaned_cols: List[str] = [
-            self.map_column_name(DataUtils.standardize_column_name(word=col), col_map)
-            for col in raw_cols
-        ]
+        # Step 1: 欄位排序
+        tail_columns: List[str] = [col for col in raw_cols if col not in front_cols]
+        cleaned_cols = front_cols + tail_columns
 
         # Step 2: 移除不必要欄位
         cleaned_cols = DataUtils.remove_items_by_keywords(
             cleaned_cols, startswith=["Unnamed", "0"]
         )
 
-        # Step 3: 欄位排序
-        tail_columns: List[str] = [col for col in cleaned_cols if col not in front_cols]
-        cleaned_cols = front_cols + tail_columns
+        # Step 3: 清洗欄位並做名稱對應
+        cleaned_cols: List[str] = [
+            self.map_column_name(DataUtils.standardize_column_name(word=col), col_map)
+            for col in cleaned_cols
+        ]
 
         # Step 4: 去除重複欄位（保留順序）
         cleaned_cols = list(dict.fromkeys(cleaned_cols))

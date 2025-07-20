@@ -213,6 +213,7 @@ class DataUtils:
 
         startswith = startswith or []
         contains = contains or []
+        items = [str(item) for item in items]
 
         def normalize(s: str) -> str:
             return s.lower() if case_insensitive else s

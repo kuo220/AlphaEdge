@@ -18,7 +18,7 @@ from trader.pipeline.utils import (
 from trader.pipeline.utils.data_utils import DataUtils
 from trader.utils import TimeUtils
 from trader.config import (
-    FINANCIAL_STATEMENT_PATH,
+    FINANCIAL_STATEMENT_DOWNLOADS_PATH,
     FINANCIAL_STATEMENT_META_DIR_PATH,
 )
 
@@ -30,7 +30,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         super().__init__()
 
         # Financial Statement Directories Set Up
-        self.fs_dir: Path = FINANCIAL_STATEMENT_PATH
+        self.fs_dir: Path = FINANCIAL_STATEMENT_DOWNLOADS_PATH
 
         # Payload For HTTP Requests
         self.payload: Payload = None

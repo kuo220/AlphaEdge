@@ -9,6 +9,10 @@ Balance sheet column mapping dictionary
 """
 
 balance_sheet_column_map: Dict[str, List[str]] = {
+    "年度": ["年度"],
+    "季度": ["季度"],
+    "stock_id": ["公司代號"],
+    "公司名稱": ["公司名稱"],
     "資產總額": ["資產總額", "資產總計", "資產合計"],
     "負債總額": ["負債總額", "負債總計", "負債合計"],
     "權益總額": ["權益總額", "權益總計", "權益合計"],
@@ -92,10 +96,6 @@ balance_sheet_column_map: Dict[str, List[str]] = {
         "權益具證券性質之虛擬通貨",
         "權益─具證券性質之虛擬通貨",
     ],
-    "年度": ["年度"],
-    "季度": ["季度"],
-    "公司代號": ["公司代號"],
-    "公司名稱": ["公司名稱"],
     "受限制資產淨額": ["受限制資產淨額"],
     "待分配予業主之資產(或處分群組)": ["待分配予業主之資產(或處分群組)"],
     "待分配予業主之資產淨額": ["待分配予業主之資產淨額"],
@@ -104,7 +104,7 @@ balance_sheet_column_map: Dict[str, List[str]] = {
 
 comprehensive_income_column_map: Dict[str, List[str]] = {
     "公司名稱": ["公司名稱"],
-    "公司代號": ["公司代號"],
+    "stock_id": ["公司代號"],
     "收益": ["收益"],
     "收入": ["收入"],
     "營業收入": ["營業收入"],
@@ -175,7 +175,7 @@ comprehensive_income_column_map: Dict[str, List[str]] = {
 
 
 cash_flow_column_map: Dict[str, List[str]] = {
-    "公司代號": [
+    "stock_id": [
         "公司代號",
     ],
     "公司名稱": ["公司名稱"],
