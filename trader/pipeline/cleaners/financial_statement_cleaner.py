@@ -6,7 +6,7 @@ from typing import List, Dict
 from trader.pipeline.cleaners.base import BaseDataCleaner
 from trader.pipeline.utils.data_utils import DataUtils
 from trader.pipeline.utils import FinancialStatementType, FileEncoding
-from trader.config import FINANCIAL_STATEMENT_PATH, FINANCIAL_STATEMENT_META_DIR_PATH
+from trader.config import FINANCIAL_STATEMENT_DOWNLOADS_PATH, FINANCIAL_STATEMENT_META_DIR_PATH
 
 
 class FinancialStatementCleaner(BaseDataCleaner):
@@ -54,7 +54,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
         )
 
         # Output directories for each report
-        self.fs_dir: Path = FINANCIAL_STATEMENT_PATH
+        self.fs_dir: Path = FINANCIAL_STATEMENT_DOWNLOADS_PATH
         self.balance_sheet_dir: Path = (
             self.fs_dir / FinancialStatementType.BALANCE_SHEET.lower()
         )

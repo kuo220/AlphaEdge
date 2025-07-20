@@ -14,7 +14,7 @@ from trader.pipeline.utils import URLManager, DataType, MarketType, FileEncoding
 from trader.pipeline.utils.data_utils import DataUtils
 from trader.utils import TimeUtils
 from trader.config import (
-    MONTHLY_REVENUE_REPORT_PATH,
+    MONTHLY_REVENUE_REPORT_DOWNLOADS_PATH,
     MONTHLY_REVENUE_REPORT_META_DIR_PATH,
 )
 
@@ -24,7 +24,7 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
 
     def __init__(self):
         # Downloads Directory
-        self.mrr_dir: Path = MONTHLY_REVENUE_REPORT_PATH
+        self.mrr_dir: Path = MONTHLY_REVENUE_REPORT_DOWNLOADS_PATH
 
         # Market Type
         self.twse_market_types: List[MarketType] = [MarketType.SII0, MarketType.SII1]

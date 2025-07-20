@@ -4,8 +4,6 @@ import pandas as pd
 from pathlib import Path
 
 from trader.pipeline.loaders.base import BaseDataLoader
-from trader.pipeline.utils.data_utils import DataUtils
-from trader.utils import TimeUtils
 from trader.config import PRICE_DOWNLOADS_PATH, PRICE_TABLE_NAME, DB_PATH
 
 
