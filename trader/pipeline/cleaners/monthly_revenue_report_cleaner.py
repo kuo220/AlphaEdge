@@ -67,10 +67,7 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
         資料格式
         上市: 102（2013）年前資料無區分國內外（目前先從 102 年開始爬）
         """
-        print(f"monthly revenue report cols: {self.monthly_revenue_report_cols}")
-        print(
-            f"1 monthly revenue report cleaned cols: {self.monthly_revenue_report_cleaned_cols}"
-        )
+
         # Step 1: 載入已清洗欄位，若未成功則執行清洗流程
         if not self.monthly_revenue_report_cleaned_cols:
             self.load_cleaned_column_names()
@@ -79,9 +76,6 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
                     raw_cols=self.monthly_revenue_report_cols,
                     front_cols=["year", "month"],
                 )
-        print(
-            f"2 monthly revenue report cleaned cols: {self.monthly_revenue_report_cleaned_cols}"
-        )
 
         # Step 2: 清理 df_list 欄位名稱
         # 建立涵蓋所有 columns 的 df
@@ -106,7 +100,11 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
         appended_df_list: List[pd.DataFrame] = []
         for df in new_df_list:
             cleaned_cols: List[str] = [
-                DataUtils.standardize_column_name(col) for col in df.columns
+                DataUtils.map_column_name(
+                    DataUtils.standardize_column_name(col),
+                    self.monthly_revenue_report_col_map,
+                )
+                for col in df.columns
             ]
             df.columns = cleaned_cols
             DataUtils.remove_cols_by_keywords(df, startswith=self.removed_cols)
@@ -118,9 +116,7 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
             appended_df_list.append(aligned_df)
 
         new_df = (
-            pd.concat(appended_df_list, ignore_index=True)
-            .astype(str)
-            .rename(columns={"公司代號": "stock_id"})
+            pd.concat(appended_df_list, ignore_index=True).astype(str)
             .pipe(
                 DataUtils.convert_col_to_numeric, exclude_cols=["stock_id", "公司名稱"]
             )
