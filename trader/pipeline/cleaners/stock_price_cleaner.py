@@ -17,7 +17,7 @@ class StockPriceCleaner(BaseDataCleaner):
         # TPEX Price Table Change Date
         self.tpex_table_change_date: datetime.date = datetime.date(2020, 4, 30)
 
-        # Downloads directory
+        # Downloads directory Path
         self.price_dir: Path = PRICE_DOWNLOADS_PATH
         self.setup()
 

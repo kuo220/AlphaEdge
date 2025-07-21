@@ -1,12 +1,13 @@
 import shutil
 import sqlite3
+from loguru import logger
 import pandas as pd
 from pathlib import Path
-from typing import List, Dict, Set
+from typing import List
 
 from trader.pipeline.loaders.base import BaseDataLoader
 from trader.pipeline.utils.data_utils import DataUtils
-from trader.pipeline.utils import FinancialStatementType, FileEncoding
+from trader.pipeline.utils import FinancialStatementType
 from trader.config import (
     DB_PATH,
     FINANCIAL_STATEMENT_DOWNLOADS_PATH,
@@ -53,7 +54,7 @@ class FinancialStatementLoader(BaseDataLoader):
             / f"{FinancialStatementType.EQUITY_CHANGE.lower()}_cleaned_columns.json"
         )
 
-        # Downloads directory
+        # Downloads directory Path
         self.fs_dir: Path = FINANCIAL_STATEMENT_DOWNLOADS_PATH
         self.balance_sheet_dir: Path = (
             self.fs_dir / FinancialStatementType.BALANCE_SHEET.lower()
@@ -73,7 +74,9 @@ class FinancialStatementLoader(BaseDataLoader):
     def setup(self, *args, **kwargs) -> None:
         """Set Up the Config of Loader"""
 
+        # Connect Database
         self.connect()
+
         self.fs_dir.mkdir(parents=True, exist_ok=True)
         self.balance_sheet_dir.mkdir(parents=True, exist_ok=True)
         self.comprehensive_income_dir.mkdir(parents=True, exist_ok=True)
@@ -132,10 +135,10 @@ class FinancialStatementLoader(BaseDataLoader):
         # 檢查是否成功建立 table
         cursor.execute(f"PRAGMA table_info('{table_name}')")
         if cursor.fetchall():
-            print(f"Table {table_name} create successfully!")
-            print(create_table_query)
+            logger.info(f"Table {table_name} create successfully!")
+            logger.info(create_table_query)
         else:
-            print(f"Table {table_name} create unsuccessfully!")
+            logger.info(f"Table {table_name} create unsuccessfully!")
 
         self.conn.commit()
         self.disconnect()
@@ -156,61 +159,14 @@ class FinancialStatementLoader(BaseDataLoader):
             try:
                 df: pd.DataFrame = pd.read_csv(file_path)
                 df.to_sql(table_name, self.conn, if_exists="append", index=False)
-                print(f"Save {file_path} into database.")
+                logger.info(f"Save {file_path} into database.")
                 file_cnt += 1
             except Exception as e:
-                print(f"Error saving {file_path}: {e}")
+                logger.info(f"Error saving {file_path}: {e}")
 
             self.conn.commit()
             self.disconnect()
 
             if remove_files:
                 shutil.rmtree(dir_path)
-            print(f"Total file processed: {file_cnt}")
-
-    # def create_balance_sheet_table(self) -> None:
-    #     """ Create Balance Sheet Table """
-
-    #     cursor: sqlite3.Cursor = self.conn.cursor()
-
-    #     # Step 1: 讀取欄位定義 JSON
-    #     cols: List[str] = DataUtils.load_json(file_path=self.balance_sheet_cleaned_cols_path)
-    #     col_defs: List[str] = [
-    #         '"year" INT NOT NULL',
-    #         '"season" INT NOT NULL',
-    #     ]
-
-    #     # Step 2: 指定欄位型別
-    #     for col in cols:
-    #         col_name = f'"{col}"'
-
-    #         if col in self.text_not_null_cols:
-    #             col_defs.append(f"{col_name} TEXT NOT NULL")
-    #         elif col in self.int_not_null_cols:
-    #             col_defs.append(f"{col_name} INT NOT NULL")
-    #         else:
-    #             col_defs.append(f"{col_name} REAL")
-
-    #     # Step 3: 加 PRIMARY KEY
-    #     col_defs.append("PRIMARY KEY (year, season, stock_id)")
-
-    #     # Step 4: 組建 SQL
-    #     col_defs_sql: str = ",\n            ".join(col_defs)
-    #     create_table_query: str = f"""
-    #     CREATE TABLE IF NOT EXISTS {BALANCE_SHEET_TABLE_NAME}(
-    #         {col_defs_sql}
-    #     )
-    #     """
-
-    #     cursor.execute(create_table_query)
-
-    #     # 檢查是否成功建立 table
-    #     cursor.execute(f"PRAGMA table_info('{BALANCE_SHEET_TABLE_NAME}')")
-    #     if cursor.fetchall():
-    #         print(f"Table {BALANCE_SHEET_TABLE_NAME} create successfully!")
-    #         print(create_table_query)
-    #     else:
-    #         print(f"Table {BALANCE_SHEET_TABLE_NAME} create unsuccessfully!")
-
-    #     self.conn.commit()
-    #     self.disconnect()
+            logger.info(f"Total file processed: {file_cnt}")

@@ -78,6 +78,7 @@ DB_PATH: Path = (DATABASE_DIR_PATH / DB_NAME).resolve()
 PRICE_TABLE_NAME: str = "price"
 CHIP_TABLE_NAME: str = "chip"
 TICK_TABLE_NAME: str = "tick"
+MONTHLY_REVENUE_TABLE_NAME = "monthly_revenue"
 BALANCE_SHEET_TABLE_NAME: str = "balance_sheet"
 COMPREHENSIVE_INCOME_TABLE_NAME: str = "comprehensive_income"
 CASH_FLOW_TABLE_NAME: str = "cash_flow"

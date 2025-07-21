@@ -71,6 +71,9 @@ class FinancialStatementCleaner(BaseDataCleaner):
             self.fs_dir / FinancialStatementType.EQUITY_CHANGE.lower()
         )
 
+        # Clean Set Up
+        self.removed_cols: List[str] = ["Unnamed", "0"]
+
         self.setup()
 
     def setup(self, *args, **kwargs) -> None:
@@ -125,13 +128,13 @@ class FinancialStatementCleaner(BaseDataCleaner):
         appended_df_list: List[pd.DataFrame] = []
         for df in df_list:
             cleaned_cols: List[str] = [
-                self.map_column_name(
+                DataUtils.map_column_name(
                     DataUtils.standardize_column_name(col), self.balance_sheet_col_map
                 )
                 for col in df.columns
             ]
             df.columns = cleaned_cols
-            DataUtils.remove_cols_by_keywords(df, startswith=["Unnamed", "0"])
+            DataUtils.remove_cols_by_keywords(df, startswith=self.removed_cols)
 
             # 對齊欄位並補上欄位
             aligned_df: pd.DataFrame = df.reindex(columns=new_df.columns)
@@ -142,7 +145,6 @@ class FinancialStatementCleaner(BaseDataCleaner):
         new_df = (
             pd.concat(appended_df_list, ignore_index=True)
             .astype(str)
-            .rename(columns={"公司代號": "stock_id"})
             .pipe(
                 DataUtils.convert_col_to_numeric, exclude_cols=["stock_id", "公司名稱"]
             )
@@ -196,7 +198,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
         appended_df_list: List[pd.DataFrame] = []
         for df in df_list:
             cleaned_cols: List[str] = [
-                self.map_column_name(
+                DataUtils.map_column_name(
                     DataUtils.standardize_column_name(col),
                     self.comprehensive_income_col_map,
                 )
@@ -213,7 +215,6 @@ class FinancialStatementCleaner(BaseDataCleaner):
         new_df = (
             pd.concat(appended_df_list, ignore_index=True)
             .astype(str)
-            .rename(columns={"公司代號": "stock_id"})
             .pipe(
                 DataUtils.convert_col_to_numeric, exclude_cols=["stock_id", "公司名稱"]
             )
@@ -263,7 +264,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
         appended_df_list: List[pd.DataFrame] = []
         for df in df_list:
             cleaned_cols: List[str] = [
-                self.map_column_name(
+                DataUtils.map_column_name(
                     DataUtils.standardize_column_name(col), self.cash_flow_col_map
                 )
                 for col in df.columns
@@ -279,7 +280,6 @@ class FinancialStatementCleaner(BaseDataCleaner):
         new_df = (
             pd.concat(appended_df_list, ignore_index=True)
             .astype(str)
-            .rename(columns={"公司代號": "stock_id"})
             .pipe(
                 DataUtils.convert_col_to_numeric, exclude_cols=["stock_id", "公司名稱"]
             )
@@ -335,12 +335,14 @@ class FinancialStatementCleaner(BaseDataCleaner):
 
         # Step 2: 移除不必要欄位
         cleaned_cols = DataUtils.remove_items_by_keywords(
-            cleaned_cols, startswith=["Unnamed", "0"]
+            cleaned_cols, startswith=self.removed_cols
         )
 
         # Step 3: 清洗欄位並做名稱對應
         cleaned_cols: List[str] = [
-            self.map_column_name(DataUtils.standardize_column_name(word=col), col_map)
+            DataUtils.map_column_name(
+                DataUtils.standardize_column_name(word=col), col_map
+            )
             for col in cleaned_cols
         ]
 
@@ -424,11 +426,3 @@ class FinancialStatementCleaner(BaseDataCleaner):
 
             if hasattr(self, attr_name):
                 setattr(self, attr_name, col_map)
-
-    def map_column_name(self, col: str, column_map: Dict[str, List[str]]) -> str:
-        """將欄位名稱對應至標準名稱，若無對應則回傳原名"""
-
-        for std_col, variants in column_map.items():
-            if col in variants:
-                return std_col
-        return col
