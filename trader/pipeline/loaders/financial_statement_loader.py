@@ -53,7 +53,7 @@ class FinancialStatementLoader(BaseDataLoader):
             / f"{FinancialStatementType.EQUITY_CHANGE.lower()}_cleaned_columns.json"
         )
 
-        # Downloads directory
+        # Downloads directory Path
         self.fs_dir: Path = FINANCIAL_STATEMENT_DOWNLOADS_PATH
         self.balance_sheet_dir: Path = (
             self.fs_dir / FinancialStatementType.BALANCE_SHEET.lower()

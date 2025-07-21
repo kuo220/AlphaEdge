@@ -23,9 +23,23 @@ class MonthlyRevenueReportLoader(BaseDataLoader):
     def __init__(self):
         super().__init__()
 
+        # Downloads directory Path
+        self.mrr_dir: Path = MONTHLY_REVENUE_REPORT_DOWNLOADS_PATH
+
+        # MMR Cleaned Columns Path
+        self.monthly_revenue_report_cleaned_cols_path: Path = (
+            MONTHLY_REVENUE_REPORT_META_DIR_PATH
+            / f"{DataType.MRR.lower()}_cleaned_columns.json"
+        )
+
+
+
     def setup(self, *args, **kwargs) -> None:
         """Set Up the Config of Loader"""
-        pass
+        # Create the tick downloads directory
+        self.mrr_dir.mkdir(parents=True, exist_ok=True)
+
+
 
     def connect(self) -> None:
         """Connect to the Database"""

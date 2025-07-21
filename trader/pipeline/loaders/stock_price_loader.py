@@ -16,7 +16,7 @@ class StockPriceLoader(BaseDataLoader):
         # SQLite Connection
         self.conn: sqlite3.Connection = None
 
-        # Downloads directory
+        # Downloads directory Path
         self.price_dir: Path = PRICE_DOWNLOADS_PATH
 
         self.setup()

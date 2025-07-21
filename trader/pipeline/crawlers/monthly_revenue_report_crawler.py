@@ -23,7 +23,7 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
     """TWSE & TPEX Monthly Revenue Report Crawler"""
 
     def __init__(self):
-        # Downloads Directory
+        # Downloads directory Path
         self.mrr_dir: Path = MONTHLY_REVENUE_REPORT_DOWNLOADS_PATH
 
         # Market Type

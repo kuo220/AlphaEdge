@@ -16,7 +16,7 @@ class StockChipLoader(BaseDataLoader):
         # SQLite Connection
         self.conn: sqlite3.Connection = None
 
-        # Downloads directory
+        # Downloads directory Path
         self.chip_dir: Path = CHIP_DOWNLOADS_PATH
 
         self.setup()
