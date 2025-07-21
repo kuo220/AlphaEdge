@@ -71,6 +71,9 @@ class FinancialStatementCleaner(BaseDataCleaner):
             self.fs_dir / FinancialStatementType.EQUITY_CHANGE.lower()
         )
 
+        # Clean Set Up
+        self.removed_cols: List[str] = ["Unnamed", "0"]
+
         self.setup()
 
     def setup(self, *args, **kwargs) -> None:
@@ -131,7 +134,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
                 for col in df.columns
             ]
             df.columns = cleaned_cols
-            DataUtils.remove_cols_by_keywords(df, startswith=["Unnamed", "0"])
+            DataUtils.remove_cols_by_keywords(df, startswith=self.removed_cols)
 
             # 對齊欄位並補上欄位
             aligned_df: pd.DataFrame = df.reindex(columns=new_df.columns)
@@ -142,7 +145,6 @@ class FinancialStatementCleaner(BaseDataCleaner):
         new_df = (
             pd.concat(appended_df_list, ignore_index=True)
             .astype(str)
-            .rename(columns={"公司代號": "stock_id"})
             .pipe(
                 DataUtils.convert_col_to_numeric, exclude_cols=["stock_id", "公司名稱"]
             )
@@ -213,7 +215,6 @@ class FinancialStatementCleaner(BaseDataCleaner):
         new_df = (
             pd.concat(appended_df_list, ignore_index=True)
             .astype(str)
-            .rename(columns={"公司代號": "stock_id"})
             .pipe(
                 DataUtils.convert_col_to_numeric, exclude_cols=["stock_id", "公司名稱"]
             )
@@ -279,7 +280,6 @@ class FinancialStatementCleaner(BaseDataCleaner):
         new_df = (
             pd.concat(appended_df_list, ignore_index=True)
             .astype(str)
-            .rename(columns={"公司代號": "stock_id"})
             .pipe(
                 DataUtils.convert_col_to_numeric, exclude_cols=["stock_id", "公司名稱"]
             )
@@ -335,7 +335,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
 
         # Step 2: 移除不必要欄位
         cleaned_cols = DataUtils.remove_items_by_keywords(
-            cleaned_cols, startswith=["Unnamed", "0"]
+            cleaned_cols, startswith=self.removed_cols
         )
 
         # Step 3: 清洗欄位並做名稱對應

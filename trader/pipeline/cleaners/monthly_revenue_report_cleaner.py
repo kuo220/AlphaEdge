@@ -2,7 +2,7 @@ import datetime
 from io import StringIO
 from loguru import logger
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Dict, Optional
 import pandas as pd
 import requests
 
@@ -26,14 +26,19 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
         # Raw and cleaned column names for monthly revenue report
         self.monthly_revenue_report_cols: List[str] = []
         self.monthly_revenue_report_cleaned_cols: List[str] = []
+        self.monthly_revenue_report_col_map: Dict[str, List[str]] = {}
 
         # MMR Cleaned Columns Path
         self.monthly_revenue_report_cleaned_cols_path: Path = (
             MONTHLY_REVENUE_REPORT_META_DIR_PATH
             / f"{DataType.MRR.lower()}_cleaned_columns.json"
         )
+        self.monthly_revenue_report_col_map_path: Path = (
+            MONTHLY_REVENUE_REPORT_META_DIR_PATH
+            / f"{DataType.MRR.lower()}_column_map.json"
+        )
 
-        # Downloads Directory
+        # Output Directory
         self.mrr_dir: Path = MONTHLY_REVENUE_REPORT_DOWNLOADS_PATH
 
         # Clean Set Up
@@ -52,6 +57,7 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
 
         # Load MMR Column Names
         self.load_all_column_names()
+        self.load_column_maps()
 
     def clean_monthly_revenue(
         self, df_list: List[pd.DataFrame], year: int, month: int
@@ -148,19 +154,19 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
                 已清洗、排序、去重後的欄位名稱清單
         """
 
-        # Step 1: 清洗欄位
-        cleaned_cols: List[str] = [
-            DataUtils.standardize_column_name(word=col) for col in raw_cols
-        ]
+        # Step 1: 欄位排序
+        tail_columns: List[str] = [col for col in raw_cols if col not in front_cols]
+        cleaned_cols = front_cols + tail_columns
 
         # Step 2: 移除不必要欄位
         cleaned_cols = DataUtils.remove_items_by_keywords(
             cleaned_cols, startswith=self.removed_cols
         )
 
-        # Step 3: 欄位排序
-        tail_columns: List[str] = [col for col in cleaned_cols if col not in front_cols]
-        cleaned_cols = front_cols + tail_columns
+        # Step 3: 清洗欄位
+        cleaned_cols: List[str] = [
+            DataUtils.standardize_column_name(word=col) for col in cleaned_cols
+        ]
 
         # Step 4: 去除重複欄位（保留順序）
         cleaned_cols = list(dict.fromkeys(cleaned_cols))
@@ -200,4 +206,17 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
 
         self.monthly_revenue_report_cleaned_cols = DataUtils.load_json(
             file_path=self.monthly_revenue_report_cleaned_cols_path
+        )
+
+    def load_column_maps(self) -> None:
+        """載入 MRR Column Maps"""
+
+        if not self.monthly_revenue_report_col_map_path.exists():
+            logger.warning(
+                f"Metadata file not found: {self.monthly_revenue_report_col_map_path}"
+            )
+            return
+
+        self.monthly_revenue_report_col_map = DataUtils.load_json(
+            self.monthly_revenue_report_col_map_path
         )
