@@ -128,7 +128,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
         appended_df_list: List[pd.DataFrame] = []
         for df in df_list:
             cleaned_cols: List[str] = [
-                self.map_column_name(
+                DataUtils.map_column_name(
                     DataUtils.standardize_column_name(col), self.balance_sheet_col_map
                 )
                 for col in df.columns
@@ -198,7 +198,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
         appended_df_list: List[pd.DataFrame] = []
         for df in df_list:
             cleaned_cols: List[str] = [
-                self.map_column_name(
+                DataUtils.map_column_name(
                     DataUtils.standardize_column_name(col),
                     self.comprehensive_income_col_map,
                 )
@@ -264,7 +264,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
         appended_df_list: List[pd.DataFrame] = []
         for df in df_list:
             cleaned_cols: List[str] = [
-                self.map_column_name(
+                DataUtils.map_column_name(
                     DataUtils.standardize_column_name(col), self.cash_flow_col_map
                 )
                 for col in df.columns
@@ -340,7 +340,9 @@ class FinancialStatementCleaner(BaseDataCleaner):
 
         # Step 3: 清洗欄位並做名稱對應
         cleaned_cols: List[str] = [
-            self.map_column_name(DataUtils.standardize_column_name(word=col), col_map)
+            DataUtils.map_column_name(
+                DataUtils.standardize_column_name(word=col), col_map
+            )
             for col in cleaned_cols
         ]
 
@@ -424,11 +426,3 @@ class FinancialStatementCleaner(BaseDataCleaner):
 
             if hasattr(self, attr_name):
                 setattr(self, attr_name, col_map)
-
-    def map_column_name(self, col: str, column_map: Dict[str, List[str]]) -> str:
-        """將欄位名稱對應至標準名稱，若無對應則回傳原名"""
-
-        for std_col, variants in column_map.items():
-            if col in variants:
-                return std_col
-        return col

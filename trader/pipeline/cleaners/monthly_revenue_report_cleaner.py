@@ -165,7 +165,11 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
 
         # Step 3: 清洗欄位
         cleaned_cols: List[str] = [
-            DataUtils.standardize_column_name(word=col) for col in cleaned_cols
+            DataUtils.map_column_name(
+                DataUtils.standardize_column_name(word=col),
+                self.monthly_revenue_report_col_map,
+            )
+            for col in cleaned_cols
         ]
 
         # Step 4: 去除重複欄位（保留順序）

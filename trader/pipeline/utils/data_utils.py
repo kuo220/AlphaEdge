@@ -121,6 +121,15 @@ class DataUtils:
         return word
 
     @staticmethod
+    def map_column_name(col: str, column_map: Dict[str, List[str]]) -> str:
+        """將欄位名稱對應至標準名稱，若無對應則回傳原名"""
+
+        for std_col, variants in column_map.items():
+            if col in variants:
+                return std_col
+        return col
+
+    @staticmethod
     def replace_column_name(
         col_name: str, keywords: List[str], replacement: str
     ) -> str:
