@@ -41,7 +41,7 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
     def setup(self, *args, **kwargs) -> None:
         """Set Up the Config of Crawler"""
 
-        # Create the tick downloads directory
+        # Create the downloads directory
         self.mrr_dir.mkdir(parents=True, exist_ok=True)
 
     def crawl_twse_monthly_revenue(

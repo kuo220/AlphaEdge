@@ -52,7 +52,7 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
     def setup(self) -> None:
         """Set Up the Config of Cleaner"""
 
-        # Create the tick downloads directory
+        # Create the downloads directory
         self.mrr_dir.mkdir(parents=True, exist_ok=True)
 
         # Load MMR Column Names
@@ -116,11 +116,16 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
             appended_df_list.append(aligned_df)
 
         new_df = (
-            pd.concat(appended_df_list, ignore_index=True).astype(str)
+            pd.concat(appended_df_list, ignore_index=True)
+            .astype(str)
+            .loc[lambda df: ~df["stock_id"].str.contains("合計", na=False)]  # 過濾掉那些包含「合計」的 row
             .pipe(
                 DataUtils.convert_col_to_numeric, exclude_cols=["stock_id", "公司名稱"]
             )
         )
+
+        # 修正 Big5 編碼無法表示「碁」字導致的亂碼（� 或 ��），補回正確字元
+        new_df["公司名稱"] = new_df["公司名稱"].apply(self.fix_broken_char)
 
         new_df.to_csv(
             self.mrr_dir / f"{DataType.MRR.lower()}_{year}_{month}.csv",
@@ -220,3 +225,10 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
         self.monthly_revenue_report_col_map = DataUtils.load_json(
             self.monthly_revenue_report_col_map_path
         )
+
+    def fix_broken_char(self, text: str) -> str:
+        """將亂碼 � 或 �� 統一修正為 `碁` """
+
+        if isinstance(text, str):
+            return text.replace("��", "碁").replace("�", "碁")
+        return text

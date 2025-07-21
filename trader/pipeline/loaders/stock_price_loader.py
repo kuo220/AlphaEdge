@@ -1,5 +1,6 @@
 import shutil
 import sqlite3
+from loguru import logger
 import pandas as pd
 from pathlib import Path
 
@@ -71,9 +72,9 @@ class StockPriceLoader(BaseDataLoader):
         # 檢查是否成功建立 table
         cursor.execute(f"PRAGMA table_info('{PRICE_TABLE_NAME}')")
         if cursor.fetchall():
-            print(f"Table {PRICE_TABLE_NAME} create successfully!")
+            logger.info(f"Table {PRICE_TABLE_NAME} create successfully!")
         else:
-            print(f"Table {PRICE_TABLE_NAME} create unsuccessfully!")
+            logger.info(f"Table {PRICE_TABLE_NAME} create unsuccessfully!")
 
         self.conn.commit()
         self.disconnect()
@@ -92,14 +93,14 @@ class StockPriceLoader(BaseDataLoader):
             try:
                 df: pd.DataFrame = pd.read_csv(file_path)
                 df.to_sql(PRICE_TABLE_NAME, self.conn, if_exists="append", index=False)
-                print(f"Saved {file_path} into database.")
+                logger.info(f"Saved {file_path} into database.")
                 file_cnt += 1
             except Exception as e:
-                print(f"Error saving {file_path}: {e}")
+                logger.info(f"Error saving {file_path}: {e}")
 
         self.conn.commit()
         self.disconnect()
 
         if remove_files:
             shutil.rmtree(self.price_dir)
-        print(f"Total files processed: {file_cnt}")
+        logger.info(f"Total files processed: {file_cnt}")

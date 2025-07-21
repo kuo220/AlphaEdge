@@ -1,5 +1,6 @@
 import shutil
 import sqlite3
+from loguru import logger
 import pandas as pd
 from pathlib import Path
 
@@ -72,9 +73,9 @@ class StockChipLoader(BaseDataLoader):
         # 檢查是否成功建立 table
         cursor.execute(f"PRAGMA table_info('{CHIP_TABLE_NAME}')")
         if cursor.fetchall():
-            print(f"Table {CHIP_TABLE_NAME} create successfully!")
+            logger.info(f"Table {CHIP_TABLE_NAME} create successfully!")
         else:
-            print(f"Table {CHIP_TABLE_NAME} create unsuccessfully!")
+            logger.info(f"Table {CHIP_TABLE_NAME} create unsuccessfully!")
 
         self.conn.commit()
         self.disconnect()
@@ -93,14 +94,14 @@ class StockChipLoader(BaseDataLoader):
             try:
                 df: pd.DataFrame = pd.read_csv(file_path)
                 df.to_sql(CHIP_TABLE_NAME, self.conn, if_exists="append", index=False)
-                print(f"Save {file_path} into database.")
+                logger.info(f"Save {file_path} into database.")
                 file_cnt += 1
             except Exception as e:
-                print(f"Error saving {file_path}: {e}")
+                logger.info(f"Error saving {file_path}: {e}")
 
         self.conn.commit()
         self.disconnect()
 
         if remove_files:
             shutil.rmtree(CHIP_DOWNLOADS_PATH)
-        print(f"Total file processed: {file_cnt}")
+        logger.info(f"Total file processed: {file_cnt}")

@@ -1,12 +1,13 @@
 import shutil
 import sqlite3
+from loguru import logger
 import pandas as pd
 from pathlib import Path
-from typing import List, Dict, Set
+from typing import List
 
 from trader.pipeline.loaders.base import BaseDataLoader
 from trader.pipeline.utils.data_utils import DataUtils
-from trader.pipeline.utils import FinancialStatementType, FileEncoding
+from trader.pipeline.utils import FinancialStatementType
 from trader.config import (
     DB_PATH,
     FINANCIAL_STATEMENT_DOWNLOADS_PATH,
@@ -73,7 +74,9 @@ class FinancialStatementLoader(BaseDataLoader):
     def setup(self, *args, **kwargs) -> None:
         """Set Up the Config of Loader"""
 
+        # Connect Database
         self.connect()
+
         self.fs_dir.mkdir(parents=True, exist_ok=True)
         self.balance_sheet_dir.mkdir(parents=True, exist_ok=True)
         self.comprehensive_income_dir.mkdir(parents=True, exist_ok=True)
@@ -132,10 +135,10 @@ class FinancialStatementLoader(BaseDataLoader):
         # 檢查是否成功建立 table
         cursor.execute(f"PRAGMA table_info('{table_name}')")
         if cursor.fetchall():
-            print(f"Table {table_name} create successfully!")
-            print(create_table_query)
+            logger.info(f"Table {table_name} create successfully!")
+            logger.info(create_table_query)
         else:
-            print(f"Table {table_name} create unsuccessfully!")
+            logger.info(f"Table {table_name} create unsuccessfully!")
 
         self.conn.commit()
         self.disconnect()
@@ -156,14 +159,14 @@ class FinancialStatementLoader(BaseDataLoader):
             try:
                 df: pd.DataFrame = pd.read_csv(file_path)
                 df.to_sql(table_name, self.conn, if_exists="append", index=False)
-                print(f"Save {file_path} into database.")
+                logger.info(f"Save {file_path} into database.")
                 file_cnt += 1
             except Exception as e:
-                print(f"Error saving {file_path}: {e}")
+                logger.info(f"Error saving {file_path}: {e}")
 
             self.conn.commit()
             self.disconnect()
 
             if remove_files:
                 shutil.rmtree(dir_path)
-            print(f"Total file processed: {file_cnt}")
+            logger.info(f"Total file processed: {file_cnt}")
