@@ -1,0 +1,37 @@
+name: quant
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - numpy
+  - pandas
+  - matplotlib
+  - jupyterlab
+  - ipykernel
+  - ipywidgets
+  - lxml
+  - plotly
+  - tqdm
+  - loguru
+  - orjson
+  - requests
+  - beautifulsoup4
+  - html5lib
+  - python-dotenv
+  - pyzmq
+  - rich
+  - pip
+  - pip:
+      - shioaji
+      - base58
+      - based58
+      - pyrsca
+      - pysolace
+      - ciso8601
+      - typer
+      - msgpack
+      - xxhash
+      - sentry-sdk
+      - fake-useragent
+      - dolphindb

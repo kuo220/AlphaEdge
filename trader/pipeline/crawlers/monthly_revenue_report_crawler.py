@@ -23,7 +23,7 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
     """TWSE & TPEX Monthly Revenue Report Crawler"""
 
     def __init__(self):
-        # Downloads Directory
+        # Downloads directory Path
         self.mrr_dir: Path = MONTHLY_REVENUE_REPORT_DOWNLOADS_PATH
 
         # Market Type
@@ -41,7 +41,7 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
     def setup(self, *args, **kwargs) -> None:
         """Set Up the Config of Crawler"""
 
-        # Create the tick downloads directory
+        # Create the downloads directory
         self.mrr_dir.mkdir(parents=True, exist_ok=True)
 
     def crawl_twse_monthly_revenue(

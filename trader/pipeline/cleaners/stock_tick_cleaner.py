@@ -27,7 +27,7 @@ class StockTickCleaner(BaseDataCleaner):
     def __init__(self):
         super().__init__()
 
-        # Downloads directory
+        # Downloads directory Path
         self.tick_dir: Path = TICK_DOWNLOADS_PATH
         self.setup()
 

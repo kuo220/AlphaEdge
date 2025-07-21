@@ -2,7 +2,7 @@ import datetime
 from io import StringIO
 from loguru import logger
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Dict, Optional
 import pandas as pd
 import requests
 
@@ -26,14 +26,19 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
         # Raw and cleaned column names for monthly revenue report
         self.monthly_revenue_report_cols: List[str] = []
         self.monthly_revenue_report_cleaned_cols: List[str] = []
+        self.monthly_revenue_report_col_map: Dict[str, List[str]] = {}
 
         # MMR Cleaned Columns Path
         self.monthly_revenue_report_cleaned_cols_path: Path = (
             MONTHLY_REVENUE_REPORT_META_DIR_PATH
             / f"{DataType.MRR.lower()}_cleaned_columns.json"
         )
+        self.monthly_revenue_report_col_map_path: Path = (
+            MONTHLY_REVENUE_REPORT_META_DIR_PATH
+            / f"{DataType.MRR.lower()}_column_map.json"
+        )
 
-        # Downloads Directory
+        # Output Directory
         self.mrr_dir: Path = MONTHLY_REVENUE_REPORT_DOWNLOADS_PATH
 
         # Clean Set Up
@@ -47,11 +52,12 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
     def setup(self) -> None:
         """Set Up the Config of Cleaner"""
 
-        # Create the tick downloads directory
+        # Create the downloads directory
         self.mrr_dir.mkdir(parents=True, exist_ok=True)
 
         # Load MMR Column Names
         self.load_all_column_names()
+        self.load_column_maps()
 
     def clean_monthly_revenue(
         self, df_list: List[pd.DataFrame], year: int, month: int
@@ -61,10 +67,7 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
         資料格式
         上市: 102（2013）年前資料無區分國內外（目前先從 102 年開始爬）
         """
-        print(f"monthly revenue report cols: {self.monthly_revenue_report_cols}")
-        print(
-            f"1 monthly revenue report cleaned cols: {self.monthly_revenue_report_cleaned_cols}"
-        )
+
         # Step 1: 載入已清洗欄位，若未成功則執行清洗流程
         if not self.monthly_revenue_report_cleaned_cols:
             self.load_cleaned_column_names()
@@ -73,9 +76,6 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
                     raw_cols=self.monthly_revenue_report_cols,
                     front_cols=["year", "month"],
                 )
-        print(
-            f"2 monthly revenue report cleaned cols: {self.monthly_revenue_report_cleaned_cols}"
-        )
 
         # Step 2: 清理 df_list 欄位名稱
         # 建立涵蓋所有 columns 的 df
@@ -100,7 +100,11 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
         appended_df_list: List[pd.DataFrame] = []
         for df in new_df_list:
             cleaned_cols: List[str] = [
-                DataUtils.standardize_column_name(col) for col in df.columns
+                DataUtils.map_column_name(
+                    DataUtils.standardize_column_name(col),
+                    self.monthly_revenue_report_col_map,
+                )
+                for col in df.columns
             ]
             df.columns = cleaned_cols
             DataUtils.remove_cols_by_keywords(df, startswith=self.removed_cols)
@@ -114,11 +118,14 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
         new_df = (
             pd.concat(appended_df_list, ignore_index=True)
             .astype(str)
-            .rename(columns={"公司代號": "stock_id"})
+            .loc[lambda df: ~df["stock_id"].str.contains("合計", na=False)]  # 過濾掉那些包含「合計」的 row
             .pipe(
                 DataUtils.convert_col_to_numeric, exclude_cols=["stock_id", "公司名稱"]
             )
         )
+
+        # 修正 Big5 編碼無法表示「碁」字導致的亂碼（� 或 ��），補回正確字元
+        new_df["公司名稱"] = new_df["公司名稱"].apply(self.fix_broken_char)
 
         new_df.to_csv(
             self.mrr_dir / f"{DataType.MRR.lower()}_{year}_{month}.csv",
@@ -148,19 +155,23 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
                 已清洗、排序、去重後的欄位名稱清單
         """
 
-        # Step 1: 清洗欄位
-        cleaned_cols: List[str] = [
-            DataUtils.standardize_column_name(word=col) for col in raw_cols
-        ]
+        # Step 1: 欄位排序
+        tail_columns: List[str] = [col for col in raw_cols if col not in front_cols]
+        cleaned_cols = front_cols + tail_columns
 
         # Step 2: 移除不必要欄位
         cleaned_cols = DataUtils.remove_items_by_keywords(
             cleaned_cols, startswith=self.removed_cols
         )
 
-        # Step 3: 欄位排序
-        tail_columns: List[str] = [col for col in cleaned_cols if col not in front_cols]
-        cleaned_cols = front_cols + tail_columns
+        # Step 3: 清洗欄位
+        cleaned_cols: List[str] = [
+            DataUtils.map_column_name(
+                DataUtils.standardize_column_name(word=col),
+                self.monthly_revenue_report_col_map,
+            )
+            for col in cleaned_cols
+        ]
 
         # Step 4: 去除重複欄位（保留順序）
         cleaned_cols = list(dict.fromkeys(cleaned_cols))
@@ -201,3 +212,23 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
         self.monthly_revenue_report_cleaned_cols = DataUtils.load_json(
             file_path=self.monthly_revenue_report_cleaned_cols_path
         )
+
+    def load_column_maps(self) -> None:
+        """載入 MRR Column Maps"""
+
+        if not self.monthly_revenue_report_col_map_path.exists():
+            logger.warning(
+                f"Metadata file not found: {self.monthly_revenue_report_col_map_path}"
+            )
+            return
+
+        self.monthly_revenue_report_col_map = DataUtils.load_json(
+            self.monthly_revenue_report_col_map_path
+        )
+
+    def fix_broken_char(self, text: str) -> str:
+        """將亂碼 � 或 �� 統一修正為 `碁` """
+
+        if isinstance(text, str):
+            return text.replace("��", "碁").replace("�", "碁")
+        return text

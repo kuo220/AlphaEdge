@@ -1,20 +1,14 @@
-import datetime
 import shutil
+from loguru import logger
 from pathlib import Path
-from typing import List, Optional
-import ipywidgets as widgets
-from IPython.display import display
+from typing import List
 
 try:
     import dolphindb as ddb
 except ModuleNotFoundError:
-    print("Warning: dolphindb module is not installed.")
+    logger.info("Warning: dolphindb module is not installed.")
 
-from trader.pipeline.crawlers.stock_tick_crawler import StockTickCrawler
 from trader.pipeline.loaders.base import BaseDataLoader
-from trader.pipeline.utils.data_utils import DataUtils
-from trader.utils import TimeUtils
-from trader.pipeline.utils.stock_tick_utils import StockTickUtils
 from trader.config import (
     TICK_DOWNLOADS_PATH,
     TICK_DB_PATH,
@@ -41,12 +35,12 @@ class StockTickLoader(BaseDataLoader):
     def setup(self, *args, **kwargs) -> None:
         """Set Up the Config of Loader"""
 
-        # Connect
+        # Connect Database
         self.connect()
 
         # 檢查資料庫是否存在，並設定 TSDB Cache Engine
         if self.session.existsDatabase(TICK_DB_PATH):
-            print("Database exists!")
+            logger.info("Database exists!")
 
             # Set TSDBCacheEngineSize to 5GB (must < 8(maxMemSize) * 0.75 GB)
             script: str = """
@@ -56,7 +50,7 @@ class StockTickLoader(BaseDataLoader):
             """
             self.session.run(script)
         else:
-            print("Database doesn't exist!")
+            logger.info("Database doesn't exist!")
 
     def connect(self) -> None:
         """Connect to the Database"""
@@ -76,9 +70,9 @@ class StockTickLoader(BaseDataLoader):
         end_time: str = "2030.12.31"
 
         if self.session.existsDatabase(TICK_DB_PATH):
-            print("Database exists!")
+            logger.info("Database exists!")
         else:
-            print("Database doesn't exist!\nCreating a database...")
+            logger.info("Database doesn't exist!\nCreating a database...")
             script: str = f"""
             create database "{DDB_PATH}{TICK_DB_NAME}"
             partitioned by VALUE({start_time}..{end_time}), HASH([SYMBOL, 25])
@@ -101,11 +95,11 @@ class StockTickLoader(BaseDataLoader):
             try:
                 self.session.run(script)
                 if self.session.existsDatabase(TICK_DB_PATH):
-                    print("Tick dolphinDB create successfully!")
+                    logger.info("Tick dolphinDB create successfully!")
                 else:
-                    print("Tick dolphinDB create unsuccessfully!")
+                    logger.info("Tick dolphinDB create unsuccessfully!")
             except Exception as e:
-                print(f"Tick dolphinDB create unsuccessfully!\n{e}")
+                logger.info(f"Tick dolphinDB create unsuccessfully!\n{e}")
 
     def add_to_db(self, remove_files: bool = False) -> None:
         """將資料夾中的所有 CSV 檔存入 tick 的 DolphinDB 中"""
@@ -135,17 +129,17 @@ class StockTickLoader(BaseDataLoader):
         """
         try:
             self.session.run(script)
-            print("The csv file successfully save into database and table!")
+            logger.info("The csv file successfully save into database and table!")
 
         except Exception as e:
-            print(f"The csv file fail to save into database and table!\n{e}")
+            logger.info(f"The csv file fail to save into database and table!\n{e}")
 
     def append_all_csv_to_dolphinDB(self, dir_path: Path) -> None:
         """將資料夾內所有 CSV 檔案附加到已建立的 DolphinDB 資料表"""
 
         # read all csv files in dir_path (.as_posix => replace \\ with / (for windows os))
         csv_files: List[str] = [str(csv.as_posix()) for csv in dir_path.glob("*.csv")]
-        print(f"* Total csv files: {len(csv_files)}")
+        logger.info(f"* Total csv files: {len(csv_files)}")
 
         script: str = f"""
         db = database("{TICK_DB_PATH}")
@@ -173,10 +167,10 @@ class StockTickLoader(BaseDataLoader):
         """
         try:
             self.session.run(script)
-            print("All csv files successfully save into database and table!")
+            logger.info("All csv files successfully save into database and table!")
 
         except Exception as e:
-            print(f"All csv files fail to save into database and table!\n{e}")
+            logger.info(f"All csv files fail to save into database and table!\n{e}")
 
     def clear_all_cache(self) -> None:
         """清除 Cache Data"""
@@ -189,7 +183,7 @@ class StockTickLoader(BaseDataLoader):
     def delete_dolphinDB(self, db_path: Path) -> None:
         """刪除資料庫"""
 
-        print("Start deleting database...")
+        logger.info("Start deleting database...")
 
         script: str = f"""
         if (existsDatabase("{str(db_path)}")) {{
@@ -199,6 +193,6 @@ class StockTickLoader(BaseDataLoader):
         self.session.run(script)
 
         if self.session.existsDatabase(str(db_path)):
-            print("Delete database unsuccessfully!")
+            logger.info("Delete database unsuccessfully!")
         else:
-            print("Delete database successfully!")
+            logger.info("Delete database successfully!")
