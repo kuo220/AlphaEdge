@@ -35,7 +35,8 @@ class StockTickUpdater(BaseDataUpdater):
         self.loader: StockTickLoader = StockTickLoader()
 
         # Crawler Setting
-        self.api_list: List[sj.Shioaji] = [  # Shioaji API List
+        # Shioaji API List
+        self.api_list: List[sj.Shioaji] = [
             api_instance
             for sj_api in API_LIST
             if (
@@ -74,7 +75,12 @@ class StockTickUpdater(BaseDataUpdater):
 
         # Update Tick Period
         dates: List[datetime.date] = TimeUtils.generate_date_range(start_date, end_date)
+
+        # Step 1: Extract + Transform
         self.update_multithreaded(dates)
+
+        # Step 2: Load
+        self.loader.add_to_db(remove_file=False)
 
     def update_thread(
         self, api: sj.Shioaji, dates: List[datetime.date], stock_list: List[str]
