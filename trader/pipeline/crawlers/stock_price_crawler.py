@@ -22,16 +22,16 @@ class StockPriceCrawler(BaseDataCrawler):
         self.price_dir: Path = PRICE_DOWNLOADS_PATH
         self.setup()
 
+    def setup(self, *args, **kwargs) -> None:
+        """Set Up the Config of Crawler"""
+
+        self.price_dir.mkdir(parents=True, exist_ok=True)
+
     def crawl(self, date: datetime.date) -> None:
         """Crawl Price Data"""
 
         twse_price_df: pd.DataFrame = self.crawl_twse_price(date)
         tpex_price_df: pd.DataFrame = self.crawl_tpex_price(date)
-
-    def setup(self, *args, **kwargs) -> None:
-        """Set Up the Config of Crawler"""
-
-        self.price_dir.mkdir(parents=True, exist_ok=True)
 
     def crawl_twse_price(self, date: datetime.date) -> Optional[pd.DataFrame]:
         """爬取上市公司股票收盤行情"""

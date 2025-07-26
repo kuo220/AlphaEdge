@@ -118,7 +118,9 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
         new_df = (
             pd.concat(appended_df_list, ignore_index=True)
             .astype(str)
-            .loc[lambda df: ~df["stock_id"].str.contains("合計", na=False)]  # 過濾掉那些包含「合計」的 row
+            .loc[
+                lambda df: ~df["stock_id"].str.contains("合計", na=False)
+            ]  # 過濾掉那些包含「合計」的 row
             .pipe(
                 DataUtils.convert_col_to_numeric, exclude_cols=["stock_id", "公司名稱"]
             )
@@ -227,7 +229,7 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
         )
 
     def fix_broken_char(self, text: str) -> str:
-        """將亂碼 � 或 �� 統一修正為 `碁` """
+        """將亂碼 � 或 �� 統一修正為 `碁`"""
 
         if isinstance(text, str):
             return text.replace("��", "碁").replace("�", "碁")

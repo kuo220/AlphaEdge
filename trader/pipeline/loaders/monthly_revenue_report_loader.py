@@ -40,8 +40,6 @@ class MonthlyRevenueReportLoader(BaseDataLoader):
 
         self.setup()
 
-
-
     def setup(self, *args, **kwargs) -> None:
         """Set Up the Config of Loader"""
 
@@ -51,14 +49,11 @@ class MonthlyRevenueReportLoader(BaseDataLoader):
         # Create the downloads directory
         self.mrr_dir.mkdir(parents=True, exist_ok=True)
 
-
-
     def connect(self) -> None:
         """Connect to the Database"""
 
         if self.conn is None:
             self.conn = sqlite3.connect(DB_PATH)
-
 
     def disconnect(self) -> None:
         """Disconnect the Database"""
@@ -67,14 +62,15 @@ class MonthlyRevenueReportLoader(BaseDataLoader):
             self.conn.close()
             self.conn = None
 
-
     def create_db(self) -> None:
         """Create New Database"""
 
         cursor: sqlite3.Cursor = self.conn.cursor()
 
         # Step 1: 讀取欄位定義 JSON
-        cols: List[str] = DataUtils.load_json(file_path=self.monthly_revenue_report_cleaned_cols_path)
+        cols: List[str] = DataUtils.load_json(
+            file_path=self.monthly_revenue_report_cleaned_cols_path
+        )
         col_defs: List[str] = []
 
         # Step 2: 指定欄位型別
@@ -111,8 +107,6 @@ class MonthlyRevenueReportLoader(BaseDataLoader):
         self.conn.commit()
         self.disconnect()
 
-
-
     def add_to_db(self, remove_files: bool = False) -> None:
         """Add Data into Database"""
 
@@ -126,7 +120,12 @@ class MonthlyRevenueReportLoader(BaseDataLoader):
                 continue
             try:
                 df: pd.DataFrame = pd.read_csv(file_path)
-                df.to_sql(MONTHLY_REVENUE_TABLE_NAME, self.conn, if_exists="append", index=False)
+                df.to_sql(
+                    MONTHLY_REVENUE_TABLE_NAME,
+                    self.conn,
+                    if_exists="append",
+                    index=False,
+                )
                 logger.info(f"Save {file_path} into database.")
                 file_cnt += 1
             except Exception as e:

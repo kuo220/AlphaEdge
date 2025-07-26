@@ -5,6 +5,7 @@ Abstract base class for all data updaters that coordinate the full ETL process.
 Subclasses must implement `setup()` for initialization and `update()` to perform the update logic.
 """
 
+
 class BaseDataUpdater(ABC):
     """Base Class of Data Updater"""
 
@@ -18,5 +19,5 @@ class BaseDataUpdater(ABC):
 
     @abstractmethod
     def update(self) -> None:
-        """ Update the Database """
+        """Update the Database"""
         pass

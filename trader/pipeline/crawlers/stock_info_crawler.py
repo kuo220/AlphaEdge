@@ -17,12 +17,12 @@ class StockInfoCrawler(BaseDataCrawler):
     def __init__(self):
         super().__init__()
 
-    def crawl(self, *args, **kwargs) -> None:
-        """Crawl Data"""
-        pass
-
     def setup(self, *args, **kwargs) -> None:
         """Set Up the Config of Crawler"""
+        pass
+
+    def crawl(self, *args, **kwargs) -> None:
+        """Crawl Data"""
         pass
 
     @staticmethod
