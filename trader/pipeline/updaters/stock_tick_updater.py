@@ -1,6 +1,6 @@
 import datetime
 import time
-from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from concurrent.futures import Future, ThreadPoolExecutor
 from typing import List, Optional, Any
 import pandas as pd
 import shioaji as sj
