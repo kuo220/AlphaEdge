@@ -37,22 +37,22 @@ class StockTickCleaner(BaseDataCleaner):
         # Create the tick downloads directory
         self.tick_dir.mkdir(parents=True, exist_ok=True)
 
-    def clean_stock_tick(self, df: pd.DataFrame, code: str) -> Optional[pd.DataFrame]:
+    def clean_stock_tick(self, df: pd.DataFrame, stock_id: str) -> Optional[pd.DataFrame]:
         """Clean Stock Tick Data"""
 
         try:
             df.ts = pd.to_datetime(df.ts)
 
-            new_df: pd.DataFrame = self.format_tick_data(df, code)
+            new_df: pd.DataFrame = self.format_tick_data(df, stock_id)
             new_df = self.format_time_to_microsec(new_df)
 
             # Save df to csv file
-            new_df.to_csv(self.tick_dir / f"{code}.csv", index=False)
-            logger.info(f"Saved {code}.csv to {TICK_DOWNLOADS_PATH}")
+            new_df.to_csv(self.tick_dir / f"{stock_id}.csv", index=False)
+            logger.info(f"Saved {stock_id}.csv to {TICK_DOWNLOADS_PATH}")
             return new_df
 
         except Exception as e:
-            logger.error(f"Error processing or saving tick data for stock {code} | {e}")
+            logger.error(f"Error processing or saving tick data for stock {stock_id} | {e}")
             return None
 
     def format_tick_data(self, df: pd.DataFrame, stock_id: str) -> pd.DataFrame:

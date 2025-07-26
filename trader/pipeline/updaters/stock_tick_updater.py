@@ -68,15 +68,81 @@ class StockTickUpdater(BaseDataUpdater):
         # Generate tick_metadata backup
         StockTickUtils.generate_tick_metadata_backup()
 
+        # 設定 log 檔案儲存路徑
+        logger.add(f"{LOGS_DIR_PATH}/update_tick.log")
+
     def update(self, start_date: datetime.date, end_date: datetime.date):
         """Update the Database"""
 
-        # Update Period
+        # Update Tick Period
         dates: List[datetime.date] = TimeUtils.generate_date_range(start_date, end_date)
+        self.update_multithreaded(dates)
 
 
+    def update_thread(self, api: sj.Shioaji, dates: List[datetime.date], stock_list: List[str]) -> None:
+        """
+        - Description:
+            單一 thread 任務：爬 + 清洗
 
-    def update_tick_multithreaded(self, dates: List[datetime.date]) -> None:
+        - Parameters:
+            - api: sj.Shioaji
+                Shioaji API
+            - dates: List[datetime.date]
+                日期 List
+            - stock_list: List[str]
+                Stock List
+
+        - Return: List[pd.DataFrame]
+            - 每個 df 是一檔股票日期區間內的所有 tick
+        """
+
+        latest_date: Optional[datetime.date] = None
+
+        # Extract (Crawl)
+        for stock_id in stock_list:
+            # 判斷 api 用量
+            if api.usage().remaining_bytes / 1024**2 < 20:
+                logger.warning(
+                    f"API quota low for {api}. Stopped crawling at stock {stock_id}."
+                )
+                break
+
+            logger.info(f"Start crawling stock: {stock_id}")
+
+            df_list: List[pd.DataFrame] = []
+            for date in dates:
+                df: Optional[pd.DataFrame] = self.crawler.crawl_stock_tick(
+                    api, date, stock_id
+                )
+
+                if df is not None and not df.empty:
+                    df_list.append(df)
+                    # Update table latest date
+                    latest_date = max(latest_date or date, date)
+
+            if not df_list:
+                logger.warning(
+                    f"No tick data found for stock {stock_id} from {dates[0]} to {dates[-1]}. Skipping."
+                )
+                continue
+
+            merged_df: pd.DataFrame = pd.concat(df_list, ignore_index=True)
+
+            # Transform (Clean)
+            try:
+                cleaned_df: pd.DataFrame = self.cleaner.clean_stock_tick(merged_df, stock_id)
+
+                if cleaned_df is None or cleaned_df.empty:
+                    logger.warning(f"Cleaned dataframe empty for {stock_id}.")
+
+            except Exception as e:
+                logger.error(f"Error cleaning tick data for {stock_id}: {e}")
+
+        if latest_date:
+            self.table_latest_date = max(self.table_latest_date or latest_date, latest_date)
+
+
+    def update_multithreaded(self, dates: List[datetime.date]) -> None:
         """使用 Multi-threading 的方式 Update Tick Data"""
 
         logger.info(
@@ -89,22 +155,25 @@ class StockTickUpdater(BaseDataUpdater):
             self.all_stock_list, self.num_threads
         )
 
-        def thread_task(api: sj.Shioaji, dates: List[datetime.date], stock_list: List[str]) -> None:
-            df_list: List[pd.DataFrame] = self.crawler_stock_list_tick(api, dates, stock_list)
-
-            for df in df_list:
-                tick_df: pd.DataFrame = self.cleaner.clean_stock_tick(df)
+        futures: List[Future] = []
         # Multi-threading
         with ThreadPoolExecutor(max_workers=self.num_threads) as executor:
             for api, stock_list in zip(self.api_list, self.split_stock_list):
-                executor.submit(
-                    self.crawl_ticks_for_stock_list,
-                    api=api,
-                    dates=dates,
-                    stock_list=stock_list,
+                futures.append(
+                    executor.submit(
+                        self.update_thread,
+                        api=api,
+                        dates=dates,
+                        stock_list=stock_list,
+                    )
                 )
 
-            # 確保執行完所有的 threads 才往下執行其餘程式碼
+            # 等待所有 thread 結束
+            for future in futures:
+                try:
+                    future.result()  # 若有 exception 會在這邊被 raise 出來
+                except Exception as e:
+                    logger.error(f"Thread task failed with exception: {e}")
 
         # Update tick table latest date
         StockTickUtils.update_tick_table_latest_date(self.table_latest_date)
