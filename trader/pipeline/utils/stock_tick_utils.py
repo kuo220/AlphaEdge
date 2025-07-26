@@ -19,40 +19,6 @@ class StockTickUtils:
     """Tick DolphinDB Tools"""
 
     @staticmethod
-    def format_tick_data(df: pd.DataFrame, stock_id: str) -> pd.DataFrame:
-        """統一 tick data 的格式"""
-
-        df.rename(columns={"ts": "time"}, inplace=True)
-        df["stock_id"] = stock_id
-        new_columns_order: List[str] = [
-            "stock_id",
-            "time",
-            "close",
-            "volume",
-            "bid_price",
-            "bid_volume",
-            "ask_price",
-            "ask_volume",
-            "tick_type",
-        ]
-        df = df[new_columns_order]
-
-        return df
-
-    @staticmethod
-    def format_time_to_microsec(df: pd.DataFrame) -> pd.DataFrame:
-        """將 tick dataframe 時間格式格式化至微秒（才能存進 dolphinDB）"""
-
-        # 若 time 欄位沒有精確到微秒則格式化
-        if not df["time"].astype(str).str.match(r".*\.\d{6}$").all():
-            # 將 'time' 欄位轉換為 datetime 格式，並補足到微秒，同時加上年月日
-            df["time"] = pd.to_datetime(df["time"], errors="coerce").dt.strftime(
-                "%Y-%m-%d %H:%M:%S.%f"
-            )
-
-        return df
-
-    @staticmethod
     def get_table_earliest_date() -> datetime.date:
         """從 tick_metadata.json 中取得 tick table 的最早日期"""
 

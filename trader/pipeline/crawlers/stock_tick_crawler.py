@@ -48,21 +48,16 @@ class StockTickCrawler(BaseDataCrawler):
             )
             is not None
         ]
-        self.num_threads: int = len(self.api_list)  # 可用的 API 數量 = 可開的 thread 數
-        self.all_stock_list: List[str] = (
-            StockInfoCrawler.crawl_stock_list()
-        )  # 爬取所有上市櫃股票清單
+        # 可用的 API 數量 = 可開的 thread 數
+        self.num_threads: int = len(self.api_list)
+        # 爬取所有上市櫃股票清單
+        self.all_stock_list: List[str] = StockInfoCrawler.crawl_stock_list()
         self.split_stock_list: List[List[str]] = []  # 股票清單分組（後續給多線程用）
         self.table_latest_date: datetime.date = None
         self.tick_dir: Path = TICK_DOWNLOADS_PATH
         self.setup()
 
-    def crawl(self, dates: List[datetime.date]) -> None:
-        """Crawl Tick Data"""
-
-        self.crawl_ticks_multithreaded(dates)
-
-    def setup(self, *args, **kwargs) -> None:
+    def setup(self) -> None:
         """Set Up the Config of Crawler"""
 
         # Set logger
@@ -71,10 +66,11 @@ class StockTickCrawler(BaseDataCrawler):
         # Create the tick downloads directory
         self.tick_dir.mkdir(parents=True, exist_ok=True)
 
-        # Generate tick_metadata backup
-        StockTickUtils.generate_tick_metadata_backup()
+    def crawl(self) -> None:
+        """Crawl Tick Data"""
+        pass
 
-    def crawl_ticks_for_stock(
+    def crawl_stock_tick(
         self,
         api: sj.Shioaji,
         date: datetime.date,
@@ -101,14 +97,27 @@ class StockTickCrawler(BaseDataCrawler):
             logger.error(f"Error Crawling Tick Data: {code} {date} | {e}")
             return None
 
-    """ ============================================================================================ """
 
-    # TODO: Refactor 成 ETL 架構後，須把以下的 method 移到 Updater
-    @log_thread
-    def crawl_ticks_for_stock_list(
+    def crawl_stock_list_tick(
         self, api: sj.Shioaji, dates: List[datetime.date], stock_list: List[str]
-    ) -> None:
-        """透過 Shioaji 爬取 stock_list 中的個股 tick data"""
+    ) -> List[pd.DataFrame]:
+        """
+        - Description:
+            透過 Shioaji 爬取 stock_list 中的個股 tick data
+
+        - Parameters:
+            - api: sj.Shioaji
+                Shioaji API
+            - dates: List[datetime.date]
+                日期 List
+            - stock_list: List[str]
+                Stock List
+
+        - Return: List[pd.DataFrame]
+            - 每個 df 是一檔股票日期區間內的所有 tick
+        """
+
+        merged_df_list: List[pd.DataFrame]
 
         for code in stock_list:
             # 判斷 api 用量
@@ -121,46 +130,28 @@ class StockTickCrawler(BaseDataCrawler):
             logger.info(f"Start crawling stock: {code}")
 
             df_list: List[pd.DataFrame] = []
-
             for date in dates:
-                try:
-                    ticks: Ticks = api.ticks(
-                        contract=api.Contracts.Stocks[code], date=date.isoformat()
-                    )
-                    tick_df: pd.DataFrame = pd.DataFrame({**ticks})
+                tick_df: Optional[pd.DataFrame] = self.crawl_stock_tick(
+                    api, date, code
+                )
 
-                    if not tick_df.empty:
-                        tick_df.ts = pd.to_datetime(tick_df.ts)
-                        self.table_latest_date = tick_df.ts.max().date()
-                        df_list.append(tick_df)
-
-                except Exception as e:
-                    logger.error(f"Error Crawling Tick Data: {code} {date} | {e}")
+                if tick_df:
+                    df_list.append(tick_df)
 
             if not df_list:
                 logger.warning(
                     f"No tick data found for stock {code} from {dates[0]} to {dates[-1]}. Skipping."
                 )
                 continue
+            merged_df: pd.DataFrame = pd.concat(df_list, ignore_index=True)
+            merged_df_list.append(merged_df)
 
-            # Format tick data
-            try:
-                merged_df: pd.DataFrame = pd.concat(df_list, ignore_index=True)
-                formatted_df: pd.DataFrame = StockTickUtils.format_tick_data(
-                    merged_df, code
-                )
-                formatted_df = StockTickUtils.format_time_to_microsec(formatted_df)
+        return merged_df_list
 
-                # Save df to csv file
-                formatted_df.to_csv(
-                    os.path.join(TICK_DOWNLOADS_PATH, f"{code}.csv"), index=False
-                )
-                logger.info(f"Saved {code}.csv to {TICK_DOWNLOADS_PATH}")
 
-            except Exception as e:
-                logger.error(
-                    f"Error processing or saving tick data for stock {code} | {e}"
-                )
+    """ ============================================================================================ """
+
+    # TODO: Refactor 成 ETL 架構後，須把以下的 method 移到 Updater
 
     def crawl_ticks_multithreaded(self, dates: List[datetime.date]) -> None:
         """使用 Multi-threading 的方式 Crawl Tick Data"""
