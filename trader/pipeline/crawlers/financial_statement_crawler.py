@@ -38,6 +38,22 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
         self.setup()
 
+    def setup(self, *args, **kwargs):
+        """Set Up the Config of Crawler"""
+
+        # Create Downloads Directory For Financial Reports
+        self.fs_dir.mkdir(parents=True, exist_ok=True)
+
+        # Set Up Payload
+        self.payload = Payload(
+            firstin="1",
+            step="1",
+            TYPEK="sii",
+            co_id=None,
+            year="102",
+            season="1",
+        )
+
     def crawl(self, *args, **kwargs) -> Dict[str, List[pd.DataFrame]]:
         """Crawl Financial Report (Include 4 reports)"""
         """
@@ -73,22 +89,6 @@ class FinancialStatementCrawler(BaseDataCrawler):
         )
 
         return df_dict
-
-    def setup(self, *args, **kwargs):
-        """Set Up the Config of Crawler"""
-
-        # Create Downloads Directory For Financial Reports
-        self.fs_dir.mkdir(parents=True, exist_ok=True)
-
-        # Set Up Payload
-        self.payload = Payload(
-            firstin="1",
-            step="1",
-            TYPEK="sii",
-            co_id=None,
-            year="102",
-            season="1",
-        )
 
     def crawl_balance_sheet(
         self, year: int, season: int

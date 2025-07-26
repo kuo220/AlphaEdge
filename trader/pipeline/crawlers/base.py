@@ -13,6 +13,11 @@ class BaseDataCrawler(ABC):
         pass
 
     @abstractmethod
+    def setup(self, *args, **kwargs) -> None:
+        """Set Up the Config of Crawler"""
+        pass
+
+    @abstractmethod
     def crawl(self, *args, **kwargs) -> None:
         """Crawl Data"""
         """
@@ -24,9 +29,4 @@ class BaseDataCrawler(ABC):
             'end_date': datetime.date
         }
         """
-        pass
-
-    @abstractmethod
-    def setup(self, *args, **kwargs) -> None:
-        """Set Up the Config of Crawler"""
         pass

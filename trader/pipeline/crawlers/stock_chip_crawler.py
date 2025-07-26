@@ -30,15 +30,15 @@ class StockChipCrawler(BaseDataCrawler):
     def __init__(self):
         super().__init__()
 
+    def setup(self, *args, **kwargs) -> None:
+        """Set Up the Config of Crawler"""
+        pass
+
     def crawl(self, date: datetime.date) -> None:
         """Crawl TWSE & TPEX Chip Data"""
 
         self.crawl_twse_chip(date)
         self.crawl_tpex_chip(date)
-
-    def setup(self, *args, **kwargs) -> None:
-        """Set Up the Config of Crawler"""
-        pass
 
     def crawl_twse_chip(self, date: datetime.date) -> Optional[pd.DataFrame]:
         """TWSE 三大法人單日爬蟲"""
