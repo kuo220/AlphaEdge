@@ -28,11 +28,10 @@ class SQLiteUtils:
 
     @staticmethod
     def get_table_earliest_date(
-        conn: sqlite3.Connection, table_name: str, col_name: str
-    ) -> datetime.datetime:
+        conn: sqlite3.Connection, table_name: str
+    ) -> datetime.date:
         """
-        # 從指定資料表與欄位中取得最舊的日期資料（以遞增排序取第一筆）
-        - Description: Retrieve the earliest date from a specific column in a SQLite3 table.
+        - Description: Retrieve the earliest date in the table.
         - Parameters:
             - conn: sqlite3.Connection
                 SQLite database connection object.
@@ -40,27 +39,25 @@ class SQLiteUtils:
                 Name of the table to query.
             - col_name: str
                 Name of the date column to search.
-        - Return:
+        - Return: datetime.date
             - A datetime object representing the earliest date in the column.
         """
 
-        query: str = (
-            f"SELECT {col_name} FROM {table_name} ORDER BY {col_name} ASC LIMIT 1"
-        )
+        query: str = f"SELECT date FROM {table_name} ORDER BY date ASC LIMIT 1"
         cursor: sqlite3.Cursor = conn.execute(query)
         result: Optional[Tuple[Any]] = cursor.fetchone()
 
         if result is None or result[0] is None:
             raise ValueError(f"No date found in table: {table_name}")
-        return datetime.datetime.strptime(result[0], "%Y-%m-%d")
+        return datetime.datetime.strptime(result[0], "%Y-%m-%d").date()
 
     @staticmethod
     def get_table_latest_date(
-        conn: sqlite3.Connection, table_name: str, col_name: str
-    ) -> datetime.datetime:
+        conn: sqlite3.Connection, table_name: str
+    ) -> datetime.date:
         """
-        # 從指定資料表與欄位中取得最新的日期資料（以遞減排序取第一筆）
-        - Description: Retrieve the latest date from a specific column in a SQLite3 table.
+
+        - Description: Retrieve the latest date in the table.
         - Parameters:
             - conn: sqlite3.Connection
                 SQLite database connection object.
@@ -68,16 +65,14 @@ class SQLiteUtils:
                 Name of the table to query.
             - col_name: str
                 Name of the date column to search.
-        - Return:
+        - Return: datetime.date
             - A datetime object representing the latest date in the column.
         """
 
-        query: str = (
-            f"SELECT {col_name} FROM {table_name} ORDER BY {col_name} DESC LIMIT 1"
-        )
+        query: str = f"SELECT date FROM {table_name} ORDER BY date DESC LIMIT 1"
         cursor: sqlite3.Cursor = conn.execute(query)
         result: Optional[Tuple[Any]] = cursor.fetchone()
 
         if result is None or result[0] is None:
             raise ValueError(f"No date found in table: {table_name}")
-        return datetime.datetime.strptime(result[0], "%Y-%m-%d")
+        return datetime.datetime.strptime(result[0], "%Y-%m-%d").date()

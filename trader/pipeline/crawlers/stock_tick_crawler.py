@@ -1,18 +1,15 @@
 import datetime
-from typing import List, Optional
+from typing import Optional
 import pandas as pd
 import shioaji as sj
 from shioaji.data import Ticks
 from loguru import logger
 from pathlib import Path
 
-from trader.utils import ShioajiAccount
 from trader.pipeline.crawlers.base import BaseDataCrawler
-from trader.pipeline.crawlers.stock_info_crawler import StockInfoCrawler
 from trader.config import (
     LOGS_DIR_PATH,
     TICK_DOWNLOADS_PATH,
-    API_LIST,
 )
 
 

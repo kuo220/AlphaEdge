@@ -5,6 +5,7 @@ import pandas as pd
 from pathlib import Path
 
 from trader.pipeline.loaders.base import BaseDataLoader
+from trader.pipeline.utils.sqlite_utils import SQLiteUtils
 from trader.config import CHIP_TABLE_NAME, CHIP_DOWNLOADS_PATH, DB_PATH
 
 
@@ -26,6 +27,12 @@ class StockChipLoader(BaseDataLoader):
         """Set Up the Config of Loader"""
 
         self.connect()
+
+        if not SQLiteUtils.check_table_exist(
+            conn=self.conn, table_name=CHIP_TABLE_NAME
+        ):
+            self.create_db()
+
         self.chip_dir.mkdir(parents=True, exist_ok=True)
 
     def connect(self) -> None:
