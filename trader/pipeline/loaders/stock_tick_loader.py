@@ -51,6 +51,7 @@ class StockTickLoader(BaseDataLoader):
             self.session.run(script)
         else:
             logger.info("Database doesn't exist!")
+            self.create_db()
 
     def connect(self) -> None:
         """Connect to the Database"""

@@ -1,6 +1,6 @@
 import datetime
 import time
-from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from concurrent.futures import Future, ThreadPoolExecutor
 from typing import List, Optional, Any
 import pandas as pd
 import shioaji as sj
@@ -15,11 +15,16 @@ from trader.pipeline.loaders.stock_tick_loader import StockTickLoader
 from trader.pipeline.crawlers.stock_info_crawler import StockInfoCrawler
 from trader.pipeline.utils.stock_tick_utils import StockTickUtils
 from trader.utils import TimeUtils
-from trader.config import (
-    LOGS_DIR_PATH,
-    TICK_DOWNLOADS_PATH,
-    API_LIST,
-)
+from trader.config import TICK_DOWNLOADS_PATH, API_LIST, LOGS_DIR_PATH
+
+
+"""
+Shioaji 台股 ticks 資料時間表：
+From: 2020/03/02 ~ Today
+
+目前資料庫資料時間：
+From 2020/04/01 ~ 2024/05/10
+"""
 
 
 class StockTickUpdater(BaseDataUpdater):
@@ -76,7 +81,7 @@ class StockTickUpdater(BaseDataUpdater):
         # Update Tick Period
         dates: List[datetime.date] = TimeUtils.generate_date_range(start_date, end_date)
 
-        # Step 1: Extract + Transform
+        # Step 1: Crawl + Clean
         self.update_multithreaded(dates)
 
         # Step 2: Load
@@ -103,7 +108,7 @@ class StockTickUpdater(BaseDataUpdater):
 
         latest_date: Optional[datetime.date] = None
 
-        # Extract (Crawl)
+        # Crawl
         for stock_id in stock_list:
             # 判斷 api 用量
             if api.usage().remaining_bytes / 1024**2 < 20:
@@ -133,7 +138,7 @@ class StockTickUpdater(BaseDataUpdater):
 
             merged_df: pd.DataFrame = pd.concat(df_list, ignore_index=True)
 
-            # Transform (Clean)
+            # Clean
             try:
                 cleaned_df: pd.DataFrame = self.cleaner.clean_stock_tick(
                     merged_df, stock_id

@@ -35,19 +35,19 @@ CRAWLER_DOWNLOADS_PATH: Path = get_static_resolved_path(
     base_dir=BASE_DIR_PATH, dir_name="pipeline/downloads"
 )
 FINANCIAL_STATEMENT_DOWNLOADS_PATH: Path = get_static_resolved_path(
-    base_dir=BASE_DIR_PATH, dir_name="pipeline/downloads/financial_statement"
+    base_dir=CRAWLER_DOWNLOADS_PATH, dir_name="financial_statement"
 )
 MONTHLY_REVENUE_REPORT_DOWNLOADS_PATH: Path = get_static_resolved_path(
-    base_dir=BASE_DIR_PATH, dir_name="pipeline/downloads/monthly_revenue_report"
+    base_dir=CRAWLER_DOWNLOADS_PATH, dir_name="monthly_revenue_report"
 )
 PRICE_DOWNLOADS_PATH: Path = get_static_resolved_path(
-    base_dir=BASE_DIR_PATH, dir_name="pipeline/downloads/price"
+    base_dir=CRAWLER_DOWNLOADS_PATH, dir_name="price"
 )
 CHIP_DOWNLOADS_PATH: Path = get_static_resolved_path(
-    base_dir=BASE_DIR_PATH, dir_name="pipeline/downloads/chip"
+    base_dir=CRAWLER_DOWNLOADS_PATH, dir_name="chip"
 )
 TICK_DOWNLOADS_PATH: Path = get_static_resolved_path(
-    base_dir=BASE_DIR_PATH, dir_name="pipeline/downloads/tick"
+    base_dir=CRAWLER_DOWNLOADS_PATH, dir_name="tick"
 )
 
 # === Crawler Downloads Metadata Directory Path ===
