@@ -1,19 +1,14 @@
 import datetime
-import os
-import time
-from concurrent.futures import Future, ThreadPoolExecutor, as_completed
-from typing import List, Optional, Any
+from typing import List, Optional
 import pandas as pd
 import shioaji as sj
 from shioaji.data import Ticks
 from loguru import logger
-from tqdm import tqdm
 from pathlib import Path
 
-from trader.utils import ShioajiAccount, ShioajiAPI, log_thread
+from trader.utils import ShioajiAccount
 from trader.pipeline.crawlers.base import BaseDataCrawler
 from trader.pipeline.crawlers.stock_info_crawler import StockInfoCrawler
-from trader.pipeline.utils.stock_tick_utils import StockTickUtils
 from trader.config import (
     LOGS_DIR_PATH,
     TICK_DOWNLOADS_PATH,
@@ -38,22 +33,6 @@ class StockTickCrawler(BaseDataCrawler):
 
         super().__init__()
 
-        self.api_list: List[sj.Shioaji] = [  # Shioaji API List
-            api_instance
-            for sj_api in API_LIST
-            if (
-                api_instance := ShioajiAccount.API_login(
-                    sj.Shioaji(), sj_api.api_key, sj_api.api_secret_key
-                )
-            )
-            is not None
-        ]
-        # 可用的 API 數量 = 可開的 thread 數
-        self.num_threads: int = len(self.api_list)
-        # 爬取所有上市櫃股票清單
-        self.all_stock_list: List[str] = StockInfoCrawler.crawl_stock_list()
-        self.split_stock_list: List[List[str]] = []  # 股票清單分組（後續給多線程用）
-        self.table_latest_date: datetime.date = None
         self.tick_dir: Path = TICK_DOWNLOADS_PATH
         self.setup()
 

@@ -1,16 +1,14 @@
 import datetime
-import os
 import time
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from typing import List, Optional, Any
 import pandas as pd
 import shioaji as sj
-from shioaji.data import Ticks
 from loguru import logger
 from pathlib import Path
 
-from trader.utils import ShioajiAccount, ShioajiAPI, log_thread
-from trader.pipeline.updaters.stock_tick_updater import BaseDataUpdater
+from trader.utils import ShioajiAccount
+from trader.pipeline.updaters.base import BaseDataUpdater
 from trader.pipeline.crawlers.stock_tick_crawler import StockTickCrawler
 from trader.pipeline.cleaners.stock_tick_cleaner import StockTickCleaner
 from trader.pipeline.loaders.stock_tick_loader import StockTickLoader
