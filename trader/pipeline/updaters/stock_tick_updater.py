@@ -62,7 +62,7 @@ class StockTickUpdater(BaseDataUpdater):
         self.split_stock_list: List[List[str]] = []
 
         # 目前 tickDB 最新資料日期
-        self.table_latest_date: datetime.date = None
+        self.table_latest_date: Optional[datetime.date] = None
         self.tick_dir: Path = TICK_DOWNLOADS_PATH
         self.setup()
 
@@ -75,10 +75,18 @@ class StockTickUpdater(BaseDataUpdater):
         # 設定 log 檔案儲存路徑
         logger.add(f"{LOGS_DIR_PATH}/update_tick.log")
 
-    def update(self, start_date: datetime.date, end_date: datetime.date):
+    def update(
+        self,
+        start_date: datetime.date = None,
+        end_date: datetime.date = datetime.date.today(),
+    ):
         """Update the Database"""
 
-        # Update Tick Period
+        # Set Up Update Tick Period
+        if start_date is None:
+            if self.table_latest_date is None:
+                raise ValueError("No existing data found. Please specify start_date.")
+            start_date = self.table_latest_date
         dates: List[datetime.date] = TimeUtils.generate_date_range(start_date, end_date)
 
         # Step 1: Crawl + Clean
@@ -159,7 +167,7 @@ class StockTickUpdater(BaseDataUpdater):
         """使用 Multi-threading 的方式 Update Tick Data"""
 
         logger.info(
-            f"Start multi-thread crawling. Total stocks: {len(self.all_stock_list)}, Threads: {self.num_threads}"
+            f"Start multi-thread Updating. Total stocks: {len(self.all_stock_list)}, Threads: {self.num_threads}"
         )
         start_time: float = time.time()  # 開始計時
 
