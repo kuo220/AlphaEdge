@@ -67,7 +67,7 @@ class StockPriceCleaner(BaseDataCleaner):
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.droplevel(0)
 
-        df: pd.DataFrame = df.drop(columns=["次日漲停價", "次日跌停價"]).astype(str)
+        df: pd.DataFrame = df.drop(columns=["發行股數", "次日漲停價", "次日跌停價"]).astype(str)
         df.insert(0, "date", date)
 
         if date >= self.tpex_table_change_date:
@@ -87,7 +87,6 @@ class StockPriceCleaner(BaseDataCleaner):
                 "最後揭示買量",
                 "最後揭示賣價",
                 "最後揭示賣量",
-                "發行股數",
             ]
         else:
             df.columns = [
@@ -104,7 +103,6 @@ class StockPriceCleaner(BaseDataCleaner):
                 "成交筆數",
                 "最後揭示買價",
                 "最後揭示賣價",
-                "發行股數",
             ]
         DataUtils.move_col(df, "收盤價", "最低價")
         DataUtils.move_col(df, "漲跌價差", "收盤價")
