@@ -1,14 +1,7 @@
 import datetime
-import os
-import shutil
 import sqlite3
-import time
-from io import StringIO
-from pathlib import Path
-from typing import List, Tuple, Optional, Any
-
-import numpy as np
-import pandas as pd
+from loguru import logger
+from typing import Tuple, Optional, Any
 
 
 """
@@ -29,7 +22,7 @@ class SQLiteUtils:
     @staticmethod
     def get_table_earliest_date(
         conn: sqlite3.Connection, table_name: str
-    ) -> datetime.date:
+    ) -> Optional[datetime.date]:
         """
         - Description: Retrieve the earliest date in the table.
         - Parameters:
@@ -48,13 +41,14 @@ class SQLiteUtils:
         result: Optional[Tuple[Any]] = cursor.fetchone()
 
         if result is None or result[0] is None:
-            raise ValueError(f"No date found in table: {table_name}")
+            logger.info(f"No date found in table: {table_name}")
+            return None
         return datetime.datetime.strptime(result[0], "%Y-%m-%d").date()
 
     @staticmethod
     def get_table_latest_date(
         conn: sqlite3.Connection, table_name: str
-    ) -> datetime.date:
+    ) -> Optional[datetime.date]:
         """
 
         - Description: Retrieve the latest date in the table.
@@ -74,5 +68,6 @@ class SQLiteUtils:
         result: Optional[Tuple[Any]] = cursor.fetchone()
 
         if result is None or result[0] is None:
-            raise ValueError(f"No date found in table: {table_name}")
+            logger.info(f"No date found in table: {table_name}")
+            return None
         return datetime.datetime.strptime(result[0], "%Y-%m-%d").date()

@@ -13,6 +13,16 @@ from trader.pipeline.utils.data_utils import DataUtils
 from trader.config import PRICE_DOWNLOADS_PATH
 
 
+"""
+TWSE 網站提供資料日期：
+1. 2004/2/11 ~ present
+
+TPEX 網站提供資料日期：
+1. 上櫃資料從 96/7/2 以後才提供
+2. 從 109/4/30 開始後 csv 檔的 column 不一樣
+"""
+
+
 class StockPriceCrawler(BaseDataCrawler):
     """爬取上市、上櫃公司的股票收盤行情（OHLC、成交量）"""
 
@@ -55,7 +65,12 @@ class StockPriceCrawler(BaseDataCrawler):
             logger.info(e)
             return None
 
-        df: pd.DataFrame = pd.read_html(StringIO(res.text))[-1]
+        # 檢查是否為假日
+        try:
+            df: pd.DataFrame = pd.read_html(StringIO(res.text))[-1]
+        except Exception as e:
+            logger.info(f"{date} is a Holiday!")
+            return None
 
         return df
 
@@ -82,6 +97,11 @@ class StockPriceCrawler(BaseDataCrawler):
             logger.info(e)
             return None
 
-        df: pd.DataFrame = pd.read_html(StringIO(res.text))[0]
+        # 檢查是否為假日
+        try:
+            df: pd.DataFrame = pd.read_html(StringIO(res.text))[0]
+        except Exception as e:
+            logger.info(f"{date} is a Holiday!")
+            return None
 
         return df

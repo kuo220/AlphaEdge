@@ -5,6 +5,7 @@ import pandas as pd
 from pathlib import Path
 
 from trader.pipeline.loaders.base import BaseDataLoader
+from trader.pipeline.utils.sqlite_utils import SQLiteUtils
 from trader.config import PRICE_DOWNLOADS_PATH, PRICE_TABLE_NAME, DB_PATH
 
 
@@ -26,6 +27,12 @@ class StockPriceLoader(BaseDataLoader):
         """Set Up the Config of Loader"""
 
         self.connect()
+
+        if not SQLiteUtils.check_table_exist(
+            conn=self.conn, table_name=PRICE_TABLE_NAME
+        ):
+            self.create_db()
+
         self.price_dir.mkdir(parents=True, exist_ok=True)
 
     def connect(self) -> None:

@@ -58,7 +58,7 @@ class StockChipCrawler(BaseDataCrawler):
                 logger.info("No data in table. Possibly not yet updated.")
                 return None
         except Exception as e:
-            logger.info("It's Holiday!")
+            logger.info(f"{date} is a Holiday!")
             return None
 
         return twse_df
@@ -77,7 +77,7 @@ class StockChipCrawler(BaseDataCrawler):
         try:
             tpex_df: pd.DataFrame = pd.read_html(StringIO(tpex_response.text))[0]
         except Exception as e:
-            logger.info(f"Error crawling TPEX table: {e}")
+            logger.info(f"{date} is a Holiday!")
             return None
 
         try:
@@ -93,60 +93,7 @@ class StockChipCrawler(BaseDataCrawler):
             logger.info("No data in TPEX table. Possibly not updated yet.")
             return None
         if tpex_df.shape[0] == 1:
-            logger.info("It's Holiday!")
+            logger.info(f"{date} is a Holiday!")
             return None
 
         return tpex_df
-
-    """ ============================================================================================ """
-
-    # TODO: Refactor 成 ETL 架構後，須把以下的 method 移到 Updater
-    def crawl_twse_chip_range(
-        self, start_date: datetime.date, end_date: datetime.date = datetime.date.today()
-    ) -> None:
-        """TWSE 三大法人日期範圍爬蟲"""
-
-        cur_date: datetime.date = start_date
-
-        # if crawl_cnt == 100, then sleep
-        crawl_cnt: int = 0
-
-        logger.info("* Start crawling TWSE institutional investors data...")
-        while cur_date <= end_date:
-            logger.info(cur_date.strftime("%Y/%m/%d"))
-            self.crawl_twse_chip(cur_date)
-            cur_date += datetime.timedelta(days=1)
-            crawl_cnt += 1
-
-            if crawl_cnt == 100:
-                logger.info("Sleep 2 minutes...")
-                crawl_cnt = 0
-                time.sleep(120)
-            else:
-                delay = random.randint(1, 5)
-                time.sleep(delay)
-
-    def crawl_tpex_chip_range(
-        self, start_date: datetime.date, end_date: datetime.date = datetime.date.today()
-    ) -> None:
-        """TPEX 三大法人日期範圍爬蟲"""
-
-        cur_date: datetime.date = start_date
-
-        # if crawl_cnt == 100, then sleep
-        crawl_cnt: int = 0
-
-        logger.info("* Start crawling TPEX institutional investors data...")
-        while cur_date <= end_date:
-            logger.info(cur_date.strftime("%Y/%m/%d"))
-            self.crawl_tpex_chip(cur_date)
-            cur_date += datetime.timedelta(days=1)
-            crawl_cnt += 1
-
-            if crawl_cnt == 100:
-                logger.info("Sleep 2 minutes...")
-                crawl_cnt = 0
-                time.sleep(120)
-            else:
-                delay = random.randint(1, 5)
-                time.sleep(delay)
