@@ -22,6 +22,15 @@ from trader.config import (
 )
 
 
+"""
+Shioaji 台股 ticks 資料時間表：
+From: 2020/03/02 ~ Today
+
+目前資料庫資料時間：
+From 2020/04/01 ~ 2024/05/10
+"""
+
+
 class StockTickUpdater(BaseDataUpdater):
     """Stock Tick Updater"""
 
