@@ -4,81 +4,80 @@ from typing import List, Optional
 from dotenv import load_dotenv
 
 from trader.utils import ShioajiAPI
+from trader.utils.path import (
+    get_env_resolved_path,
+    get_static_resolved_path
+)
 
 # Load environment variables from .env file
 load_dotenv()
 
 
-# Root Directory
-BASE_DIR: Path = Path(__file__).resolve().parent  # trader
-
-
-# === Helper: Load and resolve path from .env ===
-def get_resolved_path(env_key: str, default: str = None) -> Path:
-    value: Optional[str] = os.getenv(env_key, default)
-    if value is None:
-        raise ValueError(f"Missing required environment variable: {env_key}")
-    return (BASE_DIR / value).resolve()
+# Root Directory (trader/)
+BASE_DIR_PATH: Path = Path(__file__).resolve().parent
 
 
 # === General Directory Path ===
-DATABASE_DIR_PATH: Path = get_resolved_path("DATABASE_DIR_PATH")
-BACKTEST_RESULT_DIR_PATH: Path = get_resolved_path("BACKTEST_RESULT_DIR_PATH")
-LOGS_DIR_PATH: Path = get_resolved_path("LOGS_DIR_PATH")
+DATABASE_DIR_PATH: Path = get_static_resolved_path(base_dir=BASE_DIR_PATH, dir_name="database")
+BACKTEST_RESULT_DIR_PATH: Path = get_static_resolved_path(base_dir=BASE_DIR_PATH, dir_name="backtest/performance/results")
+LOGS_DIR_PATH: Path = get_static_resolved_path(base_dir=BASE_DIR_PATH, dir_name="logs")
 
 # === Strategy Directory Path ===
-STOCK_STRATEGY_DIR_PATH: Path = get_resolved_path("STOCK_STRATEGY_DIR_PATH")
+STOCK_STRATEGY_DIR_PATH: Path = get_static_resolved_path(base_dir=BASE_DIR_PATH, dir_name="strategies/stock")
 
 
 # === Crawl Data Downloads Path ===
-CRAWLER_DOWNLOADS_PATH: Path = get_resolved_path("CRAWLER_DOWNLOADS_PATH")
-FINANCIAL_STATEMENT_DOWNLOADS_PATH: Path = get_resolved_path(
-    "FINANCIAL_STATEMENT_DOWNLOADS_PATH"
+CRAWLER_DOWNLOADS_PATH: Path = get_static_resolved_path(base_dir=BASE_DIR_PATH, dir_name="pipeline/downloads")
+FINANCIAL_STATEMENT_DOWNLOADS_PATH: Path = get_static_resolved_path(
+    base_dir=BASE_DIR_PATH,
+    dir_name="pipeline/downloads/financial_statement"
 )
-MONTHLY_REVENUE_REPORT_DOWNLOADS_PATH: Path = get_resolved_path(
-    "MONTHLY_REVENUE_REPORT_DOWNLOADS_PATH"
+MONTHLY_REVENUE_REPORT_DOWNLOADS_PATH: Path = get_static_resolved_path(
+    base_dir=BASE_DIR_PATH,
+    dir_name="pipeline/downloads/monthly_revenue_report"
 )
-PRICE_DOWNLOADS_PATH: Path = get_resolved_path("PRICE_DOWNLOADS_PATH")
-CHIP_DOWNLOADS_PATH: Path = get_resolved_path("CHIP_DOWNLOADS_PATH")
-TICK_DOWNLOADS_PATH: Path = get_resolved_path("TICK_DOWNLOADS_PATH")
+PRICE_DOWNLOADS_PATH: Path = get_static_resolved_path(base_dir=BASE_DIR_PATH, dir_name="pipeline/downloads/price")
+CHIP_DOWNLOADS_PATH: Path = get_static_resolved_path(base_dir=BASE_DIR_PATH, dir_name="pipeline/downloads/chip")
+TICK_DOWNLOADS_PATH: Path = get_static_resolved_path(base_dir=BASE_DIR_PATH, dir_name="pipeline/downloads/tick")
 
 # === Crawler Downloads Metadata Directory Path ===
-DOWNLOADS_METADATA_DIR_PATH: Path = (CRAWLER_DOWNLOADS_PATH / "meta").resolve()
-FINANCIAL_STATEMENT_META_DIR_PATH: Path = (
-    DOWNLOADS_METADATA_DIR_PATH / "financial_statement"
-).resolve()
-MONTHLY_REVENUE_REPORT_META_DIR_PATH: Path = (
-    DOWNLOADS_METADATA_DIR_PATH / "monthly_revenue_report"
-).resolve()
+DOWNLOADS_METADATA_DIR_PATH: Path = get_static_resolved_path(base_dir=CRAWLER_DOWNLOADS_PATH, dir_name="meta")
+FINANCIAL_STATEMENT_META_DIR_PATH: Path = get_static_resolved_path(
+    base_dir=DOWNLOADS_METADATA_DIR_PATH,
+    dir_name="financial_statement"
+)
+MONTHLY_REVENUE_REPORT_META_DIR_PATH: Path = get_static_resolved_path(
+    base_dir=DOWNLOADS_METADATA_DIR_PATH,
+    dir_name="monthly_revenue_report"
+)
 
 
 # === Certs.cer ===
-CERTS_DIR_PATH: Path = get_resolved_path("CERTS_DIR_PATH")
-CERTS_FILE_NAME: str = os.getenv("CERTS_FILE_NAME")
-CERTS_FILE_PATH: Path = (CERTS_DIR_PATH / CERTS_FILE_NAME).resolve()
+CERTS_DIR_PATH: Path = get_static_resolved_path(base_dir=BASE_DIR_PATH, dir_name="certs")
+CERTS_FILE_PATH: Path = get_static_resolved_path(base_dir=CERTS_DIR_PATH, dir_name="certs.cer")
 
 
 # === Tick Metadata Directory Path ===
-DB_METADATA_DIR_PATH: Path = get_resolved_path("DB_METADATA_DIR_PATH")
-TICK_METADATA_NAME: str = os.getenv("TICK_METADATA_NAME")
-TICK_METADATA_PATH: Path = (DB_METADATA_DIR_PATH / TICK_METADATA_NAME).resolve()
+DB_METADATA_DIR_PATH: Path = get_static_resolved_path(base_dir=BASE_DIR_PATH, dir_name="database/meta")
+TICK_METADATA_PATH: Path = get_static_resolved_path(
+    base_dir=DB_METADATA_DIR_PATH,
+    dir_name="tick_metadata.json"
+)
 
 
 # === Database Files Full Paths ===
-CHIP_DB_NAME: str = os.getenv("CHIP_DB_NAME", "chip.db")
-TICK_DB_NAME: str = os.getenv("TICK_DB_NAME", "tickDB")
-DB_NAME: str = os.getenv("DB_NAME", "data.db")
+DB_NAME: str = "data.db"
+TICK_DB_NAME: str = "tickDB"
 
-CHIP_DB_PATH: Path = (DATABASE_DIR_PATH / CHIP_DB_NAME).resolve()
+DB_PATH: Path = get_static_resolved_path(base_dir=DATABASE_DIR_PATH, dir_name=DB_NAME)
 TICK_DB_PATH: str = f"{os.getenv('DDB_PATH')}{TICK_DB_NAME}"
-DB_PATH: Path = (DATABASE_DIR_PATH / DB_NAME).resolve()
 
 
 # === Database Table names ===
 PRICE_TABLE_NAME: str = "price"
 CHIP_TABLE_NAME: str = "chip"
 TICK_TABLE_NAME: str = "tick"
-MONTHLY_REVENUE_TABLE_NAME = "monthly_revenue"
+MONTHLY_REVENUE_TABLE_NAME: str = "monthly_revenue"
 BALANCE_SHEET_TABLE_NAME: str = "balance_sheet"
 COMPREHENSIVE_INCOME_TABLE_NAME: str = "comprehensive_income"
 CASH_FLOW_TABLE_NAME: str = "cash_flow"
