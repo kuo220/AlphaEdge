@@ -78,8 +78,9 @@ class StockTickUpdater(BaseDataUpdater):
         dates: List[datetime.date] = TimeUtils.generate_date_range(start_date, end_date)
         self.update_multithreaded(dates)
 
-
-    def update_thread(self, api: sj.Shioaji, dates: List[datetime.date], stock_list: List[str]) -> None:
+    def update_thread(
+        self, api: sj.Shioaji, dates: List[datetime.date], stock_list: List[str]
+    ) -> None:
         """
         - Description:
             單一 thread 任務：爬 + 清洗
@@ -130,7 +131,9 @@ class StockTickUpdater(BaseDataUpdater):
 
             # Transform (Clean)
             try:
-                cleaned_df: pd.DataFrame = self.cleaner.clean_stock_tick(merged_df, stock_id)
+                cleaned_df: pd.DataFrame = self.cleaner.clean_stock_tick(
+                    merged_df, stock_id
+                )
 
                 if cleaned_df is None or cleaned_df.empty:
                     logger.warning(f"Cleaned dataframe empty for {stock_id}.")
@@ -139,8 +142,9 @@ class StockTickUpdater(BaseDataUpdater):
                 logger.error(f"Error cleaning tick data for {stock_id}: {e}")
 
         if latest_date:
-            self.table_latest_date = max(self.table_latest_date or latest_date, latest_date)
-
+            self.table_latest_date = max(
+                self.table_latest_date or latest_date, latest_date
+            )
 
     def update_multithreaded(self, dates: List[datetime.date]) -> None:
         """使用 Multi-threading 的方式 Update Tick Data"""
@@ -196,4 +200,3 @@ class StockTickUpdater(BaseDataUpdater):
             ]
             for i in range(n_parts)
         ]
-
