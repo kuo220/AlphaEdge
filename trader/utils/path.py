@@ -1,7 +1,6 @@
 import os
 from pathlib import Path
-from typing import List, Optional
-from dotenv import load_dotenv
+from typing import Optional
 
 
 # 從環境變數（或預設值）載入路徑並解析為絕對路徑

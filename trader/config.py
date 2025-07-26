@@ -4,10 +4,8 @@ from typing import List, Optional
 from dotenv import load_dotenv
 
 from trader.utils import ShioajiAPI
-from trader.utils.path import (
-    get_env_resolved_path,
-    get_static_resolved_path
-)
+from trader.utils.path import get_static_resolved_path
+
 
 # Load environment variables from .env file
 load_dotenv()
@@ -18,50 +16,67 @@ BASE_DIR_PATH: Path = Path(__file__).resolve().parent
 
 
 # === General Directory Path ===
-DATABASE_DIR_PATH: Path = get_static_resolved_path(base_dir=BASE_DIR_PATH, dir_name="database")
-BACKTEST_RESULT_DIR_PATH: Path = get_static_resolved_path(base_dir=BASE_DIR_PATH, dir_name="backtest/performance/results")
+DATABASE_DIR_PATH: Path = get_static_resolved_path(
+    base_dir=BASE_DIR_PATH, dir_name="database"
+)
+BACKTEST_RESULT_DIR_PATH: Path = get_static_resolved_path(
+    base_dir=BASE_DIR_PATH, dir_name="backtest/performance/results"
+)
 LOGS_DIR_PATH: Path = get_static_resolved_path(base_dir=BASE_DIR_PATH, dir_name="logs")
 
 # === Strategy Directory Path ===
-STOCK_STRATEGY_DIR_PATH: Path = get_static_resolved_path(base_dir=BASE_DIR_PATH, dir_name="strategies/stock")
+STOCK_STRATEGY_DIR_PATH: Path = get_static_resolved_path(
+    base_dir=BASE_DIR_PATH, dir_name="strategies/stock"
+)
 
 
 # === Crawl Data Downloads Path ===
-CRAWLER_DOWNLOADS_PATH: Path = get_static_resolved_path(base_dir=BASE_DIR_PATH, dir_name="pipeline/downloads")
+CRAWLER_DOWNLOADS_PATH: Path = get_static_resolved_path(
+    base_dir=BASE_DIR_PATH, dir_name="pipeline/downloads"
+)
 FINANCIAL_STATEMENT_DOWNLOADS_PATH: Path = get_static_resolved_path(
-    base_dir=BASE_DIR_PATH,
-    dir_name="pipeline/downloads/financial_statement"
+    base_dir=BASE_DIR_PATH, dir_name="pipeline/downloads/financial_statement"
 )
 MONTHLY_REVENUE_REPORT_DOWNLOADS_PATH: Path = get_static_resolved_path(
-    base_dir=BASE_DIR_PATH,
-    dir_name="pipeline/downloads/monthly_revenue_report"
+    base_dir=BASE_DIR_PATH, dir_name="pipeline/downloads/monthly_revenue_report"
 )
-PRICE_DOWNLOADS_PATH: Path = get_static_resolved_path(base_dir=BASE_DIR_PATH, dir_name="pipeline/downloads/price")
-CHIP_DOWNLOADS_PATH: Path = get_static_resolved_path(base_dir=BASE_DIR_PATH, dir_name="pipeline/downloads/chip")
-TICK_DOWNLOADS_PATH: Path = get_static_resolved_path(base_dir=BASE_DIR_PATH, dir_name="pipeline/downloads/tick")
+PRICE_DOWNLOADS_PATH: Path = get_static_resolved_path(
+    base_dir=BASE_DIR_PATH, dir_name="pipeline/downloads/price"
+)
+CHIP_DOWNLOADS_PATH: Path = get_static_resolved_path(
+    base_dir=BASE_DIR_PATH, dir_name="pipeline/downloads/chip"
+)
+TICK_DOWNLOADS_PATH: Path = get_static_resolved_path(
+    base_dir=BASE_DIR_PATH, dir_name="pipeline/downloads/tick"
+)
 
 # === Crawler Downloads Metadata Directory Path ===
-DOWNLOADS_METADATA_DIR_PATH: Path = get_static_resolved_path(base_dir=CRAWLER_DOWNLOADS_PATH, dir_name="meta")
+DOWNLOADS_METADATA_DIR_PATH: Path = get_static_resolved_path(
+    base_dir=CRAWLER_DOWNLOADS_PATH, dir_name="meta"
+)
 FINANCIAL_STATEMENT_META_DIR_PATH: Path = get_static_resolved_path(
-    base_dir=DOWNLOADS_METADATA_DIR_PATH,
-    dir_name="financial_statement"
+    base_dir=DOWNLOADS_METADATA_DIR_PATH, dir_name="financial_statement"
 )
 MONTHLY_REVENUE_REPORT_META_DIR_PATH: Path = get_static_resolved_path(
-    base_dir=DOWNLOADS_METADATA_DIR_PATH,
-    dir_name="monthly_revenue_report"
+    base_dir=DOWNLOADS_METADATA_DIR_PATH, dir_name="monthly_revenue_report"
 )
 
 
 # === Certs.cer ===
-CERTS_DIR_PATH: Path = get_static_resolved_path(base_dir=BASE_DIR_PATH, dir_name="certs")
-CERTS_FILE_PATH: Path = get_static_resolved_path(base_dir=CERTS_DIR_PATH, dir_name="certs.cer")
+CERTS_DIR_PATH: Path = get_static_resolved_path(
+    base_dir=BASE_DIR_PATH, dir_name="certs"
+)
+CERTS_FILE_PATH: Path = get_static_resolved_path(
+    base_dir=CERTS_DIR_PATH, dir_name="certs.cer"
+)
 
 
 # === Tick Metadata Directory Path ===
-DB_METADATA_DIR_PATH: Path = get_static_resolved_path(base_dir=BASE_DIR_PATH, dir_name="database/meta")
+DB_METADATA_DIR_PATH: Path = get_static_resolved_path(
+    base_dir=BASE_DIR_PATH, dir_name="database/meta"
+)
 TICK_METADATA_PATH: Path = get_static_resolved_path(
-    base_dir=DB_METADATA_DIR_PATH,
-    dir_name="tick_metadata.json"
+    base_dir=DB_METADATA_DIR_PATH, dir_name="tick_metadata.json"
 )
 
 
