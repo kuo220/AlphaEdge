@@ -288,11 +288,11 @@ class FinancialStatementUpdater(BaseDataUpdater):
                     time.sleep(delay)
 
         # Step 3: Load
-        # self.loader.add_to_db(
-        #     dir_path=self.cash_flow_dir,
-        #     table_name=CASH_FLOW_TABLE_NAME,
-        #     remove_files=False,
-        # )
+        self.loader.add_to_db(
+            dir_path=self.cash_flow_dir,
+            table_name=CASH_FLOW_TABLE_NAME,
+            remove_files=False,
+        )
 
     def update_equity_changes(
         self,
