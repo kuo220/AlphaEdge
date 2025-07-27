@@ -51,8 +51,8 @@ class StockChipUpdater(BaseDataUpdater):
         if self.conn is None:
             self.conn = sqlite3.connect(DB_PATH)
 
-        self.table_latest_date = SQLiteUtils.get_table_latest_date(
-            conn=self.conn, table_name=CHIP_TABLE_NAME
+        self.table_latest_date = SQLiteUtils.get_table_latest_value(
+            conn=self.conn, table_name=CHIP_TABLE_NAME, col_name="date"
         )
 
         # 設定 log 檔案儲存路徑
