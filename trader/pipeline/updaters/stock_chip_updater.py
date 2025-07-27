@@ -57,19 +57,17 @@ class StockChipUpdater(BaseDataUpdater):
 
     def update(
         self,
-        start_date: datetime.date = None,
+        start_date: datetime.date,
         end_date: datetime.date = datetime.date.today(),
     ) -> None:
         """Update the Database"""
 
         logger.info("* Start Updating TWSE & TPEX Institutional Investors Data...")
 
-        start_date = self.update_table_latest_date(default_date=start_date)
-        if start_date is None:
-            if self.table_latest_date is None:
-                raise ValueError("No existing data found. Please specify start_date.")
-
         # Step 1: Crawl
+        # 取得最近更新的日期
+        start_date = self.get_table_latest_date(default_date=start_date)
+        logger.info(f"Latest data date in database: {start_date}")
         # Set Up Update Period
         dates: List[datetime.date] = TimeUtils.generate_date_range(start_date, end_date)
         file_cnt: int = 0
@@ -107,8 +105,8 @@ class StockChipUpdater(BaseDataUpdater):
         # Step 3: Load
         self.loader.add_to_db(remove_files=False)
 
-    def update_table_latest_date(self, default_date: datetime.date) -> datetime.date:
-        """ Update table latest date """
+    def get_table_latest_date(self, default_date: datetime.date) -> datetime.date:
+        """ Get table latest date """
 
         latest_date: Optional[str] = SQLiteUtils.get_table_latest_value(
             conn=self.conn, table_name=CHIP_TABLE_NAME, col_name="date"
