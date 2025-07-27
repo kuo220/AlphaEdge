@@ -1,18 +1,17 @@
 import datetime
 import random
 import time
-import shutil
 import sqlite3
 from loguru import logger
 import pandas as pd
-from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 from trader.pipeline.updaters.base import BaseDataUpdater
 from trader.pipeline.crawlers.stock_price_crawler import StockPriceCrawler
 from trader.pipeline.cleaners.stock_price_cleaner import StockPriceCleaner
 from trader.pipeline.loaders.stock_price_loader import StockPriceLoader
 from trader.pipeline.utils.sqlite_utils import SQLiteUtils
+from trader.utils import TimeUtils
 from trader.config import DB_PATH, PRICE_TABLE_NAME, LOGS_DIR_PATH
 
 
@@ -52,56 +51,51 @@ class StockPriceUpdater(BaseDataUpdater):
         if self.conn is None:
             self.conn = sqlite3.connect(DB_PATH)
 
-        self.table_latest_date = SQLiteUtils.get_table_latest_date(
-            conn=self.conn, table_name=PRICE_TABLE_NAME
-        )
-
         # 設定 log 檔案儲存路徑
         logger.add(f"{LOGS_DIR_PATH}/update_price.log")
 
     def update(
         self,
-        start_date: datetime.date = None,
+        start_date: datetime.date,
         end_date: datetime.date = datetime.date.today(),
     ) -> None:
         """Update the Database"""
 
-        logger.info("* Start Updating TWSE & TPEX Price data...")
-        if start_date is None:
-            if self.table_latest_date is None:
-                raise ValueError("No existing data found. Please specify start_date.")
-            start_date = self.table_latest_date
+        logger.info("* Start Updating TWSE & TPEX Price Data...")
 
-        # Step 1: Crawl + Clean
-        cur_date: datetime.date = start_date
-        crawl_cnt: int = 0
+        # Step 1: Crawl
+        # 取得最近更新的日期
+        start_date = self.get_table_latest_date(default_date=start_date)
+        logger.info(f"Latest data date in database: {start_date}")
+        # Set Up Update Period
+        dates: List[datetime.date] = TimeUtils.generate_date_range(start_date, end_date)
+        file_cnt: int = 0
 
-        while cur_date <= end_date:
-            logger.info(cur_date.strftime("%Y/%m/%d"))
-            twse_df: Optional[pd.DataFrame] = self.crawler.crawl_twse_price(cur_date)
-            tpex_df: Optional[pd.DataFrame] = self.crawler.crawl_tpex_price(cur_date)
+        for date in dates:
+            logger.info(date.strftime("%Y/%m/%d"))
+            twse_df: Optional[pd.DataFrame] = self.crawler.crawl_twse_price(date)
+            tpex_df: Optional[pd.DataFrame] = self.crawler.crawl_tpex_price(date)
 
             # Step 2: Clean
             if twse_df is not None and not twse_df.empty:
                 cleaned_twse_df: pd.DataFrame = self.cleaner.clean_twse_price(
-                    twse_df, cur_date
+                    twse_df, date
                 )
                 if cleaned_twse_df is None or cleaned_twse_df.empty:
-                    logger.warning(f"Cleaned TWSE dataframe empty on {cur_date}.")
+                    logger.warning(f"Cleaned TWSE dataframe empty on {date}.")
 
             if tpex_df is not None and not tpex_df.empty:
                 cleaned_tpex_df: pd.DataFrame = self.cleaner.clean_tpex_price(
-                    tpex_df, cur_date
+                    tpex_df, date
                 )
                 if cleaned_tpex_df is None or cleaned_tpex_df.empty:
-                    logger.warning(f"Cleaned TPEX dataframe empty on {cur_date}.")
+                    logger.warning(f"Cleaned TPEX dataframe empty on {date}.")
 
-            cur_date += datetime.timedelta(days=1)
-            crawl_cnt += 1
+            file_cnt += 1
 
-            if crawl_cnt == 100:
+            if file_cnt == 100:
                 logger.info("Sleep 2 minutes...")
-                crawl_cnt = 0
+                file_cnt = 0
                 time.sleep(120)
             else:
                 delay = random.randint(1, 5)
@@ -109,3 +103,14 @@ class StockPriceUpdater(BaseDataUpdater):
 
         # Step 3: Load
         self.loader.add_to_db(remove_files=False)
+
+    def get_table_latest_date(self, default_date: datetime.date) -> datetime.date:
+        """ Get table latest date """
+
+        latest_date: Optional[str] = SQLiteUtils.get_table_latest_value(
+            conn=self.conn, table_name=PRICE_TABLE_NAME, col_name="date"
+        )
+        self.table_latest_date = (
+            datetime.datetime.strptime(latest_date, "%Y-%m-%d").date() if latest_date is not None else default_date
+        )
+        return self.table_latest_date

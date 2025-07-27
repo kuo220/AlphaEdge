@@ -35,3 +35,4 @@ dependencies:
       - sentry-sdk
       - fake-useragent
       - dolphindb
+      - black

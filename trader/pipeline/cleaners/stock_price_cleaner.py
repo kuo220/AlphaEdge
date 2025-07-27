@@ -67,7 +67,9 @@ class StockPriceCleaner(BaseDataCleaner):
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.droplevel(0)
 
-        df: pd.DataFrame = df.drop(columns=["發行股數", "次日漲停價", "次日跌停價"]).astype(str)
+        df: pd.DataFrame = df.drop(
+            columns=["發行股數", "次日漲停價", "次日跌停價"]
+        ).astype(str)
         df.insert(0, "date", date)
 
         if date >= self.tpex_table_change_date:

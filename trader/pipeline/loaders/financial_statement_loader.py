@@ -7,15 +7,12 @@ from typing import List
 
 from trader.pipeline.loaders.base import BaseDataLoader
 from trader.pipeline.utils.data_utils import DataUtils
+from trader.pipeline.utils.sqlite_utils import SQLiteUtils
 from trader.pipeline.utils import FinancialStatementType
 from trader.config import (
     DB_PATH,
     FINANCIAL_STATEMENT_DOWNLOADS_PATH,
     FINANCIAL_STATEMENT_META_DIR_PATH,
-    BALANCE_SHEET_TABLE_NAME,
-    COMPREHENSIVE_INCOME_TABLE_NAME,
-    CASH_FLOW_TABLE_NAME,
-    EQUITY_CHANGE_TABLE_NAME,
 )
 
 
@@ -54,6 +51,13 @@ class FinancialStatementLoader(BaseDataLoader):
             / f"{FinancialStatementType.EQUITY_CHANGE.lower()}_cleaned_columns.json"
         )
 
+        self.cleaned_cols_paths: dict[str, Path] = {
+            FinancialStatementType.BALANCE_SHEET: self.balance_sheet_cleaned_cols_path,
+            FinancialStatementType.COMPREHENSIVE_INCOME: self.comprehensive_income_cleaned_cols_path,
+            FinancialStatementType.CASH_FLOW: self.cash_flow_cleaned_cols_path,
+            FinancialStatementType.EQUITY_CHANGE: self.equity_change_cleaned_cols_path,
+        }
+
         # Downloads directory Path
         self.fs_dir: Path = FINANCIAL_STATEMENT_DOWNLOADS_PATH
         self.balance_sheet_dir: Path = (
@@ -76,6 +80,18 @@ class FinancialStatementLoader(BaseDataLoader):
 
         # Connect Database
         self.connect()
+
+        # Ensure Database Table Exists
+        for fs_type in FinancialStatementType:
+            table_name: str = fs_type.lower()
+            cleaned_cols_path: Path = self.cleaned_cols_paths[fs_type]
+
+            # TODO: Equity Changes 的 Cleaner 跟 Loader 都完成再拿掉
+            if fs_type != FinancialStatementType.EQUITY_CHANGE:
+                if not SQLiteUtils.check_table_exist(conn=self.conn, table_name=table_name):
+                    self.create_db(
+                        table_name=table_name, cleaned_cols_path=cleaned_cols_path
+                    )
 
         self.fs_dir.mkdir(parents=True, exist_ok=True)
         self.balance_sheet_dir.mkdir(parents=True, exist_ok=True)
@@ -141,7 +157,6 @@ class FinancialStatementLoader(BaseDataLoader):
             logger.info(f"Table {table_name} create unsuccessfully!")
 
         self.conn.commit()
-        self.disconnect()
 
     def add_to_db(
         self, dir_path: Path, table_name: str, remove_files: bool = False

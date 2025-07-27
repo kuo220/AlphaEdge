@@ -18,6 +18,6 @@ class BaseDataUpdater(ABC):
         pass
 
     @abstractmethod
-    def update(self) -> None:
+    def update(self, *args, **kwargs) -> None:
         """Update the Database"""
         pass

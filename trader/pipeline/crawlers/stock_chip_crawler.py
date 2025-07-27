@@ -1,6 +1,4 @@
 import datetime
-import random
-import time
 import requests
 from loguru import logger
 import pandas as pd
