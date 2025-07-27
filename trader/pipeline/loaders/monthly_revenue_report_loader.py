@@ -105,7 +105,6 @@ class MonthlyRevenueReportLoader(BaseDataLoader):
             logger.info(f"Table {MONTHLY_REVENUE_TABLE_NAME} create unsuccessfully!")
 
         self.conn.commit()
-        self.disconnect()
 
     def add_to_db(self, remove_files: bool = False) -> None:
         """Add Data into Database"""

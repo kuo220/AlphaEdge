@@ -72,21 +72,23 @@ class StockTickUpdater(BaseDataUpdater):
         # Generate tick_metadata backup
         StockTickUtils.generate_tick_metadata_backup()
 
+        # Set Up table latest date
+        self.table_latest_date = StockTickUtils.get_table_latest_date()
+
         # 設定 log 檔案儲存路徑
         logger.add(f"{LOGS_DIR_PATH}/update_tick.log")
 
     def update(
         self,
-        start_date: datetime.date = None,
+        start_date: datetime.date,
         end_date: datetime.date = datetime.date.today(),
     ):
         """Update the Database"""
 
-        # Set Up Update Tick Period
-        if start_date is None:
-            if self.table_latest_date is None:
-                raise ValueError("No existing data found. Please specify start_date.")
-            start_date = self.table_latest_date
+        # 取得最近更新的日期
+        start_date = self.table_latest_date if start_date > self.table_latest_date else start_date
+        logger.info(f"Latest data date in database: {start_date}")
+        # Set Up Update Period
         dates: List[datetime.date] = TimeUtils.generate_date_range(start_date, end_date)
 
         # Step 1: Crawl + Clean
@@ -217,3 +219,6 @@ class StockTickUpdater(BaseDataUpdater):
             ]
             for i in range(n_parts)
         ]
+
+    def get_table_latest_date(self) -> datetime.date:
+        """ Get table latest date """

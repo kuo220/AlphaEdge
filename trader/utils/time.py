@@ -77,6 +77,16 @@ class TimeUtils:
         return [dt.date() for dt in rrule(MONTHLY, dtstart=start_date, until=end_date)]
 
     @staticmethod
+    def generate_year_range(start_year: int, end_year: int) -> List[int]:
+        """產生從 start_year 到 end_year 的所有年份"""
+        return [year for year in range(start_year, end_year + 1)]
+
+    @staticmethod
+    def generate_season_range(start_season: int, end_season: int) -> List[int]:
+        """產生從 start_season 到 end_season 的所有季度"""
+        return [season for season in range(start_season, end_season + 1)]
+
+    @staticmethod
     def format_date(date: datetime.date, sep: str = "") -> str:
         """Format date as 'YYYY{sep}MM{sep}DD'"""
         return date.strftime(f"%Y{sep}%m{sep}%d")

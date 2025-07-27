@@ -85,7 +85,6 @@ class StockChipLoader(BaseDataLoader):
             logger.info(f"Table {CHIP_TABLE_NAME} create unsuccessfully!")
 
         self.conn.commit()
-        self.disconnect()
 
     def add_to_db(self, remove_files: bool = False) -> None:
         """將資料夾中的所有 CSV 檔存入指定 SQLite 資料庫中的指定資料表。"""

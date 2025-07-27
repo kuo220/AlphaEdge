@@ -20,54 +20,74 @@ class SQLiteUtils:
         return result[0] == 1
 
     @staticmethod
-    def get_table_earliest_date(
-        conn: sqlite3.Connection, table_name: str
+    def get_table_earliest_value(
+        conn: sqlite3.Connection, table_name: str, col_name: str
     ) -> Optional[datetime.date]:
         """
-        - Description: Retrieve the earliest date in the table.
+        - Description: Retrieve the earliest value in the table.
         - Parameters:
             - conn: sqlite3.Connection
                 SQLite database connection object.
             - table_name: str
                 Name of the table to query.
             - col_name: str
-                Name of the date column to search.
-        - Return: datetime.date
-            - A datetime object representing the earliest date in the column.
+                Name of the value column to search.
+        - Return: Optional[Any]
+            - The earliest value in the column, or None if not found.
         """
 
-        query: str = f"SELECT date FROM {table_name} ORDER BY date ASC LIMIT 1"
-        cursor: sqlite3.Cursor = conn.execute(query)
-        result: Optional[Tuple[Any]] = cursor.fetchone()
+        query: str = (
+            f"SELECT {col_name} FROM {table_name} ORDER BY {col_name} ASC LIMIT 1"
+        )
 
-        if result is None or result[0] is None:
-            logger.info(f"No date found in table: {table_name}")
+        try:
+            cursor: sqlite3.Cursor = conn.execute(query)
+            result: Optional[tuple[Any, ...]] = cursor.fetchone()
+
+            if result is None or result[0] is None:
+                logger.info(
+                    f"No value found for column '{col_name}' in table: '{table_name}'"
+                )
+                return None
+
+            return result[0]
+
+        except sqlite3.Error as e:
+            logger.error(f"SQLite error while querying {table_name}.{col_name}: {e}")
             return None
-        return datetime.datetime.strptime(result[0], "%Y-%m-%d").date()
 
     @staticmethod
-    def get_table_latest_date(
-        conn: sqlite3.Connection, table_name: str
-    ) -> Optional[datetime.date]:
+    def get_table_latest_value(
+        conn: sqlite3.Connection, table_name: str, col_name: str
+    ) -> Optional[Any]:
         """
-
-        - Description: Retrieve the latest date in the table.
+        - Description: Retrieve the latest value in the table.
         - Parameters:
             - conn: sqlite3.Connection
                 SQLite database connection object.
             - table_name: str
                 Name of the table to query.
             - col_name: str
-                Name of the date column to search.
-        - Return: datetime.date
-            - A datetime object representing the latest date in the column.
+                Name of the value column to search.
+        - Return: Optional[Any]
+            - The latest value in the column, or None if not found.
         """
 
-        query: str = f"SELECT date FROM {table_name} ORDER BY date DESC LIMIT 1"
-        cursor: sqlite3.Cursor = conn.execute(query)
-        result: Optional[Tuple[Any]] = cursor.fetchone()
+        query: str = (
+            f"SELECT {col_name} FROM {table_name} ORDER BY {col_name} DESC LIMIT 1"
+        )
 
-        if result is None or result[0] is None:
-            logger.info(f"No date found in table: {table_name}")
+        try:
+            cursor: sqlite3.Cursor = conn.execute(query)
+            result: Optional[Tuple[Any, ...]] = cursor.fetchone()
+
+            if result is None or result[0] is None:
+                logger.info(
+                    f"No value found for column '{col_name}' in table: '{table_name}'"
+                )
+                return None
+            return result[0]
+
+        except sqlite3.Error as e:
+            logger.error(f"SQLite error while querying {table_name}.{col_name}: {e}")
             return None
-        return datetime.datetime.strptime(result[0], "%Y-%m-%d").date()
