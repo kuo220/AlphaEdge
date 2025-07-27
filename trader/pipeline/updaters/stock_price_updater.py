@@ -4,13 +4,14 @@ import time
 import sqlite3
 from loguru import logger
 import pandas as pd
-from typing import Optional
+from typing import List, Optional
 
 from trader.pipeline.updaters.base import BaseDataUpdater
 from trader.pipeline.crawlers.stock_price_crawler import StockPriceCrawler
 from trader.pipeline.cleaners.stock_price_cleaner import StockPriceCleaner
 from trader.pipeline.loaders.stock_price_loader import StockPriceLoader
 from trader.pipeline.utils.sqlite_utils import SQLiteUtils
+from trader.utils import TimeUtils
 from trader.config import DB_PATH, PRICE_TABLE_NAME, LOGS_DIR_PATH
 
 
@@ -50,9 +51,12 @@ class StockPriceUpdater(BaseDataUpdater):
         if self.conn is None:
             self.conn = sqlite3.connect(DB_PATH)
 
-        self.table_latest_date = SQLiteUtils.get_table_latest_value(
-            conn=self.conn, table_name=PRICE_TABLE_NAME, col_name="date"
-        )
+        self.table_latest_date = datetime.datetime.strptime(
+            SQLiteUtils.get_table_latest_value(
+                conn=self.conn, table_name=PRICE_TABLE_NAME, col_name="date"
+            ),
+            "%Y-%m-%d",
+        ).date()
 
         # 設定 log 檔案儲存路徑
         logger.add(f"{LOGS_DIR_PATH}/update_price.log")
@@ -71,30 +75,30 @@ class StockPriceUpdater(BaseDataUpdater):
             start_date = self.table_latest_date
 
         # Step 1: Crawl + Clean
-        cur_date: datetime.date = start_date
+        # Set Up Update Period
+        dates: List[datetime.date] = TimeUtils.generate_date_range(start_date, end_date)
         crawl_cnt: int = 0
 
-        while cur_date <= end_date:
-            logger.info(cur_date.strftime("%Y/%m/%d"))
-            twse_df: Optional[pd.DataFrame] = self.crawler.crawl_twse_price(cur_date)
-            tpex_df: Optional[pd.DataFrame] = self.crawler.crawl_tpex_price(cur_date)
+        for date in dates:
+            logger.info(date.strftime("%Y/%m/%d"))
+            twse_df: Optional[pd.DataFrame] = self.crawler.crawl_twse_price(date)
+            tpex_df: Optional[pd.DataFrame] = self.crawler.crawl_tpex_price(date)
 
             # Step 2: Clean
             if twse_df is not None and not twse_df.empty:
                 cleaned_twse_df: pd.DataFrame = self.cleaner.clean_twse_price(
-                    twse_df, cur_date
+                    twse_df, date
                 )
                 if cleaned_twse_df is None or cleaned_twse_df.empty:
-                    logger.warning(f"Cleaned TWSE dataframe empty on {cur_date}.")
+                    logger.warning(f"Cleaned TWSE dataframe empty on {date}.")
 
             if tpex_df is not None and not tpex_df.empty:
                 cleaned_tpex_df: pd.DataFrame = self.cleaner.clean_tpex_price(
-                    tpex_df, cur_date
+                    tpex_df, date
                 )
                 if cleaned_tpex_df is None or cleaned_tpex_df.empty:
-                    logger.warning(f"Cleaned TPEX dataframe empty on {cur_date}.")
+                    logger.warning(f"Cleaned TPEX dataframe empty on {date}.")
 
-            cur_date += datetime.timedelta(days=1)
             crawl_cnt += 1
 
             if crawl_cnt == 100:

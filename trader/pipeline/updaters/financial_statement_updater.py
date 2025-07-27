@@ -17,13 +17,7 @@ from trader.pipeline.cleaners.financial_statement_cleaner import (
     FinancialStatementCleaner,
 )
 from trader.pipeline.loaders.financial_statement_loader import FinancialStatementLoader
-from trader.pipeline.crawlers.utils.payload import Payload
-from trader.pipeline.utils import (
-    URLManager,
-    MarketType,
-    FinancialStatementType,
-)
-from trader.pipeline.utils.data_utils import DataUtils
+from trader.pipeline.utils.sqlite_utils import SQLiteUtils
 from trader.utils import TimeUtils
 from trader.config import (
     DB_PATH,
@@ -91,17 +85,11 @@ class FinancialStatementUpdater(BaseDataUpdater):
         """Update the Database"""
         pass
 
-    def update_balance_sheet(self) -> None:
+    def update_balance_sheet(
+        self, start_year: int, end_year: int, start_season: int, end_season: int
+    ) -> None:
         """Update Balance Sheet"""
 
-        logger.info("* Start Updating TWSE & TPEX Price data...")
-
-    def get_table_latest_year(self, table_name: str) -> Optional[Tuple[int, int]]:
-        """取得 Financial Statement 中的最新年份跟季度"""
-
-        if self.conn == None:
-            return None
-
-        query: str = f"SELECT year FROM {table_name} ORDER BY year DESC LIMIT 1"
-        cursor: sqlite3.Cursor = conn.execute(query)
-        result: Optional[Tuple[Any]] = cursor.fetchone()
+        logger.info("* Start Updating Financial Statement data...")
+        years: List[int] = TimeUtils.generate_season_range(start_year, end_year)
+        seasons: List[int] = TimeUtils.generate_season_range(start_season, end_season)

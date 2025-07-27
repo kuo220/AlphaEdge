@@ -87,6 +87,8 @@ class StockTickUpdater(BaseDataUpdater):
             if self.table_latest_date is None:
                 raise ValueError("No existing data found. Please specify start_date.")
             start_date = self.table_latest_date
+
+        # Set Up Update Period
         dates: List[datetime.date] = TimeUtils.generate_date_range(start_date, end_date)
 
         # Step 1: Crawl + Clean
