@@ -28,6 +28,7 @@ class StockPriceLoader(BaseDataLoader):
 
         self.connect()
 
+        # Ensure Database Table Exists
         if not SQLiteUtils.check_table_exist(
             conn=self.conn, table_name=PRICE_TABLE_NAME
         ):
@@ -84,7 +85,6 @@ class StockPriceLoader(BaseDataLoader):
             logger.info(f"Table {PRICE_TABLE_NAME} create unsuccessfully!")
 
         self.conn.commit()
-        self.disconnect()
 
     def add_to_db(self, remove_files: bool = False) -> None:
         """Add Data into Database"""

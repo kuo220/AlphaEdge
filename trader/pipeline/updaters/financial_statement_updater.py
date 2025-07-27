@@ -15,6 +15,7 @@ from trader.pipeline.cleaners.financial_statement_cleaner import (
 )
 from trader.pipeline.loaders.financial_statement_loader import FinancialStatementLoader
 from trader.pipeline.utils import FinancialStatementType
+from trader.pipeline.utils.sqlite_utils import SQLiteUtils
 from trader.utils import TimeUtils
 from trader.config import (
     DB_PATH,
@@ -133,7 +134,15 @@ class FinancialStatementUpdater(BaseDataUpdater):
         self, start_year: int, end_year: int, start_season: int, end_season: int
     ) -> None:
         """Update the Database"""
-        pass
+
+        # Update Balance Sheet
+        self.update_balance_sheet(start_year, end_year, start_season, end_season)
+
+        # Update Comprehensive Income
+        self.update_comprehensive_income(start_year, end_year, start_season, end_season)
+
+        # Update Cash Flow
+        self.update_cash_flow(start_year, end_year, start_season, end_season)
 
     def update_balance_sheet(
         self, start_year: int, end_year: int, start_season: int, end_season: int
@@ -144,6 +153,8 @@ class FinancialStatementUpdater(BaseDataUpdater):
 
         # Step 1: Crawl
         # Set Up Update Period
+        start_year: int = self.update_table_latest_year(table_name=BALANCE_SHEET_TABLE_NAME, default_year=start_year)
+        start_season: int = self.update_table_latest_season(table_name=BALANCE_SHEET_TABLE_NAME, default_season=start_season)
         years: List[int] = TimeUtils.generate_season_range(start_year, end_year)
         seasons: List[int] = TimeUtils.generate_season_range(start_season, end_season)
         file_cnt: int = 0
@@ -192,6 +203,8 @@ class FinancialStatementUpdater(BaseDataUpdater):
 
         # Step 1: Crawl
         # Set Up Update Period
+        start_year: int = self.update_table_latest_year(table_name=COMPREHENSIVE_INCOME_TABLE_NAME, default_year=start_year)
+        start_season: int = self.update_table_latest_season(table_name=COMPREHENSIVE_INCOME_TABLE_NAME, default_season=start_season)
         years: List[int] = TimeUtils.generate_season_range(start_year, end_year)
         seasons: List[int] = TimeUtils.generate_season_range(start_season, end_season)
         file_cnt: int = 0
@@ -240,6 +253,8 @@ class FinancialStatementUpdater(BaseDataUpdater):
 
         # Step 1: Crawl
         # Set Up Update Period
+        start_year: int = self.update_table_latest_year(table_name=CASH_FLOW_TABLE_NAME, default_year=start_year)
+        start_season: int = self.update_table_latest_season(table_name=CASH_FLOW_TABLE_NAME, default_season=start_season)
         years: List[int] = TimeUtils.generate_season_range(start_year, end_year)
         seasons: List[int] = TimeUtils.generate_season_range(start_season, end_season)
         file_cnt: int = 0
@@ -273,11 +288,11 @@ class FinancialStatementUpdater(BaseDataUpdater):
                     time.sleep(delay)
 
         # Step 3: Load
-        self.loader.add_to_db(
-            dir_path=self.cash_flow_dir,
-            table_name=CASH_FLOW_TABLE_NAME,
-            remove_files=False,
-        )
+        # self.loader.add_to_db(
+        #     dir_path=self.cash_flow_dir,
+        #     table_name=CASH_FLOW_TABLE_NAME,
+        #     remove_files=False,
+        # )
 
     def update_equity_changes(
         self,
@@ -294,6 +309,8 @@ class FinancialStatementUpdater(BaseDataUpdater):
 
         # Step 1: Crawl
         # Set Up Update Period
+        start_year: int = self.update_table_latest_year(table_name=EQUITY_CHANGE_TABLE_NAME, default_year=start_year)
+        start_season: int = self.update_table_latest_season(table_name=EQUITY_CHANGE_TABLE_NAME, default_season=start_season)
         years: List[int] = TimeUtils.generate_season_range(start_year, end_year)
         seasons: List[int] = TimeUtils.generate_season_range(start_season, end_season)
         file_cnt: int = 0
@@ -332,3 +349,29 @@ class FinancialStatementUpdater(BaseDataUpdater):
             table_name=EQUITY_CHANGE_TABLE_NAME,
             remove_files=False,
         )
+
+    def update_table_latest_year(
+        self, table_name: str, default_year: int = 2025
+    ) -> int:
+        """Update table latest year"""
+
+        latest_year: Optional[int] = SQLiteUtils.get_table_latest_value(
+            conn=self.conn, table_name=table_name, col_name="year"
+        )
+        self.table_latest_year = (
+            int(latest_year) if latest_year is not None else default_year
+        )
+        return self.table_latest_year
+
+    def update_table_latest_season(
+        self, table_name: str, default_season: int = 2025
+    ) -> int:
+        """Update table latest year"""
+
+        latest_season: Optional[int] = SQLiteUtils.get_table_latest_value(
+            conn=self.conn, table_name=table_name, col_name="season"
+        )
+        self.table_latest_season = (
+            int(latest_season) if latest_season is not None else default_season
+        )
+        return self.table_latest_season
