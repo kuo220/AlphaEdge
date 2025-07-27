@@ -179,9 +179,9 @@ class FinancialStatementLoader(BaseDataLoader):
             except Exception as e:
                 logger.info(f"Error saving {file_path}: {e}")
 
-            self.conn.commit()
-            self.disconnect()
+        self.conn.commit()
+        self.disconnect()
 
-            if remove_files:
-                shutil.rmtree(dir_path)
-            logger.info(f"Total file processed: {file_cnt}")
+        if remove_files:
+            shutil.rmtree(dir_path)
+        logger.info(f"Total file processed: {file_cnt}")
