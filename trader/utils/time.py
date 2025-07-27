@@ -78,12 +78,12 @@ class TimeUtils:
 
     @staticmethod
     def generate_year_range(start_year: int, end_year: int) -> List[int]:
-        """ 產生從 start_year 到 end_year 的所有年份 """
+        """產生從 start_year 到 end_year 的所有年份"""
         return [year for year in range(start_year, end_year + 1)]
 
     @staticmethod
     def generate_season_range(start_season: int, end_season: int) -> List[int]:
-        """ 產生從 start_season 到 end_season 的所有季度 """
+        """產生從 start_season 到 end_season 的所有季度"""
         return [season for season in range(start_season, end_season + 1)]
 
     @staticmethod

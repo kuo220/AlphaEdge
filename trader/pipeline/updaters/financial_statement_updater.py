@@ -1,13 +1,10 @@
 import time
 import random
-import datetime
 import sqlite3
 import pandas as pd
-import requests
-from io import StringIO
 from pathlib import Path
 from loguru import logger
-from typing import List, Dict, Tuple, Optional
+from typing import List, Optional
 
 from trader.pipeline.updaters.base import BaseDataUpdater
 from trader.pipeline.crawlers.financial_statement_crawler import (
@@ -17,13 +14,12 @@ from trader.pipeline.cleaners.financial_statement_cleaner import (
     FinancialStatementCleaner,
 )
 from trader.pipeline.loaders.financial_statement_loader import FinancialStatementLoader
-from trader.pipeline.utils.sqlite_utils import SQLiteUtils
+from trader.pipeline.utils import FinancialStatementType
 from trader.utils import TimeUtils
 from trader.config import (
     DB_PATH,
     LOGS_DIR_PATH,
     FINANCIAL_STATEMENT_DOWNLOADS_PATH,
-    FINANCIAL_STATEMENT_META_DIR_PATH,
     BALANCE_SHEET_TABLE_NAME,
     COMPREHENSIVE_INCOME_TABLE_NAME,
     CASH_FLOW_TABLE_NAME,
@@ -53,6 +49,40 @@ from trader.config import (
 上櫃: 民國 102 (2013) 年 ~ present
 """
 
+"""
+財報申報期限（依行業類型區分）：
+
+1. 一般行業：
+   - Q1：5月15日
+   - Q2：8月14日
+   - Q3：11月14日
+   - 年報：3月31日
+
+2. 金控業：
+   - Q1：5月30日
+   - Q2：8月31日
+   - Q3：11月29日
+   - 年報：3月31日
+
+3. 銀行及票券業：
+   - Q1：5月15日
+   - Q2：8月31日
+   - Q3：11月14日
+   - 年報：3月31日
+
+4. 保險業：
+   - Q1：5月15日
+   - Q2：8月31日
+   - Q3：11月14日
+   - 年報：3月31日
+
+5. 證券業：
+   - Q1：5月15日
+   - Q2：8月31日
+   - Q3：11月14日
+   - 年報：3月31日
+"""
+
 
 class FinancialStatementUpdater(BaseDataUpdater):
     """Financial Statement Updater"""
@@ -72,6 +102,21 @@ class FinancialStatementUpdater(BaseDataUpdater):
         self.table_latest_year: Optional[int] = None
         self.table_latest_season: Optional[int] = None
 
+        # Data directories for each report
+        self.fs_dir: Path = FINANCIAL_STATEMENT_DOWNLOADS_PATH
+        self.balance_sheet_dir: Path = (
+            self.fs_dir / FinancialStatementType.BALANCE_SHEET.lower()
+        )
+        self.comprehensive_income_dir: Path = (
+            self.fs_dir / FinancialStatementType.COMPREHENSIVE_INCOME.lower()
+        )
+        self.cash_flow_dir: Path = (
+            self.fs_dir / FinancialStatementType.CASH_FLOW.lower()
+        )
+        self.equity_change_dir: Path = (
+            self.fs_dir / FinancialStatementType.EQUITY_CHANGE.lower()
+        )
+
         self.setup()
 
     def setup(self) -> None:
@@ -81,7 +126,12 @@ class FinancialStatementUpdater(BaseDataUpdater):
         if self.conn is None:
             self.conn = sqlite3.connect(DB_PATH)
 
-    def update(self) -> None:
+        # 設定 log 檔案儲存路徑
+        logger.add(f"{LOGS_DIR_PATH}/update_financial_statement.log")
+
+    def update(
+        self, start_year: int, end_year: int, start_season: int, end_season: int
+    ) -> None:
         """Update the Database"""
         pass
 
@@ -90,6 +140,195 @@ class FinancialStatementUpdater(BaseDataUpdater):
     ) -> None:
         """Update Balance Sheet"""
 
-        logger.info("* Start Updating Financial Statement data...")
+        logger.info("* Start Updating Balance Sheet Data...")
+
+        # Step 1: Crawl
+        # Set Up Update Period
         years: List[int] = TimeUtils.generate_season_range(start_year, end_year)
         seasons: List[int] = TimeUtils.generate_season_range(start_season, end_season)
+        file_cnt: int = 0
+
+        for year in years:
+            for season in seasons:
+                logger.info(f"* {year}Q{season}")
+                df_list: Optional[List[pd.DataFrame]] = (
+                    self.crawler.crawl_balance_sheet(year, season)
+                )
+
+                # Step 2: Clean
+                if df_list is not None and len(df_list):
+                    cleaned_df: pd.DataFrame = self.cleaner.clean_balance_sheet(
+                        df_list, year, season
+                    )
+
+                    if cleaned_df is None or cleaned_df.empty:
+                        logger.warning(
+                            f"Cleaned balance sheet dataframe empty on {year}Q{season}."
+                        )
+
+                file_cnt += 1
+
+                if file_cnt == 10:
+                    logger.info("Sleep 30 seconds...")
+                    file_cnt = 0
+                    time.sleep(30)
+                else:
+                    delay = random.randint(1, 5)
+                    time.sleep(delay)
+
+        # Step 3: Load
+        self.loader.add_to_db(
+            dir_path=self.balance_sheet_dir,
+            table_name=BALANCE_SHEET_TABLE_NAME,
+            remove_files=False,
+        )
+
+    def update_comprehensive_income(
+        self, start_year: int, end_year: int, start_season: int, end_season: int
+    ) -> None:
+        """Update Comprehensive Income"""
+
+        logger.info("* Start Updating Comprehensive Income Data...")
+
+        # Step 1: Crawl
+        # Set Up Update Period
+        years: List[int] = TimeUtils.generate_season_range(start_year, end_year)
+        seasons: List[int] = TimeUtils.generate_season_range(start_season, end_season)
+        file_cnt: int = 0
+
+        for year in years:
+            for season in seasons:
+                logger.info(f"* {year}Q{season}")
+                df_list: Optional[List[pd.DataFrame]] = (
+                    self.crawler.crawl_comprehensive_income(year, season)
+                )
+
+                # Step 2: Clean
+                if df_list is not None and len(df_list):
+                    cleaned_df: pd.DataFrame = self.cleaner.clean_comprehensive_income(
+                        df_list, year, season
+                    )
+
+                    if cleaned_df is None or cleaned_df.empty:
+                        logger.warning(
+                            f"Cleaned comprehensive income dataframe empty on {year}Q{season}."
+                        )
+
+                file_cnt += 1
+
+                if file_cnt == 10:
+                    logger.info("Sleep 30 seconds...")
+                    file_cnt = 0
+                    time.sleep(30)
+                else:
+                    delay = random.randint(1, 5)
+                    time.sleep(delay)
+
+        # Step 3: Load
+        self.loader.add_to_db(
+            dir_path=self.comprehensive_income_dir,
+            table_name=COMPREHENSIVE_INCOME_TABLE_NAME,
+            remove_files=False,
+        )
+
+    def update_cash_flow(
+        self, start_year: int, end_year: int, start_season: int, end_season: int
+    ) -> None:
+        """Update Cash Flow"""
+
+        logger.info("* Start Updating Cash Flow Data...")
+
+        # Step 1: Crawl
+        # Set Up Update Period
+        years: List[int] = TimeUtils.generate_season_range(start_year, end_year)
+        seasons: List[int] = TimeUtils.generate_season_range(start_season, end_season)
+        file_cnt: int = 0
+
+        for year in years:
+            for season in seasons:
+                logger.info(f"* {year}Q{season}")
+                df_list: Optional[List[pd.DataFrame]] = self.crawler.crawl_cash_flow(
+                    year, season
+                )
+
+                # Step 2: Clean
+                if df_list is not None and len(df_list):
+                    cleaned_df: pd.DataFrame = self.cleaner.clean_cash_flow(
+                        df_list, year, season
+                    )
+
+                    if cleaned_df is None or cleaned_df.empty:
+                        logger.warning(
+                            f"Cleaned cash flow dataframe empty on {year}Q{season}."
+                        )
+
+                file_cnt += 1
+
+                if file_cnt == 10:
+                    logger.info("Sleep 30 seconds...")
+                    file_cnt = 0
+                    time.sleep(30)
+                else:
+                    delay = random.randint(1, 5)
+                    time.sleep(delay)
+
+        # Step 3: Load
+        self.loader.add_to_db(
+            dir_path=self.cash_flow_dir,
+            table_name=CASH_FLOW_TABLE_NAME,
+            remove_files=False,
+        )
+
+    def update_equity_changes(
+        self,
+        start_year: int,
+        end_year: int,
+        start_season: int,
+        end_season: int,
+        stock_id: str,
+    ) -> None:
+        """Update Equity Changes"""
+        # TODO: 因為 Equity Changes 的 cleaner & loader 還未完成，所以這部分還無法使用
+
+        logger.info("* Start Updating Equity Changes Data...")
+
+        # Step 1: Crawl
+        # Set Up Update Period
+        years: List[int] = TimeUtils.generate_season_range(start_year, end_year)
+        seasons: List[int] = TimeUtils.generate_season_range(start_season, end_season)
+        file_cnt: int = 0
+
+        for year in years:
+            for season in seasons:
+                logger.info(f"* {year}Q{season}")
+                df_list: Optional[List[pd.DataFrame]] = (
+                    self.crawler.crawl_equity_changes(year, season, stock_id)
+                )
+
+                # Step 2: Clean
+                if df_list is not None and len(df_list):
+                    cleaned_df: pd.DataFrame = self.cleaner.clean_equity_changes(
+                        df_list, year, season
+                    )
+
+                    if cleaned_df is None or cleaned_df.empty:
+                        logger.warning(
+                            f"Cleaned equity changes dataframe empty on {year}Q{season}."
+                        )
+
+                file_cnt += 1
+
+                if file_cnt == 10:
+                    logger.info("Sleep 30 seconds...")
+                    file_cnt = 0
+                    time.sleep(30)
+                else:
+                    delay = random.randint(1, 5)
+                    time.sleep(delay)
+
+        # Step 3: Load
+        self.loader.add_to_db(
+            dir_path=self.equity_change_dir,
+            table_name=EQUITY_CHANGE_TABLE_NAME,
+            remove_files=False,
+        )

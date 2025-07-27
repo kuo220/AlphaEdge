@@ -69,16 +69,16 @@ class StockChipUpdater(BaseDataUpdater):
     ) -> None:
         """Update the Database"""
 
-        logger.info("* Start Updating TWSE & TPEX institutional investors data...")
+        logger.info("* Start Updating TWSE & TPEX Institutional Investors Data...")
         if start_date is None:
             if self.table_latest_date is None:
                 raise ValueError("No existing data found. Please specify start_date.")
             start_date = self.table_latest_date
 
-        # Step 1: Crawl + Clean
+        # Step 1: Crawl
         # Set Up Update Period
         dates: List[datetime.date] = TimeUtils.generate_date_range(start_date, end_date)
-        crawl_cnt: int = 0
+        file_cnt: int = 0
 
         for date in dates:
             logger.info(date.strftime("%Y/%m/%d"))
@@ -100,11 +100,11 @@ class StockChipUpdater(BaseDataUpdater):
                 if cleaned_tpex_df is None or cleaned_tpex_df.empty:
                     logger.warning(f"Cleaned TPEX dataframe empty on {date}.")
 
-            crawl_cnt += 1
+            file_cnt += 1
 
-            if crawl_cnt == 100:
+            if file_cnt == 100:
                 logger.info("Sleep 2 minutes...")
-                crawl_cnt = 0
+                file_cnt = 0
                 time.sleep(120)
             else:
                 delay = random.randint(1, 5)

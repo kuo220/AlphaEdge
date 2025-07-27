@@ -59,13 +59,13 @@ class FinancialStatementCrawler(BaseDataCrawler):
         """
         General usage:
         **kwargs = {
-            "stock_code": str,
+            "stock_id": str,
             "date": datetime.date,
             "season": int
         }
         """
 
-        stock_code: str = kwargs.get("stock_code")
+        stock_id: str = kwargs.get("stock_id")
         year: int = kwargs.get("year")
         season: int = kwargs.get("season")
 
@@ -85,7 +85,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         )
         df_dict["cash_flow"].extend(self.crawl_cash_flow(year, season))
         df_dict["equity_changes"].extend(
-            self.crawl_equity_changes(year, season, stock_code)
+            self.crawl_equity_changes(year, season, stock_id)
         )
 
         return df_dict
@@ -220,7 +220,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         self,
         year: int,
         season: int,
-        stock_code: str,
+        stock_id: str,
     ) -> Optional[List[pd.DataFrame]]:
         """Crawl Statement of Changes in Equity (權益變動表)"""
         """
@@ -232,7 +232,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         roc_year: str = TimeUtils.convert_ad_to_roc_year(year)
 
         self.payload.TYPEK = None
-        self.payload.co_id = stock_code
+        self.payload.co_id = stock_id
         self.payload.year = roc_year
         self.payload.season = season
 
@@ -264,7 +264,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         start_year: int = 2013,
         end_year: int = 2025,
         seasons: List[int] = [1, 2, 3, 4],
-        stock_code: str = "2330",
+        stock_id: str = "2330",
         report_type: FinancialStatementType = FinancialStatementType.BALANCE_SHEET,
     ) -> List[str]:
         """取得所有財報的 Columns Name"""
@@ -293,7 +293,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
                     )
                 elif report_type == FinancialStatementType.EQUITY_CHANGE:
                     df_list: Optional[List[pd.DataFrame]] = self.crawl_equity_changes(
-                        year, season, stock_code
+                        year, season, stock_id
                     )
                 else:
                     df_list: Optional[List[pd.DataFrame]] = None
