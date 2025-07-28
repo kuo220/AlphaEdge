@@ -154,8 +154,12 @@ class FinancialStatementUpdater(BaseDataUpdater):
         # Step 1: Crawl
         # Set Up Update Period
         # 取得最近更新的時間
-        start_year: int = self.get_table_latest_year(table_name=BALANCE_SHEET_TABLE_NAME, default_year=start_year)
-        start_season: int = self.get_table_latest_season(table_name=BALANCE_SHEET_TABLE_NAME, default_season=start_season)
+        start_year: int = self.get_table_latest_year(
+            table_name=BALANCE_SHEET_TABLE_NAME, default_year=start_year
+        )
+        start_season: int = self.get_table_latest_season(
+            table_name=BALANCE_SHEET_TABLE_NAME, default_season=start_season
+        )
         logger.info(f"Latest data date in database: {start_year}Q{start_season}")
         years: List[int] = TimeUtils.generate_season_range(start_year, end_year)
         seasons: List[int] = TimeUtils.generate_season_range(start_season, end_season)
@@ -205,8 +209,12 @@ class FinancialStatementUpdater(BaseDataUpdater):
 
         # Step 1: Crawl
         # Set Up Update Period
-        start_year: int = self.get_table_latest_year(table_name=COMPREHENSIVE_INCOME_TABLE_NAME, default_year=start_year)
-        start_season: int = self.get_table_latest_season(table_name=COMPREHENSIVE_INCOME_TABLE_NAME, default_season=start_season)
+        start_year: int = self.get_table_latest_year(
+            table_name=COMPREHENSIVE_INCOME_TABLE_NAME, default_year=start_year
+        )
+        start_season: int = self.get_table_latest_season(
+            table_name=COMPREHENSIVE_INCOME_TABLE_NAME, default_season=start_season
+        )
         logger.info(f"Latest data date in database: {start_year}Q{start_season}")
         years: List[int] = TimeUtils.generate_season_range(start_year, end_year)
         seasons: List[int] = TimeUtils.generate_season_range(start_season, end_season)
@@ -256,8 +264,12 @@ class FinancialStatementUpdater(BaseDataUpdater):
 
         # Step 1: Crawl
         # Set Up Update Period
-        start_year: int = self.get_table_latest_year(table_name=CASH_FLOW_TABLE_NAME, default_year=start_year)
-        start_season: int = self.get_table_latest_season(table_name=CASH_FLOW_TABLE_NAME, default_season=start_season)
+        start_year: int = self.get_table_latest_year(
+            table_name=CASH_FLOW_TABLE_NAME, default_year=start_year
+        )
+        start_season: int = self.get_table_latest_season(
+            table_name=CASH_FLOW_TABLE_NAME, default_season=start_season
+        )
         logger.info(f"Latest data date in database: {start_year}Q{start_season}")
         years: List[int] = TimeUtils.generate_season_range(start_year, end_year)
         seasons: List[int] = TimeUtils.generate_season_range(start_season, end_season)
@@ -313,8 +325,12 @@ class FinancialStatementUpdater(BaseDataUpdater):
 
         # Step 1: Crawl
         # Set Up Update Period
-        start_year: int = self.get_table_latest_year(table_name=EQUITY_CHANGE_TABLE_NAME, default_year=start_year)
-        start_season: int = self.get_table_latest_season(table_name=EQUITY_CHANGE_TABLE_NAME, default_season=start_season)
+        start_year: int = self.get_table_latest_year(
+            table_name=EQUITY_CHANGE_TABLE_NAME, default_year=start_year
+        )
+        start_season: int = self.get_table_latest_season(
+            table_name=EQUITY_CHANGE_TABLE_NAME, default_season=start_season
+        )
         logger.info(f"Latest data date in database: {start_year}Q{start_season}")
         years: List[int] = TimeUtils.generate_season_range(start_year, end_year)
         seasons: List[int] = TimeUtils.generate_season_range(start_season, end_season)
@@ -355,9 +371,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
             remove_files=False,
         )
 
-    def get_table_latest_year(
-        self, table_name: str, default_year: int = 2025
-    ) -> int:
+    def get_table_latest_year(self, table_name: str, default_year: int = 2025) -> int:
         """Update table latest year"""
 
         latest_year: Optional[int] = SQLiteUtils.get_table_latest_value(

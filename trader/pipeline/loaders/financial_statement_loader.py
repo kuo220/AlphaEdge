@@ -88,7 +88,9 @@ class FinancialStatementLoader(BaseDataLoader):
 
             # TODO: Equity Changes 的 Cleaner 跟 Loader 都完成再拿掉
             if fs_type != FinancialStatementType.EQUITY_CHANGE:
-                if not SQLiteUtils.check_table_exist(conn=self.conn, table_name=table_name):
+                if not SQLiteUtils.check_table_exist(
+                    conn=self.conn, table_name=table_name
+                ):
                     self.create_db(
                         table_name=table_name, cleaned_cols_path=cleaned_cols_path
                     )

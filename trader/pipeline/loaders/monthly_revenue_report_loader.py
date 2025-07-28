@@ -10,9 +10,9 @@ from trader.pipeline.utils import DataType
 from trader.pipeline.utils.data_utils import DataUtils
 from trader.config import (
     DB_PATH,
-    MONTHLY_REVENUE_TABLE_NAME,
     MONTHLY_REVENUE_REPORT_DOWNLOADS_PATH,
     MONTHLY_REVENUE_REPORT_META_DIR_PATH,
+    MONTHLY_REVENUE_TABLE_NAME,
 )
 
 

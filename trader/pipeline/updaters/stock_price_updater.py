@@ -55,9 +55,7 @@ class StockPriceUpdater(BaseDataUpdater):
         logger.add(f"{LOGS_DIR_PATH}/update_price.log")
 
     def update(
-        self,
-        start_date: datetime.date,
-        end_date: datetime.date = datetime.date.today(),
+        self, start_date: datetime.date, end_date: datetime.date = datetime.date.today()
     ) -> None:
         """Update the Database"""
 
@@ -105,12 +103,14 @@ class StockPriceUpdater(BaseDataUpdater):
         self.loader.add_to_db(remove_files=False)
 
     def get_table_latest_date(self, default_date: datetime.date) -> datetime.date:
-        """ Get table latest date """
+        """Get table latest date"""
 
         latest_date: Optional[str] = SQLiteUtils.get_table_latest_value(
             conn=self.conn, table_name=PRICE_TABLE_NAME, col_name="date"
         )
         self.table_latest_date = (
-            datetime.datetime.strptime(latest_date, "%Y-%m-%d").date() if latest_date is not None else default_date
+            datetime.datetime.strptime(latest_date, "%Y-%m-%d").date()
+            if latest_date is not None
+            else default_date
         )
         return self.table_latest_date
