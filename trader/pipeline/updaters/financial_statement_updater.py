@@ -174,7 +174,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
                 )
 
                 # Step 2: Clean
-                if df_list is not None and len(df_list):
+                if df_list is not None and df_list:
                     cleaned_df: pd.DataFrame = self.cleaner.clean_balance_sheet(
                         df_list, year, season
                     )
@@ -183,9 +183,9 @@ class FinancialStatementUpdater(BaseDataUpdater):
                         logger.warning(
                             f"Cleaned balance sheet dataframe empty on {year}Q{season}."
                         )
+                        continue
 
                 file_cnt += 1
-
                 if file_cnt == 10:
                     logger.info("Sleep 30 seconds...")
                     file_cnt = 0
@@ -230,7 +230,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
                 )
 
                 # Step 2: Clean
-                if df_list is not None and len(df_list):
+                if df_list is not None and df_list:
                     cleaned_df: pd.DataFrame = self.cleaner.clean_comprehensive_income(
                         df_list, year, season
                     )
@@ -239,9 +239,9 @@ class FinancialStatementUpdater(BaseDataUpdater):
                         logger.warning(
                             f"Cleaned comprehensive income dataframe empty on {year}Q{season}."
                         )
+                        continue
 
                 file_cnt += 1
-
                 if file_cnt == 10:
                     logger.info("Sleep 30 seconds...")
                     file_cnt = 0
@@ -286,7 +286,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
                 )
 
                 # Step 2: Clean
-                if df_list is not None and len(df_list):
+                if df_list is not None and df_list:
                     cleaned_df: pd.DataFrame = self.cleaner.clean_cash_flow(
                         df_list, year, season
                     )
@@ -295,9 +295,9 @@ class FinancialStatementUpdater(BaseDataUpdater):
                         logger.warning(
                             f"Cleaned cash flow dataframe empty on {year}Q{season}."
                         )
+                        continue
 
                 file_cnt += 1
-
                 if file_cnt == 10:
                     logger.info("Sleep 30 seconds...")
                     file_cnt = 0
@@ -348,7 +348,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
                 )
 
                 # Step 2: Clean
-                if df_list is not None and len(df_list):
+                if df_list is not None and df_list:
                     cleaned_df: pd.DataFrame = self.cleaner.clean_equity_changes(
                         df_list, year, season
                     )
@@ -357,9 +357,9 @@ class FinancialStatementUpdater(BaseDataUpdater):
                         logger.warning(
                             f"Cleaned equity changes dataframe empty on {year}Q{season}."
                         )
+                        continue
 
                 file_cnt += 1
-
                 if file_cnt == 10:
                     logger.info("Sleep 30 seconds...")
                     file_cnt = 0
@@ -386,9 +386,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
         )
         return self.table_latest_year
 
-    def get_table_latest_season(
-        self, table_name: str, default_season: int = 1
-    ) -> int:
+    def get_table_latest_season(self, table_name: str, default_season: int = 1) -> int:
         """Update table latest year"""
 
         latest_season: Optional[int] = SQLiteUtils.get_table_latest_value(

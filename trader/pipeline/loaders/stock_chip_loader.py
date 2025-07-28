@@ -28,10 +28,8 @@ class StockChipLoader(BaseDataLoader):
 
         self.connect()
 
-        if not SQLiteUtils.check_table_exist(
-            conn=self.conn, table_name=CHIP_TABLE_NAME
-        ):
-            self.create_db()
+        # Ensure Database Table Exists
+        self.create_missing_tables()
 
         self.chip_dir.mkdir(parents=True, exist_ok=True)
 
@@ -111,3 +109,11 @@ class StockChipLoader(BaseDataLoader):
         if remove_files:
             shutil.rmtree(CHIP_DOWNLOADS_PATH)
         logger.info(f"Total file processed: {file_cnt}")
+
+    def create_missing_tables(self) -> None:
+        """確保三大法人盤後籌碼資料表存在"""
+
+        if not SQLiteUtils.check_table_exist(
+            conn=self.conn, table_name=CHIP_TABLE_NAME
+        ):
+            self.create_db()

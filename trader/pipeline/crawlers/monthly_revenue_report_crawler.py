@@ -49,7 +49,7 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
     ) -> Optional[List[pd.DataFrame]]:
         """Crawl TWSE Monthly Revenue Report"""
         """
-        資料格式
+        資料區間
         上市: 102（2013）年前資料無區分國內外（目前先從 102 年開始爬）
         """
 
@@ -83,7 +83,7 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
     ) -> Optional[List[pd.DataFrame]]:
         """Crawl TPEX Monthly Revenue Report"""
         """
-        資料格式
+        資料區間
         上櫃: 102（2013）年前資料無區分國內外（目前先從 102 年開始爬）
         """
 
