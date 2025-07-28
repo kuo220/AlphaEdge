@@ -32,7 +32,7 @@ class StockPriceCrawler(BaseDataCrawler):
         self.price_dir: Path = PRICE_DOWNLOADS_PATH
         self.setup()
 
-    def setup(self, *args, **kwargs) -> None:
+    def setup(self) -> None:
         """Set Up the Config of Crawler"""
 
         self.price_dir.mkdir(parents=True, exist_ok=True)

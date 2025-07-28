@@ -131,7 +131,11 @@ class FinancialStatementUpdater(BaseDataUpdater):
         logger.add(f"{LOGS_DIR_PATH}/update_financial_statement.log")
 
     def update(
-        self, start_year: int, end_year: int, start_season: int, end_season: int
+        self,
+        start_year: int,
+        end_year: int,
+        start_season: int,
+        end_season: int,
     ) -> None:
         """Update the Database"""
 
@@ -145,7 +149,11 @@ class FinancialStatementUpdater(BaseDataUpdater):
         self.update_cash_flow(start_year, end_year, start_season, end_season)
 
     def update_balance_sheet(
-        self, start_year: int, end_year: int, start_season: int, end_season: int
+        self,
+        start_year: int,
+        end_year: int,
+        start_season: int,
+        end_season: int,
     ) -> None:
         """Update Balance Sheet"""
 
@@ -154,9 +162,14 @@ class FinancialStatementUpdater(BaseDataUpdater):
         # Step 1: Crawl
         # Set Up Update Period
         # 取得最近更新的時間
-        start_year: int = self.get_table_latest_year(table_name=BALANCE_SHEET_TABLE_NAME, default_year=start_year)
-        start_season: int = self.get_table_latest_season(table_name=BALANCE_SHEET_TABLE_NAME, default_season=start_season)
+        start_year: int = self.get_table_latest_year(
+            table_name=BALANCE_SHEET_TABLE_NAME, default_year=start_year
+        )
+        start_season: int = self.get_table_latest_season(
+            table_name=BALANCE_SHEET_TABLE_NAME, default_season=start_season
+        )
         logger.info(f"Latest data date in database: {start_year}Q{start_season}")
+        # Set Up Update Period
         years: List[int] = TimeUtils.generate_season_range(start_year, end_year)
         seasons: List[int] = TimeUtils.generate_season_range(start_season, end_season)
         file_cnt: int = 0
@@ -169,7 +182,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
                 )
 
                 # Step 2: Clean
-                if df_list is not None and len(df_list):
+                if df_list is not None and df_list:
                     cleaned_df: pd.DataFrame = self.cleaner.clean_balance_sheet(
                         df_list, year, season
                     )
@@ -178,9 +191,9 @@ class FinancialStatementUpdater(BaseDataUpdater):
                         logger.warning(
                             f"Cleaned balance sheet dataframe empty on {year}Q{season}."
                         )
+                        continue
 
                 file_cnt += 1
-
                 if file_cnt == 10:
                     logger.info("Sleep 30 seconds...")
                     file_cnt = 0
@@ -197,7 +210,11 @@ class FinancialStatementUpdater(BaseDataUpdater):
         )
 
     def update_comprehensive_income(
-        self, start_year: int, end_year: int, start_season: int, end_season: int
+        self,
+        start_year: int,
+        end_year: int,
+        start_season: int,
+        end_season: int,
     ) -> None:
         """Update Comprehensive Income"""
 
@@ -205,9 +222,14 @@ class FinancialStatementUpdater(BaseDataUpdater):
 
         # Step 1: Crawl
         # Set Up Update Period
-        start_year: int = self.get_table_latest_year(table_name=COMPREHENSIVE_INCOME_TABLE_NAME, default_year=start_year)
-        start_season: int = self.get_table_latest_season(table_name=COMPREHENSIVE_INCOME_TABLE_NAME, default_season=start_season)
+        start_year: int = self.get_table_latest_year(
+            table_name=COMPREHENSIVE_INCOME_TABLE_NAME, default_year=start_year
+        )
+        start_season: int = self.get_table_latest_season(
+            table_name=COMPREHENSIVE_INCOME_TABLE_NAME, default_season=start_season
+        )
         logger.info(f"Latest data date in database: {start_year}Q{start_season}")
+        # Set Up Update Period
         years: List[int] = TimeUtils.generate_season_range(start_year, end_year)
         seasons: List[int] = TimeUtils.generate_season_range(start_season, end_season)
         file_cnt: int = 0
@@ -220,7 +242,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
                 )
 
                 # Step 2: Clean
-                if df_list is not None and len(df_list):
+                if df_list is not None and df_list:
                     cleaned_df: pd.DataFrame = self.cleaner.clean_comprehensive_income(
                         df_list, year, season
                     )
@@ -229,9 +251,9 @@ class FinancialStatementUpdater(BaseDataUpdater):
                         logger.warning(
                             f"Cleaned comprehensive income dataframe empty on {year}Q{season}."
                         )
+                        continue
 
                 file_cnt += 1
-
                 if file_cnt == 10:
                     logger.info("Sleep 30 seconds...")
                     file_cnt = 0
@@ -248,7 +270,11 @@ class FinancialStatementUpdater(BaseDataUpdater):
         )
 
     def update_cash_flow(
-        self, start_year: int, end_year: int, start_season: int, end_season: int
+        self,
+        start_year: int,
+        end_year: int,
+        start_season: int,
+        end_season: int,
     ) -> None:
         """Update Cash Flow"""
 
@@ -256,9 +282,14 @@ class FinancialStatementUpdater(BaseDataUpdater):
 
         # Step 1: Crawl
         # Set Up Update Period
-        start_year: int = self.get_table_latest_year(table_name=CASH_FLOW_TABLE_NAME, default_year=start_year)
-        start_season: int = self.get_table_latest_season(table_name=CASH_FLOW_TABLE_NAME, default_season=start_season)
+        start_year: int = self.get_table_latest_year(
+            table_name=CASH_FLOW_TABLE_NAME, default_year=start_year
+        )
+        start_season: int = self.get_table_latest_season(
+            table_name=CASH_FLOW_TABLE_NAME, default_season=start_season
+        )
         logger.info(f"Latest data date in database: {start_year}Q{start_season}")
+        # Set Up Update Period
         years: List[int] = TimeUtils.generate_season_range(start_year, end_year)
         seasons: List[int] = TimeUtils.generate_season_range(start_season, end_season)
         file_cnt: int = 0
@@ -271,7 +302,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
                 )
 
                 # Step 2: Clean
-                if df_list is not None and len(df_list):
+                if df_list is not None and df_list:
                     cleaned_df: pd.DataFrame = self.cleaner.clean_cash_flow(
                         df_list, year, season
                     )
@@ -280,9 +311,9 @@ class FinancialStatementUpdater(BaseDataUpdater):
                         logger.warning(
                             f"Cleaned cash flow dataframe empty on {year}Q{season}."
                         )
+                        continue
 
                 file_cnt += 1
-
                 if file_cnt == 10:
                     logger.info("Sleep 30 seconds...")
                     file_cnt = 0
@@ -313,9 +344,14 @@ class FinancialStatementUpdater(BaseDataUpdater):
 
         # Step 1: Crawl
         # Set Up Update Period
-        start_year: int = self.get_table_latest_year(table_name=EQUITY_CHANGE_TABLE_NAME, default_year=start_year)
-        start_season: int = self.get_table_latest_season(table_name=EQUITY_CHANGE_TABLE_NAME, default_season=start_season)
+        start_year: int = self.get_table_latest_year(
+            table_name=EQUITY_CHANGE_TABLE_NAME, default_year=start_year
+        )
+        start_season: int = self.get_table_latest_season(
+            table_name=EQUITY_CHANGE_TABLE_NAME, default_season=start_season
+        )
         logger.info(f"Latest data date in database: {start_year}Q{start_season}")
+        # Set Up Update Period
         years: List[int] = TimeUtils.generate_season_range(start_year, end_year)
         seasons: List[int] = TimeUtils.generate_season_range(start_season, end_season)
         file_cnt: int = 0
@@ -328,7 +364,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
                 )
 
                 # Step 2: Clean
-                if df_list is not None and len(df_list):
+                if df_list is not None and df_list:
                     cleaned_df: pd.DataFrame = self.cleaner.clean_equity_changes(
                         df_list, year, season
                     )
@@ -337,9 +373,9 @@ class FinancialStatementUpdater(BaseDataUpdater):
                         logger.warning(
                             f"Cleaned equity changes dataframe empty on {year}Q{season}."
                         )
+                        continue
 
                 file_cnt += 1
-
                 if file_cnt == 10:
                     logger.info("Sleep 30 seconds...")
                     file_cnt = 0
@@ -356,7 +392,9 @@ class FinancialStatementUpdater(BaseDataUpdater):
         )
 
     def get_table_latest_year(
-        self, table_name: str, default_year: int = 2025
+        self,
+        table_name: str,
+        default_year: int = 2025,
     ) -> int:
         """Update table latest year"""
 
@@ -369,7 +407,9 @@ class FinancialStatementUpdater(BaseDataUpdater):
         return self.table_latest_year
 
     def get_table_latest_season(
-        self, table_name: str, default_season: int = 2025
+        self,
+        table_name: str,
+        default_season: int = 1,
     ) -> int:
         """Update table latest year"""
 

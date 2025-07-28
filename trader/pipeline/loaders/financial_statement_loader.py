@@ -75,23 +75,14 @@ class FinancialStatementLoader(BaseDataLoader):
 
         self.setup()
 
-    def setup(self, *args, **kwargs) -> None:
+    def setup(self) -> None:
         """Set Up the Config of Loader"""
 
         # Connect Database
         self.connect()
 
         # Ensure Database Table Exists
-        for fs_type in FinancialStatementType:
-            table_name: str = fs_type.lower()
-            cleaned_cols_path: Path = self.cleaned_cols_paths[fs_type]
-
-            # TODO: Equity Changes 的 Cleaner 跟 Loader 都完成再拿掉
-            if fs_type != FinancialStatementType.EQUITY_CHANGE:
-                if not SQLiteUtils.check_table_exist(conn=self.conn, table_name=table_name):
-                    self.create_db(
-                        table_name=table_name, cleaned_cols_path=cleaned_cols_path
-                    )
+        self.create_missing_tables()
 
         self.fs_dir.mkdir(parents=True, exist_ok=True)
         self.balance_sheet_dir.mkdir(parents=True, exist_ok=True)
@@ -159,7 +150,10 @@ class FinancialStatementLoader(BaseDataLoader):
         self.conn.commit()
 
     def add_to_db(
-        self, dir_path: Path, table_name: str, remove_files: bool = False
+        self,
+        dir_path: Path,
+        table_name: str,
+        remove_files: bool = False,
     ) -> None:
         """Add Data into Database"""
 
@@ -185,3 +179,17 @@ class FinancialStatementLoader(BaseDataLoader):
         if remove_files:
             shutil.rmtree(dir_path)
         logger.info(f"Total file processed: {file_cnt}")
+
+    def create_missing_tables(self) -> None:
+        """確保所有財報類型的資料表存在（除了尚未實作的）"""
+        for fs_type in FinancialStatementType:
+            if fs_type == FinancialStatementType.EQUITY_CHANGE:
+                continue  # TODO: 實作後移除
+
+            table_name: str = fs_type.lower()
+            cleaned_cols_path: Path = self.cleaned_cols_paths[fs_type]
+
+            if not SQLiteUtils.check_table_exist(conn=self.conn, table_name=table_name):
+                self.create_db(
+                    table_name=table_name, cleaned_cols_path=cleaned_cols_path
+                )

@@ -91,7 +91,9 @@ class FinancialStatementCrawler(BaseDataCrawler):
         return df_dict
 
     def crawl_balance_sheet(
-        self, year: int, season: int
+        self,
+        year: int,
+        season: int,
     ) -> Optional[List[pd.DataFrame]]:
         """Crawl Balance Sheet (資產負債表)"""
         """
@@ -133,7 +135,9 @@ class FinancialStatementCrawler(BaseDataCrawler):
         return df_list
 
     def crawl_comprehensive_income(
-        self, year: int, season: int
+        self,
+        year: int,
+        season: int,
     ) -> Optional[List[pd.DataFrame]]:
         """Crawl Statement of Comprehensive Income (綜合損益表)"""
         """
@@ -175,7 +179,11 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
         return df_list
 
-    def crawl_cash_flow(self, year: int, season: int) -> Optional[List[pd.DataFrame]]:
+    def crawl_cash_flow(
+        self,
+        year: int,
+        season: int,
+    ) -> Optional[List[pd.DataFrame]]:
         """Crawl Cash Flow Statement (現金流量表)"""
         """
         資料區間

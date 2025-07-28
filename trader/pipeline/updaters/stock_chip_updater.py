@@ -45,7 +45,7 @@ class StockChipUpdater(BaseDataUpdater):
 
         self.setup()
 
-    def setup(self, *args, **kwargs) -> None:
+    def setup(self) -> None:
         """Set Up the Config of Updater"""
 
         # DB Connect
@@ -106,12 +106,14 @@ class StockChipUpdater(BaseDataUpdater):
         self.loader.add_to_db(remove_files=False)
 
     def get_table_latest_date(self, default_date: datetime.date) -> datetime.date:
-        """ Get table latest date """
+        """Get table latest date"""
 
         latest_date: Optional[str] = SQLiteUtils.get_table_latest_value(
             conn=self.conn, table_name=CHIP_TABLE_NAME, col_name="date"
         )
         self.table_latest_date = (
-            datetime.datetime.strptime(latest_date, "%Y-%m-%d").date() if latest_date is not None else default_date
+            datetime.datetime.strptime(latest_date, "%Y-%m-%d").date()
+            if latest_date is not None
+            else default_date
         )
         return self.table_latest_date

@@ -23,16 +23,13 @@ class StockPriceLoader(BaseDataLoader):
 
         self.setup()
 
-    def setup(self, *args, **kwargs) -> None:
+    def setup(self) -> None:
         """Set Up the Config of Loader"""
 
         self.connect()
 
         # Ensure Database Table Exists
-        if not SQLiteUtils.check_table_exist(
-            conn=self.conn, table_name=PRICE_TABLE_NAME
-        ):
-            self.create_db()
+        self.create_missing_tables()
 
         self.price_dir.mkdir(parents=True, exist_ok=True)
 
@@ -111,3 +108,11 @@ class StockPriceLoader(BaseDataLoader):
         if remove_files:
             shutil.rmtree(self.price_dir)
         logger.info(f"Total files processed: {file_cnt}")
+
+    def create_missing_tables(self) -> None:
+        """確保股票價格資料表存在"""
+
+        if not SQLiteUtils.check_table_exist(
+            conn=self.conn, table_name=PRICE_TABLE_NAME
+        ):
+            self.create_db()

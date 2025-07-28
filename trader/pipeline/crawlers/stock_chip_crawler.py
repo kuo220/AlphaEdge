@@ -28,7 +28,7 @@ class StockChipCrawler(BaseDataCrawler):
     def __init__(self):
         super().__init__()
 
-    def setup(self, *args, **kwargs) -> None:
+    def setup(self) -> None:
         """Set Up the Config of Crawler"""
         pass
 

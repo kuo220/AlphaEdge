@@ -21,13 +21,17 @@ class StockPriceCleaner(BaseDataCleaner):
         self.price_dir: Path = PRICE_DOWNLOADS_PATH
         self.setup()
 
-    def setup(self, *args, **kwargs) -> None:
+    def setup(self) -> None:
         """Set Up the Config of Cleaner"""
 
         # Generate downloads directory
         self.price_dir.mkdir(parents=True, exist_ok=True)
 
-    def clean_twse_price(self, df: pd.DataFrame, date: datetime.date) -> pd.DataFrame:
+    def clean_twse_price(
+        self,
+        df: pd.DataFrame,
+        date: datetime.date,
+    ) -> pd.DataFrame:
         """Clean TWSE Stock Price Data"""
         """
         TWSE 網站提供資料日期：
@@ -57,7 +61,11 @@ class StockPriceCleaner(BaseDataCleaner):
 
         return df
 
-    def clean_tpex_price(self, df: pd.DataFrame, date: datetime.date) -> pd.DataFrame:
+    def clean_tpex_price(
+        self,
+        df: pd.DataFrame,
+        date: datetime.date,
+    ) -> pd.DataFrame:
         """Clean TPEX Stock Price Data"""
         """
         1. 上櫃資料從 96/7/2 以後才提供

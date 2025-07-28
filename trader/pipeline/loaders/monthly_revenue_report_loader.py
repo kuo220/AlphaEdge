@@ -8,11 +8,12 @@ import pandas as pd
 from trader.pipeline.loaders.base import BaseDataLoader
 from trader.pipeline.utils import DataType
 from trader.pipeline.utils.data_utils import DataUtils
+from trader.pipeline.utils.sqlite_utils import SQLiteUtils
 from trader.config import (
     DB_PATH,
-    MONTHLY_REVENUE_TABLE_NAME,
     MONTHLY_REVENUE_REPORT_DOWNLOADS_PATH,
     MONTHLY_REVENUE_REPORT_META_DIR_PATH,
+    MONTHLY_REVENUE_TABLE_NAME,
 )
 
 
@@ -40,11 +41,14 @@ class MonthlyRevenueReportLoader(BaseDataLoader):
 
         self.setup()
 
-    def setup(self, *args, **kwargs) -> None:
+    def setup(self) -> None:
         """Set Up the Config of Loader"""
 
         # Connect Database
         self.connect()
+
+        # Ensure Database Table Exists
+        self.create_missing_tables()
 
         # Create the downloads directory
         self.mrr_dir.mkdir(parents=True, exist_ok=True)
@@ -136,3 +140,11 @@ class MonthlyRevenueReportLoader(BaseDataLoader):
         if remove_files:
             shutil.rmtree(self.mrr_dir)
         logger.info(f"Total file processed: {file_cnt}")
+
+    def create_missing_tables(self) -> None:
+        """確保月營收資料表存在"""
+
+        if not SQLiteUtils.check_table_exist(
+            conn=self.conn, table_name=MONTHLY_REVENUE_TABLE_NAME
+        ):
+            self.create_db()
