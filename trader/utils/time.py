@@ -71,10 +71,22 @@ class TimeUtils:
 
     @staticmethod
     def generate_month_range(
-        start_date: datetime.date, end_date: datetime.date
-    ) -> List[datetime.date]:
-        """產生從 start_date 到 end_date 的每月清單（取每月的起始日）"""
-        return [dt.date() for dt in rrule(MONTHLY, dtstart=start_date, until=end_date)]
+        start: int | datetime.date, end: int | datetime.date
+    ) -> List[int | datetime.date]:
+        """
+        產生從 start_date 到 end_date 的每月清單（取每月的起始日）
+        - 若 start/end 為 datetime.date：返回從 start 到 end 的每月日期列表（取每月的起始日）
+        - 若 start/end 為 int：返回從 start 年到 end 年的 12 個月份（1~12）為單位的 flat list
+        """
+
+        if isinstance(start, int) and isinstance(end, int):
+            if not (1 <= start <= 12 and 1 <= end <= 12):
+                raise ValueError("月份應在 1 到 12 之間")
+            return list(range(start, end + 1))
+        elif isinstance(start, datetime.date) and isinstance(end, datetime.date):
+            return [dt.date() for dt in rrule(MONTHLY, dtstart=start, until=end)]
+        else:
+            raise ValueError("start 和 end 必須是 int 或 datetime.date")
 
     @staticmethod
     def generate_year_range(start_year: int, end_year: int) -> List[int]:

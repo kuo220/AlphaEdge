@@ -36,11 +36,11 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
         # Create the downloads directory
         self.mrr_dir.mkdir(parents=True, exist_ok=True)
 
-    def crawl(self, date: datetime.date) -> Optional[List[pd.DataFrame]]:
+    def crawl(self, year: int, month: int) -> Optional[List[pd.DataFrame]]:
         """Crawl Data"""
 
-        twse_df: List[pd.DataFrame] = self.crawl_twse_monthly_revenue(date)
-        tpex_df: List[pd.DataFrame] = self.crawl_tpex_monthly_revenue(date)
+        twse_df: List[pd.DataFrame] = self.crawl_twse_monthly_revenue(year, month)
+        tpex_df: List[pd.DataFrame] = self.crawl_tpex_monthly_revenue(year, month)
 
         return twse_df + tpex_df
 

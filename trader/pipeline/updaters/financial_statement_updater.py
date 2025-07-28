@@ -161,6 +161,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
             table_name=BALANCE_SHEET_TABLE_NAME, default_season=start_season
         )
         logger.info(f"Latest data date in database: {start_year}Q{start_season}")
+        # Set Up Update Period
         years: List[int] = TimeUtils.generate_season_range(start_year, end_year)
         seasons: List[int] = TimeUtils.generate_season_range(start_season, end_season)
         file_cnt: int = 0
@@ -216,6 +217,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
             table_name=COMPREHENSIVE_INCOME_TABLE_NAME, default_season=start_season
         )
         logger.info(f"Latest data date in database: {start_year}Q{start_season}")
+        # Set Up Update Period
         years: List[int] = TimeUtils.generate_season_range(start_year, end_year)
         seasons: List[int] = TimeUtils.generate_season_range(start_season, end_season)
         file_cnt: int = 0
@@ -271,6 +273,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
             table_name=CASH_FLOW_TABLE_NAME, default_season=start_season
         )
         logger.info(f"Latest data date in database: {start_year}Q{start_season}")
+        # Set Up Update Period
         years: List[int] = TimeUtils.generate_season_range(start_year, end_year)
         seasons: List[int] = TimeUtils.generate_season_range(start_season, end_season)
         file_cnt: int = 0
@@ -332,6 +335,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
             table_name=EQUITY_CHANGE_TABLE_NAME, default_season=start_season
         )
         logger.info(f"Latest data date in database: {start_year}Q{start_season}")
+        # Set Up Update Period
         years: List[int] = TimeUtils.generate_season_range(start_year, end_year)
         seasons: List[int] = TimeUtils.generate_season_range(start_season, end_season)
         file_cnt: int = 0
@@ -383,7 +387,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
         return self.table_latest_year
 
     def get_table_latest_season(
-        self, table_name: str, default_season: int = 2025
+        self, table_name: str, default_season: int = 1
     ) -> int:
         """Update table latest year"""
 
