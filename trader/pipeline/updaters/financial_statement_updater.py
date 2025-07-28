@@ -131,7 +131,11 @@ class FinancialStatementUpdater(BaseDataUpdater):
         logger.add(f"{LOGS_DIR_PATH}/update_financial_statement.log")
 
     def update(
-        self, start_year: int, end_year: int, start_season: int, end_season: int
+        self,
+        start_year: int,
+        end_year: int,
+        start_season: int,
+        end_season: int,
     ) -> None:
         """Update the Database"""
 
@@ -145,7 +149,11 @@ class FinancialStatementUpdater(BaseDataUpdater):
         self.update_cash_flow(start_year, end_year, start_season, end_season)
 
     def update_balance_sheet(
-        self, start_year: int, end_year: int, start_season: int, end_season: int
+        self,
+        start_year: int,
+        end_year: int,
+        start_season: int,
+        end_season: int,
     ) -> None:
         """Update Balance Sheet"""
 
@@ -202,7 +210,11 @@ class FinancialStatementUpdater(BaseDataUpdater):
         )
 
     def update_comprehensive_income(
-        self, start_year: int, end_year: int, start_season: int, end_season: int
+        self,
+        start_year: int,
+        end_year: int,
+        start_season: int,
+        end_season: int,
     ) -> None:
         """Update Comprehensive Income"""
 
@@ -258,7 +270,11 @@ class FinancialStatementUpdater(BaseDataUpdater):
         )
 
     def update_cash_flow(
-        self, start_year: int, end_year: int, start_season: int, end_season: int
+        self,
+        start_year: int,
+        end_year: int,
+        start_season: int,
+        end_season: int,
     ) -> None:
         """Update Cash Flow"""
 
@@ -375,7 +391,11 @@ class FinancialStatementUpdater(BaseDataUpdater):
             remove_files=False,
         )
 
-    def get_table_latest_year(self, table_name: str, default_year: int = 2025) -> int:
+    def get_table_latest_year(
+        self,
+        table_name: str,
+        default_year: int = 2025,
+    ) -> int:
         """Update table latest year"""
 
         latest_year: Optional[int] = SQLiteUtils.get_table_latest_value(
@@ -386,7 +406,11 @@ class FinancialStatementUpdater(BaseDataUpdater):
         )
         return self.table_latest_year
 
-    def get_table_latest_season(self, table_name: str, default_season: int = 1) -> int:
+    def get_table_latest_season(
+        self,
+        table_name: str,
+        default_season: int = 1,
+    ) -> int:
         """Update table latest year"""
 
         latest_season: Optional[int] = SQLiteUtils.get_table_latest_value(

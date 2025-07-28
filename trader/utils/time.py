@@ -33,7 +33,8 @@ class TimeUtils:
 
     @staticmethod
     def get_time_diff_in_sec(
-        start_time: datetime.datetime, end_time: datetime.datetime
+        start_time: datetime.datetime,
+        end_time: datetime.datetime,
     ) -> float:
         """計算兩時間的時間差（秒數）"""
 
@@ -64,14 +65,16 @@ class TimeUtils:
 
     @staticmethod
     def generate_date_range(
-        start_date: datetime.date, end_date: datetime.date
+        start_date: datetime.date,
+        end_date: datetime.date,
     ) -> List[datetime.date]:
         """產生從 start_date 到 end_date 的每日日期清單"""
         return [dt.date() for dt in rrule(DAILY, dtstart=start_date, until=end_date)]
 
     @staticmethod
     def generate_month_range(
-        start: int | datetime.date, end: int | datetime.date
+        start_time: int | datetime.date,
+        end_time: int | datetime.date,
     ) -> List[int | datetime.date]:
         """
         產生從 start_date 到 end_date 的每月清單（取每月的起始日）
@@ -79,22 +82,32 @@ class TimeUtils:
         - 若 start/end 為 int：返回從 start 年到 end 年的 12 個月份（1~12）為單位的 flat list
         """
 
-        if isinstance(start, int) and isinstance(end, int):
-            if not (1 <= start <= 12 and 1 <= end <= 12):
+        if isinstance(start_time, int) and isinstance(end_time, int):
+            if not (1 <= start_time <= 12 and 1 <= end_time <= 12):
                 raise ValueError("月份應在 1 到 12 之間")
-            return list(range(start, end + 1))
-        elif isinstance(start, datetime.date) and isinstance(end, datetime.date):
-            return [dt.date() for dt in rrule(MONTHLY, dtstart=start, until=end)]
+            return list(range(start_time, end_time + 1))
+        elif isinstance(start_time, datetime.date) and isinstance(
+            end_time, datetime.date
+        ):
+            return [
+                dt.date() for dt in rrule(MONTHLY, dtstart=start_time, until=end_time)
+            ]
         else:
             raise ValueError("start 和 end 必須是 int 或 datetime.date")
 
     @staticmethod
-    def generate_year_range(start_year: int, end_year: int) -> List[int]:
+    def generate_year_range(
+        start_year: int,
+        end_year: int,
+    ) -> List[int]:
         """產生從 start_year 到 end_year 的所有年份"""
         return [year for year in range(start_year, end_year + 1)]
 
     @staticmethod
-    def generate_season_range(start_season: int, end_season: int) -> List[int]:
+    def generate_season_range(
+        start_season: int,
+        end_season: int,
+    ) -> List[int]:
         """產生從 start_season 到 end_season 的所有季度"""
         return [season for season in range(start_season, end_season + 1)]
 

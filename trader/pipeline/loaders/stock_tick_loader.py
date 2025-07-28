@@ -32,7 +32,7 @@ class StockTickLoader(BaseDataLoader):
         self.session: ddb.session = None
         self.setup()
 
-    def setup(self, *args, **kwargs) -> None:
+    def setup(self) -> None:
         """Set Up the Config of Loader"""
 
         # Connect Database

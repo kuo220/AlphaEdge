@@ -23,7 +23,7 @@ class StockPriceLoader(BaseDataLoader):
 
         self.setup()
 
-    def setup(self, *args, **kwargs) -> None:
+    def setup(self) -> None:
         """Set Up the Config of Loader"""
 
         self.connect()

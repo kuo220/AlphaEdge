@@ -45,7 +45,7 @@ class StockChipUpdater(BaseDataUpdater):
 
         self.setup()
 
-    def setup(self, *args, **kwargs) -> None:
+    def setup(self) -> None:
         """Set Up the Config of Updater"""
 
         # DB Connect

@@ -76,7 +76,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
 
         self.setup()
 
-    def setup(self, *args, **kwargs) -> None:
+    def setup(self) -> None:
         """Set Up the Config of Cleaner"""
 
         # Create Downloads Directory For Financial Reports

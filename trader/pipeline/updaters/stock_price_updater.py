@@ -44,7 +44,7 @@ class StockPriceUpdater(BaseDataUpdater):
 
         self.setup()
 
-    def setup(self, *args, **kwargs) -> None:
+    def setup(self) -> None:
         """Set Up the Config of Updater"""
 
         # DB Connect
@@ -55,7 +55,9 @@ class StockPriceUpdater(BaseDataUpdater):
         logger.add(f"{LOGS_DIR_PATH}/update_price.log")
 
     def update(
-        self, start_date: datetime.date, end_date: datetime.date = datetime.date.today()
+        self,
+        start_date: datetime.date,
+        end_date: datetime.date = datetime.date.today(),
     ) -> None:
         """Update the Database"""
 

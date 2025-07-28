@@ -30,13 +30,17 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
         self.twse_market_types: List[MarketType] = [MarketType.SII0, MarketType.SII1]
         self.tpex_market_types: List[MarketType] = [MarketType.OTC0, MarketType.OTC1]
 
-    def setup(self, *args, **kwargs) -> None:
+    def setup(self) -> None:
         """Set Up the Config of Crawler"""
 
         # Create the downloads directory
         self.mrr_dir.mkdir(parents=True, exist_ok=True)
 
-    def crawl(self, year: int, month: int) -> Optional[List[pd.DataFrame]]:
+    def crawl(
+        self,
+        year: int,
+        month: int,
+    ) -> Optional[List[pd.DataFrame]]:
         """Crawl Data"""
 
         twse_df: List[pd.DataFrame] = self.crawl_twse_monthly_revenue(year, month)
@@ -45,7 +49,9 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
         return twse_df + tpex_df
 
     def crawl_twse_monthly_revenue(
-        self, year: int, month: int
+        self,
+        year: int,
+        month: int,
     ) -> Optional[List[pd.DataFrame]]:
         """Crawl TWSE Monthly Revenue Report"""
         """
@@ -79,7 +85,9 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
         return df_list
 
     def crawl_tpex_monthly_revenue(
-        self, year: int, month: int
+        self,
+        year: int,
+        month: int,
     ) -> Optional[List[pd.DataFrame]]:
         """Crawl TPEX Monthly Revenue Report"""
         """
@@ -113,7 +121,11 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
         return df_list
 
     def get_all_mrr_columns(
-        self, start_year: int, start_month: int, end_year: int, end_month: int
+        self,
+        start_year: int,
+        start_month: int,
+        end_year: int,
+        end_month: int,
     ) -> List[str]:
         """取得所有月營收財報的 Columns Name"""
 

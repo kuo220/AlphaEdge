@@ -28,13 +28,17 @@ class StockChipCleaner(BaseDataCleaner):
         # Set Up
         self.setup()
 
-    def setup(self, *args, **kwargs) -> None:
+    def setup(self) -> None:
         """Set Up the Config of Cleaner"""
 
         # Generate downloads directory
         self.chip_dir.mkdir(parents=True, exist_ok=True)
 
-    def clean_twse_chip(self, df: pd.DataFrame, date: datetime.date) -> pd.DataFrame:
+    def clean_twse_chip(
+        self,
+        df: pd.DataFrame,
+        date: datetime.date,
+    ) -> pd.DataFrame:
         """Clean TWSE Stock Chip Data"""
 
         if isinstance(df.columns, pd.MultiIndex) and df.columns.nlevels > 1:
@@ -105,7 +109,11 @@ class StockChipCleaner(BaseDataCleaner):
 
         return df
 
-    def clean_tpex_chip(self, df: pd.DataFrame, date: datetime.date) -> pd.DataFrame:
+    def clean_tpex_chip(
+        self,
+        df: pd.DataFrame,
+        date: datetime.date,
+    ) -> pd.DataFrame:
         """Clean TPEX Stock Chip Data"""
 
         if isinstance(df.columns, pd.MultiIndex) and df.columns.nlevels > 1:
