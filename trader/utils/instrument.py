@@ -27,7 +27,11 @@ class StockUtils:
     """Stock Related Tools"""
 
     @staticmethod
-    def get_close_price(api: sj.Shioaji, stock_id: str, date: datetime.date) -> float:
+    def get_close_price(
+        api: sj.Shioaji,
+        stock_id: str,
+        date: datetime.date,
+    ) -> float:
         """Shioaji: 取得指定股票在特定日期的收盤價"""
 
         tick: sj.Shioaji.ticks = api.ticks(
@@ -40,7 +44,11 @@ class StockUtils:
         return tick.close[0] if len(tick.close) != 0 else np.nan
 
     @staticmethod
-    def get_price_chg(api: sj.Shioaji, stock_id: str, date: datetime.date) -> float:
+    def get_price_chg(
+        api: sj.Shioaji,
+        stock_id: str,
+        date: datetime.date,
+    ) -> float:
         """Shioaji: 取得指定股票在指定日期的漲跌幅"""
 
         # 取得前一個交易日的日期
@@ -79,7 +87,9 @@ class StockUtils:
 
     @staticmethod
     def calculate_transaction_cost(
-        buy_price: float, sell_price: float, volume: float
+        buy_price: float,
+        sell_price: float,
+        volume: float,
     ) -> Tuple[float, float]:
         """計算股票買賣的手續費、交易稅等摩擦成本"""
         """
@@ -100,7 +110,9 @@ class StockUtils:
 
     @staticmethod
     def calculate_net_profit(
-        buy_price: float, sell_price: float, volume: float
+        buy_price: float,
+        sell_price: float,
+        volume: float,
     ) -> float:
         """
         - Description: 計算股票交易的淨收益（扣除手續費和交易稅）（目前只有做多）
@@ -127,7 +139,11 @@ class StockUtils:
         return round(profit, 2)
 
     @staticmethod
-    def calculate_roi(buy_price: float, sell_price: float, volume: float) -> float:
+    def calculate_roi(
+        buy_price: float,
+        sell_price: float,
+        volume: float,
+    ) -> float:
         """
         - Description: 計算股票投資報酬率（ROI）（目前只有做多）
         - Parameters:

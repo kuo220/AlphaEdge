@@ -14,7 +14,9 @@ class ShioajiAccount:
     # API login
     @staticmethod
     def API_login(
-        api: sj.Shioaji, api_key: str, api_secret_key: str
+        api: sj.Shioaji,
+        api_key: str,
+        api_secret_key: str,
     ) -> Optional[sj.Shioaji]:
         """API 登入"""
 

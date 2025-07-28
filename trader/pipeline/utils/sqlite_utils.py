@@ -21,7 +21,9 @@ class SQLiteUtils:
 
     @staticmethod
     def get_table_earliest_value(
-        conn: sqlite3.Connection, table_name: str, col_name: str
+        conn: sqlite3.Connection,
+        table_name: str,
+        col_name: str,
     ) -> Optional[datetime.date]:
         """
         - Description: Retrieve the earliest value in the table.
@@ -58,7 +60,9 @@ class SQLiteUtils:
 
     @staticmethod
     def get_table_latest_value(
-        conn: sqlite3.Connection, table_name: str, col_name: str
+        conn: sqlite3.Connection,
+        table_name: str,
+        col_name: str,
     ) -> Optional[Any]:
         """
         - Description: Retrieve the latest value in the table.

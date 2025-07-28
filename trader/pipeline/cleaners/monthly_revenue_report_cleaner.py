@@ -60,7 +60,10 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
         self.load_column_maps()
 
     def clean_monthly_revenue(
-        self, df_list: List[pd.DataFrame], year: int, month: int
+        self,
+        df_list: List[pd.DataFrame],
+        year: int,
+        month: int,
     ) -> pd.DataFrame:
         """Clean TWSE Monthly Revenue Report"""
         """
@@ -138,7 +141,9 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
         return new_df
 
     def clean_mrr_column_names(
-        self, raw_cols: List[str], front_cols: List[str]
+        self,
+        raw_cols: List[str],
+        front_cols: List[str],
     ) -> List[str]:
         """
         - Description:

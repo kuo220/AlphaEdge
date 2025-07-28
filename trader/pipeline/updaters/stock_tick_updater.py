@@ -72,9 +72,6 @@ class StockTickUpdater(BaseDataUpdater):
         # Generate tick_metadata backup
         StockTickUtils.generate_tick_metadata_backup()
 
-        # Set Up table latest date
-        self.table_latest_date = StockTickUtils.get_table_latest_date()
-
         # 設定 log 檔案儲存路徑
         logger.add(f"{LOGS_DIR_PATH}/update_tick.log")
 
@@ -86,8 +83,9 @@ class StockTickUpdater(BaseDataUpdater):
         """Update the Database"""
 
         # 取得最近更新的日期
-        start_date = self.table_latest_date if start_date > self.table_latest_date else start_date
+        start_date = self.get_table_latest_date(default_date=start_date)
         logger.info(f"Latest data date in database: {start_date}")
+
         # Set Up Update Period
         dates: List[datetime.date] = TimeUtils.generate_date_range(start_date, end_date)
 
@@ -98,7 +96,10 @@ class StockTickUpdater(BaseDataUpdater):
         self.loader.add_to_db(remove_file=False)
 
     def update_thread(
-        self, api: sj.Shioaji, dates: List[datetime.date], stock_list: List[str]
+        self,
+        api: sj.Shioaji,
+        dates: List[datetime.date],
+        stock_list: List[str],
     ) -> None:
         """
         - Description:
@@ -207,7 +208,11 @@ class StockTickUpdater(BaseDataUpdater):
             f"All crawling tasks completed and metadata updated. Total file: {total_file}, Total time: {total_time:.2f} seconds"
         )
 
-    def split_list(self, target_list: List[Any], n_parts: int) -> List[List[str]]:
+    def split_list(
+        self,
+        target_list: List[Any],
+        n_parts: int,
+    ) -> List[List[str]]:
         """將 list 均分成 n 個 list"""
 
         num_list: int = 0
@@ -220,5 +225,13 @@ class StockTickUpdater(BaseDataUpdater):
             for i in range(n_parts)
         ]
 
-    def get_table_latest_date(self) -> datetime.date:
-        """ Get table latest date """
+    def get_table_latest_date(self, default_date: datetime.date) -> datetime.date:
+        """Get table latest date"""
+
+        self.table_latest_date = StockTickUtils.get_table_latest_date()
+        start_date: datetime.date = (
+            self.table_latest_date
+            if default_date > self.table_latest_date
+            else default_date
+        )
+        return start_date

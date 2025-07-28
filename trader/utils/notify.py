@@ -62,7 +62,11 @@ class Notification:
         Notification.post_line_notify(token, msg)
 
     @staticmethod
-    def post_account_info(api: sj.Shioaji, token: str, info: pd.DataFrame) -> None:
+    def post_account_info(
+        api: sj.Shioaji,
+        token: str,
+        info: pd.DataFrame,
+    ) -> None:
         """每日帳戶資訊"""
 
         msg: str = "\n"

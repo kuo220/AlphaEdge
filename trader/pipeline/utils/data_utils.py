@@ -13,7 +13,11 @@ class DataUtils:
     """Data Tools"""
 
     @staticmethod
-    def move_col(df: pd.DataFrame, col_name: str, ref_col_name: str) -> None:
+    def move_col(
+        df: pd.DataFrame,
+        col_name: str,
+        ref_col_name: str,
+    ) -> None:
         """移動 columns 位置：將 col_name 整個 column 移到 ref_col_name 後方"""
 
         col_data: pd.Series = df.pop(col_name)
@@ -54,7 +58,9 @@ class DataUtils:
 
     @staticmethod
     def check_required_columns(
-        df: pd.DataFrame, required_cols: List[str], required_all: bool = True
+        df: pd.DataFrame,
+        required_cols: List[str],
+        required_all: bool = True,
     ) -> bool:
         """
         - Description:
@@ -131,7 +137,9 @@ class DataUtils:
 
     @staticmethod
     def replace_column_name(
-        col_name: str, keywords: List[str], replacement: str
+        col_name: str,
+        keywords: List[str],
+        replacement: str,
     ) -> str:
         """
         - Description:

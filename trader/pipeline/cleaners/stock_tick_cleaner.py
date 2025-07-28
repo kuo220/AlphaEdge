@@ -31,14 +31,16 @@ class StockTickCleaner(BaseDataCleaner):
         self.tick_dir: Path = TICK_DOWNLOADS_PATH
         self.setup()
 
-    def setup(self, *args, **kwargs) -> None:
+    def setup(self) -> None:
         """Set Up the Config of Cleaner"""
 
         # Create the tick downloads directory
         self.tick_dir.mkdir(parents=True, exist_ok=True)
 
     def clean_stock_tick(
-        self, df: pd.DataFrame, stock_id: str
+        self,
+        df: pd.DataFrame,
+        stock_id: str,
     ) -> Optional[pd.DataFrame]:
         """Clean Stock Tick Data"""
 
@@ -59,7 +61,11 @@ class StockTickCleaner(BaseDataCleaner):
             )
             return None
 
-    def format_tick_data(self, df: pd.DataFrame, stock_id: str) -> pd.DataFrame:
+    def format_tick_data(
+        self,
+        df: pd.DataFrame,
+        stock_id: str,
+    ) -> pd.DataFrame:
         """統一 tick data 的格式"""
 
         df.rename(columns={"ts": "time"}, inplace=True)
