@@ -36,3 +36,4 @@ dependencies:
       - sentry-sdk
       - fake-useragent
       - dolphindb
+      - nbstripout
