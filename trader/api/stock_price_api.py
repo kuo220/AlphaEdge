@@ -27,7 +27,10 @@ class StockPriceAPI(BaseDataAPI):
     def get(self, date: datetime.date) -> pd.DataFrame:
         """取得所有股票指定日期的 Price"""
 
-        query = f"SELECT * FROM {PRICE_TABLE_NAME} WHERE date = ?"
+        query = f"""
+        SELECT * FROM {PRICE_TABLE_NAME}
+        WHERE date = ?
+        """
         return pd.read_sql_query(
             query,
             self.conn,
@@ -45,7 +48,8 @@ class StockPriceAPI(BaseDataAPI):
             return pd.DataFrame()
 
         query: str = f"""
-        SELECT * FROM {PRICE_TABLE_NAME} WHERE date BETWEEN ? AND ?
+        SELECT * FROM {PRICE_TABLE_NAME}
+        WHERE date BETWEEN ? AND ?
         """
         df: pd.DataFrame = pd.read_sql_query(
             query,
@@ -66,7 +70,9 @@ class StockPriceAPI(BaseDataAPI):
             return pd.DataFrame()
 
         query: str = f"""
-        SELECT * FROM {PRICE_TABLE_NAME} WHERE stock_id = ? AND date BETWEEN ? AND ?
+        SELECT * FROM {PRICE_TABLE_NAME}
+        WHERE stock_id = ?
+        AND date BETWEEN ? AND ?
         """
         df: pd.DataFrame = pd.read_sql_query(
             query,
