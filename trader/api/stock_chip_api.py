@@ -27,8 +27,12 @@ class StockChipAPI(BaseDataAPI):
     def get(self, date: datetime.date) -> pd.DataFrame:
         """取得所有股票指定日期的三大法人籌碼"""
 
-        query: str = f"SELECT * FROM {CHIP_TABLE_NAME} WHERE date = '{date}'"
-        df: pd.DataFrame = pd.read_sql_query(query, self.conn)
+        query: str = f"SELECT * FROM {CHIP_TABLE_NAME} WHERE date = ?"
+        df: pd.DataFrame = pd.read_sql_query(
+            query,
+            self.conn,
+            params=(date,),
+        )
         return df
 
     def get_range(
@@ -42,9 +46,13 @@ class StockChipAPI(BaseDataAPI):
             return pd.DataFrame()
 
         query: str = f"""
-        SELECT * FROM {CHIP_TABLE_NAME} WHERE date BETWEEN '{start_date}' AND '{end_date}'
+        SELECT * FROM {CHIP_TABLE_NAME} WHERE date BETWEEN ? AND ?
         """
-        df: pd.DataFrame = pd.read_sql_query(query, self.conn)
+        df: pd.DataFrame = pd.read_sql_query(
+            query,
+            self.conn,
+            params=(start_date, end_date),
+        )
         return df
 
     def get_stock_chip(
@@ -59,9 +67,13 @@ class StockChipAPI(BaseDataAPI):
             return pd.DataFrame()
 
         query: str = f"""
-        SELECT * FROM {CHIP_TABLE_NAME} WHERE stock_id = '{stock_id}' AND date BETWEEN '{start_date}' AND '{end_date}'
+        SELECT * FROM {CHIP_TABLE_NAME} WHERE stock_id = ? AND date BETWEEN ? AND ?
         """
-        df: pd.DataFrame = pd.read_sql_query(query, self.conn)
+        df: pd.DataFrame = pd.read_sql_query(
+            query,
+            self.conn,
+            params=(stock_id, start_date, end_date),
+        )
         return df
 
     def get_net_chip(
