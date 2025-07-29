@@ -51,7 +51,10 @@ class StockTickCleaner(BaseDataCleaner):
             new_df = self.format_time_to_microsec(new_df)
 
             # Save df to csv file
-            new_df.to_csv(self.tick_dir / f"{stock_id}.csv", index=False)
+            new_df.to_csv(
+                self.tick_dir / f"{stock_id}.csv",
+                index=False,
+            )
             logger.info(f"Saved {stock_id}.csv to {TICK_DOWNLOADS_PATH}")
             return new_df
 

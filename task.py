@@ -42,7 +42,7 @@ from trader.pipeline.utils.data_utils import DataUtils
 from trader.pipeline.utils import URLManager, MarketType, FinancialStatementType
 from trader.pipeline import URLManager
 from trader.config import (
-    CRAWLER_DOWNLOADS_PATH,
+    PIPELINE_DOWNLOADS_PATH,
     PRICE_DOWNLOADS_PATH,
     TICK_DOWNLOADS_PATH,
     FINANCIAL_STATEMENT_DOWNLOADS_PATH,
