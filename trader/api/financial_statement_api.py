@@ -17,7 +17,7 @@ from trader.config import (
 )
 
 
-class FinancialStatement(BaseDataAPI):
+class FinancialStatementAPI(BaseDataAPI):
     """Financial Statement Data API"""
 
     def __init__(self):
@@ -34,5 +34,43 @@ class FinancialStatement(BaseDataAPI):
         # 設定 log 檔案儲存路徑
         logger.add(f"{LOGS_DIR_PATH}/financial_statement_api.log")
 
-    def get(self, table_name: str, start_year: int, end_year: int, start_season: int, end_season: int):
-        """取得財報"""
+    def get(
+        self,
+        table_name: str,
+        year: int,
+        season: int,
+    ) -> pd.DataFrame:
+        """取得指定年度跟季度的財報"""
+
+        query: str = f"""
+        SELECT * FROM {table_name}
+        WHERE year = ? AND season = ?
+        """
+        df: pd.DataFrame = pd.read_sql_query(
+            query,
+            self.conn,
+            params=(year, season),
+        )
+        return df
+
+    def get_range(
+        self,
+        table_name: str,
+        start_year: int,
+        end_year: int,
+        start_season: int,
+        end_season: int,
+    ) -> pd.DataFrame:
+        """取得指定年度跟季度的範圍內的財報"""
+
+        query: str = f"""
+        SELECT * FROM {table_name}
+        WHERE year BETWEEN ? AND ?
+        AND season BETWEEN ? AND ?
+        """
+        df: pd.DataFrame = pd.read_sql_query(
+            query,
+            self.conn,
+            params=(start_year, end_year, start_season, end_season),
+        )
+        return df
