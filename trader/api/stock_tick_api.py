@@ -1,5 +1,6 @@
 import datetime
 import pandas as pd
+from loguru import logger
 
 try:
     import dolphindb as ddb
@@ -8,6 +9,7 @@ except ModuleNotFoundError:
 
 from trader.api.base import BaseDataAPI
 from trader.config import (
+    LOGS_DIR_PATH,
     TICK_DB_PATH,
     TICK_TABLE_NAME,
     DDB_HOST,
@@ -15,6 +17,7 @@ from trader.config import (
     DDB_USER,
     DDB_PASSWORD,
 )
+
 
 class StockTickAPI(BaseDataAPI):
     """Tick data API"""
@@ -24,12 +27,38 @@ class StockTickAPI(BaseDataAPI):
         self.query_start_date: str = "2024.05.10"
         self.query_end_date: str = "2024.05.10"
 
-        self.session: ddb.session = ddb.session()
+        self.session: ddb.session = None
+
+        self.setup()
+
+    def setup(self):
+        """Set Up the Config of Cleaner"""
+
+        # DolphinDB Session Connect
+        self.session = ddb.session()
         self.session.connect(DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
 
-        self.setup_api()
+        if self.session.existsDatabase(TICK_DB_PATH):
+            logger.info("* Database exists!")
 
-    def get(self, start_date: datetime.date, end_date: datetime.date) -> pd.DataFrame:
+            # set TSDBCacheEngineSize to 5GB (must < 8(maxMemSize) * 0.75 GB)
+            script: str = """
+            memSize = 2
+            setTSDBCacheEngineSize(memSize)
+            print("TSDBCacheEngineSize: " + string(getTSDBCacheEngineSize() / pow(1024, 3)) + "GB")
+            """
+            self.session.run(script)
+        else:
+            print("* Database doesn't exist!")
+
+        # 設定 log 檔案儲存路徑
+        logger.add(f"{LOGS_DIR_PATH}/stock_tick_api.log")
+
+    def get(
+        self,
+        start_date: datetime.date,
+        end_date: datetime.date,
+    ) -> pd.DataFrame:
         """取得所有個股各自排序好 tick 資料（個股沒有混在一起排序）"""
 
         if start_date > end_date:
@@ -47,7 +76,9 @@ class StockTickAPI(BaseDataAPI):
         return tick
 
     def get_ordered_ticks(
-        self, start_date: datetime.date, end_date: datetime.date
+        self,
+        start_date: datetime.date,
+        end_date: datetime.date,
     ) -> pd.DataFrame:
         """取得排序好的 tick 資料（所有個股混在一起以時間排序）"""
         """ 模擬市場盤中情形 """
@@ -67,7 +98,10 @@ class StockTickAPI(BaseDataAPI):
         return tick
 
     def get_stock_ticks(
-        self, stock_id: str, start_date: datetime.date, end_date: datetime.date
+        self,
+        stock_id: str,
+        start_date: datetime.date,
+        end_date: datetime.date,
     ) -> pd.DataFrame:
         """取得個股 tick 資料"""
 
@@ -85,7 +119,11 @@ class StockTickAPI(BaseDataAPI):
         tick: pd.DataFrame = self.session.run(script)
         return tick
 
-    def get_last_tick(self, stock_id: str, date: datetime.date) -> pd.DataFrame:
+    def get_last_tick(
+        self,
+        stock_id: str,
+        date: datetime.date,
+    ) -> pd.DataFrame:
         """取得當日最後一筆 tick"""
 
         tick: pd.DataFrame = self.get_stock_ticks(stock_id, date, date)
@@ -93,19 +131,3 @@ class StockTickAPI(BaseDataAPI):
         if tick.empty:
             return pd.DataFrame()
         return tick.iloc[-1:]
-
-    def setup_api(self):
-        """API Setup"""
-
-        if self.session.existsDatabase(TICK_DB_PATH):
-            print("* Database exists!")
-
-            # set TSDBCacheEngineSize to 5GB (must < 8(maxMemSize) * 0.75 GB)
-            script: str = """
-            memSize = 2
-            setTSDBCacheEngineSize(memSize)
-            print("TSDBCacheEngineSize: " + string(getTSDBCacheEngineSize() / pow(1024, 3)) + "GB")
-            """
-            self.session.run(script)
-        else:
-            print("* Database doesn't exist!")
