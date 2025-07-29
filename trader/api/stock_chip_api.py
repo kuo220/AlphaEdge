@@ -5,29 +5,44 @@ import sys
 from pathlib import Path
 import pandas as pd
 
-from trader.config import CHIP_DB_PATH, CHIP_TABLE_NAME
+from trader.api.base import BaseDataAPI
+from trader.config import CHIP_TABLE_NAME, DB_PATH
 
 
-class Chip:
+class StockChipAPI(BaseDataAPI):
     """Institutional investors chip API"""
 
     def __init__(self):
-        self.conn: sqlite3.Connection = sqlite3.connect(CHIP_DB_PATH)
+        self.conn: sqlite3.Connection = None
 
-    def get(self, start_date: datetime.date, end_date: datetime.date) -> pd.DataFrame:
+        self.setup()
+
+    def setup(self):
+        """Set Up the Config of Cleaner"""
+
+        self.conn = sqlite3.connect(DB_PATH)
+
+    def get(
+        self,
+        start_date: datetime.date,
+        end_date: datetime.date,
+    ) -> pd.DataFrame:
         """取得所有股票的三大法人籌碼"""
 
         if start_date > end_date:
             return pd.DataFrame()
 
         query: str = f"""
-        SELECT * FROM {CHIP_TABLE_NAME} WHERE 日期 BETWEEN '{start_date}' AND '{end_date}'
+        SELECT * FROM {CHIP_TABLE_NAME} WHERE date BETWEEN '{start_date}' AND '{end_date}'
         """
         df: pd.DataFrame = pd.read_sql_query(query, self.conn)
         return df
 
     def get_stock_chip(
-        self, stock_id: str, start_date: datetime.date, end_date: datetime.date
+        self,
+        stock_id: str,
+        start_date: datetime.date,
+        end_date: datetime.date,
     ) -> pd.DataFrame:
         """取得指定個股的三大法人籌碼"""
 
@@ -35,13 +50,15 @@ class Chip:
             return pd.DataFrame()
 
         query: str = f"""
-        SELECT * FROM {CHIP_TABLE_NAME} WHERE 證券代號 = '{stock_id}' AND 日期 BETWEEN '{start_date}' AND '{end_date}'
+        SELECT * FROM {CHIP_TABLE_NAME} WHERE stock_id = '{stock_id}' AND date BETWEEN '{start_date}' AND '{end_date}'
         """
         df: pd.DataFrame = pd.read_sql_query(query, self.conn)
         return df
 
     def get_net_chip(
-        self, start_date: datetime.date, end_date: datetime.date
+        self,
+        start_date: datetime.date,
+        end_date: datetime.date,
     ) -> pd.DataFrame:
         """取得所有股票的三大法人淨買賣超"""
 
@@ -52,8 +69,8 @@ class Chip:
         df = df.loc[
             :,
             (
-                "日期",
-                "證券代號",
+                "date",
+                "stock_id",
                 "證券名稱",
                 "外資買賣超股數",
                 "投信買賣超股數",
@@ -63,7 +80,10 @@ class Chip:
         return df
 
     def get_stock_net_chip(
-        self, stock_id: str, start_date: datetime.date, end_date: datetime.date
+        self,
+        stock_id: str,
+        start_date: datetime.date,
+        end_date: datetime.date,
     ) -> pd.DataFrame:
         """取得指定個股的三大法人淨買賣超"""
 
@@ -74,8 +94,8 @@ class Chip:
         df = df.loc[
             :,
             (
-                "日期",
-                "證券代號",
+                "date",
+                "stock_id",
                 "證券名稱",
                 "外資買賣超股數",
                 "投信買賣超股數",
