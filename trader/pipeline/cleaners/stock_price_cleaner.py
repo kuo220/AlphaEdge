@@ -117,8 +117,10 @@ class StockPriceCleaner(BaseDataCleaner):
             ]
         DataUtils.move_col(df, "收盤價", "最低價")
         DataUtils.move_col(df, "漲跌價差", "收盤價")
-        df = DataUtils.remove_last_n_rows(df, n_rows = 2)
-        df = DataUtils.convert_col_to_numeric(df, exclude_cols = ["date", "stock_id", "證券名稱"])
+        df = DataUtils.remove_last_n_rows(df, n_rows=2)
+        df = DataUtils.convert_col_to_numeric(
+            df, exclude_cols=["date", "stock_id", "證券名稱"]
+        )
 
         df.to_csv(
             self.price_dir / f"tpex_{TimeUtils.format_date(date)}.csv",
