@@ -29,13 +29,30 @@ class StockPriceAPI(BaseDataAPI):
         start_date: datetime.date,
         end_date: datetime.date,
     ) -> pd.DataFrame:
-        """取得所有股票的Price"""
+        """取得所有股票的 Price"""
 
         if start_date > end_date:
             return pd.DataFrame()
 
         query: str = f"""
         SELECT * FROM {PRICE_TABLE_NAME} WHERE date BETWEEN '{start_date}' AND '{end_date}'
+        """
+        df: pd.DataFrame = pd.read_sql_query(query, self.conn)
+        return df
+
+    def get_stock_price(
+        self,
+        stock_id: str,
+        start_date: datetime.date,
+        end_date: datetime.date,
+    ) -> pd.DataFrame:
+        """取得指定個股的 Price"""
+
+        if start_date > end_date:
+            return pd.DataFrame()
+
+        query: str = f"""
+        SELECT * FROM {PRICE_TABLE_NAME} WHERE stock_id = '{stock_id}' AND date BETWEEN '{start_date}' AND '{end_date}'
         """
         df: pd.DataFrame = pd.read_sql_query(query, self.conn)
         return df
