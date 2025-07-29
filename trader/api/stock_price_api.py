@@ -24,12 +24,18 @@ class StockPriceAPI(BaseDataAPI):
         # 設定 log 檔案儲存路徑
         logger.add(f"{LOGS_DIR_PATH}/stock_price_api.log")
 
-    def get(
+    def get(self, date: datetime.date) -> pd.DataFrame:
+        """取得所有股票指定日期的 Price"""
+
+        query = f"SELECT * FROM {PRICE_TABLE_NAME} WHERE date = '{date}'"
+        return pd.read_sql_query(query, self.conn)
+
+    def get_range(
         self,
         start_date: datetime.date,
         end_date: datetime.date,
     ) -> pd.DataFrame:
-        """取得所有股票的 Price"""
+        """取得所有股票指定日期範圍的 Price"""
 
         if start_date > end_date:
             return pd.DataFrame()

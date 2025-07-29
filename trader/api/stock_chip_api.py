@@ -24,12 +24,19 @@ class StockChipAPI(BaseDataAPI):
         # 設定 log 檔案儲存路徑
         logger.add(f"{LOGS_DIR_PATH}/stock_chip_api.log")
 
-    def get(
+    def get(self, date: datetime.date) -> pd.DataFrame:
+        """取得所有股票指定日期的三大法人籌碼"""
+
+        query: str = f"SELECT * FROM {CHIP_TABLE_NAME} WHERE date = '{date}'"
+        df: pd.DataFrame = pd.read_sql_query(query, self.conn)
+        return df
+
+    def get_range(
         self,
         start_date: datetime.date,
         end_date: datetime.date,
     ) -> pd.DataFrame:
-        """取得所有股票的三大法人籌碼"""
+        """取得所有股票日期範圍內的三大法人籌碼"""
 
         if start_date > end_date:
             return pd.DataFrame()
