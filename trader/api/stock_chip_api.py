@@ -1,8 +1,5 @@
 import datetime
-import os
 import sqlite3
-import sys
-from pathlib import Path
 import pandas as pd
 
 from trader.api.base import BaseDataAPI
