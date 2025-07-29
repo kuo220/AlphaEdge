@@ -18,6 +18,7 @@ class StockChipAPI(BaseDataAPI):
     def setup(self):
         """Set Up the Config of Data API"""
 
+        # Set Up Connection
         self.conn = sqlite3.connect(DB_PATH)
 
         # 設定 log 檔案儲存路徑
