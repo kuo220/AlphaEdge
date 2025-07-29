@@ -16,7 +16,7 @@ class StockChipAPI(BaseDataAPI):
         self.setup()
 
     def setup(self):
-        """Set Up the Config of Cleaner"""
+        """Set Up the Config of Data API"""
 
         self.conn = sqlite3.connect(DB_PATH)
 

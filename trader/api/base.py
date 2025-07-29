@@ -14,5 +14,5 @@ class BaseDataAPI(ABC):
 
     @abstractmethod
     def setup(self):
-        """Set Up the Config of Cleaner"""
+        """Set Up the Config of Data API"""
         pass
