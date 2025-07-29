@@ -60,6 +60,9 @@ FINANCIAL_STATEMENT_META_DIR_PATH: Path = get_static_resolved_path(
 MONTHLY_REVENUE_REPORT_META_DIR_PATH: Path = get_static_resolved_path(
     base_dir=DOWNLOADS_METADATA_DIR_PATH, dir_name="monthly_revenue_report"
 )
+TICK_METADATA_PATH: Path = get_static_resolved_path(
+    base_dir=DOWNLOADS_METADATA_DIR_PATH, dir_name="tick_metadata.json"
+)
 
 
 # === Certs.cer ===
@@ -68,15 +71,6 @@ CERTS_DIR_PATH: Path = get_static_resolved_path(
 )
 CERTS_FILE_PATH: Path = get_static_resolved_path(
     base_dir=CERTS_DIR_PATH, dir_name="certs.cer"
-)
-
-
-# === Tick Metadata Directory Path ===
-DB_METADATA_DIR_PATH: Path = get_static_resolved_path(
-    base_dir=BASE_DIR_PATH, dir_name="database/meta"
-)
-TICK_METADATA_PATH: Path = get_static_resolved_path(
-    base_dir=DB_METADATA_DIR_PATH, dir_name="tick_metadata.json"
 )
 
 
