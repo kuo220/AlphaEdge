@@ -29,7 +29,7 @@ from tqdm import tqdm, tnrange, tqdm_notebook
 from ..utils.data_utils import DataUtils
 from ..utils.url_manager import URLManager
 from trader.config import (
-    CRAWLER_DOWNLOADS_PATH,
+    PIPELINE_DOWNLOADS_PATH,
     FINANCIAL_REPORT_PATH,
     QUANTX_DB_PATH,
     CERTS_FILE_PATH,
@@ -982,7 +982,7 @@ class QuantXCrawler:
         print("finish download")
 
         path: Path = (
-            CRAWLER_DOWNLOADS_PATH / f"financial_statement{year}{season}"
+            PIPELINE_DOWNLOADS_PATH / f"financial_statement{year}{season}"
         ).resolve()
 
         if path.is_dir():

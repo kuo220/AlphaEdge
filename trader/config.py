@@ -31,28 +31,28 @@ STOCK_STRATEGY_DIR_PATH: Path = get_static_resolved_path(
 
 
 # === Crawl Data Downloads Path ===
-CRAWLER_DOWNLOADS_PATH: Path = get_static_resolved_path(
+PIPELINE_DOWNLOADS_PATH: Path = get_static_resolved_path(
     base_dir=BASE_DIR_PATH, dir_name="pipeline/downloads"
 )
 FINANCIAL_STATEMENT_DOWNLOADS_PATH: Path = get_static_resolved_path(
-    base_dir=CRAWLER_DOWNLOADS_PATH, dir_name="financial_statement"
+    base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="financial_statement"
 )
 MONTHLY_REVENUE_REPORT_DOWNLOADS_PATH: Path = get_static_resolved_path(
-    base_dir=CRAWLER_DOWNLOADS_PATH, dir_name="monthly_revenue_report"
+    base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="monthly_revenue_report"
 )
 PRICE_DOWNLOADS_PATH: Path = get_static_resolved_path(
-    base_dir=CRAWLER_DOWNLOADS_PATH, dir_name="price"
+    base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="price"
 )
 CHIP_DOWNLOADS_PATH: Path = get_static_resolved_path(
-    base_dir=CRAWLER_DOWNLOADS_PATH, dir_name="chip"
+    base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="chip"
 )
 TICK_DOWNLOADS_PATH: Path = get_static_resolved_path(
-    base_dir=CRAWLER_DOWNLOADS_PATH, dir_name="tick"
+    base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="tick"
 )
 
 # === Crawler Downloads Metadata Directory Path ===
 DOWNLOADS_METADATA_DIR_PATH: Path = get_static_resolved_path(
-    base_dir=CRAWLER_DOWNLOADS_PATH, dir_name="meta"
+    base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="meta"
 )
 FINANCIAL_STATEMENT_META_DIR_PATH: Path = get_static_resolved_path(
     base_dir=DOWNLOADS_METADATA_DIR_PATH, dir_name="financial_statement"
@@ -60,23 +60,8 @@ FINANCIAL_STATEMENT_META_DIR_PATH: Path = get_static_resolved_path(
 MONTHLY_REVENUE_REPORT_META_DIR_PATH: Path = get_static_resolved_path(
     base_dir=DOWNLOADS_METADATA_DIR_PATH, dir_name="monthly_revenue_report"
 )
-
-
-# === Certs.cer ===
-CERTS_DIR_PATH: Path = get_static_resolved_path(
-    base_dir=BASE_DIR_PATH, dir_name="certs"
-)
-CERTS_FILE_PATH: Path = get_static_resolved_path(
-    base_dir=CERTS_DIR_PATH, dir_name="certs.cer"
-)
-
-
-# === Tick Metadata Directory Path ===
-DB_METADATA_DIR_PATH: Path = get_static_resolved_path(
-    base_dir=BASE_DIR_PATH, dir_name="database/meta"
-)
 TICK_METADATA_PATH: Path = get_static_resolved_path(
-    base_dir=DB_METADATA_DIR_PATH, dir_name="tick_metadata.json"
+    base_dir=DOWNLOADS_METADATA_DIR_PATH, dir_name="tick_metadata.json"
 )
 
 
@@ -98,6 +83,15 @@ COMPREHENSIVE_INCOME_TABLE_NAME: str = "comprehensive_income"
 CASH_FLOW_TABLE_NAME: str = "cash_flow"
 EQUITY_CHANGE_TABLE_NAME: str = "equity_change"
 TICK_METADATA_TABLE_NAME: str = "TICK_METADATA_TABLE_NAME"
+
+
+# === Certs.cer ===
+CERTS_DIR_PATH: Path = get_static_resolved_path(
+    base_dir=BASE_DIR_PATH, dir_name="certs"
+)
+CERTS_FILE_PATH: Path = get_static_resolved_path(
+    base_dir=CERTS_DIR_PATH, dir_name="certs.cer"
+)
 
 
 # === DolphinDB server setting ===

@@ -35,3 +35,4 @@ dependencies:
       - xxhash
       - sentry-sdk
       - fake-useragent
+      - nbstripout

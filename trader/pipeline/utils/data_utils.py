@@ -24,8 +24,16 @@ class DataUtils:
         df.insert(df.columns.get_loc(ref_col_name) + 1, col_name, col_data)
 
     @staticmethod
+    def remove_last_n_rows(df: pd.DataFrame, n_rows: int = 1) -> pd.DataFrame:
+        """刪除 DataFrame 中最後 n row"""
+
+        if len(df) <= n_rows:
+            return df.iloc[0:0]  # return empty DataFrame
+        return df.iloc[:-n_rows]
+
+    @staticmethod
     def remove_redundant_col(df: pd.DataFrame, col_name: str) -> pd.DataFrame:
-        """刪除 DataFrame 中指定欄位後面的所有欄位"""
+        """刪除 DataFrame 中指定 column 欄位後面的所有欄位"""
 
         if col_name in df.columns:
             last_col_loc: int = df.columns.get_loc(col_name)

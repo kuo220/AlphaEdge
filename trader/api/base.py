@@ -12,6 +12,7 @@ class BaseDataAPI(ABC):
     def __init__(self):
         pass
 
+    @abstractmethod
     def setup(self):
-        """Set Up the Config of Cleaner"""
+        """Set Up the Config of Data API"""
         pass

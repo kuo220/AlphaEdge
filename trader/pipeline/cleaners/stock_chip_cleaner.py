@@ -104,7 +104,8 @@ class StockChipCleaner(BaseDataCleaner):
         df = DataUtils.remove_redundant_col(df, "三大法人買賣超股數")
         df = DataUtils.fill_nan(df, 0)
         df.to_csv(
-            self.chip_dir / f"twse_{TimeUtils.format_date(date)}.csv", index=False
+            self.chip_dir / f"twse_{TimeUtils.format_date(date)}.csv",
+            index=False,
         )
 
         return df
@@ -196,7 +197,8 @@ class StockChipCleaner(BaseDataCleaner):
         df = DataUtils.remove_redundant_col(df, "三大法人買賣超股數")
         df = DataUtils.fill_nan(df, 0)
         df.to_csv(
-            self.chip_dir / f"tpex_{TimeUtils.format_date(date)}.csv", index=False
+            self.chip_dir / f"tpex_{TimeUtils.format_date(date)}.csv",
+            index=False,
         )
 
         return df
