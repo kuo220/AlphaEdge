@@ -1,19 +1,11 @@
-import shutil
 import sqlite3
 from loguru import logger
 import pandas as pd
-from pathlib import Path
-from typing import List
 
 from trader.api.base import BaseDataAPI
-from trader.pipeline.utils.data_utils import DataUtils
-from trader.pipeline.utils.sqlite_utils import SQLiteUtils
-from trader.pipeline.utils import FinancialStatementType
 from trader.config import (
     DB_PATH,
     LOGS_DIR_PATH,
-    FINANCIAL_STATEMENT_DOWNLOADS_PATH,
-    FINANCIAL_STATEMENT_META_DIR_PATH,
 )
 
 
