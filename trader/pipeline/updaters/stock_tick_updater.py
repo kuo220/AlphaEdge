@@ -1,6 +1,7 @@
 import datetime
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
+from threading import Lock
 from typing import List, Optional, Any
 import pandas as pd
 import shioaji as sj
@@ -63,6 +64,7 @@ class StockTickUpdater(BaseDataUpdater):
 
         # 目前 tickDB 最新資料日期
         self.table_latest_date: Optional[datetime.date] = None
+        self.table_latest_date_lock: Lock = Lock()
         self.tick_dir: Path = TICK_DOWNLOADS_PATH
         self.setup()
 
@@ -94,6 +96,14 @@ class StockTickUpdater(BaseDataUpdater):
 
         # Step 2: Load
         self.loader.add_to_db(remove_file=False)
+
+        # 更新後重新取得最新日期並記錄
+        if self.table_latest_date:
+            logger.info(
+                f"* Tick data updated. Latest available date: {self.table_latest_date}"
+            )
+        else:
+            logger.warning("* No new tick data was updated.")
 
     def update_thread(
         self,
@@ -138,8 +148,6 @@ class StockTickUpdater(BaseDataUpdater):
 
                 if df is not None and not df.empty:
                     df_list.append(df)
-                    # Update table latest date
-                    latest_date = max(latest_date or date, date)
 
             if not df_list:
                 logger.warning(
@@ -157,6 +165,13 @@ class StockTickUpdater(BaseDataUpdater):
 
                 if cleaned_df is None or cleaned_df.empty:
                     logger.warning(f"Cleaned dataframe empty for {stock_id}.")
+
+                # 更新 table 最新日期（thread-safe）
+                if latest_date:
+                    with self.table_latest_date_lock:
+                        self.table_latest_date = max(
+                            self.table_latest_date or latest_date, latest_date
+                        )
 
             except Exception as e:
                 logger.error(f"Error cleaning tick data for {stock_id}: {e}")
@@ -179,8 +194,8 @@ class StockTickUpdater(BaseDataUpdater):
             self.all_stock_list, self.num_threads
         )
 
-        futures: List[Future] = []
         # Multi-threading
+        futures: List[Future] = []
         with ThreadPoolExecutor(max_workers=self.num_threads) as executor:
             for api, stock_list in zip(self.api_list, self.split_stock_list):
                 futures.append(

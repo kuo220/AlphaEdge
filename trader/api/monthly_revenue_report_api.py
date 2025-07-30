@@ -35,7 +35,11 @@ class MonthlyRevenueReportAPI(BaseDataAPI):
         # 設定 log 檔案儲存路徑
         logger.add(f"{LOGS_DIR_PATH}/monthly_revenue_report_api.log")
 
-    def get(self, year: int, month: int,) -> pd.DataFrame:
+    def get(
+        self,
+        year: int,
+        month: int,
+    ) -> pd.DataFrame:
         """取得指定年度跟季度的月營收報表"""
 
         query: str = f"""

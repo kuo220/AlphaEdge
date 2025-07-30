@@ -16,7 +16,28 @@ Make sure to run this file from the project root to ensure all relative imports 
 """
 
 
-def parse_arguments():
+"""
+* run.py 使用方式說明 *
+
+- Description:
+    本檔案為交易系統的主程式入口，用於執行指定策略的回測或實盤操作。
+
+- Parameters:
+    - --mode: str
+        執行模式，可選 "backtest" 或 "live"，預設為 "backtest"
+    - --strategy: str
+        指定要使用的策略類別名稱（必填）
+
+- Usage Example:
+    - 執行回測模式，使用名為 "MeanReversion" 的策略：
+        python run.py --strategy MeanReversion
+
+    - 執行實盤模式，使用名為 "Momentum" 的策略：
+        python run.py --mode live --strategy Momentum
+"""
+
+
+def parse_arguments() -> argparse.Namespace:
     parser: argparse.ArgumentParser = argparse.ArgumentParser(
         description="Trading System"
     )
@@ -29,7 +50,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def main():
+def main() -> None:
     args: argparse.Namespace = parse_arguments()
     strategy_name: str = args.strategy
 
