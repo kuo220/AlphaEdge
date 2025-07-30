@@ -55,18 +55,18 @@ from trader.pipeline.utils import DataType
 
 - Usage Example:
     - 僅更新 tick：
-        python update_all.py --target tick
+        python update_db.py --target tick
 
     - 更新三大法人與收盤價：
-        python update_all.py --target chip price
+        python update_db.py --target chip price
 
     - 更新所有資料（不含 tick）：
-        python update_all.py --target no_tick
+        python update_db.py --target no_tick
         or
-        python update_all.py
+        python update_db.py
 
     - 更新所有資料（含 tick）：
-        python update_all.py --target all
+        python update_db.py --target all
 """
 
 

@@ -14,7 +14,7 @@ from trader.utils import TimeUtils
 """
 三大法人爬蟲資料時間表：
 1. TWSE
-    - TWSE: 2012 (ROC: 101)/5/2 開始提供（這邊從 2014/12/1 開始爬）
+    - TWSE: 2012 (ROC: 101)/5/2 開始提供
     - TWSE 改制時間: 2014/12/1, 2017/12/18
 2. TPEX
     - TPEX: 2007 (ROC: 96)/4/20 開始提供
