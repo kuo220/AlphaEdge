@@ -162,8 +162,7 @@ class StockTickUpdater(BaseDataUpdater):
                 if latest_date:
                     with self.table_latest_date_lock:
                         self.table_latest_date = max(
-                            self.table_latest_date or latest_date,
-                            latest_date
+                            self.table_latest_date or latest_date, latest_date
                         )
 
             except Exception as e:

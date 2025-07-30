@@ -18,8 +18,9 @@ stock_tick_updater: StockTickUpdater = StockTickUpdater()
 stock_chip_updater: StockChipUpdater = StockChipUpdater()
 stock_price_updater: StockPriceUpdater = StockPriceUpdater()
 financial_statement_updater: FinancialStatementUpdater = FinancialStatementUpdater()
-monthly_revenue_report_updater: MonthlyRevenueReportUpdater = MonthlyRevenueReportUpdater()
-
+monthly_revenue_report_updater: MonthlyRevenueReportUpdater = (
+    MonthlyRevenueReportUpdater()
+)
 
 
 if __name__ == "__main__":
