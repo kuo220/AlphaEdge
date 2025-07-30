@@ -209,6 +209,13 @@ class FinancialStatementUpdater(BaseDataUpdater):
             remove_files=False,
         )
 
+        # 更新後重新取得最新年月
+        self.get_table_latest_year(BALANCE_SHEET_TABLE_NAME)
+        self.get_table_latest_season(BALANCE_SHEET_TABLE_NAME)
+        logger.info(
+            f"* Balance sheet data updated. Latest available date: {self.table_latest_year}Q{self.table_latest_season}"
+        )
+
     def update_comprehensive_income(
         self,
         start_year: int,
@@ -267,6 +274,13 @@ class FinancialStatementUpdater(BaseDataUpdater):
             dir_path=self.comprehensive_income_dir,
             table_name=COMPREHENSIVE_INCOME_TABLE_NAME,
             remove_files=False,
+        )
+
+        # 更新後重新取得最新年月
+        self.get_table_latest_year(COMPREHENSIVE_INCOME_TABLE_NAME)
+        self.get_table_latest_season(COMPREHENSIVE_INCOME_TABLE_NAME)
+        logger.info(
+            f"* Comprehensive income data updated. Latest available date: {self.table_latest_year}Q{self.table_latest_season}"
         )
 
     def update_cash_flow(
@@ -329,6 +343,13 @@ class FinancialStatementUpdater(BaseDataUpdater):
             remove_files=False,
         )
 
+        # 更新後重新取得最新年月
+        self.get_table_latest_year(CASH_FLOW_TABLE_NAME)
+        self.get_table_latest_season(CASH_FLOW_TABLE_NAME)
+        logger.info(
+            f"* Cash flow data updated. Latest available date: {self.table_latest_year}Q{self.table_latest_season}"
+        )
+
     def update_equity_changes(
         self,
         start_year: int,
@@ -389,6 +410,13 @@ class FinancialStatementUpdater(BaseDataUpdater):
             dir_path=self.equity_change_dir,
             table_name=EQUITY_CHANGE_TABLE_NAME,
             remove_files=False,
+        )
+
+        # 更新後重新取得最新年月
+        self.get_table_latest_year(EQUITY_CHANGE_TABLE_NAME)
+        self.get_table_latest_season(EQUITY_CHANGE_TABLE_NAME)
+        logger.info(
+            f"* Equity changes data updated. Latest available date: {self.table_latest_year}Q{self.table_latest_season}"
         )
 
     def get_table_latest_year(
