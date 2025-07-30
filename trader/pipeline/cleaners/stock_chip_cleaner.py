@@ -122,6 +122,9 @@ class StockChipCleaner(BaseDataCleaner):
         if isinstance(df.columns, pd.MultiIndex) and df.columns.nlevels > 1:
             df.columns = df.columns.droplevel(0)
 
+        # Remove last row
+        df = DataUtils.remove_last_n_rows(df, n_rows=1)
+
         # date < 第一次格式改制（2014/12/1）
         if date < self.tpex_first_reform_date:
             df.columns = [DataUtils.standardize_column_name(col) for col in df.columns]
