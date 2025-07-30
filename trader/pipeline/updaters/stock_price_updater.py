@@ -104,6 +104,15 @@ class StockPriceUpdater(BaseDataUpdater):
         # Step 3: Load
         self.loader.add_to_db(remove_files=False)
 
+        # 更新後重新取得最新日期並記錄
+        self.get_table_latest_date(default_date=end_date)
+        if self.table_latest_date:
+            logger.info(
+                f"* Price data updated. Latest available date: {self.table_latest_date}"
+            )
+        else:
+            logger.warning("* No new price data was updated.")
+
     def get_table_latest_date(self, default_date: datetime.date) -> datetime.date:
         """Get table latest date"""
 

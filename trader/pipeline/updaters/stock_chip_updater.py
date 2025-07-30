@@ -18,10 +18,10 @@ from trader.config import DB_PATH, CHIP_TABLE_NAME, LOGS_DIR_PATH
 """
 三大法人爬蟲資料時間表：
 1. TWSE
-    - TWSE: 2012/5/2 開始提供（這邊從 2014/12/1 開始爬）
+    - TWSE: 2012/5/2 開始提供
     - TWSE 改制時間: 2014/12/1, 2017/12/18
 2. TPEX
-    - TPEX: 2007/4/20 開始提供 (這邊從 2014/12/1 開始爬)
+    - TPEX: 2007/4/20 開始提供
     - TPEX 改制時間: 2018/1/15
 """
 
@@ -104,6 +104,15 @@ class StockChipUpdater(BaseDataUpdater):
 
         # Step 3: Load
         self.loader.add_to_db(remove_files=False)
+
+        # 更新後重新取得最新日期並記錄
+        self.get_table_latest_date(default_date=end_date)
+        if self.table_latest_date:
+            logger.info(
+                f"* Chip data updated. Latest available date: {self.table_latest_date}"
+            )
+        else:
+            logger.warning("* No new chip data was updated.")
 
     def get_table_latest_date(self, default_date: datetime.date) -> datetime.date:
         """Get table latest date"""

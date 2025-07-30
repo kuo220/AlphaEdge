@@ -121,6 +121,21 @@ class MonthlyRevenueReportUpdater(BaseDataUpdater):
         # Step 3: Load
         self.loader.add_to_db(remove_files=False)
 
+        # 更新後重新取得最新年月
+        self.get_table_latest_year(
+            table_name=MONTHLY_REVENUE_TABLE_NAME, default_year=end_year
+        )
+        self.get_table_latest_month(
+            table_name=MONTHLY_REVENUE_TABLE_NAME, default_month=end_month
+        )
+
+        if self.table_latest_year and self.table_latest_month:
+            logger.info(
+                f"* Monthly revenue data updated. Latest available date: {self.table_latest_year}/{self.table_latest_month}"
+            )
+        else:
+            logger.warning("* No new monthly revenue data was updated.")
+
     def get_table_latest_year(
         self,
         table_name: str,
