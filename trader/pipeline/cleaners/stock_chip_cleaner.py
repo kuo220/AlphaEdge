@@ -16,7 +16,7 @@ class StockChipCleaner(BaseDataCleaner):
         super().__init__()
 
         # Chip DataFrame Cleaned Columns
-        self.chip_cleaned_columns: List[str] = None
+        self.chip_cleaned_cols: List[str] = None
 
         # The date that TWSE chip data format was reformed
         self.twse_first_reform_date: datetime.date = datetime.date(2014, 12, 1)
@@ -122,178 +122,97 @@ class StockChipCleaner(BaseDataCleaner):
         if isinstance(df.columns, pd.MultiIndex) and df.columns.nlevels > 1:
             df.columns = df.columns.droplevel(0)
 
-        # 先處理 raw df
-        # df.columns = [DataUtils.standardize_column_name(col) for col in df.columns]
-        # df.insert(0, "date", date)
-        # df = df.rename(columns={"代號": "stock_id", "名稱": "證券名稱"})
-
-        new_col_name: List[str] = [
-            "stock_id",
-            "證券名稱",
-            "外資買進股數",
-            "外資賣出股數",
-            "外資買賣超股數",
-            "投信買進股數",
-            "投信賣出股數",
-            "投信買賣超股數",
-            "自營商買賣超股數",
-            "自營商買進股數(自行買賣)",
-            "自營商賣出股數(自行買賣)",
-            "自營商買賣超股數(自行買賣)",
-            "自營商買進股數(避險)",
-            "自營商賣出股數(避險)",
-            "自營商買賣超股數(避險)",
-            "三大法人買賣超股數",
-        ]
-
-        # 格式改制前
+        # date < 第一次格式改制（2014/12/1）
         if date < self.tpex_first_reform_date:
-            old_col_name: List[str] = [
-                "代號",
-                "名稱",
-                "外資及陸資買股數",
-                "外資及陸資賣股數",
-                "外資及陸資淨買股數",
+            df.columns = [DataUtils.standardize_column_name(col) for col in df.columns]
+            old_col_name: List[str] = list(df.columns)
+            new_col_name: List[str] = [
+                "stock_id",
+                "證券名稱",
+                "外資買進股數",
+                "外資賣出股數",
+                "外資買賣超股數",
                 "投信買進股數",
-                "投信賣股數",
-                "投信淨買股數",
-                "自營商買股數",
-                "自營商賣股數",
-                "自營商淨買股數",
+                "投信賣出股數",
+                "投信買賣超股數",
+                "自營商買進股數",
+                "自營商賣出股數",
+                "自營商買賣超股數",
             ]
-
             rename_map = dict(zip(old_col_name, new_col_name))
             df = df.rename(columns=rename_map)
-        # 格式改制後
-        else:
-            new_df: pd.DataFrame = pd.DataFrame(columns=new_col_name)
-            new_df["stock_id"] = df.loc[:, ("代號", "代號")]
-            new_df["證券名稱"] = df.loc[:, ("名稱", "名稱")]
-            new_df["外資買進股數"] = df.loc[:, ("外資及陸資", "買進股數")]
-            new_df["外資賣出股數"] = df.loc[:, ("外資及陸資", "賣出股數")]
-            new_df["外資買賣超股數"] = df.loc[:, ("外資及陸資", "買賣超股數")]
-            new_df["投信買進股數"] = df.loc[:, ("投信", "買進股數")]
-            new_df["投信賣出股數"] = df.loc[:, ("投信", "賣出股數")]
-            new_df["投信買賣超股數"] = df.loc[:, ("投信", "買賣超股數")]
-            new_df["自營商買賣超股數"] = df.loc[:, ("自營商", "買賣超股數")]
-            new_df["自營商買進股數_自行買賣"] = df.loc[
-                :, ("自營商(自行買賣)", "買進股數")
-            ]
-            new_df["自營商賣出股數_自行買賣"] = df.loc[
-                :, ("自營商(自行買賣)", "賣出股數")
-            ]
-            new_df["自營商買賣超股數_自行買賣"] = df.loc[
-                :, ("自營商(自行買賣)", "買賣超股數")
-            ]
-            new_df["自營商買進股數_避險"] = df.loc[:, ("自營商(避險)", "買進股數")]
-            new_df["自營商賣出股數_避險"] = df.loc[:, ("自營商(避險)", "賣出股數")]
-            new_df["自營商買賣超股數_避險"] = df.loc[:, ("自營商(避險)", "買賣超股數")]
-            new_df["三大法人買賣超股數"] = df.loc[
-                :, ("三大法人買賣超 股數合計", "三大法人買賣超 股數合計")
-            ]
-            df = new_df
+            df.insert(0, "date", date)
+            df["三大法人買賣超股數"] = (
+                df.get("外資買賣超股數", 0)
+                + df.get("投信買賣超股數", 0)
+                + df.get("自營商買賣超股數", 0)
+            )
 
-        df = df.iloc[:-1]  # 刪掉最後一個 row
-        df.insert(0, "date", date)
-        DataUtils.move_col(df, "自營商買賣超股數", "自營商買賣超股數_避險")
-        df = DataUtils.remove_redundant_col(df, "三大法人買賣超股數")
-        df = DataUtils.fill_nan(df, 0)
-        df.to_csv(
+            aligned_df: pd.DataFrame = df.reindex(
+                columns=self.chip_cleaned_cols, fill_value=0
+            )
+
+        # 第一次格式改制 <= date < 第二次格式改制（2018/1/15）
+        elif self.tpex_first_reform_date <= date < self.tpex_second_reform_date:
+            df.columns = [DataUtils.standardize_column_name(col) for col in df.columns]
+            old_col_name: List[str] = list(df.columns)
+            new_col_name: List[str] = [
+                "stock_id",
+                "證券名稱",
+                "外資買進股數",
+                "外資賣出股數",
+                "外資買賣超股數",
+                "投信買進股數",
+                "投信賣出股數",
+                "投信買賣超股數",
+                "自營商買賣超股數",
+                "自營商買進股數(自行買賣)",
+                "自營商賣出股數(自行買賣)",
+                "自營商買賣超股數(自行買賣)",
+                "自營商買進股數(避險)",
+                "自營商賣出股數(避險)",
+                "自營商買賣超股數(避險)",
+                "三大法人買賣超股數",
+            ]
+            rename_map = dict(zip(old_col_name, new_col_name))
+            df = df.rename(columns=rename_map)
+            df.insert(0, "date", date)
+
+            aligned_df: pd.DataFrame = df.reindex(
+                columns=self.chip_cleaned_cols, fill_value=0
+            )
+
+        # date >= 第二次格式改制（2018/1/15）
+        elif date >= self.tpex_second_reform_date:
+            # 因為 df.columns 是 MultiIndex(2層)，所以將其轉為1層
+            df.columns = [
+                f"{col1}{col2}" if col1 != col2 else col1 for col1, col2 in df.columns
+            ]
+            df.columns = [DataUtils.standardize_column_name(col) for col in df.columns]
+            drop_cols = [
+                "外資及陸資(不含外資自營商)買進股數",
+                "外資及陸資(不含外資自營商)賣出股數",
+                "外資及陸資(不含外資自營商)買賣超股數",
+                "外資自營商買進股數",
+                "外資自營商賣出股數",
+                "外資自營商買賣超股數",
+            ]
+            df = df.drop(columns=drop_cols)
+            df.insert(0, "date", date)
+
+            # Rename df.columns
+            old_col_name: List[str] = list(df.columns)
+            new_col_name: List[str] = self.chip_cleaned_cols
+            rename_map = dict(zip(old_col_name, new_col_name))
+            df = df.rename(columns=rename_map)
+
+            aligned_df: pd.DataFrame = df.reindex(
+                columns=self.chip_cleaned_cols, fill_value=0
+            )
+
+        aligned_df.to_csv(
             self.chip_dir / f"tpex_{TimeUtils.format_date(date)}.csv",
             index=False,
         )
 
-        return df
-
-    # def clean_tpex_chip(
-    #     self,
-    #     df: pd.DataFrame,
-    #     date: datetime.date,
-    # ) -> pd.DataFrame:
-    #     """Clean TPEX Stock Chip Data"""
-
-    #     if isinstance(df.columns, pd.MultiIndex) and df.columns.nlevels > 1:
-    #         df.columns = df.columns.droplevel(0)
-
-    #     # 先處理 raw df
-    #     df.columns = [DataUtils.standardize_column_name(col) for col in df.columns]
-    #     df.insert(0, "date", date)
-    #     df = df.rename(columns={"代號": "stock_id", "名稱": "證券名稱"})
-
-    #     new_col_name: List[str] = [
-    #         "stock_id",
-    #         "證券名稱",
-    #         "外資買進股數",
-    #         "外資賣出股數",
-    #         "外資買賣超股數",
-    #         "投信買進股數",
-    #         "投信賣出股數",
-    #         "投信買賣超股數",
-    #         "自營商買賣超股數",
-    #         "自營商買進股數(自行買賣)",
-    #         "自營商賣出股數(自行買賣)",
-    #         "自營商買賣超股數(自行買賣)",
-    #         "自營商買進股數(避險)",
-    #         "自營商賣出股數(避險)",
-    #         "自營商買賣超股數(避險)",
-    #         "三大法人買賣超股數",
-    #     ]
-
-    #     # 格式改制前
-    #     if date < self.tpex_first_reform_date:
-    #         old_col_name: List[str] = [
-    #             "代號",
-    #             "名稱",
-    #             "外資及陸資買股數",
-    #             "外資及陸資賣股數",
-    #             "外資及陸資淨買股數",
-    #             "投信買進股數",
-    #             "投信賣股數",
-    #             "投信淨買股數",
-    #             "自營商買股數",
-    #             "自營商賣股數",
-    #             "自營商淨買股數",
-    #         ]
-
-    #         rename_map = dict(zip(old_col_name, new_col_name))
-    #         df = df.rename(columns=rename_map)
-    #     # 格式改制後
-    #     else:
-    #         new_df: pd.DataFrame = pd.DataFrame(columns=new_col_name)
-    #         new_df["stock_id"] = df.loc[:, ("代號", "代號")]
-    #         new_df["證券名稱"] = df.loc[:, ("名稱", "名稱")]
-    #         new_df["外資買進股數"] = df.loc[:, ("外資及陸資", "買進股數")]
-    #         new_df["外資賣出股數"] = df.loc[:, ("外資及陸資", "賣出股數")]
-    #         new_df["外資買賣超股數"] = df.loc[:, ("外資及陸資", "買賣超股數")]
-    #         new_df["投信買進股數"] = df.loc[:, ("投信", "買進股數")]
-    #         new_df["投信賣出股數"] = df.loc[:, ("投信", "賣出股數")]
-    #         new_df["投信買賣超股數"] = df.loc[:, ("投信", "買賣超股數")]
-    #         new_df["自營商買賣超股數"] = df.loc[:, ("自營商", "買賣超股數")]
-    #         new_df["自營商買進股數_自行買賣"] = df.loc[
-    #             :, ("自營商(自行買賣)", "買進股數")
-    #         ]
-    #         new_df["自營商賣出股數_自行買賣"] = df.loc[
-    #             :, ("自營商(自行買賣)", "賣出股數")
-    #         ]
-    #         new_df["自營商買賣超股數_自行買賣"] = df.loc[
-    #             :, ("自營商(自行買賣)", "買賣超股數")
-    #         ]
-    #         new_df["自營商買進股數_避險"] = df.loc[:, ("自營商(避險)", "買進股數")]
-    #         new_df["自營商賣出股數_避險"] = df.loc[:, ("自營商(避險)", "賣出股數")]
-    #         new_df["自營商買賣超股數_避險"] = df.loc[:, ("自營商(避險)", "買賣超股數")]
-    #         new_df["三大法人買賣超股數"] = df.loc[
-    #             :, ("三大法人買賣超 股數合計", "三大法人買賣超 股數合計")
-    #         ]
-    #         df = new_df
-
-    #     df = df.iloc[:-1]  # 刪掉最後一個 row
-    #     df.insert(0, "date", date)
-    #     DataUtils.move_col(df, "自營商買賣超股數", "自營商買賣超股數_避險")
-    #     df = DataUtils.remove_redundant_col(df, "三大法人買賣超股數")
-    #     df = DataUtils.fill_nan(df, 0)
-    #     df.to_csv(
-    #         self.chip_dir / f"tpex_{TimeUtils.format_date(date)}.csv",
-    #         index=False,
-    #     )
-
-    #     return df
+        return aligned_df
