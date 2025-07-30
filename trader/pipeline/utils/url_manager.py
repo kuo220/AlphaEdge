@@ -13,8 +13,9 @@ class URLManager:
         "TPEX_CODE_URL": "https://isin.twse.com.tw/isin/C_public.jsp?strMode=4",
         # 上市公司籌碼 URL
         "TWSE_CHIP_URL": "https://www.twse.com.tw/rwd/zh/fund/T86?date={date}&selectType=ALLBUT0999&response=html",
-        # 上櫃公司籌碼 URL
-        "TPEX_CHIP_URL": "https://www.tpex.org.tw/www/zh-tw/insti/dailyTrade?type=Daily&sect=EW&date={date}&id=&response=html",
+        # 上櫃公司籌碼 URL (URL1: 2007/4/21 ~ 2014/11/30, URL2: 2014/12/1 ~ present)
+        "TPEX_CHIP_URL_1": "https://www.tpex.org.tw/www/zh-tw/insti/dailyTradeHis?type=Daily&cate=EW&date={date}&id=&response=html",
+        "TPEX_CHIP_URL_2": "https://www.tpex.org.tw/www/zh-tw/insti/dailyTrade?type=Daily&sect=EW&date={date}&id=&response=html",
         # 發行量加權股價報酬指數
         "TAIEX_RETURN_INDEX": "https://www.twse.com.tw/rwd/zh/TAIEX/MFI94U?date={date}01&response=html",
         # 上市信用交易統計（Summary）

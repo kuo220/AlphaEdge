@@ -14,10 +14,12 @@ from trader.utils import TimeUtils
 """
 三大法人爬蟲資料時間表：
 1. TWSE
-    - TWSE: 2012/5/2 開始提供（這邊從 2014/12/1 開始爬）
+    - TWSE: 2012 (ROC: 101)/5/2 開始提供（這邊從 2014/12/1 開始爬）
     - TWSE 改制時間: 2014/12/1, 2017/12/18
 2. TPEX
-    - TPEX: 2007/4/20 開始提供 (這邊從 2014/12/1 開始爬)
+    - TPEX: 2007 (ROC: 96)/4/20 開始提供
+        - URL1: 2007/4/21 ~ 2014 (ROC: 103)/11/30
+        - URL2: 2014/12/1 ~ present
     - TPEX 改制時間: 2018/1/15
 """
 
@@ -27,6 +29,9 @@ class StockChipCrawler(BaseDataCrawler):
 
     def __init__(self):
         super().__init__()
+
+        # TPEX URL Change Date
+        self.tpex_url_change_date: datetime.date = datetime.date(2014, 12, 1)
 
     def setup(self) -> None:
         """Set Up the Config of Crawler"""
@@ -68,7 +73,12 @@ class StockChipCrawler(BaseDataCrawler):
         logger.info("* Start crawling TPEX institutional investors data...")
         logger.info(date_str)
 
-        tpex_url: str = URLManager.get_url("TPEX_CHIP_URL", date=date_str)
+        # 根據 TPEX URL 改制時間取得對應的 URL
+        if date < self.tpex_url_change_date:
+            tpex_url: str = URLManager.get_url("TPEX_CHIP_URL_1", date=date_str)
+        elif date >= self.tpex_url_change_date:
+            tpex_url: str = URLManager.get_url("TPEX_CHIP_URL_2", date=date_str)
+
         logger.info(tpex_url)
         tpex_response: requests.Response = RequestUtils.requests_get(tpex_url)
 
