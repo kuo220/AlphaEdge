@@ -1,5 +1,0 @@
-# Ignore all files
-*
-
-# But keep this folder structure in Git
-!.gitignore
