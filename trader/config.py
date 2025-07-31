@@ -44,7 +44,7 @@ PRICE_DOWNLOADS_PATH: Path = get_static_resolved_path(
     base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="price"
 )
 CHIP_DOWNLOADS_PATH: Path = get_static_resolved_path(
-    base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="chip_2"
+    base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="chip"
 )
 TICK_DOWNLOADS_PATH: Path = get_static_resolved_path(
     base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="tick"

@@ -72,7 +72,7 @@ class StockChipLoader(BaseDataLoader):
             "自營商賣出股數" INT,
             "自營商買賣超股數" INT NOT NULL,
             "三大法人買賣超股數" INT NOT NULL,
-            PRIMARY KEY (date, stock_id, 證券名稱)
+            PRIMARY KEY ("date", "stock_id", "證券名稱")
         );
         """
         # PRIMARY KEY (date, stock_id)

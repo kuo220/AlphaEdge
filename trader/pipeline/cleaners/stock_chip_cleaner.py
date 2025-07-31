@@ -207,7 +207,6 @@ class StockChipCleaner(BaseDataCleaner):
         aligned_df: pd.DataFrame = df.reindex(
             columns=self.chip_cleaned_cols, fill_value=0
         )
-
         aligned_df = DataUtils.convert_col_to_numeric(aligned_df, exclude_cols=["date", "stock_id", "證券名稱"])
         aligned_df = DataUtils.fill_nan(aligned_df, 0)
 
