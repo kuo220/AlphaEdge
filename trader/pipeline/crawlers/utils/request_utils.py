@@ -32,7 +32,7 @@ class RequestUtils:
 
         for i in range(10):
             try:
-                logger.info("獲取新的Session 第", i, "回合")
+                logger.info(f"獲取新的Session 第 {i} 回合")
                 headers = cls.generate_random_header()
                 ses = requests.Session()
                 ses.get(url, headers=headers, timeout=10)
