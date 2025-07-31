@@ -64,7 +64,7 @@ class RequestUtils:
                 logger.info(error)
                 logger.info(f"retry one more time after 60s {2 - i} times left")
                 time.sleep(60)
-                cls.find_best_session()
+                cls.find_best_session(url)
         return None
 
     @classmethod
@@ -81,5 +81,5 @@ class RequestUtils:
                 logger.info(error)
                 logger.info(f"retry one more time after 60s {2 - i} times left")
                 time.sleep(60)
-                cls.find_best_session()
+                cls.find_best_session(url)
         return None
