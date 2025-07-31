@@ -60,7 +60,7 @@ class StockChipCrawler(BaseDataCrawler):
             if twse_df.empty:
                 logger.info("No data in table. Possibly not yet updated.")
                 return None
-        except Exception as e:
+        except Exception:
             logger.info(f"{date} is a Holiday!")
             return None
 
@@ -84,7 +84,7 @@ class StockChipCrawler(BaseDataCrawler):
 
         try:
             tpex_df: pd.DataFrame = pd.read_html(StringIO(tpex_response.text))[0]
-        except Exception as e:
+        except Exception:
             logger.info(f"{date} is a Holiday!")
             return None
 
@@ -97,10 +97,7 @@ class StockChipCrawler(BaseDataCrawler):
             return None
 
         # 檢查是否為假日
-        if tpex_df.empty:
-            logger.info("No data in TPEX table. Possibly not updated yet.")
-            return None
-        if tpex_df.shape[0] == 1:
+        if tpex_df.empty or tpex_df.shape[0] == 1:
             logger.info(f"{date} is a Holiday!")
             return None
 
