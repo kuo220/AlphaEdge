@@ -55,18 +55,18 @@ from trader.pipeline.utils import DataType
 
 - Usage Example:
     - 僅更新 tick：
-        python update_db.py --target tick
+        python -m tasks.update_db.py --target tick
 
     - 更新三大法人與收盤價：
-        python update_db.py --target chip price
+        python -m tasks.update_db.py --target chip price
 
     - 更新所有資料（不含 tick）：
-        python update_db.py --target no_tick
+        python -m tasks.update_db.py --target no_tick
         or
-        python update_db.py
+        python -m tasks.update_db.py
 
     - 更新所有資料（含 tick）：
-        python update_db.py --target all
+        python -m tasks.update_db.py --target all
 """
 
 
@@ -89,7 +89,7 @@ def get_update_time_config() -> Dict[str, datetime.date | int]:
     return {
         "start_date": datetime.date(2013, 1, 1),
         # "end_date": datetime.date.today(),
-        "end_date": datetime.date(2025, 7, 30),
+        "end_date": datetime.date(2013, 1, 2),
         "start_year": 2013,
         "end_year": 2025,
         "start_month": 1,
