@@ -74,14 +74,14 @@ class StockPriceUpdater(BaseDataUpdater):
             tpex_df: Optional[pd.DataFrame] = self.crawler.crawl_tpex_price(date)
 
             # Step 2: Clean
-            if twse_df is not None and not twse_df.empty:
+            if twse_df is not None and not twse_df.empty and len(twse_df) > 2:
                 cleaned_twse_df: pd.DataFrame = self.cleaner.clean_twse_price(
                     twse_df, date
                 )
                 if cleaned_twse_df is None or cleaned_twse_df.empty:
                     logger.warning(f"Cleaned TWSE dataframe empty on {date}.")
 
-            if tpex_df is not None and not tpex_df.empty:
+            if tpex_df is not None and not tpex_df.empty and len(tpex_df) > 2:
                 cleaned_tpex_df: pd.DataFrame = self.cleaner.clean_tpex_price(
                     tpex_df, date
                 )
