@@ -104,7 +104,12 @@ class StockChipCleaner(BaseDataCleaner):
                 columns=self.chip_cleaned_cols, fill_value=0
             )
 
+        aligned_df = DataUtils.convert_col_to_numeric(
+            aligned_df, exclude_cols=["date", "stock_id", "證券名稱"]
+        )
         aligned_df = DataUtils.fill_nan(aligned_df, 0)
+
+        # Save df to csv file
         aligned_df.to_csv(
             self.chip_dir / f"twse_{TimeUtils.format_date(date)}.csv",
             index=False,
@@ -151,10 +156,6 @@ class StockChipCleaner(BaseDataCleaner):
                 + df.get("自營商買賣超股數", 0)
             )
 
-            aligned_df: pd.DataFrame = df.reindex(
-                columns=self.chip_cleaned_cols, fill_value=0
-            )
-
         # 第一次格式改制 <= date < 第二次格式改制（2018/1/15）
         elif self.tpex_first_reform_date <= date < self.tpex_second_reform_date:
             df.columns = [DataUtils.standardize_column_name(col) for col in df.columns]
@@ -181,10 +182,6 @@ class StockChipCleaner(BaseDataCleaner):
             df = df.rename(columns=rename_map)
             df.insert(0, "date", date)
 
-            aligned_df: pd.DataFrame = df.reindex(
-                columns=self.chip_cleaned_cols, fill_value=0
-            )
-
         # date >= 第二次格式改制（2018/1/15）
         elif date >= self.tpex_second_reform_date:
             # 因為 df.columns 是 MultiIndex(2層)，所以將其轉為1層
@@ -209,10 +206,15 @@ class StockChipCleaner(BaseDataCleaner):
             rename_map = dict(zip(old_col_name, new_col_name))
             df = df.rename(columns=rename_map)
 
-            aligned_df: pd.DataFrame = df.reindex(
-                columns=self.chip_cleaned_cols, fill_value=0
-            )
+        aligned_df: pd.DataFrame = df.reindex(
+            columns=self.chip_cleaned_cols, fill_value=0
+        )
+        aligned_df = DataUtils.convert_col_to_numeric(
+            aligned_df, exclude_cols=["date", "stock_id", "證券名稱"]
+        )
+        aligned_df = DataUtils.fill_nan(aligned_df, 0)
 
+        # Save df to csv file
         aligned_df.to_csv(
             self.chip_dir / f"tpex_{TimeUtils.format_date(date)}.csv",
             index=False,
