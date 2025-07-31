@@ -105,6 +105,8 @@ class StockChipCleaner(BaseDataCleaner):
             )
 
         aligned_df = DataUtils.fill_nan(aligned_df, 0)
+
+        # Save df to csv file
         aligned_df.to_csv(
             self.chip_dir / f"twse_{TimeUtils.format_date(date)}.csv",
             index=False,
@@ -213,6 +215,9 @@ class StockChipCleaner(BaseDataCleaner):
                 columns=self.chip_cleaned_cols, fill_value=0
             )
 
+        aligned_df = DataUtils.fill_nan(aligned_df, 0)
+
+        # Save df to csv file
         aligned_df.to_csv(
             self.chip_dir / f"tpex_{TimeUtils.format_date(date)}.csv",
             index=False,
