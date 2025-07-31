@@ -89,7 +89,7 @@ def get_update_time_config() -> Dict[str, datetime.date | int]:
     return {
         "start_date": datetime.date(2013, 1, 1),
         # "end_date": datetime.date.today(),
-        "end_date": datetime.date(2013, 1, 5),
+        "end_date": datetime.date(2025, 7, 30),
         "start_year": 2013,
         "end_year": 2025,
         "start_month": 1,
