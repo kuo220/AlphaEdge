@@ -51,7 +51,8 @@ from trader.pipeline.utils import DataType
             - all: 更新所有資料（包含 tick）
             - no_tick: 更新所有資料（不包含 tick）
 
-        預設為 all，可同時指定多個目標
+        預設為 no_tick，可同時指定多個目標
+        E.g. python -m tasks.update_db --target chip price tick
 
 - Usage Example:
     - 僅更新 tick：
