@@ -39,9 +39,6 @@ class StockPriceUpdater(BaseDataUpdater):
         self.cleaner: StockPriceCleaner = StockPriceCleaner()
         self.loader: StockPriceLoader = StockPriceLoader()
 
-        # Table latest day
-        self.table_latest_date: Optional[datetime.date] = None
-
         self.setup()
 
     def setup(self) -> None:
@@ -64,8 +61,8 @@ class StockPriceUpdater(BaseDataUpdater):
         logger.info("* Start Updating TWSE & TPEX Price Data...")
 
         # Step 1: Crawl
-        # 取得最近更新的日期
-        start_date = self.get_table_latest_date(default_date=start_date)
+        # 取得要開始更新的日期
+        start_date = self.get_actual_update_start_date(default_date=start_date)
         logger.info(f"Latest data date in database: {start_date}")
         # Set Up Update Period
         dates: List[datetime.date] = TimeUtils.generate_date_range(start_date, end_date)
@@ -104,24 +101,35 @@ class StockPriceUpdater(BaseDataUpdater):
         # Step 3: Load
         self.loader.add_to_db(remove_files=False)
 
-        # 更新後重新取得最新日期並記錄
-        self.get_table_latest_date(default_date=end_date)
-        if self.table_latest_date:
+        # 更新後重新取得Table最新的日期
+        table_latest_date: str = SQLiteUtils.get_table_latest_value(
+            conn=self.conn,
+            table_name=PRICE_TABLE_NAME,
+            col_name="date",
+        )
+        if table_latest_date:
             logger.info(
-                f"* Price data updated. Latest available date: {self.table_latest_date}"
+                f"* Chip data updated. Latest available date: {table_latest_date}"
             )
         else:
-            logger.warning("* No new price data was updated.")
+            logger.warning("* No new chip data was updated.")
 
-    def get_table_latest_date(self, default_date: datetime.date) -> datetime.date:
-        """Get table latest date"""
+    def get_actual_update_start_date(
+        self, default_date: datetime.date
+    ) -> datetime.date:
+        """Get the actual start date for updating (1 day after latest date in table, or default_date)"""
 
         latest_date: Optional[str] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn, table_name=PRICE_TABLE_NAME, col_name="date"
+            conn=self.conn,
+            table_name=PRICE_TABLE_NAME,
+            col_name="date",
         )
-        self.table_latest_date = (
-            datetime.datetime.strptime(latest_date, "%Y-%m-%d").date()
-            if latest_date is not None
-            else default_date
-        )
-        return self.table_latest_date
+
+        if latest_date is not None:
+            table_latest_date: datetime.date = datetime.datetime.strptime(
+                latest_date,
+                "%Y-%m-%d",
+            ).date()
+            return table_latest_date + datetime.timedelta(days=1)
+        else:
+            return default_date

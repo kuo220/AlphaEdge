@@ -85,7 +85,7 @@ class StockTickUpdater(BaseDataUpdater):
         """Update the Database"""
 
         # 取得最近更新的日期
-        start_date = self.get_table_latest_date(default_date=start_date)
+        start_date = self.get_actual_update_start_date(default_date=start_date)
         logger.info(f"Latest data date in database: {start_date}")
 
         # Set Up Update Period
@@ -240,13 +240,8 @@ class StockTickUpdater(BaseDataUpdater):
             for i in range(n_parts)
         ]
 
-    def get_table_latest_date(self, default_date: datetime.date) -> datetime.date:
-        """Get table latest date"""
+    def get_actual_update_start_date(self) -> datetime.date:
+        """Get the actual start date for updating (1 day after latest date in table, or default_date)"""
 
         self.table_latest_date = StockTickUtils.get_table_latest_date()
-        start_date: datetime.date = (
-            self.table_latest_date
-            if default_date > self.table_latest_date
-            else default_date
-        )
-        return start_date
+        return self.table_latest_date + datetime.timedelta(days=1)
