@@ -32,7 +32,7 @@ class RequestUtils:
 
         for i in range(10):
             try:
-                logger.info("獲取新的Session 第", i, "回合")
+                logger.info(f"獲取新的Session 第 {i} 回合")
                 headers = cls.generate_random_header()
                 ses = requests.Session()
                 ses.get(url, headers=headers, timeout=10)
@@ -64,7 +64,7 @@ class RequestUtils:
                 logger.info(error)
                 logger.info(f"retry one more time after 60s {2 - i} times left")
                 time.sleep(60)
-                cls.find_best_session()
+                cls.find_best_session(url)
         return None
 
     @classmethod
@@ -81,5 +81,5 @@ class RequestUtils:
                 logger.info(error)
                 logger.info(f"retry one more time after 60s {2 - i} times left")
                 time.sleep(60)
-                cls.find_best_session()
+                cls.find_best_session(url)
         return None

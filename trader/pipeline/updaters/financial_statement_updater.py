@@ -4,7 +4,7 @@ import sqlite3
 import pandas as pd
 from pathlib import Path
 from loguru import logger
-from typing import List, Optional
+from typing import List, Tuple, Optional
 
 from trader.pipeline.updaters.base import BaseDataUpdater
 from trader.pipeline.crawlers.financial_statement_crawler import (
@@ -99,10 +99,6 @@ class FinancialStatementUpdater(BaseDataUpdater):
         self.cleaner: FinancialStatementCleaner = FinancialStatementCleaner()
         self.loader: FinancialStatementLoader = FinancialStatementLoader()
 
-        # Table latest year & season
-        self.table_latest_year: Optional[int] = None
-        self.table_latest_season: Optional[int] = None
-
         # Data directories for each report
         self.fs_dir: Path = FINANCIAL_STATEMENT_DOWNLOADS_PATH
         self.balance_sheet_dir: Path = (
@@ -160,13 +156,11 @@ class FinancialStatementUpdater(BaseDataUpdater):
         logger.info("* Start Updating Balance Sheet Data...")
 
         # Step 1: Crawl
-        # Set Up Update Period
-        # 取得最近更新的時間
-        start_year: int = self.get_table_latest_year(
-            table_name=BALANCE_SHEET_TABLE_NAME, default_year=start_year
-        )
-        start_season: int = self.get_table_latest_season(
-            table_name=BALANCE_SHEET_TABLE_NAME, default_season=start_season
+        # 取得要開始更新的年度、季度
+        start_year, start_season = self.get_actual_update_start_year_season(
+            table_name=BALANCE_SHEET_TABLE_NAME,
+            default_year=start_year,
+            default_season=start_season,
         )
         logger.info(f"Latest data date in database: {start_year}Q{start_season}")
         # Set Up Update Period
@@ -209,11 +203,15 @@ class FinancialStatementUpdater(BaseDataUpdater):
             remove_files=False,
         )
 
-        # 更新後重新取得最新年月
-        self.get_table_latest_year(BALANCE_SHEET_TABLE_NAME)
-        self.get_table_latest_season(BALANCE_SHEET_TABLE_NAME)
+        # 重新取得更新後的最新年度跟季度
+        table_latest_year: Optional[int] = SQLiteUtils.get_table_latest_value(
+            conn=self.conn, table_name=BALANCE_SHEET_TABLE_NAME, col_name="year"
+        )
+        table_latest_season: Optional[int] = SQLiteUtils.get_table_latest_value(
+            conn=self.conn, table_name=BALANCE_SHEET_TABLE_NAME, col_name="season"
+        )
         logger.info(
-            f"* Balance sheet data updated. Latest available date: {self.table_latest_year}Q{self.table_latest_season}"
+            f"* Balance sheet data updated. Latest available date: {table_latest_year}Q{table_latest_season}"
         )
 
     def update_comprehensive_income(
@@ -228,12 +226,11 @@ class FinancialStatementUpdater(BaseDataUpdater):
         logger.info("* Start Updating Comprehensive Income Data...")
 
         # Step 1: Crawl
-        # Set Up Update Period
-        start_year: int = self.get_table_latest_year(
-            table_name=COMPREHENSIVE_INCOME_TABLE_NAME, default_year=start_year
-        )
-        start_season: int = self.get_table_latest_season(
-            table_name=COMPREHENSIVE_INCOME_TABLE_NAME, default_season=start_season
+        # 取得要開始更新的年度、季度
+        start_year, start_season = self.get_actual_update_start_year_season(
+            table_name=COMPREHENSIVE_INCOME_TABLE_NAME,
+            default_year=start_year,
+            default_season=start_season,
         )
         logger.info(f"Latest data date in database: {start_year}Q{start_season}")
         # Set Up Update Period
@@ -276,11 +273,17 @@ class FinancialStatementUpdater(BaseDataUpdater):
             remove_files=False,
         )
 
-        # 更新後重新取得最新年月
-        self.get_table_latest_year(COMPREHENSIVE_INCOME_TABLE_NAME)
-        self.get_table_latest_season(COMPREHENSIVE_INCOME_TABLE_NAME)
+        # 重新取得更新後的最新年度跟季度
+        table_latest_year: Optional[int] = SQLiteUtils.get_table_latest_value(
+            conn=self.conn, table_name=COMPREHENSIVE_INCOME_TABLE_NAME, col_name="year"
+        )
+        table_latest_season: Optional[int] = SQLiteUtils.get_table_latest_value(
+            conn=self.conn,
+            table_name=COMPREHENSIVE_INCOME_TABLE_NAME,
+            col_name="season",
+        )
         logger.info(
-            f"* Comprehensive income data updated. Latest available date: {self.table_latest_year}Q{self.table_latest_season}"
+            f"* Comprehensive income data updated. Latest available date: {table_latest_year}Q{table_latest_season}"
         )
 
     def update_cash_flow(
@@ -295,12 +298,11 @@ class FinancialStatementUpdater(BaseDataUpdater):
         logger.info("* Start Updating Cash Flow Data...")
 
         # Step 1: Crawl
-        # Set Up Update Period
-        start_year: int = self.get_table_latest_year(
-            table_name=CASH_FLOW_TABLE_NAME, default_year=start_year
-        )
-        start_season: int = self.get_table_latest_season(
-            table_name=CASH_FLOW_TABLE_NAME, default_season=start_season
+        # 取得要開始更新的年度、季度
+        start_year, start_season = self.get_actual_update_start_year_season(
+            table_name=CASH_FLOW_TABLE_NAME,
+            default_year=start_year,
+            default_season=start_season,
         )
         logger.info(f"Latest data date in database: {start_year}Q{start_season}")
         # Set Up Update Period
@@ -343,11 +345,15 @@ class FinancialStatementUpdater(BaseDataUpdater):
             remove_files=False,
         )
 
-        # 更新後重新取得最新年月
-        self.get_table_latest_year(CASH_FLOW_TABLE_NAME)
-        self.get_table_latest_season(CASH_FLOW_TABLE_NAME)
+        # 重新取得更新後的最新年度跟季度
+        table_latest_year: Optional[int] = SQLiteUtils.get_table_latest_value(
+            conn=self.conn, table_name=CASH_FLOW_TABLE_NAME, col_name="year"
+        )
+        table_latest_season: Optional[int] = SQLiteUtils.get_table_latest_value(
+            conn=self.conn, table_name=CASH_FLOW_TABLE_NAME, col_name="season"
+        )
         logger.info(
-            f"* Cash flow data updated. Latest available date: {self.table_latest_year}Q{self.table_latest_season}"
+            f"* Cash flow data updated. Latest available date: {table_latest_year}Q{table_latest_season}"
         )
 
     def update_equity_changes(
@@ -364,12 +370,10 @@ class FinancialStatementUpdater(BaseDataUpdater):
         logger.info("* Start Updating Equity Changes Data...")
 
         # Step 1: Crawl
-        # Set Up Update Period
-        start_year: int = self.get_table_latest_year(
-            table_name=EQUITY_CHANGE_TABLE_NAME, default_year=start_year
-        )
-        start_season: int = self.get_table_latest_season(
-            table_name=EQUITY_CHANGE_TABLE_NAME, default_season=start_season
+        start_year, start_season = self.get_actual_update_start_year_season(
+            table_name=EQUITY_CHANGE_TABLE_NAME,
+            default_year=start_year,
+            default_season=start_season,
         )
         logger.info(f"Latest data date in database: {start_year}Q{start_season}")
         # Set Up Update Period
@@ -412,39 +416,39 @@ class FinancialStatementUpdater(BaseDataUpdater):
             remove_files=False,
         )
 
-        # 更新後重新取得最新年月
-        self.get_table_latest_year(EQUITY_CHANGE_TABLE_NAME)
-        self.get_table_latest_season(EQUITY_CHANGE_TABLE_NAME)
+        # 重新取得更新後的最新年度跟季度
+        table_latest_year: Optional[int] = SQLiteUtils.get_table_latest_value(
+            conn=self.conn, table_name=EQUITY_CHANGE_TABLE_NAME, col_name="year"
+        )
+        table_latest_season: Optional[int] = SQLiteUtils.get_table_latest_value(
+            conn=self.conn, table_name=EQUITY_CHANGE_TABLE_NAME, col_name="season"
+        )
         logger.info(
-            f"* Equity changes data updated. Latest available date: {self.table_latest_year}Q{self.table_latest_season}"
+            f"* Equity changes data updated. Latest available date: {table_latest_year}Q{table_latest_season}"
         )
 
-    def get_table_latest_year(
+    def get_actual_update_start_year_season(
         self,
         table_name: str,
         default_year: int = 2025,
-    ) -> int:
-        """Update table latest year"""
+        default_season: int = 1,
+    ) -> Tuple[int, int]:
+        """Return the next (year, season) to update. If no data, return default."""
 
         latest_year: Optional[int] = SQLiteUtils.get_table_latest_value(
             conn=self.conn, table_name=table_name, col_name="year"
         )
-        self.table_latest_year = (
-            int(latest_year) if latest_year is not None else default_year
-        )
-        return self.table_latest_year
-
-    def get_table_latest_season(
-        self,
-        table_name: str,
-        default_season: int = 1,
-    ) -> int:
-        """Update table latest year"""
-
         latest_season: Optional[int] = SQLiteUtils.get_table_latest_value(
             conn=self.conn, table_name=table_name, col_name="season"
         )
-        self.table_latest_season = (
-            int(latest_season) if latest_season is not None else default_season
-        )
-        return self.table_latest_season
+
+        if latest_year is not None and latest_season is not None:
+            year = int(latest_year)
+            season = int(latest_season)
+            # 處理進位（跨季）
+            if season == 4:
+                return year + 1, 1
+            else:
+                return year, season + 1
+        else:
+            return default_year, default_season
