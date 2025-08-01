@@ -59,6 +59,8 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
         上市: 102（2013）年前資料無區分國內外（目前先從 102 年開始爬）
         """
 
+        logger.info(f"* Start crawling TWSE MRR: {year}/{month}")
+
         df_list: List[pd.DataFrame] = []
 
         for market_type in self.twse_market_types:
@@ -94,6 +96,8 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
         資料區間
         上櫃: 102（2013）年前資料無區分國內外（目前先從 102 年開始爬）
         """
+
+        logger.info(f"* Start crawling TPEX MRR: {year}/{month}")
 
         df_list: List[pd.DataFrame] = []
 

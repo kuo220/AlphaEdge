@@ -102,6 +102,8 @@ class FinancialStatementCrawler(BaseDataCrawler):
         上櫃: 民國 82 (1993) 年 ~ present
         """
 
+        logger.info(f"* Start crawling balance sheet: {year}/Q{season}")
+
         roc_year: str = TimeUtils.convert_ad_to_roc_year(year)
 
         self.payload.year = roc_year
@@ -145,6 +147,8 @@ class FinancialStatementCrawler(BaseDataCrawler):
         上市: 民國 77 (1988) 年 ~ present
         上櫃: 民國 82 (1993) 年 ~ present
         """
+
+        logger.info(f"* Start crawling comprehensive income: {year}/Q{season}")
 
         roc_year: str = TimeUtils.convert_ad_to_roc_year(year)
 
@@ -191,6 +195,8 @@ class FinancialStatementCrawler(BaseDataCrawler):
         上櫃: 民國 102 (2013) 年 ~ present
         """
 
+        logger.info(f"* Start crawling cash flow: {year}/Q{season}")
+
         roc_year: str = TimeUtils.convert_ad_to_roc_year(year)
 
         self.payload.year = roc_year
@@ -234,6 +240,8 @@ class FinancialStatementCrawler(BaseDataCrawler):
         上市: 民國 102 (2013) 年 ~ present
         上櫃: 民國 102 (2013) 年 ~ present
         """
+
+        logger.info(f"* Start crawling equity changes: {year}/Q{season}")
 
         roc_year: str = TimeUtils.convert_ad_to_roc_year(year)
 

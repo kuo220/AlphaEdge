@@ -59,7 +59,7 @@ class StockChipUpdater(BaseDataUpdater):
     ) -> None:
         """Update the Database"""
 
-        logger.info("* Start Updating TWSE & TPEX Institutional Investors Data...")
+        logger.info("* Start Updating TWSE & TPEX Chip Data...")
 
         # Step 1: Crawl
         # 取得要開始更新的日期
