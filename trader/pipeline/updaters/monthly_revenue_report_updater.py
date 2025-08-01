@@ -113,22 +113,22 @@ class MonthlyRevenueReportUpdater(BaseDataUpdater):
                     time.sleep(delay)
 
         # Step 3: Load
-        # self.loader.add_to_db(remove_files=False)
+        self.loader.add_to_db(remove_files=False)
 
         # 更新後重新取得最新年月
-        # table_latest_year: Optional[int] = SQLiteUtils.get_table_latest_value(
-        #     conn=self.conn, table_name=MONTHLY_REVENUE_TABLE_NAME, col_name="year"
-        # )
-        # table_latest_month: Optional[int] = SQLiteUtils.get_table_latest_value(
-        #     conn=self.conn, table_name=MONTHLY_REVENUE_TABLE_NAME, col_name="month"
-        # )
+        table_latest_year: Optional[int] = SQLiteUtils.get_table_latest_value(
+            conn=self.conn, table_name=MONTHLY_REVENUE_TABLE_NAME, col_name="year"
+        )
+        table_latest_month: Optional[int] = SQLiteUtils.get_table_latest_value(
+            conn=self.conn, table_name=MONTHLY_REVENUE_TABLE_NAME, col_name="month"
+        )
 
-        # if table_latest_year and table_latest_month:
-        #     logger.info(
-        #         f"Monthly revenue data updated. Latest available date: {table_latest_year}/{table_latest_month}"
-        #     )
-        # else:
-        #     logger.warning("No new monthly revenue data was updated")
+        if table_latest_year and table_latest_month:
+            logger.info(
+                f"Monthly revenue data updated. Latest available date: {table_latest_year}/{table_latest_month}"
+            )
+        else:
+            logger.warning("No new monthly revenue data was updated")
 
     def get_actual_update_start_year_month(
         self,

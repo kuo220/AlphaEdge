@@ -122,16 +122,14 @@ class FinancialStatementCrawler(BaseDataCrawler):
                 logger.info(
                     f"{market_type} {year}Q{season} Balance Sheet URL: {balance_sheet_url}"
                 )
-            except Exception as e:
+            except Exception:
                 logger.warning(f"Cannot get balance sheet at {year}Q{season}")
-                logger.info(e)
 
             try:
                 dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
                 df_list.extend(dfs)
-            except Exception as e:
+            except Exception:
                 logger.warning("No tables found")
-                logger.info(e)
                 continue
 
         return df_list
