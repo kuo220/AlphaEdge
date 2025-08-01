@@ -73,8 +73,8 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
                 res: requests.Response = RequestUtils.requests_get(url)
                 res.encoding = FileEncoding.BIG5.value
             except Exception as e:
-                logger.info(
-                    f"* WARN: Cannot get TWSE Monthly Revenue Report at {year}/{month}"
+                logger.warning(
+                    f"Cannot get TWSE Monthly Revenue Report at {year}/{month}"
                 )
                 logger.info(e)
                 return None
@@ -109,8 +109,8 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
                 res: requests.Response = RequestUtils.requests_get(url)
                 res.encoding = FileEncoding.BIG5.value
             except Exception as e:
-                logger.info(
-                    f"* WARN: Cannot get TWSE Monthly Revenue Report at {year}/{month}"
+                logger.warning(
+                    f"Cannot get TWSE Monthly Revenue Report at {year}/{month}"
                 )
                 logger.info(e)
                 return None

@@ -46,17 +46,18 @@ class StockChipCrawler(BaseDataCrawler):
     def crawl_twse_chip(self, date: datetime.date) -> Optional[pd.DataFrame]:
         """TWSE 三大法人單日爬蟲"""
 
-        date_str: str = TimeUtils.format_date(date)
-        logger.info(f"Start crawling TWSE chip: {date}")
+        logger.info(f"* Start crawling TWSE chip: {date}")
 
+        date_str: str = TimeUtils.format_date(date, sep="")
         twse_url: str = URLManager.get_url("TWSE_CHIP_URL", date=date_str)
+
         twse_response: requests.Response = RequestUtils.requests_get(twse_url)
 
         # 檢查是否為假日 or 單純網站還未更新
         try:
             twse_df: pd.DataFrame = pd.read_html(StringIO(twse_response.text))[0]
             if twse_df.empty:
-                logger.info("No data in table. Possibly not yet updated.")
+                logger.warning("No data in table. Possibly not yet updated.")
                 return None
         except Exception:
             logger.info(f"{date} is a Holiday!")
@@ -67,10 +68,10 @@ class StockChipCrawler(BaseDataCrawler):
     def crawl_tpex_chip(self, date: datetime.date) -> Optional[pd.DataFrame]:
         """TPEX 三大法人單日爬蟲"""
 
-        date_str: str = TimeUtils.format_date(date, sep="/")
-        logger.info(f"Start crawling TPEX chip: {date}")
+        logger.info(f"* Start crawling TPEX chip: {date}")
 
         # 根據 TPEX URL 改制時間取得對應的 URL
+        date_str: str = TimeUtils.format_date(date, sep="/")
         if date < self.tpex_url_change_date:
             tpex_url: str = URLManager.get_url("TPEX_CHIP_URL_1", date=date_str)
         elif date >= self.tpex_url_change_date:
@@ -89,7 +90,7 @@ class StockChipCrawler(BaseDataCrawler):
                 index=tpex_df.index[0], columns=tpex_df.columns[-1], inplace=True
             )
         except Exception:
-            logger.info("TPEX table structure unexpected.")
+            logger.warning("TPEX table structure unexpected.")
             return None
 
         # 檢查是否為假日

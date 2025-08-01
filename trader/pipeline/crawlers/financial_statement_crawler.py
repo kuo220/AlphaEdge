@@ -121,14 +121,14 @@ class FinancialStatementCrawler(BaseDataCrawler):
                     f"{market_type} {year}Q{season} Balance Sheet URL: {balance_sheet_url}"
                 )
             except Exception as e:
-                logger.info(f"* WARN: Cannot get balance sheet at {year}Q{season}")
+                logger.warning(f"Cannot get balance sheet at {year}Q{season}")
                 logger.info(e)
 
             try:
                 dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
                 df_list.extend(dfs)
             except Exception as e:
-                logger.info("No tables found")
+                logger.warning("No tables found")
                 logger.info(e)
                 continue
 
@@ -165,15 +165,15 @@ class FinancialStatementCrawler(BaseDataCrawler):
                     f"{market_type} {year}Q{season} Statement of Comprehensive Income URL: {income_url}"
                 )
             except Exception as e:
-                logger.info(
-                    f"* WARN: Cannot get statement of comprehensive income at {year}Q{season}"
+                logger.warning(
+                    f"Cannot get statement of comprehensive income at {year}Q{season}"
                 )
 
             try:
                 dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
                 df_list.extend(dfs)
             except Exception as e:
-                logger.info("No tables found")
+                logger.warning("No tables found")
                 logger.info(e)
                 continue
 
@@ -210,15 +210,13 @@ class FinancialStatementCrawler(BaseDataCrawler):
                     f"{market_type} {year}Q{season} Statement of Cash Flow URL: {cash_flow_url}"
                 )
             except Exception as e:
-                logger.info(
-                    f"* WARN: Cannot get cash flow statement at {year}Q{season}"
-                )
+                logger.warning(f"Cannot get cash flow statement at {year}Q{season}")
 
             try:
                 dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
                 df_list.extend(dfs)
             except Exception as e:
-                logger.info("No tables found")
+                logger.warning("No tables found")
                 logger.info(e)
                 continue
 
@@ -254,14 +252,12 @@ class FinancialStatementCrawler(BaseDataCrawler):
                 f"{equity_changes_url} {year}Q{season} Statement of Equity Changes URL: {equity_changes_url}"
             )
         except Exception as e:
-            logger.info(
-                f"* WARN: Cannot get equity changes statement at {year}Q{season}"
-            )
+            logger.warning(f"Cannot get equity changes statement at {year}Q{season}")
 
         try:
             df_list: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
         except Exception as e:
-            logger.info("No tables found")
+            logger.warning("No tables found")
             logger.info(e)
             return None
 
