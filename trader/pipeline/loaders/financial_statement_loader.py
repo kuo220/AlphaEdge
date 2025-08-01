@@ -168,7 +168,7 @@ class FinancialStatementLoader(BaseDataLoader):
             try:
                 df: pd.DataFrame = pd.read_csv(file_path)
                 df.to_sql(table_name, self.conn, if_exists="append", index=False)
-                logger.info(f"Save {file_path} into database.")
+                logger.info(f"Save {file_path} into database")
                 file_cnt += 1
             except Exception as e:
                 logger.info(f"Error saving {file_path}: {e}")

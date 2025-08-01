@@ -183,7 +183,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
 
                     if cleaned_df is None or cleaned_df.empty:
                         logger.warning(
-                            f"Cleaned balance sheet dataframe empty on {year}Q{season}."
+                            f"Cleaned balance sheet dataframe empty on {year}Q{season}"
                         )
                         continue
 
@@ -211,7 +211,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
             conn=self.conn, table_name=BALANCE_SHEET_TABLE_NAME, col_name="season"
         )
         logger.info(
-            f"* Balance sheet data updated. Latest available date: {table_latest_year}Q{table_latest_season}"
+            f"Balance sheet data updated. Latest available date: {table_latest_year}Q{table_latest_season}"
         )
 
     def update_comprehensive_income(
@@ -253,7 +253,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
 
                     if cleaned_df is None or cleaned_df.empty:
                         logger.warning(
-                            f"Cleaned comprehensive income dataframe empty on {year}Q{season}."
+                            f"Cleaned comprehensive income dataframe empty on {year}Q{season}"
                         )
                         continue
 
@@ -283,7 +283,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
             col_name="season",
         )
         logger.info(
-            f"* Comprehensive income data updated. Latest available date: {table_latest_year}Q{table_latest_season}"
+            f"Comprehensive income data updated. Latest available date: {table_latest_year}Q{table_latest_season}"
         )
 
     def update_cash_flow(
@@ -325,7 +325,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
 
                     if cleaned_df is None or cleaned_df.empty:
                         logger.warning(
-                            f"Cleaned cash flow dataframe empty on {year}Q{season}."
+                            f"Cleaned cash flow dataframe empty on {year}Q{season}"
                         )
                         continue
 
@@ -353,7 +353,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
             conn=self.conn, table_name=CASH_FLOW_TABLE_NAME, col_name="season"
         )
         logger.info(
-            f"* Cash flow data updated. Latest available date: {table_latest_year}Q{table_latest_season}"
+            f"Cash flow data updated. Latest available date: {table_latest_year}Q{table_latest_season}"
         )
 
     def update_equity_changes(
@@ -396,7 +396,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
 
                     if cleaned_df is None or cleaned_df.empty:
                         logger.warning(
-                            f"Cleaned equity changes dataframe empty on {year}Q{season}."
+                            f"Cleaned equity changes dataframe empty on {year}Q{season}"
                         )
                         continue
 
@@ -424,7 +424,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
             conn=self.conn, table_name=EQUITY_CHANGE_TABLE_NAME, col_name="season"
         )
         logger.info(
-            f"* Equity changes data updated. Latest available date: {table_latest_year}Q{table_latest_season}"
+            f"Equity changes data updated. Latest available date: {table_latest_year}Q{table_latest_season}"
         )
 
     def get_actual_update_start_year_season(

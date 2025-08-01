@@ -6,7 +6,7 @@ from typing import List
 try:
     import dolphindb as ddb
 except ModuleNotFoundError:
-    logger.info("Warning: dolphindb module is not installed.")
+    logger.info("Warning: dolphindb module is not installed")
 
 from trader.pipeline.loaders.base import BaseDataLoader
 from trader.config import (

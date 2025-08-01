@@ -10,7 +10,7 @@ import pandas as pd
 try:
     import dolphindb as ddb
 except ModuleNotFoundError:
-    print("Warning: dolphindb module is not installed.")
+    print("Warning: dolphindb module is not installed")
 
 from trader.config import TICK_METADATA_PATH
 

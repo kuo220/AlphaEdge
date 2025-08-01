@@ -99,7 +99,7 @@ class MonthlyRevenueReportUpdater(BaseDataUpdater):
 
                     if cleaned_df is None or cleaned_df.empty:
                         logger.warning(
-                            f"Cleaned monthly revenue report dataframe empty on {year}/{month}."
+                            f"Cleaned monthly revenue report dataframe empty on {year}/{month}"
                         )
                         continue
 
@@ -125,10 +125,10 @@ class MonthlyRevenueReportUpdater(BaseDataUpdater):
 
         if table_latest_year and table_latest_month:
             logger.info(
-                f"* Monthly revenue data updated. Latest available date: {table_latest_year}/{table_latest_month}"
+                f"Monthly revenue data updated. Latest available date: {table_latest_year}/{table_latest_month}"
             )
         else:
-            logger.warning("* No new monthly revenue data was updated.")
+            logger.warning("No new monthly revenue data was updated")
 
     def get_actual_update_start_year_month(
         self,

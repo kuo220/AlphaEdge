@@ -103,7 +103,7 @@ class StockTickUpdater(BaseDataUpdater):
                 f"* Tick data updated. Latest available date: {self.table_latest_date}"
             )
         else:
-            logger.warning("* No new tick data was updated.")
+            logger.warning("* No new stock tick data was updated")
 
     def update_thread(
         self,
@@ -164,7 +164,7 @@ class StockTickUpdater(BaseDataUpdater):
                 )
 
                 if cleaned_df is None or cleaned_df.empty:
-                    logger.warning(f"Cleaned dataframe empty for {stock_id}.")
+                    logger.warning(f"Cleaned dataframe empty for {stock_id}")
 
                 # 更新 table 最新日期（thread-safe）
                 if latest_date:

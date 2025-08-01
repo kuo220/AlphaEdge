@@ -5,7 +5,7 @@ from loguru import logger
 try:
     import dolphindb as ddb
 except ModuleNotFoundError:
-    print("Warning: dolphindb module is not installed.")
+    print("Warning: dolphindb module is not installed")
 
 from trader.api.base import BaseDataAPI
 from trader.config import (
