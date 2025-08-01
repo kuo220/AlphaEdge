@@ -74,14 +74,20 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
             try:
                 res: requests.Response = RequestUtils.requests_get(url)
                 res.encoding = FileEncoding.BIG5.value
-            except Exception as e:
+            except Exception:
                 logger.warning(
                     f"Cannot get TWSE Monthly Revenue Report at {year}/{month}"
                 )
-                logger.info(e)
                 return None
 
-            dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
+            try:
+                dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
+            except Exception:
+                logger.warning(
+                    f"Cannot get TWSE Monthly Revenue Report at {year}/{month}"
+                )
+                return None
+
             df_list.extend(dfs)
 
         return df_list
@@ -112,14 +118,20 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
             try:
                 res: requests.Response = RequestUtils.requests_get(url)
                 res.encoding = FileEncoding.BIG5.value
-            except Exception as e:
+            except Exception:
                 logger.warning(
                     f"Cannot get TWSE Monthly Revenue Report at {year}/{month}"
                 )
-                logger.info(e)
                 return None
 
-            dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
+            try:
+                dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
+            except Exception:
+                logger.warning(
+                    f"Cannot get TWSE Monthly Revenue Report at {year}/{month}"
+                )
+                return None
+
             df_list.extend(dfs)
 
         return df_list
