@@ -140,8 +140,8 @@ def main() -> None:
         )
 
     if DataType.MRR.name.lower() in targets:
-        mmr_updater = MonthlyRevenueReportUpdater()
-        mmr_updater.update(
+        mrr_updater = MonthlyRevenueReportUpdater()
+        mrr_updater.update(
             start_year=time_config["start_year"],
             end_year=time_config["end_year"],
             start_month=time_config["start_month"],
