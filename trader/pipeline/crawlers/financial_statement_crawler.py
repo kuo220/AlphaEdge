@@ -124,6 +124,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
                 )
             except Exception:
                 logger.warning(f"Cannot get balance sheet at {year}Q{season}")
+                continue
 
             try:
                 dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
@@ -166,17 +167,17 @@ class FinancialStatementCrawler(BaseDataCrawler):
                 logger.info(
                     f"{market_type} {year}Q{season} Statement of Comprehensive Income URL: {income_url}"
                 )
-            except Exception as e:
+            except Exception:
                 logger.warning(
                     f"Cannot get statement of comprehensive income at {year}Q{season}"
                 )
+                continue
 
             try:
                 dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
                 df_list.extend(dfs)
-            except Exception as e:
+            except Exception:
                 logger.warning("No tables found")
-                logger.info(e)
                 continue
 
         return df_list
@@ -213,15 +214,15 @@ class FinancialStatementCrawler(BaseDataCrawler):
                 logger.info(
                     f"{market_type} {year}Q{season} Statement of Cash Flow URL: {cash_flow_url}"
                 )
-            except Exception as e:
+            except Exception:
                 logger.warning(f"Cannot get cash flow statement at {year}Q{season}")
+                continue
 
             try:
                 dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
                 df_list.extend(dfs)
-            except Exception as e:
+            except Exception:
                 logger.warning("No tables found")
-                logger.info(e)
                 continue
 
         return df_list
@@ -257,14 +258,14 @@ class FinancialStatementCrawler(BaseDataCrawler):
             logger.info(
                 f"{equity_changes_url} {year}Q{season} Statement of Equity Changes URL: {equity_changes_url}"
             )
-        except Exception as e:
+        except Exception:
             logger.warning(f"Cannot get equity changes statement at {year}Q{season}")
+            return None
 
         try:
             df_list: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
-        except Exception as e:
+        except Exception:
             logger.warning("No tables found")
-            logger.info(e)
             return None
 
         return df_list
