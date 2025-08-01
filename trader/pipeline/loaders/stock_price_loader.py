@@ -69,7 +69,7 @@ class StockPriceLoader(BaseDataLoader):
             "最後揭示賣價" REAL,
             "最後揭示賣量" INTEGER,
             "本益比" REAL,
-            PRIMARY KEY (date, stock_id)
+            PRIMARY KEY ("date", "stock_id", "證券名稱")
         );
         """
         cursor.execute(create_table_query)

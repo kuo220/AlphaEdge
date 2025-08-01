@@ -88,7 +88,7 @@ def parse_arguments() -> argparse.Namespace:
 
 def get_update_time_config() -> Dict[str, datetime.date | int]:
     return {
-        "start_date": datetime.date(2015, 3, 11),
+        "start_date": datetime.date(2013, 1, 1),
         # "end_date": datetime.date.today(),
         "end_date": datetime.date(2025, 7, 30),
         # "end_date": datetime.date(2013, 1, 3),
