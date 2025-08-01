@@ -128,7 +128,7 @@ class FinancialStatementLoader(BaseDataLoader):
                 col_defs.append(f"{col_name} REAL")
 
         # Step 3: 加 PRIMARY KEY
-        col_defs.append("PRIMARY KEY (year, season, stock_id)")
+        col_defs.append('PRIMARY KEY ("year", "season", "stock_id", "公司名稱")')
 
         # Step 4: 組建 SQL
         col_defs_sql: str = ",\n            ".join(col_defs)
