@@ -104,7 +104,7 @@ class StockChipLoader(BaseDataLoader):
                 logger.info(f"Save {file_path} into database")
                 file_cnt += 1
             except Exception as e:
-                logger.info(f"Error saving {file_path}: {e}")
+                logger.warning(f"Error saving {file_path}: {e}")
 
         self.conn.commit()
         self.disconnect()
