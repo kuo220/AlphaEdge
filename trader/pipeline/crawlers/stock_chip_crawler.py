@@ -47,9 +47,7 @@ class StockChipCrawler(BaseDataCrawler):
         """TWSE 三大法人單日爬蟲"""
 
         date_str: str = TimeUtils.format_date(date)
-        readable_date: str = TimeUtils.format_date(date, sep="/")
-        logger.info("* Start crawling TWSE institutional investors data...")
-        logger.info(readable_date)
+        logger.info(f"Start crawling TWSE chip: {date}")
 
         twse_url: str = URLManager.get_url("TWSE_CHIP_URL", date=date_str)
         twse_response: requests.Response = RequestUtils.requests_get(twse_url)
@@ -70,8 +68,7 @@ class StockChipCrawler(BaseDataCrawler):
         """TPEX 三大法人單日爬蟲"""
 
         date_str: str = TimeUtils.format_date(date, sep="/")
-        logger.info("* Start crawling TPEX institutional investors data...")
-        logger.info(date_str)
+        logger.info(f"Start crawling TPEX chip: {date}")
 
         # 根據 TPEX URL 改制時間取得對應的 URL
         if date < self.tpex_url_change_date:
@@ -79,7 +76,6 @@ class StockChipCrawler(BaseDataCrawler):
         elif date >= self.tpex_url_change_date:
             tpex_url: str = URLManager.get_url("TPEX_CHIP_URL_2", date=date_str)
 
-        logger.info(tpex_url)
         tpex_response: requests.Response = RequestUtils.requests_get(tpex_url)
 
         try:
