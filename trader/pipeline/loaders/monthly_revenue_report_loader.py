@@ -106,7 +106,7 @@ class MonthlyRevenueReportLoader(BaseDataLoader):
             logger.info(f"Table {MONTHLY_REVENUE_TABLE_NAME} create successfully!")
             logger.info(create_table_query)
         else:
-            logger.info(f"Table {MONTHLY_REVENUE_TABLE_NAME} create unsuccessfully!")
+            logger.warning(f"Table {MONTHLY_REVENUE_TABLE_NAME} create unsuccessfully!")
 
         self.conn.commit()
 

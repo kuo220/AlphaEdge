@@ -83,7 +83,7 @@ class StockChipLoader(BaseDataLoader):
         if cursor.fetchall():
             logger.info(f"Table {CHIP_TABLE_NAME} create successfully!")
         else:
-            logger.info(f"Table {CHIP_TABLE_NAME} create unsuccessfully!")
+            logger.warning(f"Table {CHIP_TABLE_NAME} create unsuccessfully!")
 
         self.conn.commit()
 

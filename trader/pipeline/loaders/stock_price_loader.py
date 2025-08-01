@@ -79,7 +79,7 @@ class StockPriceLoader(BaseDataLoader):
         if cursor.fetchall():
             logger.info(f"Table {PRICE_TABLE_NAME} create successfully!")
         else:
-            logger.info(f"Table {PRICE_TABLE_NAME} create unsuccessfully!")
+            logger.warning(f"Table {PRICE_TABLE_NAME} create unsuccessfully!")
 
         self.conn.commit()
 

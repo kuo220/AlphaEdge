@@ -145,7 +145,7 @@ class FinancialStatementLoader(BaseDataLoader):
             logger.info(f"Table {table_name} create successfully!")
             logger.info(create_table_query)
         else:
-            logger.info(f"Table {table_name} create unsuccessfully!")
+            logger.warning(f"Table {table_name} create unsuccessfully!")
 
         self.conn.commit()
 
