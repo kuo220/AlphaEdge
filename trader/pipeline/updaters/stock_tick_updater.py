@@ -146,8 +146,10 @@ class StockTickUpdater(BaseDataUpdater):
                     api, date, stock_id
                 )
 
-                if df is not None and not df.empty:
-                    df_list.append(df)
+                if df is None or df.empty:
+                    continue
+
+                df_list.append(df)
 
             if not df_list:
                 logger.warning(

@@ -179,16 +179,18 @@ class FinancialStatementUpdater(BaseDataUpdater):
                 )
 
                 # Step 2: Clean
-                if df_list is not None and df_list:
-                    cleaned_df: pd.DataFrame = self.cleaner.clean_balance_sheet(
-                        df_list, year, season
-                    )
+                if df_list is None or not df_list:
+                    continue
 
-                    if cleaned_df is None or cleaned_df.empty:
-                        logger.warning(
-                            f"Cleaned balance sheet dataframe empty on {year}Q{season}"
-                        )
-                        continue
+                cleaned_df: pd.DataFrame = self.cleaner.clean_balance_sheet(
+                    df_list, year, season
+                )
+
+                if cleaned_df is None or cleaned_df.empty:
+                    logger.warning(
+                        f"Cleaned balance sheet dataframe empty on {year}Q{season}"
+                    )
+                    continue
 
                 file_cnt += 1
                 if file_cnt == 10:
@@ -251,16 +253,18 @@ class FinancialStatementUpdater(BaseDataUpdater):
                 )
 
                 # Step 2: Clean
-                if df_list is not None and df_list:
-                    cleaned_df: pd.DataFrame = self.cleaner.clean_comprehensive_income(
-                        df_list, year, season
-                    )
+                if df_list is None or not df_list:
+                    continue
 
-                    if cleaned_df is None or cleaned_df.empty:
-                        logger.warning(
-                            f"Cleaned comprehensive income dataframe empty on {year}Q{season}"
-                        )
-                        continue
+                cleaned_df: pd.DataFrame = self.cleaner.clean_comprehensive_income(
+                    df_list, year, season
+                )
+
+                if cleaned_df is None or cleaned_df.empty:
+                    logger.warning(
+                        f"Cleaned comprehensive income dataframe empty on {year}Q{season}"
+                    )
+                    continue
 
                 file_cnt += 1
                 if file_cnt == 10:
@@ -323,16 +327,18 @@ class FinancialStatementUpdater(BaseDataUpdater):
                 )
 
                 # Step 2: Clean
-                if df_list is not None and df_list:
-                    cleaned_df: pd.DataFrame = self.cleaner.clean_cash_flow(
-                        df_list, year, season
-                    )
+                if df_list is None or not df_list:
+                    continue
 
-                    if cleaned_df is None or cleaned_df.empty:
-                        logger.warning(
-                            f"Cleaned cash flow dataframe empty on {year}Q{season}"
-                        )
-                        continue
+                cleaned_df: pd.DataFrame = self.cleaner.clean_cash_flow(
+                    df_list, year, season
+                )
+
+                if cleaned_df is None or cleaned_df.empty:
+                    logger.warning(
+                        f"Cleaned cash flow dataframe empty on {year}Q{season}"
+                    )
+                    continue
 
                 file_cnt += 1
                 if file_cnt == 10:
@@ -396,16 +402,18 @@ class FinancialStatementUpdater(BaseDataUpdater):
                 )
 
                 # Step 2: Clean
-                if df_list is not None and df_list:
-                    cleaned_df: pd.DataFrame = self.cleaner.clean_equity_changes(
-                        df_list, year, season
-                    )
+                if df_list is None or not df_list:
+                    continue
 
-                    if cleaned_df is None or cleaned_df.empty:
-                        logger.warning(
-                            f"Cleaned equity changes dataframe empty on {year}Q{season}"
-                        )
-                        continue
+                cleaned_df: pd.DataFrame = self.cleaner.clean_equity_changes(
+                    df_list, year, season
+                )
+
+                if cleaned_df is None or cleaned_df.empty:
+                    logger.warning(
+                        f"Cleaned equity changes dataframe empty on {year}Q{season}"
+                    )
+                    continue
 
                 file_cnt += 1
                 if file_cnt == 10:

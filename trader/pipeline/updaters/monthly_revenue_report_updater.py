@@ -92,16 +92,18 @@ class MonthlyRevenueReportUpdater(BaseDataUpdater):
                 df_list: Optional[List[pd.DataFrame]] = self.crawler.crawl(year, month)
 
                 # Step 2: Clean
-                if df_list is not None and df_list:
-                    cleaned_df: pd.DataFrame = self.cleaner.clean_monthly_revenue(
-                        df_list, year, month
-                    )
+                if df_list is None or not df_list:
+                    continue
 
-                    if cleaned_df is None or cleaned_df.empty:
-                        logger.warning(
-                            f"Cleaned monthly revenue report dataframe empty on {year}/{month}"
-                        )
-                        continue
+                cleaned_df: pd.DataFrame = self.cleaner.clean_monthly_revenue(
+                    df_list, year, month
+                )
+
+                if cleaned_df is None or cleaned_df.empty:
+                    logger.warning(
+                        f"Cleaned monthly revenue report dataframe empty on {year}/{month}"
+                    )
+                    continue
 
                 file_cnt += 1
                 if file_cnt == 10:
