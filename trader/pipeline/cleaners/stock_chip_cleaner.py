@@ -109,6 +109,13 @@ class StockChipCleaner(BaseDataCleaner):
         )
         aligned_df = DataUtils.fill_nan(aligned_df, 0)
 
+        # 根據指定 columns 移除重複的 rows
+        aligned_df = DataUtils.remove_duplicate_rows(
+            df=aligned_df,
+            subset=["date", "stock_id", "證券名稱"],
+            keep="first",
+        )
+
         # Save df to csv file
         aligned_df.to_csv(
             self.chip_dir / f"twse_{TimeUtils.format_date(date)}.csv",
@@ -213,6 +220,13 @@ class StockChipCleaner(BaseDataCleaner):
             aligned_df, exclude_cols=["date", "stock_id", "證券名稱"]
         )
         aligned_df = DataUtils.fill_nan(aligned_df, 0)
+
+        # 根據指定 columns 移除重複的 rows
+        aligned_df = DataUtils.remove_duplicate_rows(
+            df=aligned_df,
+            subset=["date", "stock_id", "證券名稱"],
+            keep="first",
+        )
 
         # Save df to csv file
         aligned_df.to_csv(
