@@ -135,22 +135,41 @@ class MonthlyRevenueReportUpdater(BaseDataUpdater):
         default_year: int = 2025,
         default_month: int = 1,
     ) -> Tuple[int, int]:
-        """Return the next (year, month) to update. If no data, return default."""
+        """Return the next (year, month) to update. If no data, return default"""
 
+        # Step 1: 先取得資料表中最新的 year
         latest_year: Optional[int] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn, table_name=MONTHLY_REVENUE_TABLE_NAME, col_name="year"
-        )
-        latest_month: Optional[int] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn, table_name=MONTHLY_REVENUE_TABLE_NAME, col_name="month"
+            conn=self.conn,
+            table_name=MONTHLY_REVENUE_TABLE_NAME,
+            col_name="year",
         )
 
-        if latest_year is not None and latest_month is not None:
-            year = int(latest_year)
-            month = int(latest_month)
-            # 處理進位（跨年）
-            if month == 12:
-                return year + 1, 1
-            else:
-                return year, month + 1
-        else:
+        if latest_year is None:
             return default_year, default_month
+
+        # Step 2: 以最新 year 為條件，找出該年份中最大的 month
+        query = f"""
+            SELECT month FROM {MONTHLY_REVENUE_TABLE_NAME}
+            WHERE year = ?
+            ORDER BY CAST(month AS INTEGER) DESC
+            LIMIT 1
+        """
+        try:
+            cursor = self.conn.execute(query, (latest_year,))
+            result = cursor.fetchone()
+            latest_month: Optional[int] = result[0] if result else None
+        except Exception as e:
+            logger.error(f"Failed to query latest month for year {latest_year}: {e}")
+            return default_year, default_month
+
+        if latest_month is None:
+            return default_year, default_month
+
+        # Step 3: 計算下一個月份（處理進位）
+        year = int(latest_year)
+        month = int(latest_month)
+
+        if month == 12:
+            return year + 1, 1
+        else:
+            return year, month + 1

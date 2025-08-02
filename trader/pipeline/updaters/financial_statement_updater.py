@@ -419,15 +419,14 @@ class FinancialStatementUpdater(BaseDataUpdater):
             remove_files=False,
         )
 
-        # 重新取得更新後的最新年度跟季度
-        table_latest_year: Optional[int] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn, table_name=EQUITY_CHANGE_TABLE_NAME, col_name="year"
-        )
-        table_latest_season: Optional[int] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn, table_name=EQUITY_CHANGE_TABLE_NAME, col_name="season"
+        # 取得下次更新的起始年度跟季度
+        next_update_year, next_update_season = self.get_actual_update_start_year_season(
+            table_name=EQUITY_CHANGE_TABLE_NAME,
+            default_year=end_year,
+            default_season=end_season,
         )
         logger.info(
-            f"Equity changes data updated. Latest available date: {table_latest_year}Q{table_latest_season}"
+            f"Equity changes data updated. Latest available date: {next_update_year}Q{next_update_season}"
         )
 
     def get_actual_update_start_year_season(
@@ -436,22 +435,42 @@ class FinancialStatementUpdater(BaseDataUpdater):
         default_year: int = 2025,
         default_season: int = 1,
     ) -> Tuple[int, int]:
-        """Return the next (year, season) to update. If no data, return default."""
+        """Return the next (year, season) to update. If no data, return default"""
 
+        # Step 1: 先取得最新 year
         latest_year: Optional[int] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn, table_name=table_name, col_name="year"
-        )
-        latest_season: Optional[int] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn, table_name=table_name, col_name="season"
+            conn=self.conn,
+            table_name=table_name,
+            col_name="year",
         )
 
-        if latest_year is not None and latest_season is not None:
-            year = int(latest_year)
-            season = int(latest_season)
-            # 處理進位（跨季）
-            if season == 4:
-                return year + 1, 1
-            else:
-                return year, season + 1
-        else:
+        if latest_year is None:
             return default_year, default_season
+
+        # Step 2: 再根據該 year 找最新 season（處理 TEXT 情況）
+        query = f"""
+            SELECT season FROM {table_name}
+            WHERE year = ?
+            ORDER BY CAST(season AS INTEGER) DESC
+            LIMIT 1
+        """
+
+        try:
+            cursor = self.conn.execute(query, (latest_year,))
+            result = cursor.fetchone()
+            latest_season: Optional[int] = result[0] if result else None
+        except Exception as e:
+            logger.error(f"Failed to query latest season for year {latest_year}: {e}")
+            return default_year, default_season
+
+        if latest_season is None:
+            return default_year, default_season
+
+        # Step 3: 處理進位（第4季 → 第1季 + 年份進位）
+        year = int(latest_year)
+        season = int(latest_season)
+
+        if season == 4:
+            return year + 1, 1
+        else:
+            return year, season + 1
