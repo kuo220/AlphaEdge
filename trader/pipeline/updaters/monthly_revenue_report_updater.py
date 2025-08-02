@@ -116,16 +116,18 @@ class MonthlyRevenueReportUpdater(BaseDataUpdater):
         self.loader.add_to_db(remove_files=False)
 
         # 更新後重新取得最新年月
-        table_latest_year: Optional[int] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn, table_name=MONTHLY_REVENUE_TABLE_NAME, col_name="year"
-        )
-        table_latest_month: Optional[int] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn, table_name=MONTHLY_REVENUE_TABLE_NAME, col_name="month"
+        latest_year, latest_month = SQLiteUtils.get_max_secondary_value_by_primary(
+            conn=self.conn,
+            table_name=MONTHLY_REVENUE_TABLE_NAME,
+            primary_col="year",
+            secondary_col="month",
+            default_primary_value=start_year,
+            default_secondary_value=start_month,
         )
 
-        if table_latest_year and table_latest_month:
+        if latest_year and latest_month:
             logger.info(
-                f"Monthly revenue data updated. Latest available date: {table_latest_year}/{table_latest_month}"
+                f"Monthly revenue data updated. Latest available date: {latest_year}/{latest_month}"
             )
         else:
             logger.warning("No new monthly revenue data was updated")
@@ -135,41 +137,24 @@ class MonthlyRevenueReportUpdater(BaseDataUpdater):
         default_year: int = 2025,
         default_month: int = 1,
     ) -> Tuple[int, int]:
-        """Return the next (year, month) to update. If no data, return default"""
+        """回傳下一筆應更新的 (year, month)，若無資料則回傳預設值"""
 
         # Step 1: 先取得資料表中最新的 year
-        latest_year: Optional[int] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn,
-            table_name=MONTHLY_REVENUE_TABLE_NAME,
-            col_name="year",
-        )
-
-        if latest_year is None:
-            return default_year, default_month
-
-        # Step 2: 以最新 year 為條件，找出該年份中最大的 month
-        query = f"""
-            SELECT month FROM {MONTHLY_REVENUE_TABLE_NAME}
-            WHERE year = ?
-            ORDER BY CAST(month AS INTEGER) DESC
-            LIMIT 1
-        """
         try:
-            cursor = self.conn.execute(query, (latest_year,))
-            result = cursor.fetchone()
-            latest_month: Optional[int] = result[0] if result else None
+            latest_year, latest_month = SQLiteUtils.get_max_secondary_value_by_primary(
+                conn=self.conn,
+                table_name=MONTHLY_REVENUE_TABLE_NAME,
+                primary_col="year",
+                secondary_col="month",
+                default_primary_value=default_year,
+                default_secondary_value=default_month,
+            )
         except Exception as e:
-            logger.error(f"Failed to query latest month for year {latest_year}: {e}")
+            logger.error(f"Failed to get latest (year, month): {e}")
             return default_year, default_month
 
-        if latest_month is None:
-            return default_year, default_month
-
-        # Step 3: 計算下一個月份（處理進位）
-        year = int(latest_year)
-        month = int(latest_month)
-
-        if month == 12:
-            return year + 1, 1
+        # Step 2: 計算下一個月份（處理進位）
+        if latest_month == 12:
+            return latest_year + 1, 1
         else:
-            return year, month + 1
+            return latest_year, latest_month + 1
