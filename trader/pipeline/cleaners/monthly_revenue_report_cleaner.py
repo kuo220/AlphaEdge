@@ -133,12 +133,11 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
         new_df["公司名稱"] = new_df["公司名稱"].apply(self.fix_broken_char)
 
         # 根據指定 columns 移除重複的 rows
-        df = df.drop_duplicates(
-            subset=["year", "month", "stock_id", "公司名稱"],  # 根據這四個欄位判斷重複
-            keep="first",  # 保留第一筆（預設值，也可以省略）
-        ).reset_index(
-            drop=True
-        )  # 重排 index，避免 index 跳號
+        new_df = DataUtils.remove_duplicate_rows(
+            df=new_df,
+            subset=["year", "month", "stock_id", "公司名稱"],
+            keep="first",
+        )
 
         new_df.to_csv(
             self.mrr_dir / f"{DataType.MRR.lower()}_{year}_{month}.csv",

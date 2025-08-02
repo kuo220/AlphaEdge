@@ -119,9 +119,6 @@ class FinancialStatementCrawler(BaseDataCrawler):
                 res: Optional[requests.Response] = RequestUtils.requests_post(
                     balance_sheet_url, data=self.payload.convert_to_clean_dict()
                 )
-                logger.info(
-                    f"{market_type} {year}Q{season} Balance Sheet URL: {balance_sheet_url}"
-                )
             except Exception:
                 logger.warning(f"Cannot get balance sheet at {year}Q{season}")
                 continue
@@ -163,9 +160,6 @@ class FinancialStatementCrawler(BaseDataCrawler):
             try:
                 res: Optional[requests.Response] = RequestUtils.requests_post(
                     income_url, data=self.payload.convert_to_clean_dict()
-                )
-                logger.info(
-                    f"{market_type} {year}Q{season} Statement of Comprehensive Income URL: {income_url}"
                 )
             except Exception:
                 logger.warning(
@@ -211,9 +205,6 @@ class FinancialStatementCrawler(BaseDataCrawler):
                 res: Optional[requests.Response] = RequestUtils.requests_post(
                     cash_flow_url, data=self.payload.convert_to_clean_dict()
                 )
-                logger.info(
-                    f"{market_type} {year}Q{season} Statement of Cash Flow URL: {cash_flow_url}"
-                )
             except Exception:
                 logger.warning(f"Cannot get cash flow statement at {year}Q{season}")
                 continue
@@ -254,9 +245,6 @@ class FinancialStatementCrawler(BaseDataCrawler):
         try:
             res: Optional[requests.Response] = RequestUtils.requests_post(
                 equity_changes_url, data=self.payload.convert_to_clean_dict()
-            )
-            logger.info(
-                f"{equity_changes_url} {year}Q{season} Statement of Equity Changes URL: {equity_changes_url}"
             )
         except Exception:
             logger.warning(f"Cannot get equity changes statement at {year}Q{season}")
