@@ -51,7 +51,8 @@ from trader.pipeline.utils import DataType
             - all: 更新所有資料（包含 tick）
             - no_tick: 更新所有資料（不包含 tick）
 
-        預設為 all，可同時指定多個目標
+        預設為 no_tick，可同時指定多個目標
+        E.g. python -m tasks.update_db --target chip price tick
 
 - Usage Example:
     - 僅更新 tick：
@@ -89,8 +90,8 @@ def get_update_time_config() -> Dict[str, datetime.date | int]:
     return {
         "start_date": datetime.date(2013, 1, 1),
         # "end_date": datetime.date.today(),
-        # "end_date": datetime.date(2025, 7, 30),
-        "end_date": datetime.date(2013, 1, 3),
+        "end_date": datetime.date(2025, 7, 30),
+        # "end_date": datetime.date(2013, 1, 3),
         "start_year": 2013,
         "end_year": 2025,
         "start_month": 1,
@@ -139,8 +140,8 @@ def main() -> None:
         )
 
     if DataType.MRR.name.lower() in targets:
-        mmr_updater = MonthlyRevenueReportUpdater()
-        mmr_updater.update(
+        mrr_updater = MonthlyRevenueReportUpdater()
+        mrr_updater.update(
             start_year=time_config["start_year"],
             end_year=time_config["end_year"],
             start_month=time_config["start_month"],

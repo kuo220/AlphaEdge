@@ -55,6 +55,13 @@ class StockPriceCleaner(BaseDataCleaner):
         DataUtils.move_col(df, "成交金額", "成交股數")
         DataUtils.move_col(df, "成交筆數", "成交金額")
 
+        # 根據指定 columns 移除重複的 rows
+        df = DataUtils.remove_duplicate_rows(
+            df=df,
+            subset=["date", "stock_id", "證券名稱"],
+            keep="first",
+        )
+
         df.to_csv(
             self.price_dir / f"twse_{TimeUtils.format_date(date)}.csv",
             index=False,
@@ -120,6 +127,13 @@ class StockPriceCleaner(BaseDataCleaner):
         df = DataUtils.remove_last_n_rows(df, n_rows=2)
         df = DataUtils.convert_col_to_numeric(
             df, exclude_cols=["date", "stock_id", "證券名稱"]
+        )
+
+        # 根據指定 columns 移除重複的 rows
+        df = DataUtils.remove_duplicate_rows(
+            df=df,
+            subset=["date", "stock_id", "證券名稱"],
+            keep="first",
         )
 
         df.to_csv(

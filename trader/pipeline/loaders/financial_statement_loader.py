@@ -128,7 +128,7 @@ class FinancialStatementLoader(BaseDataLoader):
                 col_defs.append(f"{col_name} REAL")
 
         # Step 3: 加 PRIMARY KEY
-        col_defs.append("PRIMARY KEY (year, season, stock_id)")
+        col_defs.append('PRIMARY KEY ("year", "season", "stock_id", "公司名稱")')
 
         # Step 4: 組建 SQL
         col_defs_sql: str = ",\n            ".join(col_defs)
@@ -145,7 +145,7 @@ class FinancialStatementLoader(BaseDataLoader):
             logger.info(f"Table {table_name} create successfully!")
             logger.info(create_table_query)
         else:
-            logger.info(f"Table {table_name} create unsuccessfully!")
+            logger.warning(f"Table {table_name} create unsuccessfully!")
 
         self.conn.commit()
 
@@ -168,10 +168,10 @@ class FinancialStatementLoader(BaseDataLoader):
             try:
                 df: pd.DataFrame = pd.read_csv(file_path)
                 df.to_sql(table_name, self.conn, if_exists="append", index=False)
-                logger.info(f"Save {file_path} into database.")
+                logger.info(f"Save {file_path} into database")
                 file_cnt += 1
             except Exception as e:
-                logger.info(f"Error saving {file_path}: {e}")
+                logger.warning(f"Error saving {file_path}: {e}")
 
         self.conn.commit()
         self.disconnect()

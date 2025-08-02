@@ -79,14 +79,14 @@ class StockPriceUpdater(BaseDataUpdater):
                     twse_df, date
                 )
                 if cleaned_twse_df is None or cleaned_twse_df.empty:
-                    logger.warning(f"Cleaned TWSE dataframe empty on {date}.")
+                    logger.warning(f"Cleaned TWSE dataframe empty on {date}")
 
             if tpex_df is not None and not tpex_df.empty and len(tpex_df) > 2:
                 cleaned_tpex_df: pd.DataFrame = self.cleaner.clean_tpex_price(
                     tpex_df, date
                 )
                 if cleaned_tpex_df is None or cleaned_tpex_df.empty:
-                    logger.warning(f"Cleaned TPEX dataframe empty on {date}.")
+                    logger.warning(f"Cleaned TPEX dataframe empty on {date}")
 
             file_cnt += 1
 
@@ -109,10 +109,10 @@ class StockPriceUpdater(BaseDataUpdater):
         )
         if table_latest_date:
             logger.info(
-                f"* Chip data updated. Latest available date: {table_latest_date}"
+                f"Stock price data updated. Latest available date: {table_latest_date}"
             )
         else:
-            logger.warning("* No new chip data was updated.")
+            logger.warning("No new price data was updated")
 
     def get_actual_update_start_date(
         self, default_date: datetime.date

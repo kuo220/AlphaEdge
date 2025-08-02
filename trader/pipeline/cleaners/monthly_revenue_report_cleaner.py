@@ -132,6 +132,13 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
         # 修正 Big5 編碼無法表示「碁」字導致的亂碼（� 或 ��），補回正確字元
         new_df["公司名稱"] = new_df["公司名稱"].apply(self.fix_broken_char)
 
+        # 根據指定 columns 移除重複的 rows
+        new_df = DataUtils.remove_duplicate_rows(
+            df=new_df,
+            subset=["year", "month", "stock_id", "公司名稱"],
+            keep="first",
+        )
+
         new_df.to_csv(
             self.mrr_dir / f"{DataType.MRR.lower()}_{year}_{month}.csv",
             index=False,

@@ -69,7 +69,7 @@ class StockPriceLoader(BaseDataLoader):
             "最後揭示賣價" REAL,
             "最後揭示賣量" INTEGER,
             "本益比" REAL,
-            PRIMARY KEY (date, stock_id)
+            PRIMARY KEY ("date", "stock_id", "證券名稱")
         );
         """
         cursor.execute(create_table_query)
@@ -79,7 +79,7 @@ class StockPriceLoader(BaseDataLoader):
         if cursor.fetchall():
             logger.info(f"Table {PRICE_TABLE_NAME} create successfully!")
         else:
-            logger.info(f"Table {PRICE_TABLE_NAME} create unsuccessfully!")
+            logger.warning(f"Table {PRICE_TABLE_NAME} create unsuccessfully!")
 
         self.conn.commit()
 
@@ -97,10 +97,10 @@ class StockPriceLoader(BaseDataLoader):
             try:
                 df: pd.DataFrame = pd.read_csv(file_path)
                 df.to_sql(PRICE_TABLE_NAME, self.conn, if_exists="append", index=False)
-                logger.info(f"Saved {file_path} into database.")
+                logger.info(f"Saved {file_path} into database")
                 file_cnt += 1
             except Exception as e:
-                logger.info(f"Error saving {file_path}: {e}")
+                logger.warning(f"Error saving {file_path}: {e}")
 
         self.conn.commit()
         self.disconnect()
