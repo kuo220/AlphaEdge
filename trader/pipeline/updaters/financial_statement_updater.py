@@ -144,6 +144,9 @@ class FinancialStatementUpdater(BaseDataUpdater):
         # Update Cash Flow
         self.update_cash_flow(start_year, end_year, start_season, end_season)
 
+        # Update Equity Changes
+        # TODO: Update Equity Changes
+
     def update_balance_sheet(
         self,
         start_year: int,
@@ -176,16 +179,18 @@ class FinancialStatementUpdater(BaseDataUpdater):
                 )
 
                 # Step 2: Clean
-                if df_list is not None and df_list:
-                    cleaned_df: pd.DataFrame = self.cleaner.clean_balance_sheet(
-                        df_list, year, season
-                    )
+                if df_list is None or not df_list:
+                    continue
 
-                    if cleaned_df is None or cleaned_df.empty:
-                        logger.warning(
-                            f"Cleaned balance sheet dataframe empty on {year}Q{season}."
-                        )
-                        continue
+                cleaned_df: pd.DataFrame = self.cleaner.clean_balance_sheet(
+                    df_list, year, season
+                )
+
+                if cleaned_df is None or cleaned_df.empty:
+                    logger.warning(
+                        f"Cleaned balance sheet dataframe empty on {year}Q{season}"
+                    )
+                    continue
 
                 file_cnt += 1
                 if file_cnt == 10:
@@ -204,14 +209,16 @@ class FinancialStatementUpdater(BaseDataUpdater):
         )
 
         # 重新取得更新後的最新年度跟季度
-        table_latest_year: Optional[int] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn, table_name=BALANCE_SHEET_TABLE_NAME, col_name="year"
-        )
-        table_latest_season: Optional[int] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn, table_name=BALANCE_SHEET_TABLE_NAME, col_name="season"
+        latest_year, latest_season = SQLiteUtils.get_max_secondary_value_by_primary(
+            conn=self.conn,
+            table_name=BALANCE_SHEET_TABLE_NAME,
+            primary_col="year",
+            secondary_col="season",
+            default_primary_value=start_year,
+            default_secondary_value=start_season,
         )
         logger.info(
-            f"* Balance sheet data updated. Latest available date: {table_latest_year}Q{table_latest_season}"
+            f"Balance sheet data updated. Latest available date: {latest_year}Q{latest_season}"
         )
 
     def update_comprehensive_income(
@@ -246,16 +253,18 @@ class FinancialStatementUpdater(BaseDataUpdater):
                 )
 
                 # Step 2: Clean
-                if df_list is not None and df_list:
-                    cleaned_df: pd.DataFrame = self.cleaner.clean_comprehensive_income(
-                        df_list, year, season
-                    )
+                if df_list is None or not df_list:
+                    continue
 
-                    if cleaned_df is None or cleaned_df.empty:
-                        logger.warning(
-                            f"Cleaned comprehensive income dataframe empty on {year}Q{season}."
-                        )
-                        continue
+                cleaned_df: pd.DataFrame = self.cleaner.clean_comprehensive_income(
+                    df_list, year, season
+                )
+
+                if cleaned_df is None or cleaned_df.empty:
+                    logger.warning(
+                        f"Cleaned comprehensive income dataframe empty on {year}Q{season}"
+                    )
+                    continue
 
                 file_cnt += 1
                 if file_cnt == 10:
@@ -274,16 +283,16 @@ class FinancialStatementUpdater(BaseDataUpdater):
         )
 
         # 重新取得更新後的最新年度跟季度
-        table_latest_year: Optional[int] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn, table_name=COMPREHENSIVE_INCOME_TABLE_NAME, col_name="year"
-        )
-        table_latest_season: Optional[int] = SQLiteUtils.get_table_latest_value(
+        latest_year, latest_season = SQLiteUtils.get_max_secondary_value_by_primary(
             conn=self.conn,
             table_name=COMPREHENSIVE_INCOME_TABLE_NAME,
-            col_name="season",
+            primary_col="year",
+            secondary_col="season",
+            default_primary_value=start_year,
+            default_secondary_value=start_season,
         )
         logger.info(
-            f"* Comprehensive income data updated. Latest available date: {table_latest_year}Q{table_latest_season}"
+            f"Comprehensive income data updated. Latest available date: {latest_year}Q{latest_season}"
         )
 
     def update_cash_flow(
@@ -318,16 +327,18 @@ class FinancialStatementUpdater(BaseDataUpdater):
                 )
 
                 # Step 2: Clean
-                if df_list is not None and df_list:
-                    cleaned_df: pd.DataFrame = self.cleaner.clean_cash_flow(
-                        df_list, year, season
-                    )
+                if df_list is None or not df_list:
+                    continue
 
-                    if cleaned_df is None or cleaned_df.empty:
-                        logger.warning(
-                            f"Cleaned cash flow dataframe empty on {year}Q{season}."
-                        )
-                        continue
+                cleaned_df: pd.DataFrame = self.cleaner.clean_cash_flow(
+                    df_list, year, season
+                )
+
+                if cleaned_df is None or cleaned_df.empty:
+                    logger.warning(
+                        f"Cleaned cash flow dataframe empty on {year}Q{season}"
+                    )
+                    continue
 
                 file_cnt += 1
                 if file_cnt == 10:
@@ -346,14 +357,16 @@ class FinancialStatementUpdater(BaseDataUpdater):
         )
 
         # 重新取得更新後的最新年度跟季度
-        table_latest_year: Optional[int] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn, table_name=CASH_FLOW_TABLE_NAME, col_name="year"
-        )
-        table_latest_season: Optional[int] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn, table_name=CASH_FLOW_TABLE_NAME, col_name="season"
+        latest_year, latest_season = SQLiteUtils.get_max_secondary_value_by_primary(
+            conn=self.conn,
+            table_name=CASH_FLOW_TABLE_NAME,
+            primary_col="year",
+            secondary_col="season",
+            default_primary_value=start_year,
+            default_secondary_value=start_season,
         )
         logger.info(
-            f"* Cash flow data updated. Latest available date: {table_latest_year}Q{table_latest_season}"
+            f"Cash flow data updated. Latest available date: {latest_year}Q{latest_season}"
         )
 
     def update_equity_changes(
@@ -389,16 +402,18 @@ class FinancialStatementUpdater(BaseDataUpdater):
                 )
 
                 # Step 2: Clean
-                if df_list is not None and df_list:
-                    cleaned_df: pd.DataFrame = self.cleaner.clean_equity_changes(
-                        df_list, year, season
-                    )
+                if df_list is None or not df_list:
+                    continue
 
-                    if cleaned_df is None or cleaned_df.empty:
-                        logger.warning(
-                            f"Cleaned equity changes dataframe empty on {year}Q{season}."
-                        )
-                        continue
+                cleaned_df: pd.DataFrame = self.cleaner.clean_equity_changes(
+                    df_list, year, season
+                )
+
+                if cleaned_df is None or cleaned_df.empty:
+                    logger.warning(
+                        f"Cleaned equity changes dataframe empty on {year}Q{season}"
+                    )
+                    continue
 
                 file_cnt += 1
                 if file_cnt == 10:
@@ -417,14 +432,16 @@ class FinancialStatementUpdater(BaseDataUpdater):
         )
 
         # 重新取得更新後的最新年度跟季度
-        table_latest_year: Optional[int] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn, table_name=EQUITY_CHANGE_TABLE_NAME, col_name="year"
-        )
-        table_latest_season: Optional[int] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn, table_name=EQUITY_CHANGE_TABLE_NAME, col_name="season"
+        latest_year, latest_season = SQLiteUtils.get_max_secondary_value_by_primary(
+            conn=self.conn,
+            table_name=EQUITY_CHANGE_TABLE_NAME,
+            primary_col="year",
+            secondary_col="season",
+            default_primary_value=start_year,
+            default_secondary_value=start_season,
         )
         logger.info(
-            f"* Equity changes data updated. Latest available date: {table_latest_year}Q{table_latest_season}"
+            f"Equity changes data updated. Latest available date: {latest_year}Q{latest_season}"
         )
 
     def get_actual_update_start_year_season(
@@ -433,22 +450,24 @@ class FinancialStatementUpdater(BaseDataUpdater):
         default_year: int = 2025,
         default_season: int = 1,
     ) -> Tuple[int, int]:
-        """Return the next (year, season) to update. If no data, return default."""
+        """回傳下一筆應更新的 (year, season)，若無資料則回傳預設值"""
 
-        latest_year: Optional[int] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn, table_name=table_name, col_name="year"
-        )
-        latest_season: Optional[int] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn, table_name=table_name, col_name="season"
-        )
-
-        if latest_year is not None and latest_season is not None:
-            year = int(latest_year)
-            season = int(latest_season)
-            # 處理進位（跨季）
-            if season == 4:
-                return year + 1, 1
-            else:
-                return year, season + 1
-        else:
+        # Step 1: 先取得最新 year
+        try:
+            latest_year, latest_season = SQLiteUtils.get_max_secondary_value_by_primary(
+                conn=self.conn,
+                table_name=table_name,
+                primary_col="year",
+                secondary_col="season",
+                default_primary_value=default_year,
+                default_secondary_value=default_season,
+            )
+        except Exception as e:
+            logger.error(f"Failed to get latest (year, season): {e}")
             return default_year, default_season
+
+        # Step 2: 處理進位（第4季 → 第1季 + 年份進位）
+        if latest_season == 4:
+            return latest_year + 1, 1
+        else:
+            return latest_year, latest_season + 1

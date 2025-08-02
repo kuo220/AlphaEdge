@@ -59,7 +59,7 @@ class StockChipUpdater(BaseDataUpdater):
     ) -> None:
         """Update the Database"""
 
-        logger.info("* Start Updating TWSE & TPEX Institutional Investors Data...")
+        logger.info("* Start Updating TWSE & TPEX Chip Data...")
 
         # Step 1: Crawl
         # 取得要開始更新的日期
@@ -80,14 +80,14 @@ class StockChipUpdater(BaseDataUpdater):
                     twse_df, date
                 )
                 if cleaned_twse_df is None or cleaned_twse_df.empty:
-                    logger.warning(f"Cleaned TWSE dataframe empty on {date}.")
+                    logger.warning(f"Cleaned TWSE dataframe empty on {date}")
 
             if tpex_df is not None and not tpex_df.empty:
                 cleaned_tpex_df: pd.DataFrame = self.cleaner.clean_tpex_chip(
                     tpex_df, date
                 )
                 if cleaned_tpex_df is None or cleaned_tpex_df.empty:
-                    logger.warning(f"Cleaned TPEX dataframe empty on {date}.")
+                    logger.warning(f"Cleaned TPEX dataframe empty on {date}")
 
             file_cnt += 1
 
@@ -110,10 +110,10 @@ class StockChipUpdater(BaseDataUpdater):
         )
         if table_latest_date:
             logger.info(
-                f"* Chip data updated. Latest available date: {table_latest_date}"
+                f"Stock chip data updated. Latest available date: {table_latest_date}"
             )
         else:
-            logger.warning("* No new chip data was updated.")
+            logger.warning("No new stock chip data was updated")
 
     def get_actual_update_start_date(
         self, default_date: datetime.date

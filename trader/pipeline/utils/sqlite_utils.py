@@ -47,7 +47,7 @@ class SQLiteUtils:
             result: Optional[tuple[Any, ...]] = cursor.fetchone()
 
             if result is None or result[0] is None:
-                logger.info(
+                logger.warning(
                     f"No value found for column '{col_name}' in table: '{table_name}'"
                 )
                 return None
@@ -86,7 +86,7 @@ class SQLiteUtils:
             result: Optional[Tuple[Any, ...]] = cursor.fetchone()
 
             if result is None or result[0] is None:
-                logger.info(
+                logger.warning(
                     f"No value found for column '{col_name}' in table: '{table_name}'"
                 )
                 return None
@@ -95,3 +95,58 @@ class SQLiteUtils:
         except sqlite3.Error as e:
             logger.error(f"SQLite error while querying {table_name}.{col_name}: {e}")
             return None
+
+    @staticmethod
+    def get_max_secondary_value_by_primary(
+        conn: sqlite3.Connection,
+        table_name: str,
+        primary_col: str,
+        secondary_col: str,
+        default_primary_value: int,
+        default_secondary_value: int,
+    ) -> Tuple[int, int]:
+        """
+        查詢指定 table 中最大 primary_col 的值，並找出其對應的最大 secondary_col 值。
+
+        Parameters:
+            conn (sqlite3.Connection): 資料庫連線
+            table_name (str): 資料表名稱
+            primary_col (str): 主欄位名稱（如 'year'）
+            secondary_col (str): 次欄位名稱（如 'month', 'season'）
+            default_primary_value (int): 查詢失敗時回傳的主欄位預設值
+            default_secondary_value (int): 查詢失敗時回傳的次欄位預設值
+
+        Returns:
+            Tuple[int, int]: (主欄位最大值, 對應的次欄位最大值)，若查詢失敗則回傳預設值
+        """
+        latest_primary: Any = SQLiteUtils.get_table_latest_value(
+            conn=conn,
+            table_name=table_name,
+            col_name=primary_col,
+        )
+
+        if latest_primary is None:
+            return default_primary_value, default_secondary_value
+
+        query: str = f"""
+            SELECT {secondary_col}
+            FROM {table_name}
+            WHERE {primary_col} = ?
+            ORDER BY CAST({secondary_col} AS INTEGER) DESC
+            LIMIT 1
+        """
+
+        try:
+            cursor = conn.execute(query, (latest_primary,))
+            result = cursor.fetchone()
+            latest_secondary = result[0] if result and result[0] is not None else None
+        except Exception as e:
+            logger.error(
+                f"Failed to query {secondary_col} for {primary_col}={latest_primary} in table '{table_name}': {e}"
+            )
+            return default_primary_value, default_secondary_value
+
+        if latest_secondary is None:
+            return default_primary_value, default_secondary_value
+
+        return int(latest_primary), int(latest_secondary)

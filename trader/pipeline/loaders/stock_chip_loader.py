@@ -83,7 +83,7 @@ class StockChipLoader(BaseDataLoader):
         if cursor.fetchall():
             logger.info(f"Table {CHIP_TABLE_NAME} create successfully!")
         else:
-            logger.info(f"Table {CHIP_TABLE_NAME} create unsuccessfully!")
+            logger.warning(f"Table {CHIP_TABLE_NAME} create unsuccessfully!")
 
         self.conn.commit()
 
@@ -101,10 +101,10 @@ class StockChipLoader(BaseDataLoader):
             try:
                 df: pd.DataFrame = pd.read_csv(file_path)
                 df.to_sql(CHIP_TABLE_NAME, self.conn, if_exists="append", index=False)
-                logger.info(f"Save {file_path} into database.")
+                logger.info(f"Save {file_path} into database")
                 file_cnt += 1
             except Exception as e:
-                logger.info(f"Error saving {file_path}: {e}")
+                logger.warning(f"Error saving {file_path}: {e}")
 
         self.conn.commit()
         self.disconnect()

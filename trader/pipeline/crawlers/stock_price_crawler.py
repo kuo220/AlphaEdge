@@ -10,7 +10,7 @@ from trader.pipeline.crawlers.base import BaseDataCrawler
 from trader.pipeline.crawlers.utils.request_utils import RequestUtils
 from trader.pipeline.utils import URLManager
 from trader.pipeline.utils.data_utils import DataUtils
-from trader.config import PRICE_DOWNLOADS_PATH
+from trader.utils import TimeUtils
 
 
 """
@@ -29,13 +29,11 @@ class StockPriceCrawler(BaseDataCrawler):
     def __init__(self):
         super().__init__()
 
-        self.price_dir: Path = PRICE_DOWNLOADS_PATH
         self.setup()
 
     def setup(self) -> None:
         """Set Up the Config of Crawler"""
-
-        self.price_dir.mkdir(parents=True, exist_ok=True)
+        pass
 
     def crawl(self, date: datetime.date) -> None:
         """Crawl Price Data"""
@@ -50,18 +48,18 @@ class StockPriceCrawler(BaseDataCrawler):
         1. 2004/2/11 ~ present
         """
 
+        logger.info(f"* Start crawling TWSE Price: {date}")
+
+        date_str: str = TimeUtils.format_date(date, sep="")
         url: str = URLManager.get_url(
             "TWSE_CLOSING_QUOTE_URL",
-            year=date.year,
-            month=DataUtils.pad2(date.month),
-            day=DataUtils.pad2(date.day),
+            date=date_str,
         )
 
         try:
             res: Optional[requests.Response] = RequestUtils.requests_get(url)
-            logger.info(f"上市 URL: {url}")
         except Exception as e:
-            logger.info(f"* WARN: Cannot get stock price at {date}")
+            logger.warning(f"Cannot get stock price at {date}")
             logger.info(e)
             return None
 
@@ -82,18 +80,18 @@ class StockPriceCrawler(BaseDataCrawler):
         2. 從 109/4/30 開始後 csv 檔的 column 不一樣
         """
 
+        logger.info(f"* Start crawling TPEX Price: {date}")
+
+        date_str: str = TimeUtils.format_date(date, sep="/")
         url: str = URLManager.get_url(
             "TPEX_CLOSING_QUOTE_URL",
-            year=date.year,
-            month=DataUtils.pad2(date.month),
-            day=DataUtils.pad2(date.day),
+            date=date_str,
         )
 
         try:
             res: Optional[requests.Response] = RequestUtils.requests_get(url)
-            logger.info(f"上櫃 URL: {url}")
         except Exception as e:
-            logger.info(f"* WARN: Cannot get stock price at {date}")
+            logger.warning(f"Cannot get stock price at {date}")
             logger.info(e)
             return None
 

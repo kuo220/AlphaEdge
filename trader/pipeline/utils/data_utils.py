@@ -259,6 +259,37 @@ class DataUtils:
         return new_items
 
     @staticmethod
+    def remove_duplicate_rows(
+        df: pd.DataFrame,
+        subset: List[str],
+        keep: str | bool = "first",
+    ) -> Optional[pd.DataFrame]:
+        """
+        - Description:
+            根據指定欄位去除重複的資料列，並重設 index。
+
+        - Parameters:
+            - df: pd.DataFrame
+                要處理的資料表
+            - subsets: List[str]
+                用來判斷重複的欄位名稱列表（例如 ["year", "month", "stock_id", "公司名稱"]）
+            - keep: str | bool
+                要保留哪一筆重複資料：
+                    - "first": 保留第一筆（預設）
+                    - "last": 保留最後一筆
+                    - False: 移除所有重複的列
+
+        - Returns:
+            - Optional[pd.DataFrame]
+                去除重複值並重設 index 的資料表；若輸入為 None 或空表則回傳 None
+        """
+
+        if df is None or df.empty:
+            return None
+
+        return df.drop_duplicates(subset=subset, keep=keep).reset_index(drop=True)
+
+    @staticmethod
     def save_json(
         data: Any,
         file_path: Path,

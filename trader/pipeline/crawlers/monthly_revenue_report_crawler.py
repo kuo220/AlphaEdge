@@ -59,6 +59,8 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
         上市: 102（2013）年前資料無區分國內外（目前先從 102 年開始爬）
         """
 
+        logger.info(f"* Start crawling TWSE MRR: {year}/{month}")
+
         df_list: List[pd.DataFrame] = []
 
         for market_type in self.twse_market_types:
@@ -72,15 +74,20 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
             try:
                 res: requests.Response = RequestUtils.requests_get(url)
                 res.encoding = FileEncoding.BIG5.value
-            except Exception as e:
-                logger.info(
-                    f"* WARN: Cannot get TWSE Monthly Revenue Report at {year}/{month}"
+            except Exception:
+                logger.warning(
+                    f"Cannot get TWSE Monthly Revenue Report at {year}/{month}"
                 )
-                logger.info(e)
-                return None
+                continue
 
-            dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
-            df_list.extend(dfs)
+            try:
+                dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
+                df_list.extend(dfs)
+            except Exception:
+                logger.warning(
+                    f"Cannot get TWSE Monthly Revenue Report at {year}/{month}"
+                )
+                continue
 
         return df_list
 
@@ -95,6 +102,8 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
         上櫃: 102（2013）年前資料無區分國內外（目前先從 102 年開始爬）
         """
 
+        logger.info(f"* Start crawling TPEX MRR: {year}/{month}")
+
         df_list: List[pd.DataFrame] = []
 
         for market_type in self.tpex_market_types:
@@ -108,15 +117,20 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
             try:
                 res: requests.Response = RequestUtils.requests_get(url)
                 res.encoding = FileEncoding.BIG5.value
-            except Exception as e:
-                logger.info(
-                    f"* WARN: Cannot get TWSE Monthly Revenue Report at {year}/{month}"
+            except Exception:
+                logger.warning(
+                    f"Cannot get TPEX Monthly Revenue Report at {year}/{month}"
                 )
-                logger.info(e)
-                return None
+                continue
 
-            dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
-            df_list.extend(dfs)
+            try:
+                dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
+                df_list.extend(dfs)
+            except Exception:
+                logger.warning(
+                    f"Cannot get TPEX Monthly Revenue Report at {year}/{month}"
+                )
+                continue
 
         return df_list
 

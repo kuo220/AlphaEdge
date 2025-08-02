@@ -102,6 +102,8 @@ class FinancialStatementCrawler(BaseDataCrawler):
         上櫃: 民國 82 (1993) 年 ~ present
         """
 
+        logger.info(f"* Start crawling balance sheet: {year}/Q{season}")
+
         roc_year: str = TimeUtils.convert_ad_to_roc_year(year)
 
         self.payload.year = roc_year
@@ -117,19 +119,15 @@ class FinancialStatementCrawler(BaseDataCrawler):
                 res: Optional[requests.Response] = RequestUtils.requests_post(
                     balance_sheet_url, data=self.payload.convert_to_clean_dict()
                 )
-                logger.info(
-                    f"{market_type} {year}Q{season} Balance Sheet URL: {balance_sheet_url}"
-                )
-            except Exception as e:
-                logger.info(f"* WARN: Cannot get balance sheet at {year}Q{season}")
-                logger.info(e)
+            except Exception:
+                logger.warning(f"Cannot get balance sheet at {year}Q{season}")
+                continue
 
             try:
                 dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
                 df_list.extend(dfs)
-            except Exception as e:
-                logger.info("No tables found")
-                logger.info(e)
+            except Exception:
+                logger.warning("No tables found")
                 continue
 
         return df_list
@@ -146,6 +144,8 @@ class FinancialStatementCrawler(BaseDataCrawler):
         上櫃: 民國 82 (1993) 年 ~ present
         """
 
+        logger.info(f"* Start crawling comprehensive income: {year}/Q{season}")
+
         roc_year: str = TimeUtils.convert_ad_to_roc_year(year)
 
         self.payload.year = roc_year
@@ -161,20 +161,17 @@ class FinancialStatementCrawler(BaseDataCrawler):
                 res: Optional[requests.Response] = RequestUtils.requests_post(
                     income_url, data=self.payload.convert_to_clean_dict()
                 )
-                logger.info(
-                    f"{market_type} {year}Q{season} Statement of Comprehensive Income URL: {income_url}"
+            except Exception:
+                logger.warning(
+                    f"Cannot get statement of comprehensive income at {year}Q{season}"
                 )
-            except Exception as e:
-                logger.info(
-                    f"* WARN: Cannot get statement of comprehensive income at {year}Q{season}"
-                )
+                continue
 
             try:
                 dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
                 df_list.extend(dfs)
-            except Exception as e:
-                logger.info("No tables found")
-                logger.info(e)
+            except Exception:
+                logger.warning("No tables found")
                 continue
 
         return df_list
@@ -191,6 +188,8 @@ class FinancialStatementCrawler(BaseDataCrawler):
         上櫃: 民國 102 (2013) 年 ~ present
         """
 
+        logger.info(f"* Start crawling cash flow: {year}/Q{season}")
+
         roc_year: str = TimeUtils.convert_ad_to_roc_year(year)
 
         self.payload.year = roc_year
@@ -206,20 +205,15 @@ class FinancialStatementCrawler(BaseDataCrawler):
                 res: Optional[requests.Response] = RequestUtils.requests_post(
                     cash_flow_url, data=self.payload.convert_to_clean_dict()
                 )
-                logger.info(
-                    f"{market_type} {year}Q{season} Statement of Cash Flow URL: {cash_flow_url}"
-                )
-            except Exception as e:
-                logger.info(
-                    f"* WARN: Cannot get cash flow statement at {year}Q{season}"
-                )
+            except Exception:
+                logger.warning(f"Cannot get cash flow statement at {year}Q{season}")
+                continue
 
             try:
                 dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
                 df_list.extend(dfs)
-            except Exception as e:
-                logger.info("No tables found")
-                logger.info(e)
+            except Exception:
+                logger.warning("No tables found")
                 continue
 
         return df_list
@@ -237,6 +231,8 @@ class FinancialStatementCrawler(BaseDataCrawler):
         上櫃: 民國 102 (2013) 年 ~ present
         """
 
+        logger.info(f"* Start crawling equity changes: {year}/Q{season}")
+
         roc_year: str = TimeUtils.convert_ad_to_roc_year(year)
 
         self.payload.TYPEK = None
@@ -250,19 +246,14 @@ class FinancialStatementCrawler(BaseDataCrawler):
             res: Optional[requests.Response] = RequestUtils.requests_post(
                 equity_changes_url, data=self.payload.convert_to_clean_dict()
             )
-            logger.info(
-                f"{equity_changes_url} {year}Q{season} Statement of Equity Changes URL: {equity_changes_url}"
-            )
-        except Exception as e:
-            logger.info(
-                f"* WARN: Cannot get equity changes statement at {year}Q{season}"
-            )
+        except Exception:
+            logger.warning(f"Cannot get equity changes statement at {year}Q{season}")
+            return None
 
         try:
             df_list: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
-        except Exception as e:
-            logger.info("No tables found")
-            logger.info(e)
+        except Exception:
+            logger.warning("No tables found")
             return None
 
         return df_list

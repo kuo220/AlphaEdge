@@ -6,7 +6,7 @@ from typing import List
 try:
     import dolphindb as ddb
 except ModuleNotFoundError:
-    logger.info("Warning: dolphindb module is not installed.")
+    logger.info("Warning: dolphindb module is not installed")
 
 from trader.pipeline.loaders.base import BaseDataLoader
 from trader.config import (
@@ -98,9 +98,9 @@ class StockTickLoader(BaseDataLoader):
                 if self.session.existsDatabase(TICK_DB_PATH):
                     logger.info("Tick dolphinDB create successfully!")
                 else:
-                    logger.info("Tick dolphinDB create unsuccessfully!")
+                    logger.warning("Tick dolphinDB create unsuccessfully!")
             except Exception as e:
-                logger.info(f"Tick dolphinDB create unsuccessfully!\n{e}")
+                logger.warning(f"Tick dolphinDB create unsuccessfully!\n{e}")
 
     def add_to_db(self, remove_files: bool = False) -> None:
         """將資料夾中的所有 CSV 檔存入 tick 的 DolphinDB 中"""

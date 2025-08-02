@@ -7,7 +7,7 @@ import pandas as pd
 try:
     import dolphindb as ddb
 except ModuleNotFoundError:
-    print("Warning: dolphindb module is not installed.")
+    print("Warning: dolphindb module is not installed")
 
 from .chip import Chip
 from .tick import Tick

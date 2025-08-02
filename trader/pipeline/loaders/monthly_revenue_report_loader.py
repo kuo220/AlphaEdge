@@ -89,7 +89,7 @@ class MonthlyRevenueReportLoader(BaseDataLoader):
                 col_defs.append(f"{col_name} REAL")
 
         # Step 3: 加 PRIMARY KEY
-        col_defs.append("PRIMARY KEY (year, month, stock_id)")
+        col_defs.append('PRIMARY KEY ("year", "month", "stock_id", "公司名稱")')
 
         # Step 4: 組建 SQL
         col_defs_sql: str = ",\n            ".join(col_defs)
@@ -106,7 +106,7 @@ class MonthlyRevenueReportLoader(BaseDataLoader):
             logger.info(f"Table {MONTHLY_REVENUE_TABLE_NAME} create successfully!")
             logger.info(create_table_query)
         else:
-            logger.info(f"Table {MONTHLY_REVENUE_TABLE_NAME} create unsuccessfully!")
+            logger.warning(f"Table {MONTHLY_REVENUE_TABLE_NAME} create unsuccessfully!")
 
         self.conn.commit()
 
@@ -129,10 +129,10 @@ class MonthlyRevenueReportLoader(BaseDataLoader):
                     if_exists="append",
                     index=False,
                 )
-                logger.info(f"Save {file_path} into database.")
+                logger.info(f"Save {file_path} into database")
                 file_cnt += 1
             except Exception as e:
-                logger.info(f"Error saving {file_path}: {e}")
+                logger.warning(f"Error saving {file_path}: {e}")
 
         self.conn.commit()
         self.disconnect()

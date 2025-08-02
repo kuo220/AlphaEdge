@@ -92,16 +92,18 @@ class MonthlyRevenueReportUpdater(BaseDataUpdater):
                 df_list: Optional[List[pd.DataFrame]] = self.crawler.crawl(year, month)
 
                 # Step 2: Clean
-                if df_list is not None and df_list:
-                    cleaned_df: pd.DataFrame = self.cleaner.clean_monthly_revenue(
-                        df_list, year, month
-                    )
+                if df_list is None or not df_list:
+                    continue
 
-                    if cleaned_df is None or cleaned_df.empty:
-                        logger.warning(
-                            f"Cleaned monthly revenue report dataframe empty on {year}/{month}."
-                        )
-                        continue
+                cleaned_df: pd.DataFrame = self.cleaner.clean_monthly_revenue(
+                    df_list, year, month
+                )
+
+                if cleaned_df is None or cleaned_df.empty:
+                    logger.warning(
+                        f"Cleaned monthly revenue report dataframe empty on {year}/{month}"
+                    )
+                    continue
 
                 file_cnt += 1
                 if file_cnt == 10:
@@ -116,41 +118,45 @@ class MonthlyRevenueReportUpdater(BaseDataUpdater):
         self.loader.add_to_db(remove_files=False)
 
         # 更新後重新取得最新年月
-        table_latest_year: Optional[int] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn, table_name=MONTHLY_REVENUE_TABLE_NAME, col_name="year"
-        )
-        table_latest_month: Optional[int] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn, table_name=MONTHLY_REVENUE_TABLE_NAME, col_name="month"
+        latest_year, latest_month = SQLiteUtils.get_max_secondary_value_by_primary(
+            conn=self.conn,
+            table_name=MONTHLY_REVENUE_TABLE_NAME,
+            primary_col="year",
+            secondary_col="month",
+            default_primary_value=start_year,
+            default_secondary_value=start_month,
         )
 
-        if table_latest_year and table_latest_month:
+        if latest_year and latest_month:
             logger.info(
-                f"* Monthly revenue data updated. Latest available date: {table_latest_year}/{table_latest_month}"
+                f"Monthly revenue data updated. Latest available date: {latest_year}/{latest_month}"
             )
         else:
-            logger.warning("* No new monthly revenue data was updated.")
+            logger.warning("No new monthly revenue data was updated")
 
     def get_actual_update_start_year_month(
         self,
         default_year: int = 2025,
         default_month: int = 1,
     ) -> Tuple[int, int]:
-        """Return the next (year, month) to update. If no data, return default."""
+        """回傳下一筆應更新的 (year, month)，若無資料則回傳預設值"""
 
-        latest_year: Optional[int] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn, table_name=MONTHLY_REVENUE_TABLE_NAME, col_name="year"
-        )
-        latest_month: Optional[int] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn, table_name=MONTHLY_REVENUE_TABLE_NAME, col_name="month"
-        )
-
-        if latest_year is not None and latest_month is not None:
-            year = int(latest_year)
-            month = int(latest_month)
-            # 處理進位（跨年）
-            if month == 12:
-                return year + 1, 1
-            else:
-                return year, month + 1
-        else:
+        # Step 1: 先取得資料表中最新的 year
+        try:
+            latest_year, latest_month = SQLiteUtils.get_max_secondary_value_by_primary(
+                conn=self.conn,
+                table_name=MONTHLY_REVENUE_TABLE_NAME,
+                primary_col="year",
+                secondary_col="month",
+                default_primary_value=default_year,
+                default_secondary_value=default_month,
+            )
+        except Exception as e:
+            logger.error(f"Failed to get latest (year, month): {e}")
             return default_year, default_month
+
+        # Step 2: 計算下一個月份（處理進位）
+        if latest_month == 12:
+            return latest_year + 1, 1
+        else:
+            return latest_year, latest_month + 1
