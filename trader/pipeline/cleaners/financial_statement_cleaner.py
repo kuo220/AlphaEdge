@@ -150,6 +150,14 @@ class FinancialStatementCleaner(BaseDataCleaner):
             )
         )
 
+        # 根據指定 columns 移除重複的 rows
+        new_df = new_df.drop_duplicates(
+            subset=["year", "season", "stock_id", "公司名稱"],  # 根據這四個欄位判斷重複
+            keep="first",  # 保留第一筆（預設值，也可以省略）
+        ).reset_index(
+            drop=True
+        )  # 重排 index，避免 index 跳號
+
         new_df.to_csv(
             self.balance_sheet_dir / f"balance_sheet_{year}Q{season}.csv",
             index=False,

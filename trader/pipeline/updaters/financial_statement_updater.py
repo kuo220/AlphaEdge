@@ -144,6 +144,9 @@ class FinancialStatementUpdater(BaseDataUpdater):
         # Update Cash Flow
         self.update_cash_flow(start_year, end_year, start_season, end_season)
 
+        # Update Equity Changes
+        # TODO: Update Equity Changes
+
     def update_balance_sheet(
         self,
         start_year: int,
@@ -196,23 +199,23 @@ class FinancialStatementUpdater(BaseDataUpdater):
                     delay = random.randint(1, 5)
                     time.sleep(delay)
 
-        # Step 3: Load
-        self.loader.add_to_db(
-            dir_path=self.balance_sheet_dir,
-            table_name=BALANCE_SHEET_TABLE_NAME,
-            remove_files=False,
-        )
+        # # Step 3: Load
+        # self.loader.add_to_db(
+        #     dir_path=self.balance_sheet_dir,
+        #     table_name=BALANCE_SHEET_TABLE_NAME,
+        #     remove_files=False,
+        # )
 
-        # 重新取得更新後的最新年度跟季度
-        table_latest_year: Optional[int] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn, table_name=BALANCE_SHEET_TABLE_NAME, col_name="year"
-        )
-        table_latest_season: Optional[int] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn, table_name=BALANCE_SHEET_TABLE_NAME, col_name="season"
-        )
-        logger.info(
-            f"Balance sheet data updated. Latest available date: {table_latest_year}Q{table_latest_season}"
-        )
+        # # 重新取得更新後的最新年度跟季度
+        # table_latest_year: Optional[int] = SQLiteUtils.get_table_latest_value(
+        #     conn=self.conn, table_name=BALANCE_SHEET_TABLE_NAME, col_name="year"
+        # )
+        # table_latest_season: Optional[int] = SQLiteUtils.get_table_latest_value(
+        #     conn=self.conn, table_name=BALANCE_SHEET_TABLE_NAME, col_name="season"
+        # )
+        # logger.info(
+        #     f"Balance sheet data updated. Latest available date: {table_latest_year}Q{table_latest_season}"
+        # )
 
     def update_comprehensive_income(
         self,
@@ -266,25 +269,25 @@ class FinancialStatementUpdater(BaseDataUpdater):
                     delay = random.randint(1, 5)
                     time.sleep(delay)
 
-        # Step 3: Load
-        self.loader.add_to_db(
-            dir_path=self.comprehensive_income_dir,
-            table_name=COMPREHENSIVE_INCOME_TABLE_NAME,
-            remove_files=False,
-        )
+        # # Step 3: Load
+        # self.loader.add_to_db(
+        #     dir_path=self.comprehensive_income_dir,
+        #     table_name=COMPREHENSIVE_INCOME_TABLE_NAME,
+        #     remove_files=False,
+        # )
 
-        # 重新取得更新後的最新年度跟季度
-        table_latest_year: Optional[int] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn, table_name=COMPREHENSIVE_INCOME_TABLE_NAME, col_name="year"
-        )
-        table_latest_season: Optional[int] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn,
-            table_name=COMPREHENSIVE_INCOME_TABLE_NAME,
-            col_name="season",
-        )
-        logger.info(
-            f"Comprehensive income data updated. Latest available date: {table_latest_year}Q{table_latest_season}"
-        )
+        # # 重新取得更新後的最新年度跟季度
+        # table_latest_year: Optional[int] = SQLiteUtils.get_table_latest_value(
+        #     conn=self.conn, table_name=COMPREHENSIVE_INCOME_TABLE_NAME, col_name="year"
+        # )
+        # table_latest_season: Optional[int] = SQLiteUtils.get_table_latest_value(
+        #     conn=self.conn,
+        #     table_name=COMPREHENSIVE_INCOME_TABLE_NAME,
+        #     col_name="season",
+        # )
+        # logger.info(
+        #     f"Comprehensive income data updated. Latest available date: {table_latest_year}Q{table_latest_season}"
+        # )
 
     def update_cash_flow(
         self,
@@ -338,23 +341,23 @@ class FinancialStatementUpdater(BaseDataUpdater):
                     delay = random.randint(1, 5)
                     time.sleep(delay)
 
-        # Step 3: Load
-        self.loader.add_to_db(
-            dir_path=self.cash_flow_dir,
-            table_name=CASH_FLOW_TABLE_NAME,
-            remove_files=False,
-        )
+        # # Step 3: Load
+        # self.loader.add_to_db(
+        #     dir_path=self.cash_flow_dir,
+        #     table_name=CASH_FLOW_TABLE_NAME,
+        #     remove_files=False,
+        # )
 
-        # 重新取得更新後的最新年度跟季度
-        table_latest_year: Optional[int] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn, table_name=CASH_FLOW_TABLE_NAME, col_name="year"
-        )
-        table_latest_season: Optional[int] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn, table_name=CASH_FLOW_TABLE_NAME, col_name="season"
-        )
-        logger.info(
-            f"Cash flow data updated. Latest available date: {table_latest_year}Q{table_latest_season}"
-        )
+        # # 重新取得更新後的最新年度跟季度
+        # table_latest_year: Optional[int] = SQLiteUtils.get_table_latest_value(
+        #     conn=self.conn, table_name=CASH_FLOW_TABLE_NAME, col_name="year"
+        # )
+        # table_latest_season: Optional[int] = SQLiteUtils.get_table_latest_value(
+        #     conn=self.conn, table_name=CASH_FLOW_TABLE_NAME, col_name="season"
+        # )
+        # logger.info(
+        #     f"Cash flow data updated. Latest available date: {table_latest_year}Q{table_latest_season}"
+        # )
 
     def update_equity_changes(
         self,
