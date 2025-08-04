@@ -4,7 +4,13 @@ import numpy as np
 import pandas as pd
 from typing import List, Dict, Tuple, Optional, Any, Union
 
-from trader.api import Data, Chip, Tick, QXData
+from trader.api import (
+    StockTickAPI,
+    StockPriceAPI,
+    StockChipAPI,
+    FinancialStatementAPI,
+    MonthlyRevenueReportAPI
+)
 from trader.adapters import StockQuoteAdapter
 from trader.models import (
     StockAccount,
