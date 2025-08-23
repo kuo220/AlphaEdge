@@ -8,8 +8,8 @@ from trader.api import (
     StockTickAPI,
     StockPriceAPI,
     StockChipAPI,
+    MonthlyRevenueReportAPI,
     FinancialStatementAPI,
-    MonthlyRevenueReportAPI
 )
 from trader.adapters import StockQuoteAdapter
 from trader.models import (
@@ -19,7 +19,15 @@ from trader.models import (
     StockOrder,
     StockTradeRecord,
 )
-from trader.utils import StockUtils, Commission, Market, Scale, PositionType, Units
+from trader.utils import (
+    TimeUtils,
+    StockUtils,
+    Commission,
+    Market,
+    Scale,
+    PositionType,
+    Units,
+)
 from trader.strategies.stock import BaseStockStrategy
 
 
@@ -52,10 +60,13 @@ class Backtester:
         self.strategy.set_account(self.account)  # 設置虛擬帳戶資訊
 
         """ === Datasets === """
-        self.data: Data = Data()
-        self.tick: Optional[Tick] = None  # Ticks data
-        self.chip: Optional[Chip] = None  # Chips data
-        self.qx_data: Optional[QXData] = None  # Day price data, Financial data, etc
+        self.tick: Optional[StockTickAPI] = None  # Ticks data
+        self.chip: Optional[StockChipAPI] = None  # Chips data
+        self.price: Optional[StockPriceAPI] = None  # Price data
+        self.mrr: Optional[MonthlyRevenueReportAPI] = (
+            None  # Monthly Revenue Report data
+        )
+        self.fs: Optional[FinancialStatementAPI] = None  # Financial Statement data
 
         """ === Backtest Parameters === """
         self.scale: str = self.strategy.scale  # 回測 KBar 級別
@@ -67,16 +78,19 @@ class Backtester:
     def load_datasets(self) -> None:
         """從資料庫載入資料"""
 
-        self.chip = self.data.chip
+        self.chip = StockChipAPI()
+        self.mrr = MonthlyRevenueReportAPI()
+        self.fs = FinancialStatementAPI()
+
         if self.scale == Scale.TICK:
-            self.tick = self.data.tick
+            self.tick = StockTickAPI()
 
         elif self.scale == Scale.DAY:
-            self.qx_data = self.data.qx_data
+            self.price = StockPriceAPI()
 
         elif self.scale == Scale.MIX:
-            self.tick = self.data.tick
-            self.qx_data = self.data.qx_data
+            self.tick = StockTickAPI()
+            self.price = StockPriceAPI()
 
     # === Main Backtest Loop ===
     def run(self) -> None:
@@ -92,33 +106,35 @@ class Backtester:
 
         # load backtest dataset
         self.load_datasets()
+        # load backtest period
+        dates: List[datetime.date] = TimeUtils.generate_date_range(
+            start_date=self.start_date, end_date=self.end_date
+        )
 
-        while self.cur_date <= self.end_date:
-            print(f"--- {self.cur_date.strftime('%Y/%m/%d')} ---")
+        for date in dates:
+            print(f"--- {date.strftime('%Y/%m/%d')} ---")
 
-            if not self.qx_data.check_market_open(self.cur_date):
+            if not self.qx_data.check_market_open(date):
                 print("* Stock Market Close\n")
                 continue
 
             if self.scale == Scale.TICK:
-                self.run_tick_backtest()
+                self.run_tick_backtest(date)
 
             elif self.scale == Scale.DAY:
-                self.run_day_backtest()
+                self.run_day_backtest(date)
 
             elif self.scale == Scale.MIX:
-                self.run_mix_backtest()
-
-            self.cur_date += datetime.timedelta(days=1)
+                self.run_mix_backtest(date)
 
         self.account.update_account_status()
 
-    def run_tick_backtest(self) -> None:
+    def run_tick_backtest(self, date: datetime.date) -> None:
         """Tick 級別的回測架構"""
 
         # Stock Quotes
         stock_quotes: List[StockQuote] = StockQuoteAdapter.convert_to_tick_quotes(
-            self.tick, self.cur_date
+            self.tick, date
         )
 
         if not stock_quotes:
@@ -127,12 +143,12 @@ class Backtester:
         self.execute_close_signal(stock_quotes)
         self.execute_open_signal(stock_quotes)
 
-    def run_day_backtest(self) -> None:
+    def run_day_backtest(self, date: datetime.date) -> None:
         """Day 級別的回測架構"""
 
         # Stock Quotes
         stock_quotes: List[StockQuote] = StockQuoteAdapter.convert_to_day_quotes(
-            self.qx_data, self.cur_date
+            self.qx_data, date
         )
 
         if not stock_quotes:
@@ -141,7 +157,7 @@ class Backtester:
         self.execute_close_signal(stock_quotes)
         self.execute_open_signal(stock_quotes)
 
-    def run_mix_backtest(self) -> None:
+    def run_mix_backtest(self, date: datetime.date) -> None:
         """Tick & Day 級別的回測架構"""
         pass
 
