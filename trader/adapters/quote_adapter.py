@@ -68,9 +68,7 @@ class StockQuoteAdapter:
 
         # Type: Pandas(date='2025-07-01', stock_id='0050', 證券名稱='元大台灣50', 開盤價=48.38, 最高價=49.15, 最低價=48.38, 收盤價=48.64, 漲跌價差=0.28, 成交股數=77081298, 成交金額=3767256390, 成交筆數=50311, 最後揭示買價=48.63, 最後揭示買量=89, 最後揭示賣價=48.64, 最後揭示賣量=104, 本益比=0.0)
         # Ex: [Pandas(date='2025-07-01', stock_id='0050',...), Pandas(date='2025-07-01', stock_id='0051',...), ...]
-        price_rows: List[Any] = [
-            row for row in price_df.itertuples(index=False)
-        ]
+        price_rows: List[Any] = [row for row in price_df.itertuples(index=False)]
 
         return StockQuoteAdapter.generate_stock_quotes(price_rows, date, Scale.DAY)
 
@@ -97,12 +95,17 @@ class StockQuoteAdapter:
 
         elif scale == Scale.DAY:
             all_stock_ids: List[str] = [stock.stock_id for stock in data]
-            filtered_stock_ids: List[str] = StockUtils.filter_common_stocks(all_stock_ids)
+            filtered_stock_ids: List[str] = StockUtils.filter_common_stocks(
+                all_stock_ids
+            )
 
             return [
-                StockQuoteAdapter.generate_stock_quote(stock, stock.stock_id, date, scale)
+                StockQuoteAdapter.generate_stock_quote(
+                    stock, stock.stock_id, date, scale
+                )
                 for stock in data
-                if stock.stock_id in filtered_stock_ids  # 過濾掉非一般股票（ETF、權證等）
+                if stock.stock_id
+                in filtered_stock_ids  # 過濾掉非一般股票（ETF、權證等）
             ]
 
     @staticmethod

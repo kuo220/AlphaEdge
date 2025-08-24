@@ -2,6 +2,7 @@ from pathlib import Path
 import datetime
 import numpy as np
 import pandas as pd
+from loguru import logger
 from typing import List, Dict, Tuple, Optional, Any, Union
 
 from trader.api import (
@@ -166,6 +167,7 @@ class Backtester:
     def execute_open_signal(self, stock_quotes: List[StockQuote]) -> None:
         """若倉位數量未達到限制且有開倉訊號，則執行開倉"""
 
+        # Step 1: Get open orders
         open_orders: List[StockOrder] = self.strategy.check_open_signal(stock_quotes)
         if self.max_holdings is not None:
             remaining_holding: int = max(
@@ -173,13 +175,14 @@ class Backtester:
             )
             open_orders = open_orders[:remaining_holding]
 
+        # Step 2: Execute open orders
         for order in open_orders:
             self.place_open_order(order)
 
     def execute_close_signal(self, stock_quotes: List[StockQuote]) -> None:
         """執行平倉邏輯：先判斷停損訊號，後判斷一般平倉"""
 
-        # 先找出有持倉的股票
+        # Step 1:find stocks with existing positions
         positions: List[StockQuote] = [
             sq for sq in stock_quotes if self.account.check_has_position(sq.code)
         ]
@@ -187,20 +190,26 @@ class Backtester:
         if not positions:
             return
 
+        # Step 2: Get stop loss orders
         stop_loss_orders: List[StockOrder] = self.strategy.check_stop_loss_signal(
             positions
         )
+
+        # Step 3: Execute stop loss orders
         for order in stop_loss_orders:
             self.place_close_order(order)
 
-        # 停損執行後重新確認剩下的持倉
+        # After executing stop loss, recheck the remaining positions
         remaining_positions: List[StockQuote] = [
             sq for sq in stock_quotes if self.account.check_has_position(sq.code)
         ]
 
+        # Step 4: Get close orders
         close_orders: List[StockOrder] = self.strategy.check_close_signal(
             remaining_positions
         )
+
+        # Step 5: Execute close orders
         for order in close_orders:
             self.place_close_order(order)
 
@@ -215,22 +224,26 @@ class Backtester:
             - position: StockTradeRecord
         """
 
-        position_value: float = stock.price * stock.volume * Units.LOT
+        # Step 1: Calculate position value and open cost
+        position_value: float = stock.price * stock.volume
         open_cost: float = StockUtils.calculate_transaction_commission(
             buy_price=stock.price, volume=stock.volume
         )
+
+        # Step 2: Create position
         position: Optional[StockTradeRecord] = None
 
+        # Step 3: Execute open order & update account
         if stock.position_type == PositionType.LONG:
             if self.account.balance >= (position_value + open_cost):
-                print(f"* Place Open Order: {stock.code}")
+                logger.info(f"* Place Open Order: {stock.stock_id}")
 
                 self.account.trade_id_counter += 1
                 self.account.balance -= position_value + open_cost
 
                 position = StockTradeRecord(
                     id=self.account.trade_id_counter,
-                    code=stock.code,
+                    stock_id=stock.stock_id,
                     date=stock.date,
                     position_type=stock.position_type,
                     buy_price=stock.price,
@@ -255,18 +268,20 @@ class Backtester:
             - position: StockTradeRecord
         """
 
-        position_value: float = stock.price * stock.volume * Units.LOT
+        # Step 1: Calculate position value and close cost
+        position_value: float = stock.price * stock.volume
         close_cost: float = StockUtils.calculate_transaction_commission(
             sell_price=stock.price, volume=stock.volume
         )
 
-        # 根據 stock.code 找出庫存中最早買進的該檔股票（FIFO）
+        # Step 2: Find the first open position of the stock (FIFO)
         position: Optional[StockTradeRecord] = self.account.get_first_open_position(
-            stock.code
+            stock.stock_id
         )
 
+        # Step 3: Execute close order & update account
         if position is not None and not position.is_closed:
-            print(f"* Place Close Order: {stock.code}")
+            logger.info(f"* Place Close Order: {stock.stock_id}")
 
             if position.position_type == PositionType.LONG:
                 position.date = stock.date

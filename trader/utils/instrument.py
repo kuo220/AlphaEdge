@@ -186,5 +186,7 @@ class StockUtils:
         return [
             stock_id
             for stock_id in stock_ids
-            if stock_id.isdigit() and len(stock_id) == 4 and 1001 <= int(stock_id) <= 9958
+            if stock_id.isdigit()
+            and len(stock_id) == 4
+            and 1001 <= int(stock_id) <= 9958
         ]
