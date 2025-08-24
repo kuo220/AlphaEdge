@@ -23,4 +23,3 @@ class MarketCalendar:
         df: pd.DataFrame = price.get(date)
 
         return True if not df.empty else False
-

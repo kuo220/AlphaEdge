@@ -16,7 +16,7 @@ class TickQuote:
 
     def __init__(
         self,
-        code: str = "",
+        stock_id: str = "",
         time: pd.Timestamp = None,
         close: float = 0.0,
         volume: int = 0,
@@ -27,7 +27,7 @@ class TickQuote:
         tick_type: int = 0,
     ):
         # Basic Info
-        self.code: str = code  # Stock code
+        self.stock_id: str = stock_id  # Stock ID
         self.time: pd.Timestamp = time  # Quote timestamp
 
         # Current Price & Volume
@@ -49,7 +49,7 @@ class StockQuote:
 
     def __init__(
         self,
-        code: str = "",
+        stock_id: str = "",
         scale: Scale = None,
         date: datetime.datetime = None,
         cur_price: float = 0.0,
@@ -61,7 +61,7 @@ class StockQuote:
         tick: TickQuote = None,
     ):
         # Basic Info
-        self.code: str = code  # Stock code
+        self.stock_id: str = stock_id  # Stock ID
         self.scale: Scale = scale  # Quote scale (DAY or TICK or ALL)
         self.date: Union[datetime.date, datetime.datetime] = date  # Current date
 

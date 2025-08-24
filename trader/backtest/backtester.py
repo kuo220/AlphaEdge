@@ -22,6 +22,7 @@ from trader.models import (
 from trader.utils import (
     TimeUtils,
     StockUtils,
+    MarketCalendar,
     Commission,
     Market,
     Scale,
@@ -114,7 +115,7 @@ class Backtester:
         for date in dates:
             print(f"--- {date.strftime('%Y/%m/%d')} ---")
 
-            if not self.qx_data.check_market_open(date):
+            if not MarketCalendar().check_stock_market_open(date):
                 print("* Stock Market Close\n")
                 continue
 
@@ -148,7 +149,7 @@ class Backtester:
 
         # Stock Quotes
         stock_quotes: List[StockQuote] = StockQuoteAdapter.convert_to_day_quotes(
-            self.qx_data, date
+            self.price, date
         )
 
         if not stock_quotes:

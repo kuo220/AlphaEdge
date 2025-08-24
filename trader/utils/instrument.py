@@ -175,16 +175,16 @@ class StockUtils:
         return round(roi, 2)
 
     @staticmethod
-    def filter_common_stocks(codes: List[str]) -> List[str]:
+    def filter_common_stocks(stock_ids: List[str]) -> List[str]:
         """
         - Description: 過濾出一般股票（排除 ETF、權證等），僅保留 4 位數且在 1001~9958 間的股票代號
         - Parameters:
-            - codes: 所有股票代號的 List[str]
+            - stock_ids: 所有股票代號的 List[str]
         - Return:
             - List[str]：符合條件的一般股票代號清單
         """
         return [
-            code
-            for code in codes
-            if code.isdigit() and len(code) == 4 and 1001 <= int(code) <= 9958
+            stock_id
+            for stock_id in stock_ids
+            if stock_id.isdigit() and len(stock_id) == 4 and 1001 <= int(stock_id) <= 9958
         ]
