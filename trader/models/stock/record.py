@@ -1,8 +1,6 @@
 import datetime
-from typing import Dict, List, Optional, Union
-import pandas as pd
 
-from trader.utils import Commission, PositionType, Scale
+from trader.utils import PositionType
 
 
 """
@@ -17,7 +15,7 @@ class StockTradeRecord:
     def __init__(
         self,
         id: int = 0,
-        code: str = "",
+        stock_id: str = "",
         date: datetime.datetime = None,
         is_closed: bool = False,
         position_type: PositionType = PositionType.LONG,
@@ -32,9 +30,9 @@ class StockTradeRecord:
         roi: float = 0.0,
     ):
         # Basic Info
-        self.id: int = id  # 每一筆買入就是一個id
-        self.code: str = code  # 股票代號
-        self.date: Union[datetime.date, datetime.datetime] = (
+        self.id: int = id  # 交易編號（每筆交易唯一編號）
+        self.stock_id: str = stock_id  # 股票代號
+        self.date: datetime.date | datetime.datetime = (
             date  # 交易日期（Tick會是Timestamp）
         )
 

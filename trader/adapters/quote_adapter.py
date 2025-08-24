@@ -2,17 +2,17 @@ from pathlib import Path
 import datetime
 import numpy as np
 import pandas as pd
-from typing import List, Dict, Tuple, Optional, Any, Union
+from typing import List, Dict, Any
 
-from trader.api import Data, Chip, Tick, QXData
+from trader.api import (
+    StockTickAPI,
+    StockPriceAPI,
+)
 from trader.models import (
-    StockAccount,
     TickQuote,
     StockQuote,
-    StockOrder,
-    StockTradeRecord,
 )
-from trader.utils import StockUtils, Commission, Market, Scale, PositionType, Units
+from trader.utils import StockUtils, Scale, Units
 
 
 class StockQuoteAdapter:
@@ -24,35 +24,57 @@ class StockQuoteAdapter:
     """
 
     @staticmethod
-    def convert_to_tick_quotes(data: Tick, date: datetime.date) -> List[StockQuote]:
-        """將指定日期的 Tick 資料轉換為 StockQuote 物件列表，用於 Tick 級回測"""
+    def convert_to_tick_quotes(
+        data_api: StockTickAPI, date: datetime.date
+    ) -> List[StockQuote]:
+        """
+        - Description:
+            將指定日期的 Tick 資料轉換為 StockQuote 物件列表，用於 Tick 級回測
+        - Parameters:
+            - data_api: StockTickAPI
+                StockTickAPI 物件
+            - date: datetime.date
+                要轉換的日期
+        - Returns:
+            - List[StockQuote]
+                轉換後的 StockQuote 物件列表
+        - Notes:
+            一次取一天的 tick 資料，避免資料量太大 RAM 爆掉
+        """
 
         # 一次取一天的 tick 資料，避免資料量太大 RAM 爆掉
-        ticks: pd.DataFrame = data.get_ordered_ticks(date, date)
+        ticks: pd.DataFrame = data_api.get_ordered_ticks(date, date)
 
         return StockQuoteAdapter.generate_stock_quotes(ticks, date, Scale.TICK)
 
     @staticmethod
-    def convert_to_day_quotes(data: QXData, date: datetime.date) -> List[StockQuote]:
-        """將指定日期的 QXData 日資料轉換為 StockQuote 物件列表，用於日級回測"""
+    def convert_to_day_quotes(
+        data_api: StockPriceAPI, date: datetime.date
+    ) -> List[StockQuote]:
+        """
+        - Description:
+            將指定日期的 Stock Price API 日資料轉換為 StockQuote 物件列表，用於日級回測
+        - Parameters:
+            - data_api: StockPriceAPI
+                StockPriceAPI 物件
+            - date: datetime.date
+                要轉換的日期
+        - Returns:
+            - List[StockQuote]
+                轉換後的 StockQuote 物件列表
+        """
 
-        # Set QXData database date
-        data.date = date
+        price_df: pd.DataFrame = data_api.get(date)
 
-        day_data: Dict[str, pd.Series] = {
-            "open": data.get("price", "開盤價", 1).iloc[0],
-            "high": data.get("price", "最高價", 1).iloc[0],
-            "low": data.get("price", "最低價", 1).iloc[0],
-            "close": data.get("price", "收盤價", 1).iloc[0],
-            "volume": data.get("price", "成交股數", 1).iloc[0]
-            / Units.LOT,  # 將股數轉為張數
-        }
+        # Type: Pandas(date='2025-07-01', stock_id='0050', 證券名稱='元大台灣50', 開盤價=48.38, 最高價=49.15, 最低價=48.38, 收盤價=48.64, 漲跌價差=0.28, 成交股數=77081298, 成交金額=3767256390, 成交筆數=50311, 最後揭示買價=48.63, 最後揭示買量=89, 最後揭示賣價=48.64, 最後揭示賣量=104, 本益比=0.0)
+        # Ex: [Pandas(date='2025-07-01', stock_id='0050',...), Pandas(date='2025-07-01', stock_id='0051',...), ...]
+        price_rows: List[Any] = [row for row in price_df.itertuples(index=False)]
 
-        return StockQuoteAdapter.generate_stock_quotes(day_data, date, Scale.DAY)
+        return StockQuoteAdapter.generate_stock_quotes(price_rows, date, Scale.DAY)
 
     @staticmethod
     def generate_stock_quotes(
-        data: Union[Dict[str, pd.Series], pd.DataFrame],
+        data: pd.DataFrame | List[Any],
         date: datetime.date,
         scale: Scale,
     ) -> List[StockQuote]:
@@ -72,18 +94,24 @@ class StockQuoteAdapter:
             ]
 
         elif scale == Scale.DAY:
-            codes: List[str] = StockUtils.filter_common_stocks(list(data["open"].index))
+            all_stock_ids: List[str] = [stock.stock_id for stock in data]
+            filtered_stock_ids: List[str] = StockUtils.filter_common_stocks(
+                all_stock_ids
+            )
 
             return [
-                StockQuoteAdapter.generate_stock_quote(data, code, date, scale)
-                for code in codes
-                if code in data["open"].index
+                StockQuoteAdapter.generate_stock_quote(
+                    stock, stock.stock_id, date, scale
+                )
+                for stock in data
+                if stock.stock_id
+                in filtered_stock_ids  # 過濾掉非一般股票（ETF、權證等）
             ]
 
     @staticmethod
     def generate_stock_quote(
-        data: Union[Dict[str, pd.Series], Any],
-        code: str,
+        data: Any,
+        stock_id: str,
         date: datetime.date,
         scale: Scale,
     ) -> StockQuote:
@@ -91,7 +119,7 @@ class StockQuoteAdapter:
 
         if scale == Scale.TICK:
             tick_quote: TickQuote = TickQuote(
-                code=data.stock_id,
+                stock_id=data.stock_id,
                 time=data.time,
                 close=data.close,
                 volume=data.volume,
@@ -102,20 +130,20 @@ class StockQuoteAdapter:
                 tick_type=data.tick_type,
             )
             return StockQuote(
-                code=data.stock_id, scale=scale, date=date, tick=tick_quote
+                stock_id=data.stock_id, scale=scale, date=date, tick=tick_quote
             )
 
         elif scale == Scale.DAY:
             return StockQuote(
-                code=code,
+                stock_id=stock_id,
                 scale=scale,
                 date=date,
-                cur_price=data["close"][code],
-                volume=data["volume"][code],
-                open=data["open"][code],
-                high=data["high"][code],
-                low=data["low"][code],
-                close=data["close"][code],
+                cur_price=data.收盤價,
+                volume=data.成交股數,
+                open=data.開盤價,
+                high=data.最高價,
+                low=data.最低價,
+                close=data.收盤價,
             )
 
         raise ValueError(f"Unsupported scale: {scale.name}")
