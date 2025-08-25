@@ -12,7 +12,7 @@ from trader.api import Data, Chip, Tick, QXData
 from trader.utils import Market, Scale, PositionType
 from trader.models import StockAccount, StockQuote, StockOrder, StockTradeRecord
 from .base import BaseBacktestAnalyzer
-from .report import StockBacktestReporter
+from .reporter import StockBacktestReporter
 from trader.config import BACKTEST_RESULT_DIR_PATH
 
 
