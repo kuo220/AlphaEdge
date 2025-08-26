@@ -2,7 +2,13 @@ import datetime
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from trader.api import Data, Chip, Tick, QXData
+from trader.api import (
+    StockTickAPI,
+    StockPriceAPI,
+    StockChipAPI,
+    MonthlyRevenueReportAPI,
+    FinancialStatementAPI,
+)
 from trader.models import (
     StockAccount,
     StockQuote,
@@ -37,13 +43,21 @@ class BaseStockStrategy(ABC):
         )
 
         """ === Datasets Setting=== """
-        self.data: Data = Data()
-        self.chip: Chip = self.data.chip  # Chips data
-        self.tick: Optional[Tick] = None  # Ticks data
-        self.qx_data: QXData = self.data.qx_data  # Day price data, Financial data, etc
+        self.tick: Optional[StockTickAPI] = None  # Ticks data
+        self.chip: Optional[StockChipAPI] = None  # Chips data
+        self.price: Optional[StockPriceAPI] = None  # Day price data, Financial data, etc
+        self.mrr: Optional[MonthlyRevenueReportAPI] = None  # Monthly Revenue Report data
+        self.fs: Optional[FinancialStatementAPI] = None  # Financial Statement data
 
         if self.scale in (Scale.TICK, Scale.MIX):
-            self.tick: Tick = self.data.tick
+            self.tick: StockTickAPI = StockTickAPI()
+
+        elif self.scale in (Scale.DAY, Scale.MIX):
+            self.price: StockPriceAPI = StockPriceAPI()
+
+        elif self.scale in (Scale.MIX, Scale.ALL):
+            self.tick: StockTickAPI = StockTickAPI()
+            self.price: StockPriceAPI = StockPriceAPI()
 
     @abstractmethod
     def set_account(self, account: StockAccount):
