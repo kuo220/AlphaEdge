@@ -43,27 +43,29 @@ class BaseStockStrategy(ABC):
         )
 
         """ === Datasets Setting=== """
-        self.tick: Optional[StockTickAPI] = None  # Ticks data
-        self.chip: Optional[StockChipAPI] = None  # Chips data
-        self.price: Optional[StockPriceAPI] = None  # Day price data, Financial data, etc
-        self.mrr: Optional[MonthlyRevenueReportAPI] = None  # Monthly Revenue Report data
-        self.fs: Optional[FinancialStatementAPI] = None  # Financial Statement data
-
-        if self.scale in (Scale.TICK, Scale.MIX):
-            self.tick: StockTickAPI = StockTickAPI()
-
-        elif self.scale in (Scale.DAY, Scale.MIX):
-            self.price: StockPriceAPI = StockPriceAPI()
-
-        elif self.scale in (Scale.MIX, Scale.ALL):
-            self.tick: StockTickAPI = StockTickAPI()
-            self.price: StockPriceAPI = StockPriceAPI()
+        self.tick: Optional[StockTickAPI] = None  # Ticks data (Optional)
+        self.price: Optional[StockPriceAPI] = None  # Day price data (Optional)
+        self.chip: Optional[StockChipAPI] = None  # Chips data (Optional)
+        self.mrr: Optional[MonthlyRevenueReportAPI] = (
+            None  # Monthly Revenue Report data (Optional)
+        )
+        self.fs: Optional[FinancialStatementAPI] = (
+            None  # Financial Statement data (Optional)
+        )
 
     @abstractmethod
-    def set_account(self, account: StockAccount):
+    def setup_account(self, account: StockAccount):
         """
         - Description:
             載入虛擬帳戶資訊
+        """
+        pass
+
+    @abstractmethod
+    def setup_apis(self):
+        """
+        - Description:
+            載入資料 API
         """
         pass
 

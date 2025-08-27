@@ -6,7 +6,14 @@ from typing import List, Dict, Tuple, Optional, Any
 import numpy as np
 import pandas as pd
 
-from trader.api import Data, Chip, Tick, QXData
+from trader.api import (
+    StockTickAPI,
+    StockPriceAPI,
+    StockChipAPI,
+    MonthlyRevenueReportAPI,
+    FinancialStatementAPI,
+)
+
 from trader.models import StockAccount, StockQuote, StockOrder, StockTradeRecord
 from trader.utils import Action, Market, Scale, PositionType
 from trader.strategies.stock import BaseStockStrategy
@@ -25,24 +32,45 @@ class MomentumStrategy(BaseStockStrategy):
         self.start_date: datetime.date = datetime.date(2020, 4, 1)
         self.end_date: datetime.date = datetime.date(2024, 5, 10)
 
-    def set_account(self, account: StockAccount):
+        self.setup_account(StockAccount(init_capital=self.init_capital))
+        self.setup_apis()
+
+    def setup_account(self, account: StockAccount):
         """設置虛擬帳戶資訊"""
+
         self.account = account
+
+    def setup_apis(self):
+        """設置資料 API"""
+
+        self.chip = StockChipAPI()
+        self.mrr = MonthlyRevenueReportAPI()
+        self.fs = FinancialStatementAPI()
+
+        if self.scale in (Scale.TICK, Scale.MIX):
+            self.tick: StockTickAPI = StockTickAPI()
+
+        elif self.scale in (Scale.DAY, Scale.MIX):
+            self.price: StockPriceAPI = StockPriceAPI()
+
+        elif self.scale in (Scale.MIX, Scale.ALL):
+            self.tick: StockTickAPI = StockTickAPI()
+            self.price: StockPriceAPI = StockPriceAPI()
 
     def check_open_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
         """開倉策略（Long & Short）"""
 
         open_positions: List[StockQuote] = []
 
-        if self.max_positions == 0:
+        if self.max_holdings == 0:
             return None
 
         for stock_quote in stock_quotes:
             # Condition 1: 當日漲 > 9% 的股票
             yesterday: datetime.date = stock_quote.date - datetime.timedelta(days=1)
-            self.qx_data.date = yesterday
+            self.price.date = yesterday
 
-            close_price_yesterday: pd.DataFrame = self.qx_data.get("price", "收盤價", 1)
+            close_price_yesterday: pd.DataFrame = self.price.get("price", "收盤價", 1)
             price_chg: float = (
                 stock_quote.close / close_price_yesterday[stock_quote.code][0] - 1
             ) * 100
