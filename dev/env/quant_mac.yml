@@ -23,6 +23,7 @@ dependencies:
   - rich
   - pip
   - black
+  - isort
   - pip:
       - shioaji
       - base58
