@@ -1,19 +1,19 @@
 import datetime
 import random
-import time
 import sqlite3
-from loguru import logger
-import pandas as pd
+import time
 from typing import List, Optional
 
-from trader.pipeline.updaters.base import BaseDataUpdater
-from trader.pipeline.crawlers.stock_price_crawler import StockPriceCrawler
+import pandas as pd
+from loguru import logger
+
+from trader.config import DB_PATH, LOGS_DIR_PATH, PRICE_TABLE_NAME
 from trader.pipeline.cleaners.stock_price_cleaner import StockPriceCleaner
+from trader.pipeline.crawlers.stock_price_crawler import StockPriceCrawler
 from trader.pipeline.loaders.stock_price_loader import StockPriceLoader
+from trader.pipeline.updaters.base import BaseDataUpdater
 from trader.pipeline.utils.sqlite_utils import SQLiteUtils
 from trader.utils import TimeUtils
-from trader.config import DB_PATH, PRICE_TABLE_NAME, LOGS_DIR_PATH
-
 
 """
 TWSE 網站提供資料日期：

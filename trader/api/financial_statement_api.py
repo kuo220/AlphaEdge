@@ -1,12 +1,10 @@
 import sqlite3
-from loguru import logger
+
 import pandas as pd
+from loguru import logger
 
 from trader.api.base import BaseDataAPI
-from trader.config import (
-    DB_PATH,
-    LOGS_DIR_PATH,
-)
+from trader.config import DB_PATH, LOGS_DIR_PATH
 
 
 class FinancialStatementAPI(BaseDataAPI):

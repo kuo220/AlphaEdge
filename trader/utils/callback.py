@@ -1,9 +1,10 @@
+from typing import Any, Dict
+
 import shioaji as sj
 from shioaji.constant import OrderState
-from typing import Dict, Any
 
-from .notify import Notification
 from .constant import OrderState
+from .notify import Notification
 
 
 class Callback:

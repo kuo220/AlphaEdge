@@ -1,9 +1,9 @@
 import datetime
 from typing import Dict, List, Optional, Union
+
 import pandas as pd
 
 from trader.utils import Commission, PositionType, Scale
-
 
 """
 This module defines data structures for representing stock quotes during backtesting,

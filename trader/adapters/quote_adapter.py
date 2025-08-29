@@ -1,18 +1,13 @@
-from pathlib import Path
 import datetime
+from pathlib import Path
+from typing import Any, Dict, List
+
 import numpy as np
 import pandas as pd
-from typing import List, Dict, Any
 
-from trader.api import (
-    StockTickAPI,
-    StockPriceAPI,
-)
-from trader.models import (
-    TickQuote,
-    StockQuote,
-)
-from trader.utils import StockUtils, Scale, Units
+from trader.api import StockPriceAPI, StockTickAPI
+from trader.models import StockQuote, TickQuote
+from trader.utils import Scale, StockUtils, Units
 
 
 class StockQuoteAdapter:

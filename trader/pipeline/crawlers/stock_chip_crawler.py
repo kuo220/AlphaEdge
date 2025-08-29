@@ -1,15 +1,15 @@
 import datetime
-import requests
-from loguru import logger
-import pandas as pd
 from io import StringIO
 from typing import Optional
+
+import pandas as pd
+import requests
+from loguru import logger
 
 from trader.pipeline.crawlers.base import BaseDataCrawler
 from trader.pipeline.crawlers.utils.request_utils import RequestUtils
 from trader.pipeline.utils.url_manager import URLManager
 from trader.utils import TimeUtils
-
 
 """
 三大法人爬蟲資料時間表：

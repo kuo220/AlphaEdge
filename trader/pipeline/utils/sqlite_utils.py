@@ -1,8 +1,8 @@
 import datetime
 import sqlite3
-from loguru import logger
-from typing import Tuple, Optional, Any
+from typing import Any, Optional, Tuple
 
+from loguru import logger
 
 """
 Utility class for common SQLite operations: table check, date retrieval, query execution.

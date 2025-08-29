@@ -1,10 +1,11 @@
 import datetime
 import sqlite3
+
 import pandas as pd
 from loguru import logger
 
 from trader.api.base import BaseDataAPI
-from trader.config import DB_PATH, PRICE_TABLE_NAME, LOGS_DIR_PATH
+from trader.config import DB_PATH, LOGS_DIR_PATH, PRICE_TABLE_NAME
 
 
 class StockPriceAPI(BaseDataAPI):

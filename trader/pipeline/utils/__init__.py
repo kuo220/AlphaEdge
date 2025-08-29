@@ -1,8 +1,8 @@
-from .url_manager import URLManager
 from .constant import (
-    InstrumentType,
     DataType,
-    MarketType,
-    FinancialStatementType,
     FileEncoding,
+    FinancialStatementType,
+    InstrumentType,
+    MarketType,
 )
+from .url_manager import URLManager

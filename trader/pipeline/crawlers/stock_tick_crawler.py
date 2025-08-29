@@ -1,17 +1,14 @@
 import datetime
+from pathlib import Path
 from typing import Optional
+
 import pandas as pd
 import shioaji as sj
-from shioaji.data import Ticks
 from loguru import logger
-from pathlib import Path
+from shioaji.data import Ticks
 
+from trader.config import LOGS_DIR_PATH, TICK_DOWNLOADS_PATH
 from trader.pipeline.crawlers.base import BaseDataCrawler
-from trader.config import (
-    LOGS_DIR_PATH,
-    TICK_DOWNLOADS_PATH,
-)
-
 
 """
 Shioaji 台股 ticks 資料時間表：

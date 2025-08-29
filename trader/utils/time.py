@@ -1,7 +1,8 @@
 import datetime
 from typing import List
-from dateutil.rrule import rrule, DAILY, MONTHLY
+
 import shioaji as sj
+from dateutil.rrule import DAILY, MONTHLY, rrule
 from shioaji.data import Ticks
 
 

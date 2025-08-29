@@ -1,20 +1,21 @@
 import datetime
 from io import StringIO
-from loguru import logger
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
+
 import pandas as pd
 import requests
+from loguru import logger
 
-from trader.pipeline.cleaners.base import BaseDataCleaner
-from trader.pipeline.crawlers.utils.request_utils import RequestUtils
-from trader.pipeline.utils import URLManager, DataType, MarketType, FileEncoding
-from trader.pipeline.utils.data_utils import DataUtils
-from trader.utils import TimeUtils
 from trader.config import (
     MONTHLY_REVENUE_REPORT_DOWNLOADS_PATH,
     MONTHLY_REVENUE_REPORT_META_DIR_PATH,
 )
+from trader.pipeline.cleaners.base import BaseDataCleaner
+from trader.pipeline.crawlers.utils.request_utils import RequestUtils
+from trader.pipeline.utils import DataType, FileEncoding, MarketType, URLManager
+from trader.pipeline.utils.data_utils import DataUtils
+from trader.utils import TimeUtils
 
 
 class MonthlyRevenueReportCleaner(BaseDataCleaner):

@@ -1,10 +1,11 @@
 import datetime
 from typing import Dict, List, Optional, Union
+
 import pandas as pd
 
 from trader.utils import Commission, PositionType, Scale
-from .record import StockTradeRecord
 
+from .record import StockTradeRecord
 
 """
 This module defines the StockAccount class, which manages account-level state in backtesting,

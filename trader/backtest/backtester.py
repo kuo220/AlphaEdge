@@ -1,37 +1,37 @@
-from pathlib import Path
 import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple, Union
+
 import numpy as np
 import pandas as pd
 from loguru import logger
-from typing import List, Dict, Tuple, Optional, Any, Union
 
-from trader.api import (
-    StockTickAPI,
-    StockPriceAPI,
-    StockChipAPI,
-    MonthlyRevenueReportAPI,
-    FinancialStatementAPI,
-)
 from trader.adapters import StockQuoteAdapter
+from trader.api import (
+    FinancialStatementAPI,
+    MonthlyRevenueReportAPI,
+    StockChipAPI,
+    StockPriceAPI,
+    StockTickAPI,
+)
 from trader.models import (
     StockAccount,
-    TickQuote,
-    StockQuote,
     StockOrder,
+    StockQuote,
     StockTradeRecord,
-)
-from trader.utils import (
-    TimeUtils,
-    StockUtils,
-    MarketCalendar,
-    Commission,
-    Market,
-    Scale,
-    PositionType,
-    Units,
+    TickQuote,
 )
 from trader.strategies.stock import BaseStockStrategy
-
+from trader.utils import (
+    Commission,
+    Market,
+    MarketCalendar,
+    PositionType,
+    Scale,
+    StockUtils,
+    TimeUtils,
+    Units,
+)
 
 """
 Backtesting engine that simulates trading based on strategy signals.

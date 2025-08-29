@@ -1,10 +1,11 @@
 import datetime
-import re
 import json
+import re
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
 import pandas as pd
 from loguru import logger
-from pathlib import Path
-from typing import List, Dict, Optional, Any
 
 from trader.pipeline.utils import FileEncoding
 

@@ -1,22 +1,22 @@
 # Python standard library
-import sys
 import datetime
+import sys
 from pathlib import Path
-from typing import List, Dict, Tuple, Optional, Any
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
 import pandas as pd
 
 from trader.api import (
-    StockTickAPI,
-    StockPriceAPI,
-    StockChipAPI,
-    MonthlyRevenueReportAPI,
     FinancialStatementAPI,
+    MonthlyRevenueReportAPI,
+    StockChipAPI,
+    StockPriceAPI,
+    StockTickAPI,
 )
-
-from trader.models import StockAccount, StockQuote, StockOrder, StockTradeRecord
-from trader.utils import Action, Market, Scale, PositionType
+from trader.models import StockAccount, StockOrder, StockQuote, StockTradeRecord
 from trader.strategies.stock import BaseStockStrategy
+from trader.utils import Action, Market, PositionType, Scale
 
 
 class MomentumStrategy(BaseStockStrategy):

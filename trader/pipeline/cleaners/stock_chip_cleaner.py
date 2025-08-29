@@ -1,12 +1,13 @@
 import datetime
-from typing import List, Dict
 from pathlib import Path
+from typing import Dict, List
+
 import pandas as pd
 
+from trader.config import CHIP_DOWNLOADS_PATH
 from trader.pipeline.cleaners.base import BaseDataCleaner
 from trader.pipeline.utils.data_utils import DataUtils
 from trader.utils import TimeUtils
-from trader.config import CHIP_DOWNLOADS_PATH
 
 
 class StockChipCleaner(BaseDataCleaner):

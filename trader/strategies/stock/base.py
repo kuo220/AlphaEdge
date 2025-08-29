@@ -3,18 +3,14 @@ from abc import ABC, abstractmethod
 from typing import List, Optional
 
 from trader.api import (
-    StockTickAPI,
-    StockPriceAPI,
-    StockChipAPI,
-    MonthlyRevenueReportAPI,
     FinancialStatementAPI,
+    MonthlyRevenueReportAPI,
+    StockChipAPI,
+    StockPriceAPI,
+    StockTickAPI,
 )
-from trader.models import (
-    StockAccount,
-    StockQuote,
-    StockOrder,
-)
-from trader.utils import Action, Market, Scale, PositionType
+from trader.models import StockAccount, StockOrder, StockQuote
+from trader.utils import Action, Market, PositionType, Scale
 
 
 class BaseStockStrategy(ABC):

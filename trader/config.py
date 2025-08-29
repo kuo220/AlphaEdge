@@ -1,11 +1,11 @@
 import os
 from pathlib import Path
 from typing import List, Optional
+
 from dotenv import load_dotenv
 
 from trader.utils import ShioajiAPI
 from trader.utils.path import get_static_resolved_path
-
 
 # Load environment variables from .env file
 load_dotenv()
