@@ -98,13 +98,13 @@ class Backtester:
     def run(self) -> None:
         """執行 Backtest (目前只有全tick回測)"""
 
-        print("========== Backtest Start ==========")
-        print(f"* Strategy Name: {self.strategy.strategy_name}")
-        print(
+        logger.info("========== Backtest Start ==========")
+        logger.info(f"* Strategy Name: {self.strategy.strategy_name}")
+        logger.info(
             f"* Backtest Period: {self.start_date.strftime('%Y/%m/%d')} ~ {self.end_date.strftime('%Y/%m/%d')}"
         )
-        print(f"* Initial Capital: {self.strategy.init_capital}")
-        print(f"* Backtest Scale: {self.scale}")
+        logger.info(f"* Initial Capital: {self.strategy.init_capital}")
+        logger.info(f"* Backtest Scale: {self.scale}")
 
         # load backtest dataset
         self.load_datasets()
@@ -114,10 +114,10 @@ class Backtester:
         )
 
         for date in dates:
-            print(f"--- {date.strftime('%Y/%m/%d')} ---")
+            logger.info(f"--- {date.strftime('%Y/%m/%d')} ---")
 
             if not MarketCalendar().check_stock_market_open(date):
-                print("* Stock Market Close\n")
+                logger.info("* Stock Market Close\n")
                 continue
 
             if self.scale == Scale.TICK:

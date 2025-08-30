@@ -16,7 +16,7 @@ from trader.api import (
 )
 from trader.models import StockAccount, StockOrder, StockQuote, StockTradeRecord
 from trader.strategies.stock import BaseStockStrategy
-from trader.utils import Action, Market, PositionType, Scale
+from trader.utils import Action, Market, PositionType, Scale, Units
 
 
 class MomentumStrategy(BaseStockStrategy):
@@ -68,21 +68,21 @@ class MomentumStrategy(BaseStockStrategy):
         for stock_quote in stock_quotes:
             # Condition 1: 當日漲 > 9% 的股票
             yesterday: datetime.date = stock_quote.date - datetime.timedelta(days=1)
-            self.price.date = yesterday
+            price_yesterday: pd.DataFrame = self.price.get(yesterday)
 
-            close_price_yesterday: pd.DataFrame = self.price.get("price", "收盤價", 1)
             price_chg: float = (
-                stock_quote.close / close_price_yesterday[stock_quote.code][0] - 1
+                stock_quote.close
+                / price_yesterday[price_yesterday["stock_id"] == stock_quote.stock_id][
+                    "收盤價"
+                ]
+                - 1
             ) * 100
 
             if price_chg < 9:
                 continue
 
-            # Condition 2: Volume > 5000
-            self.qx_data.date = stock_quote.date
-            volume = self.qx_data.get("volume", "成交量", 1)
-
-            if volume[stock_quote.code][0] < 5000:
+            # Condition 2: Volume > 5000 Lot
+            if stock_quote.volume < 5000 * Units.LOT:
                 continue
 
             open_positions.append(stock_quote)

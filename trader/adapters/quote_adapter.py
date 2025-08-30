@@ -90,6 +90,8 @@ class StockQuoteAdapter:
 
         elif scale == Scale.DAY:
             all_stock_ids: List[str] = [stock.stock_id for stock in data]
+
+            # 過濾掉非一般股票（ETF、權證等）
             filtered_stock_ids: List[str] = StockUtils.filter_common_stocks(
                 all_stock_ids
             )
@@ -99,8 +101,7 @@ class StockQuoteAdapter:
                     stock, stock.stock_id, date, scale
                 )
                 for stock in data
-                if stock.stock_id
-                in filtered_stock_ids  # 過濾掉非一般股票（ETF、權證等）
+                if stock.stock_id in filtered_stock_ids
             ]
 
     @staticmethod
