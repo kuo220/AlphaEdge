@@ -1,10 +1,12 @@
-import pandas as pd
-import numpy as np
 import os
-from typing import List, Optional, Any, Union
+from typing import Any, List, Optional, Union
+
+import numpy as np
+import pandas as pd
 import shioaji as sj
 from shioaji.order import Trade
-from shioaji.position import StockProfitLoss, FutureProfitLoss
+from shioaji.position import FutureProfitLoss, StockProfitLoss
+
 from .constant import Action, Status
 
 

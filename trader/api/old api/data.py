@@ -2,6 +2,7 @@ import datetime
 import os
 import sqlite3
 from pathlib import Path
+
 import pandas as pd
 
 try:
@@ -10,8 +11,8 @@ except ModuleNotFoundError:
     print("Warning: dolphindb module is not installed")
 
 from .chip import Chip
-from .tick import Tick
 from .qx_data import QXData
+from .tick import Tick
 
 
 class Data:

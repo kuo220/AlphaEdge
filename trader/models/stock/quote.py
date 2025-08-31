@@ -1,9 +1,9 @@
 import datetime
 from typing import Dict, List, Optional, Union
+
 import pandas as pd
 
 from trader.utils import Commission, PositionType, Scale
-
 
 """
 This module defines data structures for representing stock quotes during backtesting,
@@ -67,7 +67,7 @@ class StockQuote:
 
         # Current Price & Volume
         self.cur_price: float = cur_price  # Current price
-        self.volume: float = volume  # order's volume (Unit: Lots)
+        self.volume: float = volume  # order's volume (Unit: Shares)
 
         # OHLC Info
         self.open: float = open  # Open price

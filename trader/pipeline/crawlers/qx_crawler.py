@@ -12,7 +12,7 @@ import warnings
 import zipfile
 from io import StringIO
 from pathlib import Path
-from typing import List, Optional, Any
+from typing import Any, List, Optional
 
 import ipywidgets as widgets
 import numpy as np
@@ -24,16 +24,17 @@ from dateutil.rrule import DAILY, MONTHLY, rrule
 from fake_useragent import UserAgent
 from IPython.display import display
 from requests.exceptions import ConnectionError, ReadTimeout
-from tqdm import tqdm, tnrange, tqdm_notebook
+from tqdm import tnrange, tqdm, tqdm_notebook
+
+from trader.config import (
+    CERTS_FILE_PATH,
+    FINANCIAL_REPORT_PATH,
+    PIPELINE_DOWNLOADS_PATH,
+    QUANTX_DB_PATH,
+)
 
 from ..utils.data_utils import DataUtils
 from ..utils.url_manager import URLManager
-from trader.config import (
-    PIPELINE_DOWNLOADS_PATH,
-    FINANCIAL_REPORT_PATH,
-    QUANTX_DB_PATH,
-    CERTS_FILE_PATH,
-)
 
 
 class QuantXCrawler:

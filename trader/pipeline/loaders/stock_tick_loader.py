@@ -1,25 +1,26 @@
 import shutil
-from loguru import logger
 from pathlib import Path
 from typing import List
+
+from loguru import logger
 
 try:
     import dolphindb as ddb
 except ModuleNotFoundError:
     logger.info("Warning: dolphindb module is not installed")
 
-from trader.pipeline.loaders.base import BaseDataLoader
 from trader.config import (
-    TICK_DOWNLOADS_PATH,
-    TICK_DB_PATH,
-    TICK_DB_NAME,
-    TICK_TABLE_NAME,
-    DDB_PATH,
     DDB_HOST,
+    DDB_PASSWORD,
+    DDB_PATH,
     DDB_PORT,
     DDB_USER,
-    DDB_PASSWORD,
+    TICK_DB_NAME,
+    TICK_DB_PATH,
+    TICK_DOWNLOADS_PATH,
+    TICK_TABLE_NAME,
 )
+from trader.pipeline.loaders.base import BaseDataLoader
 
 
 class StockTickLoader(BaseDataLoader):

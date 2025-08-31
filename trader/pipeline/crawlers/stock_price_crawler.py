@@ -1,17 +1,17 @@
 import datetime
-import pandas as pd
 from io import StringIO
-import requests
 from pathlib import Path
-from loguru import logger
 from typing import Optional
+
+import pandas as pd
+import requests
+from loguru import logger
 
 from trader.pipeline.crawlers.base import BaseDataCrawler
 from trader.pipeline.crawlers.utils.request_utils import RequestUtils
 from trader.pipeline.utils import URLManager
 from trader.pipeline.utils.data_utils import DataUtils
 from trader.utils import TimeUtils
-
 
 """
 TWSE 網站提供資料日期：

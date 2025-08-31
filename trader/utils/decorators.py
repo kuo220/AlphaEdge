@@ -1,6 +1,7 @@
 import threading
+from typing import Any, Callable
+
 from loguru import logger
-from typing import Callable, Any
 
 
 def log_thread(func: Callable) -> Callable:

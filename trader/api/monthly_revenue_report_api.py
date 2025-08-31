@@ -1,21 +1,22 @@
 import shutil
 import sqlite3
-from loguru import logger
 from pathlib import Path
 from typing import List
+
 import pandas as pd
+from loguru import logger
 
 from trader.api.base import BaseDataAPI
-from trader.pipeline.utils import DataType
-from trader.pipeline.utils.data_utils import DataUtils
-from trader.pipeline.utils.sqlite_utils import SQLiteUtils
 from trader.config import (
     DB_PATH,
     LOGS_DIR_PATH,
-    MONTHLY_REVENUE_TABLE_NAME,
     MONTHLY_REVENUE_REPORT_DOWNLOADS_PATH,
     MONTHLY_REVENUE_REPORT_META_DIR_PATH,
+    MONTHLY_REVENUE_TABLE_NAME,
 )
+from trader.pipeline.utils import DataType
+from trader.pipeline.utils.data_utils import DataUtils
+from trader.pipeline.utils.sqlite_utils import SQLiteUtils
 
 
 class MonthlyRevenueReportAPI(BaseDataAPI):

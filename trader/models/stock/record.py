@@ -2,7 +2,6 @@ import datetime
 
 from trader.utils import PositionType
 
-
 """
 This module defines the structure for recording individual stock trade events,
 capturing all relevant transaction and performance details during backtesting.

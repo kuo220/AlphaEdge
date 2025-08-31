@@ -1,11 +1,12 @@
 import datetime
-import pandas as pd
 from pathlib import Path
 
+import pandas as pd
+
+from trader.config import PRICE_DOWNLOADS_PATH
 from trader.pipeline.cleaners.base import BaseDataCleaner
 from trader.pipeline.utils.data_utils import DataUtils
 from trader.utils import TimeUtils
-from trader.config import PRICE_DOWNLOADS_PATH
 
 
 class StockPriceCleaner(BaseDataCleaner):

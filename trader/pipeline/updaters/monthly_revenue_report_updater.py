@@ -1,30 +1,30 @@
-import time
 import random
 import sqlite3
+import time
+from pathlib import Path
+from typing import List, Optional, Tuple
+
 import pandas as pd
 from loguru import logger
-from pathlib import Path
-from typing import List, Tuple, Optional
 
-from trader.pipeline.updaters.base import BaseDataUpdater
-from trader.pipeline.crawlers.monthly_revenue_report_crawler import (
-    MonthlyRevenueReportCrawler,
-)
-from trader.pipeline.cleaners.monthly_revenue_report_cleaner import (
-    MonthlyRevenueReportCleaner,
-)
-from trader.pipeline.loaders.monthly_revenue_report_loader import (
-    MonthlyRevenueReportLoader,
-)
-from trader.pipeline.utils.sqlite_utils import SQLiteUtils
-from trader.utils import TimeUtils
 from trader.config import (
     DB_PATH,
     LOGS_DIR_PATH,
     MONTHLY_REVENUE_REPORT_DOWNLOADS_PATH,
     MONTHLY_REVENUE_TABLE_NAME,
 )
-
+from trader.pipeline.cleaners.monthly_revenue_report_cleaner import (
+    MonthlyRevenueReportCleaner,
+)
+from trader.pipeline.crawlers.monthly_revenue_report_crawler import (
+    MonthlyRevenueReportCrawler,
+)
+from trader.pipeline.loaders.monthly_revenue_report_loader import (
+    MonthlyRevenueReportLoader,
+)
+from trader.pipeline.updaters.base import BaseDataUpdater
+from trader.pipeline.utils.sqlite_utils import SQLiteUtils
+from trader.utils import TimeUtils
 
 """
 資料區間

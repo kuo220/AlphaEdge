@@ -1,32 +1,32 @@
-import time
 import random
 import sqlite3
-import pandas as pd
+import time
 from pathlib import Path
-from loguru import logger
-from typing import List, Tuple, Optional
+from typing import List, Optional, Tuple
 
-from trader.pipeline.updaters.base import BaseDataUpdater
-from trader.pipeline.crawlers.financial_statement_crawler import (
-    FinancialStatementCrawler,
+import pandas as pd
+from loguru import logger
+
+from trader.config import (
+    BALANCE_SHEET_TABLE_NAME,
+    CASH_FLOW_TABLE_NAME,
+    COMPREHENSIVE_INCOME_TABLE_NAME,
+    DB_PATH,
+    EQUITY_CHANGE_TABLE_NAME,
+    FINANCIAL_STATEMENT_DOWNLOADS_PATH,
+    LOGS_DIR_PATH,
 )
 from trader.pipeline.cleaners.financial_statement_cleaner import (
     FinancialStatementCleaner,
 )
+from trader.pipeline.crawlers.financial_statement_crawler import (
+    FinancialStatementCrawler,
+)
 from trader.pipeline.loaders.financial_statement_loader import FinancialStatementLoader
+from trader.pipeline.updaters.base import BaseDataUpdater
 from trader.pipeline.utils import FinancialStatementType
 from trader.pipeline.utils.sqlite_utils import SQLiteUtils
 from trader.utils import TimeUtils
-from trader.config import (
-    DB_PATH,
-    LOGS_DIR_PATH,
-    FINANCIAL_STATEMENT_DOWNLOADS_PATH,
-    BALANCE_SHEET_TABLE_NAME,
-    COMPREHENSIVE_INCOME_TABLE_NAME,
-    CASH_FLOW_TABLE_NAME,
-    EQUITY_CHANGE_TABLE_NAME,
-)
-
 
 """
 * Crawl Balance Sheet (資產負債表)

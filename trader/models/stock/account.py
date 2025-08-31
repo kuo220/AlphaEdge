@@ -1,10 +1,11 @@
 import datetime
 from typing import Dict, List, Optional, Union
+
 import pandas as pd
 
 from trader.utils import Commission, PositionType, Scale
-from .record import StockTradeRecord
 
+from .record import StockTradeRecord
 
 """
 This module defines the StockAccount class, which manages account-level state in backtesting,
@@ -44,25 +45,25 @@ class StockAccount:
         """取得庫存股票檔數"""
         return len(self.positions)
 
-    def get_first_open_position(self, code: str) -> Optional[StockTradeRecord]:
+    def get_first_open_position(self, stock_id: str) -> Optional[StockTradeRecord]:
         """根據股票代號取得庫存中該股票最早開倉的部位（FIFO）"""
 
         for position in self.positions:
-            if position.code == code and not position.is_closed:
+            if position.stock_id == stock_id and not position.is_closed:
                 return position
         return None
 
-    def get_last_open_position(self, code: str) -> Optional[StockTradeRecord]:
+    def get_last_open_position(self, stock_id: str) -> Optional[StockTradeRecord]:
         """根據股票代號取得庫存中該股票最晚開倉的部位（LIFO）"""
 
         for position in reversed(self.positions):
-            if position.code == code and not position.is_closed:
+            if position.stock_id == stock_id and not position.is_closed:
                 return position
         return None
 
-    def check_has_position(self, code: str) -> bool:
+    def check_has_position(self, stock_id: str) -> bool:
         """檢查指定的股票是否有在庫存"""
-        return any(position.code == code for position in self.positions)
+        return any(position.stock_id == stock_id for position in self.positions)
 
     def update_market_value(self):
         """更新庫存市值（目前只有股票）"""

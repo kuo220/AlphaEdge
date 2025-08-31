@@ -1,19 +1,19 @@
 import argparse
 import datetime
-from loguru import logger
 from typing import Dict
 
-from trader.pipeline.updaters.stock_tick_updater import StockTickUpdater
-from trader.pipeline.updaters.stock_chip_updater import StockChipUpdater
-from trader.pipeline.updaters.stock_price_updater import StockPriceUpdater
+from loguru import logger
+
 from trader.pipeline.updaters.financial_statement_updater import (
     FinancialStatementUpdater,
 )
 from trader.pipeline.updaters.monthly_revenue_report_updater import (
     MonthlyRevenueReportUpdater,
 )
+from trader.pipeline.updaters.stock_chip_updater import StockChipUpdater
+from trader.pipeline.updaters.stock_price_updater import StockPriceUpdater
+from trader.pipeline.updaters.stock_tick_updater import StockTickUpdater
 from trader.pipeline.utils import DataType
-
 
 """
 * 所有資料爬蟲起始日（除了 Tick）

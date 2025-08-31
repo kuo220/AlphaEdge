@@ -4,7 +4,8 @@ import os
 import shutil
 import sys
 from pathlib import Path
-from typing import List, Dict
+from typing import Dict, List
+
 import pandas as pd
 
 try:

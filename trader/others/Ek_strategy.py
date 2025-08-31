@@ -1,9 +1,11 @@
-from quantxlab.data import Data
-import pandas as pd
-import numpy as np
 import datetime
 import os
+
+import numpy as np
+import pandas as pd
 import plotly.express as px
+from quantxlab.data import Data
+
 from .strategy import Strategy
 
 

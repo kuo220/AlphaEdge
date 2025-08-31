@@ -1,11 +1,11 @@
 import importlib
-import pkgutil
 import inspect
-from typing import Dict, Type
+import pkgutil
 from types import ModuleType
+from typing import Dict, Type
 
-from trader.strategies.stock import BaseStockStrategy
 import trader.strategies.stock as stock_strategies_pkg
+from trader.strategies.stock import BaseStockStrategy
 
 
 class StrategyLoader:

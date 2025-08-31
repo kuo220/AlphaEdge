@@ -1,19 +1,20 @@
 import shutil
 import sqlite3
-from loguru import logger
-import pandas as pd
 from pathlib import Path
 from typing import List
 
-from trader.pipeline.loaders.base import BaseDataLoader
-from trader.pipeline.utils.data_utils import DataUtils
-from trader.pipeline.utils.sqlite_utils import SQLiteUtils
-from trader.pipeline.utils import FinancialStatementType
+import pandas as pd
+from loguru import logger
+
 from trader.config import (
     DB_PATH,
     FINANCIAL_STATEMENT_DOWNLOADS_PATH,
     FINANCIAL_STATEMENT_META_DIR_PATH,
 )
+from trader.pipeline.loaders.base import BaseDataLoader
+from trader.pipeline.utils import FinancialStatementType
+from trader.pipeline.utils.data_utils import DataUtils
+from trader.pipeline.utils.sqlite_utils import SQLiteUtils
 
 
 class FinancialStatementLoader(BaseDataLoader):

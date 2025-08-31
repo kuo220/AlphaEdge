@@ -1,4 +1,5 @@
 import datetime
+
 import pandas as pd
 
 from trader.api import StockPriceAPI
