@@ -57,6 +57,7 @@ class StockQuoteAdapter:
         - Returns:
             - List[StockQuote]
                 轉換後的 StockQuote 物件列表
+                Ex: [StockQuote(stock_id='0050', scale=Scale.DAY, date=datetime.date(2025, 7, 1), cur_price=48.64, volume=77081298, open=48.38, high=49.15, low=48.38, close=48.64, tick=None), StockQuote(stock_id='0051', scale=Scale.DAY, date=datetime.date(2025, 7, 1), cur_price=48.64, volume=77081298, open=48.38, high=49.15, low=48.38, close=48.64, tick=None), ...]
         """
 
         price_df: pd.DataFrame = data_api.get(date)
@@ -74,9 +75,21 @@ class StockQuoteAdapter:
         scale: Scale,
     ) -> List[StockQuote]:
         """
-        根據當日資料建立有效的 StockQuote 清單
-        - 支援 Scale.DAY（從價格欄位 Dict 建立）
-        - 支援 Scale.TICK（從 tick dataframe 建立）
+        - Description:
+            根據當日資料建立有效的 StockQuote 清單
+        - Parameters:
+            - data: pd.DataFrame | List[Any]
+                當日資料
+            - date: datetime.date
+                要轉換的日期
+            - scale: Scale
+                要轉換的 Scale
+                1. 支援 Scale.DAY（從價格欄位 Dict 建立）
+                2. 支援 Scale.TICK（從 tick dataframe 建立）
+        - Returns:
+            - List[StockQuote]
+                轉換後的 StockQuote 物件列表
+                Ex: [StockQuote(stock_id='0050', scale=Scale.DAY, date=datetime.date(2025, 7, 1), cur_price=48.64, volume=77081298, open=48.38, high=49.15, low=48.38, close=48.64, tick=None), StockQuote(stock_id='0051', scale=Scale.DAY, date=datetime.date(2025, 7, 1), cur_price=48.64, volume=77081298, open=48.38, high=49.15, low=48.38, close=48.64, tick=None), ...]
         """
 
         if scale == Scale.TICK:
@@ -111,7 +124,22 @@ class StockQuoteAdapter:
         date: datetime.date,
         scale: Scale,
     ) -> StockQuote:
-        """建立個股的 Stock Quote"""
+        """
+        - Description:
+            建立個股的 Stock Quote
+        - Parameters:
+            - data: Any
+                當日資料
+            - stock_id: str
+                股票代號
+            - date: datetime.date
+                要轉換的日期
+            - scale: Scale
+                要轉換的 Scale
+        - Returns:
+            - StockQuote
+                建立後的 StockQuote 物件
+        """
 
         if scale == Scale.TICK:
             tick_quote: TickQuote = TickQuote(

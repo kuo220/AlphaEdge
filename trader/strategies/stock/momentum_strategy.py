@@ -92,7 +92,16 @@ class MomentumStrategy(BaseStockStrategy):
     def check_close_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
         """平倉策略（Long & Short）"""
 
-        pass
+        close_positions: List[StockQuote] = []
+
+        for stock_quote in stock_quotes:
+            if self.account.check_has_position(stock_quote.stock_id):
+                if stock_quote.date >= self.account.get_first_open_position(
+                    stock_quote.stock_id
+                ).date + datetime.timedelta(days=1):
+                    close_positions.append(stock_quote)
+
+        return self.calculate_position_size(close_positions, Action.CLOSE)
 
     def check_stop_loss_signal(
         self, stock_quotes: List[StockQuote]
