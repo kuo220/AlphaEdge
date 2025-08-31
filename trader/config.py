@@ -11,26 +11,32 @@ from trader.utils.path import get_static_resolved_path
 load_dotenv()
 
 
-# Root Directory (trader/)
+""" Root Directory (trader/) Path """
 BASE_DIR_PATH: Path = Path(__file__).resolve().parent
 
 
-# === General Directory Path ===
+""" === General Directory Path === """
 DATABASE_DIR_PATH: Path = get_static_resolved_path(
     base_dir=BASE_DIR_PATH, dir_name="database"
 )
-BACKTEST_RESULT_DIR_PATH: Path = get_static_resolved_path(
-    base_dir=BASE_DIR_PATH, dir_name="backtest/performance/results"
-)
 LOGS_DIR_PATH: Path = get_static_resolved_path(base_dir=BASE_DIR_PATH, dir_name="logs")
 
-# === Strategy Directory Path ===
+
+""" === Strategy Directory Path === """
 STOCK_STRATEGY_DIR_PATH: Path = get_static_resolved_path(
     base_dir=BASE_DIR_PATH, dir_name="strategies/stock"
 )
 
 
-# === Crawl Data Downloads Path ===
+""" === Backtest Result Directory Path === """
+BACKTEST_RESULT_DIR_PATH: Path = get_static_resolved_path(
+    base_dir=BASE_DIR_PATH, dir_name="backtest/performance/results"
+)
+BACKTEST_LOGS_DIR_PATH: Path = get_static_resolved_path(
+    base_dir=BASE_DIR_PATH, dir_name="backtest/performance/results/logs"
+)
+
+""" === Crawl Data Downloads Path === """
 PIPELINE_DOWNLOADS_PATH: Path = get_static_resolved_path(
     base_dir=BASE_DIR_PATH, dir_name="pipeline/downloads"
 )
@@ -50,7 +56,7 @@ TICK_DOWNLOADS_PATH: Path = get_static_resolved_path(
     base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="tick"
 )
 
-# === Crawler Downloads Metadata Directory Path ===
+""" === Crawler Downloads Metadata Directory Path === """
 DOWNLOADS_METADATA_DIR_PATH: Path = get_static_resolved_path(
     base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="meta"
 )
@@ -65,7 +71,7 @@ TICK_METADATA_PATH: Path = get_static_resolved_path(
 )
 
 
-# === Database Files Full Paths ===
+""" === Database Files Full Paths === """
 DB_NAME: str = "data.db"
 TICK_DB_NAME: str = "tickDB"
 
@@ -73,7 +79,7 @@ DB_PATH: Path = get_static_resolved_path(base_dir=DATABASE_DIR_PATH, dir_name=DB
 TICK_DB_PATH: str = f"{os.getenv('DDB_PATH')}{TICK_DB_NAME}"
 
 
-# === Database Table names ===
+""" === Database Table names === """
 PRICE_TABLE_NAME: str = "price"
 CHIP_TABLE_NAME: str = "chip"
 TICK_TABLE_NAME: str = "tick"
@@ -85,7 +91,7 @@ EQUITY_CHANGE_TABLE_NAME: str = "equity_change"
 TICK_METADATA_TABLE_NAME: str = "TICK_METADATA_TABLE_NAME"
 
 
-# === Certs.cer ===
+""" === Certs.cer === """
 CERTS_DIR_PATH: Path = get_static_resolved_path(
     base_dir=BASE_DIR_PATH, dir_name="certs"
 )
@@ -94,7 +100,7 @@ CERTS_FILE_PATH: Path = get_static_resolved_path(
 )
 
 
-# === DolphinDB server setting ===
+""" === DolphinDB server setting === """
 DDB_PATH: str = os.getenv("DDB_PATH")
 DDB_HOST: str = os.getenv("DDB_HOST")
 DDB_PORT: int = int(os.getenv("DDB_PORT"))
@@ -102,12 +108,12 @@ DDB_USER: str = os.getenv("DDB_USER")
 DDB_PASSWORD: str = os.getenv("DDB_PASSWORD")
 
 
-# === Shioaji API ===
+""" === Shioaji API === """
 API_KEY: str = os.getenv("API_KEY")
 API_SECRET_KEY: str = os.getenv("API_SECRET_KEY")
 
 
-# === API list for crawling tick data ===
+""" === API list for crawling tick data === """
 NUM_API: int = 4
 API_LIST: List[ShioajiAPI] = []
 

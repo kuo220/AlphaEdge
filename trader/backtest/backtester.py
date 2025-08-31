@@ -32,6 +32,7 @@ from trader.utils import (
     TimeUtils,
     Units,
 )
+from trader.config import BACKTEST_LOGS_DIR_PATH
 
 """
 Backtesting engine that simulates trading based on strategy signals.
@@ -76,6 +77,9 @@ class Backtester:
         self.start_date: datetime.date = self.strategy.start_date  # 回測起始日
         self.cur_date: datetime.date = self.strategy.start_date  # 回測當前日
         self.end_date: datetime.date = self.strategy.end_date  # 回測結束日
+
+        """ === Set Log File Path """
+        logger.add(f"{BACKTEST_LOGS_DIR_PATH}/{self.strategy.strategy_name}.log")
 
     def load_datasets(self) -> None:
         """從資料庫載入資料"""
@@ -169,11 +173,6 @@ class Backtester:
 
         # Step 1: Get open orders
         open_orders: List[StockOrder] = self.strategy.check_open_signal(stock_quotes)
-        if self.max_holdings is not None:
-            remaining_holding: int = max(
-                0, self.max_holdings - self.account.get_position_count()
-            )
-            open_orders = open_orders[:remaining_holding]
 
         # Step 2: Execute open orders
         for order in open_orders:
@@ -238,9 +237,6 @@ class Backtester:
             if self.account.balance >= (position_value + open_cost):
                 logger.info(f"* Place Open Order: {stock.stock_id}")
 
-                self.account.trade_id_counter += 1
-                self.account.balance -= position_value + open_cost
-
                 position = StockTradeRecord(
                     id=self.account.trade_id_counter,
                     stock_id=stock.stock_id,
@@ -253,6 +249,8 @@ class Backtester:
                     position_value=position_value,
                 )
 
+                self.account.trade_id_counter += 1
+                self.account.balance -= position_value + open_cost
                 self.account.positions.append(position)
                 self.account.trade_records[position.id] = position
 
