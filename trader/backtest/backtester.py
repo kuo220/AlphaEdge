@@ -1,37 +1,37 @@
-from pathlib import Path
 import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple, Union
+
 import numpy as np
 import pandas as pd
 from loguru import logger
-from typing import List, Dict, Tuple, Optional, Any, Union
 
-from trader.api import (
-    StockTickAPI,
-    StockPriceAPI,
-    StockChipAPI,
-    MonthlyRevenueReportAPI,
-    FinancialStatementAPI,
-)
 from trader.adapters import StockQuoteAdapter
+from trader.api import (
+    FinancialStatementAPI,
+    MonthlyRevenueReportAPI,
+    StockChipAPI,
+    StockPriceAPI,
+    StockTickAPI,
+)
 from trader.models import (
     StockAccount,
-    TickQuote,
-    StockQuote,
     StockOrder,
+    StockQuote,
     StockTradeRecord,
-)
-from trader.utils import (
-    TimeUtils,
-    StockUtils,
-    MarketCalendar,
-    Commission,
-    Market,
-    Scale,
-    PositionType,
-    Units,
+    TickQuote,
 )
 from trader.strategies.stock import BaseStockStrategy
-
+from trader.utils import (
+    Commission,
+    Market,
+    MarketCalendar,
+    PositionType,
+    Scale,
+    StockUtils,
+    TimeUtils,
+    Units,
+)
 
 """
 Backtesting engine that simulates trading based on strategy signals.
@@ -98,13 +98,13 @@ class Backtester:
     def run(self) -> None:
         """執行 Backtest (目前只有全tick回測)"""
 
-        print("========== Backtest Start ==========")
-        print(f"* Strategy Name: {self.strategy.strategy_name}")
-        print(
+        logger.info("========== Backtest Start ==========")
+        logger.info(f"* Strategy Name: {self.strategy.strategy_name}")
+        logger.info(
             f"* Backtest Period: {self.start_date.strftime('%Y/%m/%d')} ~ {self.end_date.strftime('%Y/%m/%d')}"
         )
-        print(f"* Initial Capital: {self.strategy.init_capital}")
-        print(f"* Backtest Scale: {self.scale}")
+        logger.info(f"* Initial Capital: {self.strategy.init_capital}")
+        logger.info(f"* Backtest Scale: {self.scale}")
 
         # load backtest dataset
         self.load_datasets()
@@ -114,10 +114,10 @@ class Backtester:
         )
 
         for date in dates:
-            print(f"--- {date.strftime('%Y/%m/%d')} ---")
+            logger.info(f"--- {date.strftime('%Y/%m/%d')} ---")
 
             if not MarketCalendar().check_stock_market_open(date):
-                print("* Stock Market Close\n")
+                logger.info("* Stock Market Close\n")
                 continue
 
             if self.scale == Scale.TICK:
@@ -184,7 +184,7 @@ class Backtester:
 
         # Step 1:find stocks with existing positions
         positions: List[StockQuote] = [
-            sq for sq in stock_quotes if self.account.check_has_position(sq.code)
+            sq for sq in stock_quotes if self.account.check_has_position(sq.stock_id)
         ]
 
         if not positions:
@@ -201,7 +201,7 @@ class Backtester:
 
         # After executing stop loss, recheck the remaining positions
         remaining_positions: List[StockQuote] = [
-            sq for sq in stock_quotes if self.account.check_has_position(sq.code)
+            sq for sq in stock_quotes if self.account.check_has_position(sq.stock_id)
         ]
 
         # Step 4: Get close orders

@@ -1,8 +1,9 @@
 from io import StringIO
 from typing import List, Optional
-from loguru import logger
+
 import pandas as pd
 import requests
+from loguru import logger
 
 from trader.pipeline.crawlers.base import BaseDataCrawler
 from trader.pipeline.crawlers.utils.request_utils import RequestUtils

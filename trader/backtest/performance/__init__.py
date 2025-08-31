@@ -1,6 +1,5 @@
-from .base import BaseBacktestAnalyzer
 from .analyzer import StockBacktestAnalyzer
-
+from .base import BaseBacktestAnalyzer
 
 """
 performance package

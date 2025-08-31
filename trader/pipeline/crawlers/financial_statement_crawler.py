@@ -1,26 +1,23 @@
-import time
 import random
-import pandas as pd
-import requests
+import time
 from io import StringIO
 from pathlib import Path
-from loguru import logger
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
 
-from trader.pipeline.crawlers.base import BaseDataCrawler
-from trader.pipeline.crawlers.utils.request_utils import RequestUtils
-from trader.pipeline.crawlers.utils.payload import Payload
-from trader.pipeline.utils import (
-    URLManager,
-    MarketType,
-    FinancialStatementType,
-)
-from trader.pipeline.utils.data_utils import DataUtils
-from trader.utils import TimeUtils
+import pandas as pd
+import requests
+from loguru import logger
+
 from trader.config import (
     FINANCIAL_STATEMENT_DOWNLOADS_PATH,
     FINANCIAL_STATEMENT_META_DIR_PATH,
 )
+from trader.pipeline.crawlers.base import BaseDataCrawler
+from trader.pipeline.crawlers.utils.payload import Payload
+from trader.pipeline.crawlers.utils.request_utils import RequestUtils
+from trader.pipeline.utils import FinancialStatementType, MarketType, URLManager
+from trader.pipeline.utils.data_utils import DataUtils
+from trader.utils import TimeUtils
 
 
 class FinancialStatementCrawler(BaseDataCrawler):

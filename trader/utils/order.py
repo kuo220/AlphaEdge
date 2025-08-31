@@ -1,4 +1,5 @@
 from typing import Any
+
 import shioaji as sj
 from shioaji.contracts import Contract
 from shioaji.order import Order

@@ -1,12 +1,13 @@
 import shutil
 import sqlite3
-from loguru import logger
-import pandas as pd
 from pathlib import Path
 
+import pandas as pd
+from loguru import logger
+
+from trader.config import DB_PATH, PRICE_DOWNLOADS_PATH, PRICE_TABLE_NAME
 from trader.pipeline.loaders.base import BaseDataLoader
 from trader.pipeline.utils.sqlite_utils import SQLiteUtils
-from trader.config import PRICE_DOWNLOADS_PATH, PRICE_TABLE_NAME, DB_PATH
 
 
 class StockPriceLoader(BaseDataLoader):

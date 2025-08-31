@@ -1,9 +1,10 @@
 import time
+from typing import Dict, List, Optional, Union
+
 import requests
-from loguru import logger
 from fake_useragent import UserAgent
-from requests.exceptions import ReadTimeout, ChunkedEncodingError
-from typing import List, Dict, Optional, Union
+from loguru import logger
+from requests.exceptions import ChunkedEncodingError, ReadTimeout
 
 from trader.pipeline.utils import URLManager
 

@@ -1,37 +1,38 @@
 import math
 import os
 import sqlite3
+from datetime import date, datetime, timedelta
+
+import openai
+import pandas as pd
 import pytz
-from datetime import datetime, date, timedelta
+import requests
+import shioaji as sj
+import yfinance as yf
 from dateutil.relativedelta import relativedelta
+from dotenv import load_dotenv
+from quantxlab.strategies.quantx_strategy import QuantxStrategy
+
 from .crawler import (
-    table_latest_date,
-    date_range,
-    update_table,
-    crawl_price,
-    month_range,
-    crawl_monthly_report,
-    season_range,
-    crawl_finance_statement_by_date,
     crawl_benchmark_return,
-    crawl_tw_total_pmi,
-    crawl_tw_total_nmi,
-    crawl_tw_business_indicator,
+    crawl_finance_statement_by_date,
     crawl_margin_balance,
     crawl_margin_transactions,
+    crawl_monthly_report,
+    crawl_price,
+    crawl_tw_business_indicator,
+    crawl_tw_total_nmi,
+    crawl_tw_total_pmi,
+    date_range,
+    month_range,
+    season_range,
+    table_latest_date,
+    update_table,
 )
-import requests
 from .data import Data
-from .utlis import portfolio
-from .shared_list import indu, indu_id
-from quantxlab.strategies.quantx_strategy import QuantxStrategy
-from dotenv import load_dotenv
-import shioaji as sj
-import pandas as pd
-from .shared_list import stock_not_for_quantx
-import yfinance as yf
 from .mysqldb import Mysqldb
-import openai
+from .shared_list import indu, indu_id, stock_not_for_quantx
+from .utlis import portfolio
 
 desired_timezone = pytz.timezone("Asia/Taipei")
 

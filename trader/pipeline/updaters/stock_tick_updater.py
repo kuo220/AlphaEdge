@@ -1,23 +1,22 @@
 import datetime
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
+from pathlib import Path
 from threading import Lock
-from typing import List, Optional, Any
+from typing import Any, List, Optional
+
 import pandas as pd
 import shioaji as sj
 from loguru import logger
-from pathlib import Path
 
-from trader.utils import ShioajiAccount
-from trader.pipeline.updaters.base import BaseDataUpdater
-from trader.pipeline.crawlers.stock_tick_crawler import StockTickCrawler
+from trader.config import API_LIST, LOGS_DIR_PATH, TICK_DOWNLOADS_PATH
 from trader.pipeline.cleaners.stock_tick_cleaner import StockTickCleaner
-from trader.pipeline.loaders.stock_tick_loader import StockTickLoader
 from trader.pipeline.crawlers.stock_info_crawler import StockInfoCrawler
+from trader.pipeline.crawlers.stock_tick_crawler import StockTickCrawler
+from trader.pipeline.loaders.stock_tick_loader import StockTickLoader
+from trader.pipeline.updaters.base import BaseDataUpdater
 from trader.pipeline.utils.stock_tick_utils import StockTickUtils
-from trader.utils import TimeUtils
-from trader.config import TICK_DOWNLOADS_PATH, API_LIST, LOGS_DIR_PATH
-
+from trader.utils import ShioajiAccount, TimeUtils
 
 """
 Shioaji 台股 ticks 資料時間表：

@@ -2,13 +2,15 @@ import datetime
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from trader.api import Data, Chip, Tick, QXData
-from trader.models import (
-    StockAccount,
-    StockQuote,
-    StockOrder,
+from trader.api import (
+    FinancialStatementAPI,
+    MonthlyRevenueReportAPI,
+    StockChipAPI,
+    StockPriceAPI,
+    StockTickAPI,
 )
-from trader.utils import Action, Market, Scale, PositionType
+from trader.models import StockAccount, StockOrder, StockQuote
+from trader.utils import Action, Market, PositionType, Scale
 
 
 class BaseStockStrategy(ABC):
@@ -37,19 +39,29 @@ class BaseStockStrategy(ABC):
         )
 
         """ === Datasets Setting=== """
-        self.data: Data = Data()
-        self.chip: Chip = self.data.chip  # Chips data
-        self.tick: Optional[Tick] = None  # Ticks data
-        self.qx_data: QXData = self.data.qx_data  # Day price data, Financial data, etc
-
-        if self.scale in (Scale.TICK, Scale.MIX):
-            self.tick: Tick = self.data.tick
+        self.tick: Optional[StockTickAPI] = None  # Ticks data (Optional)
+        self.price: Optional[StockPriceAPI] = None  # Day price data (Optional)
+        self.chip: Optional[StockChipAPI] = None  # Chips data (Optional)
+        self.mrr: Optional[MonthlyRevenueReportAPI] = (
+            None  # Monthly Revenue Report data (Optional)
+        )
+        self.fs: Optional[FinancialStatementAPI] = (
+            None  # Financial Statement data (Optional)
+        )
 
     @abstractmethod
-    def set_account(self, account: StockAccount):
+    def setup_account(self, account: StockAccount):
         """
         - Description:
             載入虛擬帳戶資訊
+        """
+        pass
+
+    @abstractmethod
+    def setup_apis(self):
+        """
+        - Description:
+            載入資料 API
         """
         pass
 

@@ -1,4 +1,4 @@
-from .quote import TickQuote, StockQuote
-from .order import StockOrder
-from .record import StockTradeRecord
 from .account import StockAccount
+from .order import StockOrder
+from .quote import StockQuote, TickQuote
+from .record import StockTradeRecord

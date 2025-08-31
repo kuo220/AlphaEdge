@@ -1,15 +1,16 @@
-import pandas as pd
 from pathlib import Path
-from loguru import logger
-from typing import List, Dict
+from typing import Dict, List
 
-from trader.pipeline.cleaners.base import BaseDataCleaner
-from trader.pipeline.utils.data_utils import DataUtils
-from trader.pipeline.utils import FinancialStatementType, FileEncoding
+import pandas as pd
+from loguru import logger
+
 from trader.config import (
     FINANCIAL_STATEMENT_DOWNLOADS_PATH,
     FINANCIAL_STATEMENT_META_DIR_PATH,
 )
+from trader.pipeline.cleaners.base import BaseDataCleaner
+from trader.pipeline.utils import FileEncoding, FinancialStatementType
+from trader.pipeline.utils.data_utils import DataUtils
 
 
 class FinancialStatementCleaner(BaseDataCleaner):

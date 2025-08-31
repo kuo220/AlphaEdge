@@ -1,4 +1,5 @@
 import datetime
+
 import pandas as pd
 from loguru import logger
 
@@ -9,13 +10,13 @@ except ModuleNotFoundError:
 
 from trader.api.base import BaseDataAPI
 from trader.config import (
+    DDB_HOST,
+    DDB_PASSWORD,
+    DDB_PORT,
+    DDB_USER,
     LOGS_DIR_PATH,
     TICK_DB_PATH,
     TICK_TABLE_NAME,
-    DDB_HOST,
-    DDB_PORT,
-    DDB_USER,
-    DDB_PASSWORD,
 )
 
 

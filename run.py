@@ -1,9 +1,9 @@
 import argparse
 from typing import Dict, Type
 
-from trader.strategies.stock import BaseStockStrategy
-from trader.strategies import StrategyLoader
 from trader.backtest import Backtester
+from trader.strategies import StrategyLoader
+from trader.strategies.stock import BaseStockStrategy
 
 """
 run.py

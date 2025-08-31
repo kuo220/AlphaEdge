@@ -1,12 +1,13 @@
 import shutil
 import sqlite3
-from loguru import logger
-import pandas as pd
 from pathlib import Path
 
+import pandas as pd
+from loguru import logger
+
+from trader.config import CHIP_DOWNLOADS_PATH, CHIP_TABLE_NAME, DB_PATH
 from trader.pipeline.loaders.base import BaseDataLoader
 from trader.pipeline.utils.sqlite_utils import SQLiteUtils
-from trader.config import CHIP_TABLE_NAME, CHIP_DOWNLOADS_PATH, DB_PATH
 
 
 class StockChipLoader(BaseDataLoader):

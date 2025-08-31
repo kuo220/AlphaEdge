@@ -1,20 +1,21 @@
-import sys
-import os
 import datetime
-from pathlib import Path
+import os
+import sys
 from abc import ABC, abstractmethod
-from typing import List, Dict, Tuple, Optional, Any
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
 import pandas as pd
 import plotly.express as px
 
-from trader.api import Data, Chip, Tick, QXData
-from trader.utils import Market, Scale, PositionType
-from trader.models import StockAccount, StockQuote, StockOrder, StockTradeRecord
-from .base import BaseBacktestAnalyzer
-from .report import StockBacktestReporter
+from trader.api import Chip, Data, QXData, Tick
 from trader.config import BACKTEST_RESULT_DIR_PATH
+from trader.models import StockAccount, StockOrder, StockQuote, StockTradeRecord
+from trader.utils import Market, PositionType, Scale
 
+from .base import BaseBacktestAnalyzer
+from .reporter import StockBacktestReporter
 
 """
 analyzer.py

@@ -1,19 +1,19 @@
 import datetime
 import random
-import time
 import sqlite3
-from loguru import logger
-import pandas as pd
+import time
 from typing import List, Optional
 
-from trader.pipeline.updaters.base import BaseDataUpdater
-from trader.pipeline.crawlers.stock_chip_crawler import StockChipCrawler
+import pandas as pd
+from loguru import logger
+
+from trader.config import CHIP_TABLE_NAME, DB_PATH, LOGS_DIR_PATH
 from trader.pipeline.cleaners.stock_chip_cleaner import StockChipCleaner
+from trader.pipeline.crawlers.stock_chip_crawler import StockChipCrawler
 from trader.pipeline.loaders.stock_chip_loader import StockChipLoader
+from trader.pipeline.updaters.base import BaseDataUpdater
 from trader.pipeline.utils.sqlite_utils import SQLiteUtils
 from trader.utils import TimeUtils
-from trader.config import DB_PATH, CHIP_TABLE_NAME, LOGS_DIR_PATH
-
 
 """
 三大法人爬蟲資料時間表：

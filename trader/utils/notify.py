@@ -1,7 +1,8 @@
+from typing import Any, Dict
+
 import pandas as pd
 import requests
 import shioaji as sj
-from typing import Dict, Any
 
 from .account import ShioajiAccount
 from .constant import Action, StockPriceType
