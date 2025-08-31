@@ -184,7 +184,7 @@ class Backtester:
 
         # Step 1:find stocks with existing positions
         positions: List[StockQuote] = [
-            sq for sq in stock_quotes if self.account.check_has_position(sq.code)
+            sq for sq in stock_quotes if self.account.check_has_position(sq.stock_id)
         ]
 
         if not positions:
@@ -201,7 +201,7 @@ class Backtester:
 
         # After executing stop loss, recheck the remaining positions
         remaining_positions: List[StockQuote] = [
-            sq for sq in stock_quotes if self.account.check_has_position(sq.code)
+            sq for sq in stock_quotes if self.account.check_has_position(sq.stock_id)
         ]
 
         # Step 4: Get close orders

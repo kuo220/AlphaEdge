@@ -113,4 +113,41 @@ class MomentumStrategy(BaseStockStrategy):
         self, stock_quotes: List[StockQuote], action: Action
     ) -> List[StockOrder]:
         """計算 Open or Close 的部位大小"""
-        pass
+
+        orders: List[StockOrder] = []
+
+        if action == Action.OPEN:
+            if self.max_holdings is not None:
+                available_position_cnt: int = max(0, self.max_holdings - self.account.get_position_count())
+
+            if available_position_cnt > 0:
+                per_position_size: float = self.account.balance / available_position_cnt
+
+                for stock_quote in stock_quotes:
+                    # Unit: Shares
+                    open_volume: int = int(per_position_size / stock_quote.close)
+
+                    if open_volume >= 1:
+                        orders.append(StockOrder(
+                            stock_id=stock_quote.stock_id,
+                            date=stock_quote.date,
+                            price=stock_quote.cur_price,
+                            volume=open_volume,
+                            position_type=PositionType.LONG
+                        ))
+                        available_position_cnt -= 1
+
+                    if available_position_cnt == 0:
+                        break
+
+        elif action == Action.CLOSE:
+            for stock_quote in stock_quotes:
+                position: StockTradeRecord = self.account.get_first_open_position(stock_quote.stock_id)
+
+                orders.append(StockOrder(
+                    stock_id=stock_quote.stock_id,
+                    date=stock_quote.date,
+                    price=stock_quote.cur_price,
+                    volume=position.volume,
+                    position_type = position.position_type
+                ))

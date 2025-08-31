@@ -114,4 +114,5 @@ class PositionType(str, Enum):
 class Units(int, Enum):
     """股票張數單位"""
 
+    SHARE = 1  # 1 Share = 1 Share
     LOT = 1000  # 1 Lot = 1000 Shares
