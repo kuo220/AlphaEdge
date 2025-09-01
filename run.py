@@ -34,6 +34,9 @@ Make sure to run this file from the project root to ensure all relative imports 
 
     - 執行實盤模式，使用名為 "Momentum" 的策略：
         python run.py --mode live --strategy Momentum
+
+    - Notes:
+        Strategy Name 是 Class 的名稱
 """
 
 
