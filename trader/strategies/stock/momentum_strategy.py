@@ -33,7 +33,6 @@ class MomentumStrategy(BaseStockStrategy):
         self.start_date: datetime.date = datetime.date(2020, 5, 1)
         self.end_date: datetime.date = datetime.date(2020, 5, 10)
 
-        self.setup_account(StockAccount(init_capital=self.init_capital))
         self.setup_apis()
 
     def setup_account(self, account: StockAccount):
@@ -64,28 +63,26 @@ class MomentumStrategy(BaseStockStrategy):
         open_positions: List[StockQuote] = []
 
         if self.max_holdings == 0:
-            return None
+            return []
 
         yesterday: datetime.date = stock_quotes[0].date - datetime.timedelta(days=1)
-        if not MarketCalendar.check_stock_market_open(data_api=self.price, date=yesterday):
+
+        if not MarketCalendar.check_stock_market_open(
+            data_api=self.price, date=yesterday
+        ):
             return []
-        price_yesterday: pd.DataFrame = self.price.get(yesterday)
-        print("Yesterday", yesterday)
+
+        yesterday_prices: pd.DataFrame = self.price.get(yesterday)
 
         for stock_quote in stock_quotes:
             # Condition 1: 當日漲 > 9% 的股票
+            mask: pd.Series = yesterday_prices["stock_id"] == stock_quote.stock_id
+            close_price: float = yesterday_prices.loc[mask, "收盤價"].iloc[0]
 
-            price_chg: float = (
-                stock_quote.close
-                / price_yesterday[price_yesterday["stock_id"] == stock_quote.stock_id][
-                    "收盤價"
-                ]
-                - 1
-            ) * 100
+            price_chg: float = (stock_quote.close / close_price - 1) * 100
 
             if price_chg < 9:
                 continue
-            print("Price", price_yesterday[price_yesterday["stock_id"] == stock_quote.stock_id]["收盤價"])
 
             # Condition 2: Volume > 5000 Lot
             if stock_quote.volume < 5000 * Units.LOT:
@@ -149,7 +146,6 @@ class MomentumStrategy(BaseStockStrategy):
 
                     if available_position_cnt == 0:
                         break
-
         elif action == Action.CLOSE:
             for stock_quote in stock_quotes:
                 position: StockTradeRecord = self.account.get_first_open_position(
@@ -165,3 +161,4 @@ class MomentumStrategy(BaseStockStrategy):
                         position_type=position.position_type,
                     )
                 )
+        return orders

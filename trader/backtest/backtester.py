@@ -114,7 +114,9 @@ class Backtester:
         for date in dates:
             logger.info(f"--- {date.strftime('%Y/%m/%d')} ---")
 
-            if not MarketCalendar.check_stock_market_open(data_api=self.price, date=date):
+            if not MarketCalendar.check_stock_market_open(
+                data_api=self.price, date=date
+            ):
                 logger.info("* Stock Market Close\n")
                 continue
 
@@ -128,6 +130,15 @@ class Backtester:
                 self.run_mix_backtest(date)
 
         self.account.update_account_status()
+
+        logger.info(
+            f"""
+            1. Initial Capital: {int(self.account.init_capital)}
+            2. Balance: {int(self.account.balance)}
+            3. Total realized pnl: {int(self.account.realized_pnl)}
+            4. ROI: {round(self.account.roi, 2)}%
+            """
+        )
 
     def run_tick_backtest(self, date: datetime.date) -> None:
         """Tick 級別的回測架構"""
@@ -220,7 +231,7 @@ class Backtester:
         # Step 1: Calculate position value and open cost
         position_value: float = stock.price * stock.volume
         open_cost: float = StockUtils.calculate_transaction_commission(
-            buy_price=stock.price, volume=stock.volume
+            price=stock.price, volume=stock.volume
         )
 
         # Step 2: Create position
@@ -240,7 +251,6 @@ class Backtester:
                     volume=stock.volume,
                     commission=open_cost,
                     transaction_cost=open_cost,
-                    position_value=position_value,
                 )
 
                 self.account.trade_id_counter += 1
@@ -263,7 +273,7 @@ class Backtester:
         # Step 1: Calculate position value and close cost
         position_value: float = stock.price * stock.volume
         close_cost: float = StockUtils.calculate_transaction_commission(
-            sell_price=stock.price, volume=stock.volume
+            price=stock.price, volume=stock.volume
         )
 
         # Step 2: Find the first open position of the stock (FIFO)
@@ -287,11 +297,17 @@ class Backtester:
                 position.realized_pnl = StockUtils.calculate_net_profit(
                     position.buy_price, position.sell_price, position.volume
                 )
+
+                logger.info(f"Realized PnL: {position.realized_pnl}")
+                self.account.realized_pnl += position.realized_pnl
+                logger.info(f"Account Realized PnL: {self.account.realized_pnl}")
+
                 position.roi = StockUtils.calculate_roi(
                     position.buy_price, position.sell_price, position.volume
                 )
 
                 self.account.balance += position_value - close_cost
+                # self.account.realized_pnl += position.realized_pnl
                 self.account.trade_records[position.id] = (
                     position  # 根據 position.id 更新 trade_records 中對應到的 position
                 )
