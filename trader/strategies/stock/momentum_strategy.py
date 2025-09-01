@@ -17,6 +17,7 @@ from trader.api import (
 from trader.models import StockAccount, StockOrder, StockQuote, StockTradeRecord
 from trader.strategies.stock import BaseStockStrategy
 from trader.utils import Action, Market, PositionType, Scale, Units
+from trader.utils.market_calendar import MarketCalendar
 
 
 class MomentumStrategy(BaseStockStrategy):
@@ -29,7 +30,7 @@ class MomentumStrategy(BaseStockStrategy):
         self.max_holdings: int = 10
         self.scale: Scale = Scale.DAY
 
-        self.start_date: datetime.date = datetime.date(2020,5, 1)
+        self.start_date: datetime.date = datetime.date(2020, 5, 1)
         self.end_date: datetime.date = datetime.date(2020, 5, 10)
 
         self.setup_account(StockAccount(init_capital=self.init_capital))
@@ -65,10 +66,14 @@ class MomentumStrategy(BaseStockStrategy):
         if self.max_holdings == 0:
             return None
 
+        yesterday: datetime.date = stock_quotes[0].date - datetime.timedelta(days=1)
+        if not MarketCalendar.check_stock_market_open(data_api=self.price, date=yesterday):
+            return []
+        price_yesterday: pd.DataFrame = self.price.get(yesterday)
+        print("Yesterday", yesterday)
+
         for stock_quote in stock_quotes:
             # Condition 1: 當日漲 > 9% 的股票
-            yesterday: datetime.date = stock_quote.date - datetime.timedelta(days=1)
-            price_yesterday: pd.DataFrame = self.price.get(yesterday)
 
             price_chg: float = (
                 stock_quote.close
@@ -80,6 +85,7 @@ class MomentumStrategy(BaseStockStrategy):
 
             if price_chg < 9:
                 continue
+            print("Price", price_yesterday[price_yesterday["stock_id"] == stock_quote.stock_id]["收盤價"])
 
             # Condition 2: Volume > 5000 Lot
             if stock_quote.volume < 5000 * Units.LOT:
@@ -118,7 +124,9 @@ class MomentumStrategy(BaseStockStrategy):
 
         if action == Action.OPEN:
             if self.max_holdings is not None:
-                available_position_cnt: int = max(0, self.max_holdings - self.account.get_position_count())
+                available_position_cnt: int = max(
+                    0, self.max_holdings - self.account.get_position_count()
+                )
 
             if available_position_cnt > 0:
                 per_position_size: float = self.account.balance / available_position_cnt
@@ -128,13 +136,15 @@ class MomentumStrategy(BaseStockStrategy):
                     open_volume: int = int(per_position_size / stock_quote.close)
 
                     if open_volume >= 1:
-                        orders.append(StockOrder(
-                            stock_id=stock_quote.stock_id,
-                            date=stock_quote.date,
-                            price=stock_quote.cur_price,
-                            volume=open_volume,
-                            position_type=PositionType.LONG
-                        ))
+                        orders.append(
+                            StockOrder(
+                                stock_id=stock_quote.stock_id,
+                                date=stock_quote.date,
+                                price=stock_quote.cur_price,
+                                volume=open_volume,
+                                position_type=PositionType.LONG,
+                            )
+                        )
                         available_position_cnt -= 1
 
                     if available_position_cnt == 0:
@@ -142,12 +152,16 @@ class MomentumStrategy(BaseStockStrategy):
 
         elif action == Action.CLOSE:
             for stock_quote in stock_quotes:
-                position: StockTradeRecord = self.account.get_first_open_position(stock_quote.stock_id)
+                position: StockTradeRecord = self.account.get_first_open_position(
+                    stock_quote.stock_id
+                )
 
-                orders.append(StockOrder(
-                    stock_id=stock_quote.stock_id,
-                    date=stock_quote.date,
-                    price=stock_quote.cur_price,
-                    volume=position.volume,
-                    position_type = position.position_type
-                ))
+                orders.append(
+                    StockOrder(
+                        stock_id=stock_quote.stock_id,
+                        date=stock_quote.date,
+                        price=stock_quote.cur_price,
+                        volume=position.volume,
+                        position_type=position.position_type,
+                    )
+                )

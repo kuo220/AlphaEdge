@@ -14,6 +14,7 @@ from trader.api import (
     StockPriceAPI,
     StockTickAPI,
 )
+from trader.config import BACKTEST_LOGS_DIR_PATH
 from trader.models import (
     StockAccount,
     StockOrder,
@@ -25,14 +26,13 @@ from trader.strategies.stock import BaseStockStrategy
 from trader.utils import (
     Commission,
     Market,
-    MarketCalendar,
     PositionType,
     Scale,
     StockUtils,
     TimeUtils,
     Units,
 )
-from trader.config import BACKTEST_LOGS_DIR_PATH
+from trader.utils.market_calendar import MarketCalendar
 
 """
 Backtesting engine that simulates trading based on strategy signals.
@@ -60,7 +60,7 @@ class Backtester:
         self.account: StockAccount = StockAccount(
             self.strategy.init_capital
         )  # 虛擬帳戶資訊
-        self.strategy.set_account(self.account)  # 設置虛擬帳戶資訊
+        self.strategy.setup_account(self.account)  # 設置虛擬帳戶資訊
 
         """ === Datasets === """
         self.tick: Optional[StockTickAPI] = None  # Ticks data
@@ -87,16 +87,10 @@ class Backtester:
         self.chip = StockChipAPI()
         self.mrr = MonthlyRevenueReportAPI()
         self.fs = FinancialStatementAPI()
+        self.price = StockPriceAPI()
 
-        if self.scale == Scale.TICK:
+        if self.scale == Scale.TICK or self.scale == Scale.MIX:
             self.tick = StockTickAPI()
-
-        elif self.scale == Scale.DAY:
-            self.price = StockPriceAPI()
-
-        elif self.scale == Scale.MIX:
-            self.tick = StockTickAPI()
-            self.price = StockPriceAPI()
 
     # === Main Backtest Loop ===
     def run(self) -> None:
@@ -120,7 +114,7 @@ class Backtester:
         for date in dates:
             logger.info(f"--- {date.strftime('%Y/%m/%d')} ---")
 
-            if not MarketCalendar().check_stock_market_open(date):
+            if not MarketCalendar.check_stock_market_open(data_api=self.price, date=date):
                 logger.info("* Stock Market Close\n")
                 continue
 
