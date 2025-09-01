@@ -16,7 +16,6 @@ from .constant import (
 )
 from .decorators import log_thread
 from .instrument import StockUtils
-from .market_calendar import MarketCalendar
 from .notify import Notification
 from .order import OrderUtils
 from .time import TimeUtils

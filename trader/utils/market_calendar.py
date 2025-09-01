@@ -8,10 +8,8 @@ from trader.api import StockPriceAPI
 class MarketCalendar:
     """Market Calendar"""
 
-    def __init__(self):
-        pass
-
-    def check_stock_market_open(self, date: datetime.date) -> bool:
+    @staticmethod
+    def check_stock_market_open(data_api: StockPriceAPI, date: datetime.date) -> bool:
         """
         - Description: 判斷指定日期是否為台股開盤日
         - Parameters:
@@ -20,7 +18,5 @@ class MarketCalendar:
             - bool
         """
 
-        price = StockPriceAPI()
-        df: pd.DataFrame = price.get(date)
-
+        df: pd.DataFrame = data_api.get(date)
         return True if not df.empty else False

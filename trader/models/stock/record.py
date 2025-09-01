@@ -24,7 +24,6 @@ class StockTradeRecord:
         commission: float = 0.0,
         tax: float = 0.0,
         transaction_cost: float = 0.0,
-        position_value: float = 0.0,
         realized_pnl: float = 0.0,
         roi: float = 0.0,
     ):
@@ -52,8 +51,5 @@ class StockTradeRecord:
         )
 
         # Transaction Performance
-        self.position_value: float = (
-            position_value  # 股票市值（目前是買入才有）（未扣除手續費及交易稅等摩擦成本）
-        )
         self.realized_pnl: float = realized_pnl  # 已實現損益
         self.roi: float = roi  # 報酬率
