@@ -65,7 +65,6 @@ class StockAccount:
         """檢查指定的股票是否有在庫存"""
         return any(position.stock_id == stock_id for position in self.positions)
 
-
     def update_realized_pnl(self):
         """更新已實現損益"""
         self.realized_pnl = sum(
