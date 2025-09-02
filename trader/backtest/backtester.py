@@ -23,6 +23,7 @@ from trader.models import (
     TickQuote,
 )
 from trader.strategies.stock import BaseStockStrategy
+from trader.backtest.performance.reporter import StockBacktestReporter
 from trader.utils import (
     Commission,
     Market,
@@ -320,4 +321,9 @@ class Backtester:
     # === Report ===
     def generate_backtest_report(self) -> None:
         """生產回測報告"""
-        pass
+
+        # Generate Backtest Report (Chart)
+        reporter = StockBacktestReporter(self.strategy)
+        reporter.plot_equity_curve()
+        reporter.plot_equity_and_benchmark_curve()
+        reporter.plot_mdd()

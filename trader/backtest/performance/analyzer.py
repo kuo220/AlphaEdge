@@ -1,21 +1,11 @@
-import datetime
-import os
-import sys
-from abc import ABC, abstractmethod
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import List, Optional
 
 import numpy as np
-import pandas as pd
-import plotly.express as px
 
-from trader.api import Chip, Data, QXData, Tick
-from trader.config import BACKTEST_RESULT_DIR_PATH
-from trader.models import StockAccount, StockOrder, StockQuote, StockTradeRecord
-from trader.utils import Market, PositionType, Scale
+from trader.backtest.performance.base import BaseBacktestAnalyzer
+from trader.models import StockTradeRecord
+from trader.strategies.stock import BaseStockStrategy
 
-from .base import BaseBacktestAnalyzer
-from .reporter import StockBacktestReporter
 
 """
 analyzer.py
@@ -40,9 +30,9 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
     equity curve, MDD, and ROI
     """
 
-    def __init__(self, account: StockAccount):
+    def __init__(self, strategy: BaseStockStrategy):
         # Account
-        super().__init__(account)
+        super().__init__(strategy)
 
         # Trade Record List
         self.trade_records: List[StockTradeRecord] = [

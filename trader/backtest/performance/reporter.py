@@ -1,22 +1,16 @@
 import datetime
-import os
-import sys
-from abc import ABC, abstractmethod
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import List
 
-import numpy as np
-import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 
-from trader.api import Chip, Data, QXData, Tick
+from trader.api import (
+    StockPriceAPI,
+)
+from trader.backtest.performance.base import BaseBacktestReporter
 from trader.config import BACKTEST_RESULT_DIR_PATH
 from trader.models import StockAccount
 from trader.strategies.stock import BaseStockStrategy
 from trader.utils import Market, PositionType, Scale
-
-from .base import BaseBacktestAnalyzer
 
 """
 report.py
@@ -37,20 +31,20 @@ Intended for use in strategy evaluation and performance review.
 
 
 class StockBacktestReporter:
-    """Generates visual reports based on backtest results."""
+    """Generates visual reports based on backtest results"""
 
-    def __init__(self, account: StockAccount, strategy: BaseStockStrategy):
-        self.account: StockAccount = account  # Account
+    def __init__(self, strategy: BaseStockStrategy):
         self.strategy: BaseStockStrategy = strategy  # Backtest strategy
+        self.account: StockAccount = self.strategy.account  # Account
 
         self.start_date: datetime.date = self.strategy.start_date  # Backtest start date
         self.end_date: datetime.date = self.strategy.end_date  # Backtest end date
 
         self.benchmark: str = "0050"  # Benchmark stock
-        self.qxData: QXData = QXData()  # QuantX data (for benchmark)
+        self.price: StockPriceAPI = StockPriceAPI()  # Price data
 
     def plot_equity_curve(self) -> None:
-        """繪製權益曲線圖圖（淨資產隨時間變化）"""
+        """繪製權益曲線圖（淨資產隨時間變化）"""
 
         dates: List[datetime.date] = [self.start_date]
         cumulative_equity: List[float] = [self.account.init_capital]
@@ -71,7 +65,7 @@ class StockBacktestReporter:
             )
         )
 
-        self._set_fig_config(
+        self.set_figure_config(
             fig, title=fig_title, xaxis_title="Date", yaxis_title="Equity"
         )
 
@@ -83,7 +77,7 @@ class StockBacktestReporter:
         """繪製 Max Drawdown"""
         pass
 
-    def _set_figure_config(
+    def set_figure_config(
         self,
         fig: go.Figure,
         title: str = "",
@@ -132,6 +126,6 @@ class StockBacktestReporter:
                 opacity=0.5,
             )
 
-    def _save_figure(self, file_name: str = "") -> None:
+    def save_figure(self, file_name: str = "") -> None:
         """儲存回測報告"""
         pass
