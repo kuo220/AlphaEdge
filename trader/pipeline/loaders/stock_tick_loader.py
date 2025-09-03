@@ -109,7 +109,9 @@ class StockTickLoader(BaseDataLoader):
     def add_to_db(self, remove_files: bool = False) -> None:
         """將資料夾中的所有 CSV 檔存入 tick 的 DolphinDB 中"""
 
+        # Ensure Database Table Exists
         self.create_missing_tables()
+
         self.append_all_csv_to_dolphinDB(TICK_DOWNLOADS_PATH)
         if remove_files:
             shutil.rmtree(TICK_DOWNLOADS_PATH)
@@ -117,6 +119,7 @@ class StockTickLoader(BaseDataLoader):
     def append_csv_to_dolphinDB(self, csv_path: Path) -> None:
         """將單一 CSV 資料添加到已建立的 DolphinDB 資料表"""
 
+        # Ensure Database Table Exists
         self.create_missing_tables()
 
         script: str = f"""
@@ -145,6 +148,7 @@ class StockTickLoader(BaseDataLoader):
     def append_all_csv_to_dolphinDB(self, dir_path: Path) -> None:
         """將資料夾內所有 CSV 檔案附加到已建立的 DolphinDB 資料表"""
 
+        # Ensure Database Table Exists
         self.create_missing_tables()
 
         # read all csv files in dir_path (.as_posix => replace \\ with / (for windows os))
