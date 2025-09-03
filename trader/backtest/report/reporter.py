@@ -6,11 +6,12 @@ import plotly.graph_objects as go
 from trader.api import (
     StockPriceAPI,
 )
-from trader.backtest.performance.base import BaseBacktestReporter
+from trader.backtest.report.base import BaseBacktestReporter
 from trader.config import BACKTEST_RESULT_DIR_PATH
 from trader.models import StockAccount
 from trader.strategies.stock import BaseStockStrategy
 from trader.utils import Market, PositionType, Scale
+
 
 """
 report.py
@@ -68,8 +69,7 @@ class StockBacktestReporter:
         self.set_figure_config(
             fig, title=fig_title, xaxis_title="Date", yaxis_title="Equity"
         )
-        fig.show()
-
+        fig.show(renderer="browser")
 
     def plot_equity_and_benchmark_curve(self) -> None:
         """繪製權益 & benchmark 曲線圖"""

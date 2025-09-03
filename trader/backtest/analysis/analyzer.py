@@ -2,7 +2,7 @@ from typing import List, Optional
 
 import numpy as np
 
-from trader.backtest.performance.base import BaseBacktestAnalyzer
+from trader.backtest.analysis.base import BaseBacktestAnalyzer
 from trader.models import StockTradeRecord
 from trader.strategies.stock import BaseStockStrategy
 

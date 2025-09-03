@@ -18,6 +18,7 @@ from trader.models import StockAccount, StockOrder, StockQuote, StockTradeRecord
 from trader.strategies.stock import BaseStockStrategy
 from trader.utils import Action, Market, PositionType, Scale, Units
 from trader.utils.market_calendar import MarketCalendar
+from loguru import logger
 
 
 class MomentumStrategy(BaseStockStrategy):
@@ -31,7 +32,7 @@ class MomentumStrategy(BaseStockStrategy):
         self.scale: Scale = Scale.DAY
 
         self.start_date: datetime.date = datetime.date(2020, 5, 1)
-        self.end_date: datetime.date = datetime.date(2020, 5, 10)
+        self.end_date: datetime.date = datetime.date(2020, 10, 10)
 
         self.setup_apis()
 
@@ -77,13 +78,18 @@ class MomentumStrategy(BaseStockStrategy):
         for stock_quote in stock_quotes:
             # Condition 1: 當日漲 > 9% 的股票
             mask: pd.Series = yesterday_prices["stock_id"] == stock_quote.stock_id
-            close_price: float = yesterday_prices.loc[mask, "收盤價"].iloc[0]
+            yesterday_close_price: float = yesterday_prices.loc[mask, "收盤價"].iloc[0]
 
-            price_chg: float = (stock_quote.close / close_price - 1) * 100
+            # TODO:  處理漲幅有 nan 的問題
+
+            logger.info(f"昨天收盤價: {yesterday_close_price}")
+            logger.info(f"今天收盤價: {stock_quote.close}")
+
+            price_chg: float = (stock_quote.close / yesterday_close_price - 1) * 100
 
             if price_chg < 9:
                 continue
-
+            logger.info(f"股票 {stock_quote.stock_id} 符合條件，漲幅 {price_chg}%")
             # Condition 2: Volume > 5000 Lot
             if stock_quote.volume < 5000 * Units.LOT:
                 continue
