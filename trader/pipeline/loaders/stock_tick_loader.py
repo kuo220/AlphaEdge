@@ -39,6 +39,9 @@ class StockTickLoader(BaseDataLoader):
         # Connect Database
         self.connect()
 
+        # Ensure Database Table Exists
+        self.create_missing_tables()
+
         # 檢查資料庫是否存在，並設定 TSDB Cache Engine
         if self.session.existsDatabase(TICK_DB_PATH):
             logger.info("Database exists!")
@@ -106,12 +109,15 @@ class StockTickLoader(BaseDataLoader):
     def add_to_db(self, remove_files: bool = False) -> None:
         """將資料夾中的所有 CSV 檔存入 tick 的 DolphinDB 中"""
 
+        self.create_missing_tables()
         self.append_all_csv_to_dolphinDB(TICK_DOWNLOADS_PATH)
         if remove_files:
             shutil.rmtree(TICK_DOWNLOADS_PATH)
 
     def append_csv_to_dolphinDB(self, csv_path: Path) -> None:
         """將單一 CSV 資料添加到已建立的 DolphinDB 資料表"""
+
+        self.create_missing_tables()
 
         script: str = f"""
         db = database("{TICK_DB_PATH}")
@@ -138,6 +144,8 @@ class StockTickLoader(BaseDataLoader):
 
     def append_all_csv_to_dolphinDB(self, dir_path: Path) -> None:
         """將資料夾內所有 CSV 檔案附加到已建立的 DolphinDB 資料表"""
+
+        self.create_missing_tables()
 
         # read all csv files in dir_path (.as_posix => replace \\ with / (for windows os))
         csv_files: List[str] = [str(csv.as_posix()) for csv in dir_path.glob("*.csv")]
@@ -173,6 +181,12 @@ class StockTickLoader(BaseDataLoader):
 
         except Exception as e:
             logger.info(f"All csv files fail to save into database and table!\n{e}")
+
+    def create_missing_tables(self) -> None:
+        """確保 Tick DB 存在，否則建立"""
+        if not self.session.existsDatabase(TICK_DB_PATH):
+            logger.info("Tick DB not found. Creating...")
+            self.create_db()
 
     def clear_all_cache(self) -> None:
         """清除 Cache Data"""
