@@ -23,7 +23,8 @@ from trader.models import (
     TickQuote,
 )
 from trader.strategies.stock import BaseStockStrategy
-from trader.backtest.performance.reporter import StockBacktestReporter
+from trader.backtest.analysis.analyzer import StockBacktestAnalyzer
+from trader.backtest.report.reporter import StockBacktestReporter
 from trader.utils import (
     Commission,
     Market,
@@ -95,7 +96,7 @@ class Backtester:
 
     # === Main Backtest Loop ===
     def run(self) -> None:
-        """執行 Backtest (目前只有全tick回測)"""
+        """執行 Backtest"""
 
         logger.info("========== Backtest Start ==========")
         logger.info(f"* Strategy Name: {self.strategy.strategy_name}")
@@ -140,6 +141,9 @@ class Backtester:
             4. ROI: {round(self.account.roi, 2)}%
             """
         )
+
+        # Generate Backtest Report
+        self.generate_backtest_report()
 
     def run_tick_backtest(self, date: datetime.date) -> None:
         """Tick 級別的回測架構"""
@@ -325,5 +329,5 @@ class Backtester:
         # Generate Backtest Report (Chart)
         reporter = StockBacktestReporter(self.strategy)
         reporter.plot_equity_curve()
-        reporter.plot_equity_and_benchmark_curve()
-        reporter.plot_mdd()
+        # reporter.plot_equity_and_benchmark_curve()
+        # reporter.plot_mdd()

@@ -50,7 +50,7 @@ class StockBacktestReporter:
         cumulative_equity: List[float] = [self.account.init_capital]
         fig_title: str = "Equity Curve"
 
-        for record in self.account.trade_records:
+        for record in self.account.trade_records.values():
             dates.append(record.date)
             cumulative_equity.append(cumulative_equity[-1] + record.realized_pnl)
 
@@ -68,6 +68,8 @@ class StockBacktestReporter:
         self.set_figure_config(
             fig, title=fig_title, xaxis_title="Date", yaxis_title="Equity"
         )
+        fig.show()
+
 
     def plot_equity_and_benchmark_curve(self) -> None:
         """繪製權益 & benchmark 曲線圖"""
