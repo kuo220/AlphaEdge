@@ -9,14 +9,14 @@ import pandas as pd
 import shioaji as sj
 from loguru import logger
 
-from trader.config import API_LIST, LOGS_DIR_PATH, TICK_DOWNLOADS_PATH
+from trader.config import LOGS_DIR_PATH, TICK_DOWNLOADS_PATH
 from trader.pipeline.cleaners.stock_tick_cleaner import StockTickCleaner
 from trader.pipeline.crawlers.stock_info_crawler import StockInfoCrawler
 from trader.pipeline.crawlers.stock_tick_crawler import StockTickCrawler
 from trader.pipeline.loaders.stock_tick_loader import StockTickLoader
 from trader.pipeline.updaters.base import BaseDataUpdater
 from trader.pipeline.utils.stock_tick_utils import StockTickUtils
-from trader.utils import ShioajiAccount, TimeUtils
+from trader.utils import ShioajiAccount, ShioajiAPI, TimeUtils
 
 """
 Shioaji 台股 ticks 資料時間表：
@@ -41,22 +41,13 @@ class StockTickUpdater(BaseDataUpdater):
 
         # Crawler Setting
         # Shioaji API List
-        self.api_list: List[sj.Shioaji] = [
-            api_instance
-            for sj_api in API_LIST
-            if (
-                api_instance := ShioajiAccount.API_login(
-                    sj.Shioaji(), sj_api.api_key, sj_api.api_secret_key
-                )
-            )
-            is not None
-        ]
+        self.api_list: List[sj.Shioaji] = []
 
         # 爬取所有上市櫃股票清單
         self.all_stock_list: List[str] = StockInfoCrawler.crawl_stock_list()
 
         # 可用的 API 數量 = 可開的 thread 數
-        self.num_threads: int = len(self.api_list)
+        self.num_threads: int = 0
 
         # 股票清單分組（後續給多線程用）
         self.split_stock_list: List[List[str]] = []
@@ -69,6 +60,18 @@ class StockTickUpdater(BaseDataUpdater):
 
     def setup(self):
         """Set Up the Config of Updater"""
+
+        # Setup Shioaji APIs
+        API_LIST: List[ShioajiAPI] = StockTickUtils.setup_shioaji_apis()
+        for sj_api in API_LIST:
+            api_instance = ShioajiAccount.API_login(
+                sj.Shioaji(), sj_api.api_key, sj_api.api_secret_key
+            )
+            if api_instance is not None:
+                self.api_list.append(api_instance)
+
+        # Set up number of threads
+        self.num_threads = len(self.api_list)
 
         # Generate tick_metadata backup
         StockTickUtils.generate_tick_metadata_backup()

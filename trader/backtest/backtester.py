@@ -14,6 +14,8 @@ from trader.api import (
     StockPriceAPI,
     StockTickAPI,
 )
+from trader.backtest.analysis.analyzer import StockBacktestAnalyzer
+from trader.backtest.report.reporter import StockBacktestReporter
 from trader.config import BACKTEST_LOGS_DIR_PATH
 from trader.models import (
     StockAccount,
@@ -23,8 +25,6 @@ from trader.models import (
     TickQuote,
 )
 from trader.strategies.stock import BaseStockStrategy
-from trader.backtest.analysis.analyzer import StockBacktestAnalyzer
-from trader.backtest.report.reporter import StockBacktestReporter
 from trader.utils import (
     Commission,
     Market,

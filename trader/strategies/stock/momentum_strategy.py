@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+from loguru import logger
 
 from trader.api import (
     FinancialStatementAPI,
@@ -18,7 +19,6 @@ from trader.models import StockAccount, StockOrder, StockQuote, StockTradeRecord
 from trader.strategies.stock import BaseStockStrategy
 from trader.utils import Action, Market, PositionType, Scale, Units
 from trader.utils.market_calendar import MarketCalendar
-from loguru import logger
 
 
 class MomentumStrategy(BaseStockStrategy):

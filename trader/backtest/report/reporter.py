@@ -3,15 +3,12 @@ from typing import List
 
 import plotly.graph_objects as go
 
-from trader.api import (
-    StockPriceAPI,
-)
+from trader.api import StockPriceAPI
 from trader.backtest.report.base import BaseBacktestReporter
 from trader.config import BACKTEST_RESULT_DIR_PATH
 from trader.models import StockAccount
 from trader.strategies.stock import BaseStockStrategy
 from trader.utils import Market, PositionType, Scale
-
 
 """
 report.py

@@ -2,18 +2,18 @@ import datetime
 import json
 import os
 import shutil
-import sys
 from pathlib import Path
 from typing import Dict, List
 
-import pandas as pd
+import shioaji as sj
 
 try:
     import dolphindb as ddb
 except ModuleNotFoundError:
     print("Warning: dolphindb module is not installed")
 
-from trader.config import TICK_METADATA_PATH
+from trader.config import API_KEYS, API_SECRET_KEYS, TICK_METADATA_PATH
+from trader.utils import ShioajiAPI
 
 
 class StockTickUtils:
@@ -80,3 +80,12 @@ class StockTickUtils:
             TICK_METADATA_PATH.stem + backup_suffix + TICK_METADATA_PATH.suffix
         )
         shutil.copy2(TICK_METADATA_PATH, backup_name)
+
+    @staticmethod
+    def setup_shioaji_apis() -> List[ShioajiAPI]:
+        # Add API from 11 ~ 17 and add API_1 (Mine)
+        api_list: list[ShioajiAPI] = []
+        for key, secret in zip(API_KEYS, API_SECRET_KEYS):
+            api: ShioajiAPI = ShioajiAPI(key, secret)
+            api_list.append(api)
+        return api_list
