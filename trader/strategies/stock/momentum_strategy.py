@@ -80,8 +80,6 @@ class MomentumStrategy(BaseStockStrategy):
             mask: pd.Series = yesterday_prices["stock_id"] == stock_quote.stock_id
             yesterday_close_price: float = yesterday_prices.loc[mask, "收盤價"].iloc[0]
 
-            # TODO:  處理漲幅有 nan 的問題
-
             logger.info(f"昨天收盤價: {yesterday_close_price}")
             logger.info(f"今天收盤價: {stock_quote.close}")
 
