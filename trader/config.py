@@ -28,10 +28,10 @@ STOCK_STRATEGY_DIR_PATH: Path = get_static_resolved_path(
 
 """ === Backtest Result Directory Path === """
 BACKTEST_RESULT_DIR_PATH: Path = get_static_resolved_path(
-    base_dir=BASE_DIR_PATH, dir_name="backtest/performance/results"
+    base_dir=BASE_DIR_PATH, dir_name="backtest/results"
 )
 BACKTEST_LOGS_DIR_PATH: Path = get_static_resolved_path(
-    base_dir=BASE_DIR_PATH, dir_name="backtest/performance/results/logs"
+    base_dir=BASE_DIR_PATH, dir_name="backtest/results/logs"
 )
 
 """ === Crawl Data Downloads Path === """

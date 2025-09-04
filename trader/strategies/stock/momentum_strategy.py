@@ -8,11 +8,11 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
+from trader.api.financial_statement_api import FinancialStatementAPI
+from trader.api.monthly_revenue_report_api import MonthlyRevenueReportAPI
 from trader.api.stock_chip_api import StockChipAPI
 from trader.api.stock_price_api import StockPriceAPI
 from trader.api.stock_tick_api import StockTickAPI
-from trader.api.financial_statement_api import FinancialStatementAPI
-from trader.api.monthly_revenue_report_api import MonthlyRevenueReportAPI
 from trader.models import StockAccount, StockOrder, StockQuote, StockTradeRecord
 from trader.strategies.stock import BaseStockStrategy
 from trader.utils import Action, Market, PositionType, Scale, Units
@@ -73,7 +73,16 @@ class MomentumStrategy(BaseStockStrategy):
         for stock_quote in stock_quotes:
             # Condition 1: 當日漲 > 9% 的股票
             mask: pd.Series = yesterday_prices["stock_id"] == stock_quote.stock_id
+            if yesterday_prices.loc[mask, "收盤價"].empty:
+                logger.warning(f"股票 {stock_quote.stock_id} {yesterday} 收盤價為空")
+                continue
             yesterday_close_price: float = yesterday_prices.loc[mask, "收盤價"].iloc[0]
+
+            if yesterday_close_price == 0:
+                logger.warning(
+                    f"股票 {stock_quote.stock_id} {yesterday} 收盤價為 0 或 None"
+                )
+                continue
 
             logger.info(f"昨天收盤價: {yesterday_close_price}")
             logger.info(f"今天收盤價: {stock_quote.close}")

@@ -7,13 +7,11 @@ import pandas as pd
 from loguru import logger
 
 from trader.adapters import StockQuoteAdapter
-
+from trader.api.financial_statement_api import FinancialStatementAPI
+from trader.api.monthly_revenue_report_api import MonthlyRevenueReportAPI
 from trader.api.stock_chip_api import StockChipAPI
 from trader.api.stock_price_api import StockPriceAPI
 from trader.api.stock_tick_api import StockTickAPI
-from trader.api.financial_statement_api import FinancialStatementAPI
-from trader.api.monthly_revenue_report_api import MonthlyRevenueReportAPI
-
 from trader.backtest.analysis.analyzer import StockBacktestAnalyzer
 from trader.backtest.report.reporter import StockBacktestReporter
 from trader.config import BACKTEST_LOGS_DIR_PATH
@@ -25,13 +23,9 @@ from trader.models import (
     TickQuote,
 )
 from trader.strategies.stock import BaseStockStrategy
-from trader.utils import (
-    PositionType,
-    Scale,
-    TimeUtils,
-)
-from trader.utils.market_calendar import MarketCalendar
+from trader.utils import PositionType, Scale, TimeUtils
 from trader.utils.instrument import StockUtils
+from trader.utils.market_calendar import MarketCalendar
 
 """
 Backtesting engine that simulates trading based on strategy signals.
@@ -77,7 +71,12 @@ class Backtester:
         self.cur_date: datetime.date = self.strategy.start_date  # 回測當前日
         self.end_date: datetime.date = self.strategy.end_date  # 回測結束日
 
-        """ === Set Log File Path """
+        self.setup()
+
+    def setup(self):
+        """Set Up the Config of Backtester"""
+
+        # Set Log File Path
         logger.add(f"{BACKTEST_LOGS_DIR_PATH}/{self.strategy.strategy_name}.log")
 
     def load_datasets(self) -> None:
@@ -113,9 +112,7 @@ class Backtester:
         for date in dates:
             logger.info(f"--- {date.strftime('%Y/%m/%d')} ---")
 
-            if not MarketCalendar.check_stock_market_open(
-                api=self.price, date=date
-            ):
+            if not MarketCalendar.check_stock_market_open(api=self.price, date=date):
                 logger.info("* Stock Market Close\n")
                 continue
 
