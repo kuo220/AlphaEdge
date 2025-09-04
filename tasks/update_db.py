@@ -13,7 +13,7 @@ from trader.pipeline.updaters.monthly_revenue_report_updater import (
 from trader.pipeline.updaters.stock_chip_updater import StockChipUpdater
 from trader.pipeline.updaters.stock_price_updater import StockPriceUpdater
 
-# from trader.pipeline.updaters.stock_tick_updater import StockTickUpdater
+from trader.pipeline.updaters.stock_tick_updater import StockTickUpdater
 from trader.pipeline.utils import DataType
 
 """
