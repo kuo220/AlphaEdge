@@ -14,7 +14,7 @@ from trader.api.stock_price_api import StockPriceAPI
 from trader.api.stock_tick_api import StockTickAPI
 from trader.backtest.analysis.analyzer import StockBacktestAnalyzer
 from trader.backtest.report.reporter import StockBacktestReporter
-from trader.config import BACKTEST_LOGS_DIR_PATH
+from trader.config import BACKTEST_LOGS_DIR_PATH, BACKTEST_RESULT_DIR_PATH
 from trader.models import (
     StockAccount,
     StockOrder,
@@ -71,10 +71,19 @@ class Backtester:
         self.cur_date: datetime.date = self.strategy.start_date  # 回測當前日
         self.end_date: datetime.date = self.strategy.end_date  # 回測結束日
 
+        """ === Backtest Result Directory === """
+        self.strategy_result_dir: Optional[Path] = None  # 策略回測結果資料夾
+
         self.setup()
 
     def setup(self):
         """Set Up the Config of Backtester"""
+
+        # 確保每個 strategy 有獨立的結果資料夾
+        self.strategy_result_dir = (
+            Path(BACKTEST_RESULT_DIR_PATH) / self.strategy.strategy_name
+        )
+        self.strategy_result_dir.mkdir(parents=True, exist_ok=True)
 
         # Set Log File Path
         logger.add(f"{BACKTEST_LOGS_DIR_PATH}/{self.strategy.strategy_name}.log")
@@ -321,7 +330,7 @@ class Backtester:
         """生產回測報告"""
 
         # Generate Backtest Report (Chart)
-        reporter = StockBacktestReporter(self.strategy)
+        reporter = StockBacktestReporter(self.strategy, self.strategy_result_dir)
         reporter.plot_equity_curve()
         # reporter.plot_equity_and_benchmark_curve()
         # reporter.plot_mdd()

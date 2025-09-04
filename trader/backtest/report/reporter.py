@@ -1,7 +1,9 @@
 import datetime
-from typing import List
+from pathlib import Path
+from typing import List, Optional
 
 import plotly.graph_objects as go
+from loguru import logger
 
 from trader.api.stock_price_api import StockPriceAPI
 from trader.models import StockAccount
@@ -28,9 +30,10 @@ Intended for use in strategy evaluation and performance review.
 class StockBacktestReporter:
     """Generates visual reports based on backtest results"""
 
-    def __init__(self, strategy: BaseStockStrategy):
+    def __init__(self, strategy: BaseStockStrategy, output_dir: Optional[Path] = None):
         self.strategy: BaseStockStrategy = strategy  # Backtest strategy
         self.account: StockAccount = self.strategy.account  # Account
+        self.output_dir: Optional[Path] = output_dir  # Output directory
 
         self.start_date: datetime.date = self.strategy.start_date  # Backtest start date
         self.end_date: datetime.date = self.strategy.end_date  # Backtest end date
@@ -64,6 +67,7 @@ class StockBacktestReporter:
             fig, title=fig_title, xaxis_title="Date", yaxis_title="Equity"
         )
         fig.show(renderer="browser")
+        self.save_figure(fig, f"{self.strategy.strategy_name}_equity_curve.png")
 
     def plot_equity_and_benchmark_curve(self) -> None:
         """繪製權益 & benchmark 曲線圖"""
@@ -122,6 +126,28 @@ class StockBacktestReporter:
                 opacity=0.5,
             )
 
-    def save_figure(self, file_name: str = "") -> None:
-        """儲存回測報告"""
-        pass
+    def save_figure(self, fig: go.Figure, file_name: str = "") -> None:
+        """
+        - Description: 儲存回測報告
+        - Parameters:
+            - fig: go.Figure
+                要儲存的圖表
+            - file_name: str
+                儲存檔案的名稱
+        """
+
+        if not file_name:
+            raise ValueError("file_name 不能是空字串")
+
+        # 決定輸出路徑
+        if self.output_dir is not None:
+            save_path = self.output_dir / file_name
+        else:
+            save_path = Path(file_name)
+
+        # 確保資料夾存在
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # 輸出圖片
+        fig.write_image(str(save_path))
+        logger.info(f"* Figure saved to: {save_path}")
