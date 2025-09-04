@@ -1,10 +1,8 @@
 import os
 from pathlib import Path
-from typing import List
 
 from dotenv import load_dotenv
 
-from trader.utils import ShioajiAPI
 from trader.utils.path import get_static_resolved_path
 
 # Load environment variables from .env file
@@ -108,11 +106,11 @@ DDB_USER: str = os.getenv("DDB_USER")
 DDB_PASSWORD: str = os.getenv("DDB_PASSWORD")
 
 
-# """ === Shioaji API === """
+""" === Shioaji API === """
 API_KEY: str = os.getenv("API_KEY")
 API_SECRET_KEY: str = os.getenv("API_SECRET_KEY")
 
-# """ === API list for crawling tick data === """
+""" === API list for crawling tick data === """
 NUM_API: int = 4
 API_KEYS = [os.getenv(f"API_KEY_{i + 1}") for i in range(NUM_API)]
 API_SECRET_KEYS = [os.getenv(f"API_SECRET_KEY_{i + 1}") for i in range(NUM_API)]
