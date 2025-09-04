@@ -7,13 +7,13 @@ import pandas as pd
 from loguru import logger
 
 from trader.adapters import StockQuoteAdapter
-from trader.api import (
-    FinancialStatementAPI,
-    MonthlyRevenueReportAPI,
-    StockChipAPI,
-    StockPriceAPI,
-    StockTickAPI,
-)
+
+from trader.api.stock_chip_api import StockChipAPI
+from trader.api.stock_price_api import StockPriceAPI
+from trader.api.stock_tick_api import StockTickAPI
+from trader.api.financial_statement_api import FinancialStatementAPI
+from trader.api.monthly_revenue_report_api import MonthlyRevenueReportAPI
+
 from trader.backtest.analysis.analyzer import StockBacktestAnalyzer
 from trader.backtest.report.reporter import StockBacktestReporter
 from trader.config import BACKTEST_LOGS_DIR_PATH
@@ -117,7 +117,7 @@ class Backtester:
             logger.info(f"--- {date.strftime('%Y/%m/%d')} ---")
 
             if not MarketCalendar.check_stock_market_open(
-                data_api=self.price, date=date
+                api=self.price, date=date
             ):
                 logger.info("* Stock Market Close\n")
                 continue

@@ -5,7 +5,8 @@ from typing import Any, Dict, List
 import numpy as np
 import pandas as pd
 
-from trader.api import StockPriceAPI, StockTickAPI
+from trader.api.stock_tick_api import StockTickAPI
+from trader.api.stock_price_api import StockPriceAPI
 from trader.models import StockQuote, TickQuote
 from trader.utils import Scale, StockUtils, Units
 

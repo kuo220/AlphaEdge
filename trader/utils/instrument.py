@@ -1,13 +1,11 @@
 import datetime
-import sys
-from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 import numpy as np
 import shioaji as sj
 
 from .constant import Commission
-from .time import TimeUtils
+from .market_calendar import MarketCalendar
 
 """
 instrument.py
@@ -52,7 +50,7 @@ class StockUtils:
         """Shioaji: 取得指定股票在指定日期的漲跌幅"""
 
         # 取得前一個交易日的日期
-        last_trading_date: datetime.date = TimeUtils.get_last_trading_date(api, date)
+        last_trading_date: datetime.date = MarketCalendar.get_last_trading_date(api, date)
 
         # 計算指定交易日股票的漲幅
         cur_close_price: float = StockUtils.get_close_price(api, stock_id, date)

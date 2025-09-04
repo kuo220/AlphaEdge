@@ -8,13 +8,11 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
-from trader.api import (
-    FinancialStatementAPI,
-    MonthlyRevenueReportAPI,
-    StockChipAPI,
-    StockPriceAPI,
-    StockTickAPI,
-)
+from trader.api.stock_chip_api import StockChipAPI
+from trader.api.stock_price_api import StockPriceAPI
+from trader.api.stock_tick_api import StockTickAPI
+from trader.api.financial_statement_api import FinancialStatementAPI
+from trader.api.monthly_revenue_report_api import MonthlyRevenueReportAPI
 from trader.models import StockAccount, StockOrder, StockQuote, StockTradeRecord
 from trader.strategies.stock import BaseStockStrategy
 from trader.utils import Action, Market, PositionType, Scale, Units
@@ -66,12 +64,9 @@ class MomentumStrategy(BaseStockStrategy):
         if self.max_holdings == 0:
             return []
 
-        yesterday: datetime.date = stock_quotes[0].date - datetime.timedelta(days=1)
-
-        if not MarketCalendar.check_stock_market_open(
-            data_api=self.price, date=yesterday
-        ):
-            return []
+        yesterday: datetime.date = MarketCalendar.get_last_trading_date(
+            api=self.price, date=stock_quotes[0].date
+        )
 
         yesterday_prices: pd.DataFrame = self.price.get(yesterday)
 
