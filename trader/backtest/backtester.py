@@ -26,15 +26,12 @@ from trader.models import (
 )
 from trader.strategies.stock import BaseStockStrategy
 from trader.utils import (
-    Commission,
-    Market,
     PositionType,
     Scale,
-    StockUtils,
     TimeUtils,
-    Units,
 )
 from trader.utils.market_calendar import MarketCalendar
+from trader.utils.instrument import StockUtils
 
 """
 Backtesting engine that simulates trading based on strategy signals.
