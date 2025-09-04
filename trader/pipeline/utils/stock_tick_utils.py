@@ -1,11 +1,8 @@
 import datetime
 import json
-import os
 import shutil
 from pathlib import Path
 from typing import Dict, List
-
-import shioaji as sj
 
 try:
     import dolphindb as ddb
