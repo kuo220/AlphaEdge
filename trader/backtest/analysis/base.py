@@ -14,6 +14,11 @@ class BaseBacktestAnalyzer(ABC):
         self.strategy: BaseStockStrategy = strategy  # Backtest strategy
         self.account: StockAccount = self.strategy.account  # Account
 
+    @abstractmethod
+    def setup(self) -> None:
+        """Set Up the Config of Analyzer"""
+        pass
+
     # ===== Equity-based Metrics =====
     @abstractmethod
     def compute_equity_curve(self) -> None:

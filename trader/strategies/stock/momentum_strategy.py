@@ -30,7 +30,7 @@ class MomentumStrategy(BaseStockStrategy):
         self.scale: Scale = Scale.DAY
 
         self.start_date: datetime.date = datetime.date(2020, 5, 1)
-        self.end_date: datetime.date = datetime.date(2020, 5, 10)
+        self.end_date: datetime.date = datetime.date(2020, 5, 30)
 
         self.setup_apis()
 

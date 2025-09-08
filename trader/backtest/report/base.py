@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Optional
 
 from trader.models import StockAccount
@@ -8,9 +9,15 @@ from trader.strategies.stock import BaseStockStrategy
 class BaseBacktestReporter(ABC):
     """Backtest Performance Reporter Framework (Base Template)"""
 
-    def __init__(self, strategy: BaseStockStrategy):
+    def __init__(self, strategy: BaseStockStrategy, output_dir: Optional[Path] = None):
         self.strategy: BaseStockStrategy = strategy  # Backtest strategy
         self.account: StockAccount = self.strategy.account  # Account
+        self.output_dir: Optional[Path] = output_dir  # Output directory
+
+    @abstractmethod
+    def setup(self) -> None:
+        """Set Up the Config of Reporter"""
+        pass
 
     @abstractmethod
     def plot_equity_curve(self) -> None:

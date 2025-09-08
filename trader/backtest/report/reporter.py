@@ -5,6 +5,7 @@ from typing import List, Optional
 import plotly.graph_objects as go
 from loguru import logger
 
+from trader.backtest.report.base import BaseBacktestReporter
 from trader.api.stock_price_api import StockPriceAPI
 from trader.models import StockAccount
 from trader.strategies.stock import BaseStockStrategy
@@ -27,19 +28,24 @@ Intended for use in strategy evaluation and performance review.
 """
 
 
-class StockBacktestReporter:
+class StockBacktestReporter(BaseBacktestReporter):
     """Generates visual reports based on backtest results"""
 
     def __init__(self, strategy: BaseStockStrategy, output_dir: Optional[Path] = None):
-        self.strategy: BaseStockStrategy = strategy  # Backtest strategy
-        self.account: StockAccount = self.strategy.account  # Account
+        super().__init__(strategy, output_dir)
         self.output_dir: Optional[Path] = output_dir  # Output directory
 
         self.start_date: datetime.date = self.strategy.start_date  # Backtest start date
         self.end_date: datetime.date = self.strategy.end_date  # Backtest end date
 
         self.benchmark: str = "0050"  # Benchmark stock
-        self.price: StockPriceAPI = StockPriceAPI()  # Price data
+        self.price: StockPriceAPI = None  # Price data
+        self.setup()
+
+    def setup(self) -> None:
+        """Set Up the Config of Reporter"""
+
+        self.price: StockPriceAPI = StockPriceAPI()
 
     def plot_equity_curve(self) -> None:
         """繪製權益曲線圖（淨資產隨時間變化）"""
