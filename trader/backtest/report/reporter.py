@@ -47,6 +47,10 @@ class StockBacktestReporter(BaseBacktestReporter):
 
         self.price: StockPriceAPI = StockPriceAPI()
 
+    def generate_account_df(self) -> pd.DataFrame:
+        """生成帳戶 DataFrame"""
+        pass
+
     def plot_equity_curve(self) -> None:
         """繪製權益曲線圖（淨資產隨時間變化）"""
 

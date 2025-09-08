@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import pandas as pd
 from pathlib import Path
 from typing import Optional
 
@@ -17,6 +18,11 @@ class BaseBacktestReporter(ABC):
     @abstractmethod
     def setup(self) -> None:
         """Set Up the Config of Reporter"""
+        pass
+
+    @abstractmethod
+    def generate_account_df(self) -> pd.DataFrame:
+        """生成帳戶 DataFrame"""
         pass
 
     @abstractmethod
