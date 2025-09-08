@@ -1,6 +1,6 @@
 import datetime
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -58,7 +58,9 @@ class StockBacktestReporter(BaseBacktestReporter):
         # Step 2: 把交易紀錄轉成 dict {date: pnl}
         pnl_by_date: Dict[datetime.date, float] = {}
         for record in self.account.trade_records.values():
-            pnl_by_date[record.date] = pnl_by_date.get(record.date, 0.0) + record.realized_pnl
+            pnl_by_date[record.date] = (
+                pnl_by_date.get(record.date, 0.0) + record.realized_pnl
+            )
 
         # Step 3: 逐日累積 equity
         cumulative_equity: List[float] = []
