@@ -1,14 +1,15 @@
 import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Dict, Optional
 
+import pandas as pd
 import plotly.graph_objects as go
 from loguru import logger
 
-from trader.backtest.report.base import BaseBacktestReporter
 from trader.api.stock_price_api import StockPriceAPI
-from trader.models import StockAccount
+from trader.backtest.report.base import BaseBacktestReporter
 from trader.strategies.stock import BaseStockStrategy
+from trader.utils.time import TimeUtils
 
 """
 report.py
@@ -33,7 +34,6 @@ class StockBacktestReporter(BaseBacktestReporter):
 
     def __init__(self, strategy: BaseStockStrategy, output_dir: Optional[Path] = None):
         super().__init__(strategy, output_dir)
-        self.output_dir: Optional[Path] = output_dir  # Output directory
 
         self.start_date: datetime.date = self.strategy.start_date  # Backtest start date
         self.end_date: datetime.date = self.strategy.end_date  # Backtest end date
@@ -50,20 +50,36 @@ class StockBacktestReporter(BaseBacktestReporter):
     def plot_equity_curve(self) -> None:
         """繪製權益曲線圖（淨資產隨時間變化）"""
 
-        dates: List[datetime.date] = [self.start_date]
-        cumulative_equity: List[float] = [self.account.init_capital]
-        fig_title: str = "Equity Curve"
+        # Step 1: 產生完整日期清單
+        dates: List[datetime.date] = TimeUtils.generate_date_range(
+            start_date=self.start_date, end_date=self.end_date
+        )
 
+        # Step 2: 把交易紀錄轉成 dict {date: pnl}
+        pnl_by_date: Dict[datetime.date, float] = {}
         for record in self.account.trade_records.values():
-            dates.append(record.date)
-            cumulative_equity.append(cumulative_equity[-1] + record.realized_pnl)
+            pnl_by_date[record.date] = pnl_by_date.get(record.date, 0.0) + record.realized_pnl
+
+        # Step 3: 逐日累積 equity
+        cumulative_equity: List[float] = []
+        equity: float = self.account.init_capital
+        for d in dates:
+            if d in pnl_by_date:
+                equity += pnl_by_date[d]
+            cumulative_equity.append(equity)
+
+        # Step 4: 建立 DataFrame（方便之後擴展）
+        df = pd.DataFrame({"date": dates, "equity": cumulative_equity})
+        df = df.set_index("date")
 
         # TODO: 需處理日期顯示過於密集的問題
+        # Step 5: 繪製權益曲線圖
+        fig_title: str = "Equity Curve"
         fig: go.Figure = go.Figure()
         fig.add_trace(
             go.Scatter(
-                x=dates,
-                y=cumulative_equity,
+                x=df.index,
+                y=df["equity"],
                 mode="lines",
                 line=dict(color="blue", width=2),
             )
@@ -72,7 +88,6 @@ class StockBacktestReporter(BaseBacktestReporter):
         self.set_figure_config(
             fig, title=fig_title, xaxis_title="Date", yaxis_title="Equity"
         )
-        fig.show(renderer="browser")
         self.save_figure(fig, f"{self.strategy.strategy_name}_equity_curve.png")
 
     def plot_equity_and_benchmark_curve(self) -> None:
@@ -131,6 +146,9 @@ class StockBacktestReporter(BaseBacktestReporter):
                 bgcolor="black",
                 opacity=0.5,
             )
+
+        # Show figure
+        fig.show(renderer="browser")
 
     def save_figure(self, fig: go.Figure, file_name: str = "") -> None:
         """
