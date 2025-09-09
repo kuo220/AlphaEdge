@@ -38,14 +38,14 @@ class StockTradeRecord:
         self.position_type: PositionType = position_type  # 持倉方向（Long or Short）
 
         # Buy Info
-        self.buy_date: datetime.date = (buy_date,)  # 買入日期
-        self.buy_price: float = (buy_price,)  # 買入價位
-        self.buy_volume: float = (buy_volume,)  # 買入股數
+        self.buy_date: datetime.date = buy_date  # 買入日期
+        self.buy_price: float = buy_price  # 買入價位
+        self.buy_volume: float = buy_volume  # 買入張數
 
         # Sell Info
-        self.sell_date: datetime.date = (sell_date,)  # 賣出日期
-        self.sell_price: float = (sell_price,)  # 賣出價位
-        self.sell_volume: float = (sell_volume,)  # 賣出股數
+        self.sell_date: datetime.date = sell_date  # 賣出日期
+        self.sell_price: float = sell_price  # 賣出價位
+        self.sell_volume: float = sell_volume  # 賣出張數
 
         # Transaction Costs
         self.commission: float = commission  # 交易手續費

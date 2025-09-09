@@ -1,6 +1,6 @@
 import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -227,7 +227,7 @@ class StockBacktestReporter(BaseBacktestReporter):
         save_path.parent.mkdir(parents=True, exist_ok=True)
 
         # 輸出 CSV 檔案
-        df.to_csv(save_path, index=False, encoding='utf-8-sig')
+        df.to_csv(save_path, index=False, encoding="utf-8-sig")
         logger.info(f"* Report saved to: {save_path}")
 
     def save_figure(self, fig: go.Figure, file_name: str = "") -> None:

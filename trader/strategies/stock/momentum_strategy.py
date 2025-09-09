@@ -91,7 +91,7 @@ class MomentumStrategy(BaseStockStrategy):
 
             if price_chg < 9:
                 continue
-            logger.info(f"股票 {stock_quote.stock_id} 符合條件，漲幅 {price_chg}%")
+            logger.info(f"股票 {stock_quote.stock_id} 符合條件，漲幅 {round(price_chg, 2)}%")
             # Condition 2: Volume > 5000 Lot
             if stock_quote.volume < 5000 * Units.LOT:
                 continue
@@ -137,8 +137,8 @@ class MomentumStrategy(BaseStockStrategy):
                 per_position_size: float = self.account.balance / available_position_cnt
 
                 for stock_quote in stock_quotes:
-                    # Unit: Shares
-                    open_volume: int = int(per_position_size / stock_quote.close)
+                    # Unit: Lot
+                    open_volume: int = int(per_position_size / (stock_quote.close * Units.LOT))
 
                     if open_volume >= 1:
                         orders.append(
@@ -165,7 +165,7 @@ class MomentumStrategy(BaseStockStrategy):
                         stock_id=stock_quote.stock_id,
                         date=stock_quote.date,
                         price=stock_quote.cur_price,
-                        volume=position.volume,
+                        volume=position.buy_volume,
                         position_type=position.position_type,
                     )
                 )
