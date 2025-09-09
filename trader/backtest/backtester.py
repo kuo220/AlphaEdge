@@ -226,7 +226,7 @@ class Backtester:
             self.place_close_order(order)
 
     # === Order Placement ===
-    def place_open_order(self, stock: StockOrder) -> Optional[StockTradeRecord]:
+    def place_open_order(self, stock_order: StockOrder) -> Optional[StockTradeRecord]:
         """
         - Description: 開倉下單股票
         - Parameters:
@@ -237,26 +237,26 @@ class Backtester:
         """
 
         # Step 1: Calculate position value and open cost
-        position_value: float = stock.price * stock.volume
+        position_value: float = stock_order.price * stock_order.volume
         open_cost: float = StockUtils.calculate_transaction_commission(
-            price=stock.price, volume=stock.volume
+            price=stock_order.price, volume=stock_order.volume
         )
 
         # Step 2: Create position
         position: Optional[StockTradeRecord] = None
 
         # Step 3: Execute open order & update account
-        if stock.position_type == PositionType.LONG:
+        if stock_order.position_type == PositionType.LONG:
             if self.account.balance >= (position_value + open_cost):
-                logger.info(f"* Place Open Order: {stock.stock_id}")
+                logger.info(f"* Place Open Order: {stock_order.stock_id}")
 
                 position = StockTradeRecord(
                     id=self.account.trade_id_counter,
-                    stock_id=stock.stock_id,
-                    date=stock.date,
-                    position_type=stock.position_type,
-                    buy_price=stock.price,
-                    volume=stock.volume,
+                    stock_id=stock_order.stock_id,
+                    position_type=stock_order.position_type,
+                    buy_date=stock_order.date,
+                    buy_price=stock_order.price,
+                    buy_volume=stock_order.volume,
                     commission=open_cost,
                     transaction_cost=open_cost,
                 )
@@ -268,54 +268,53 @@ class Backtester:
 
         return position
 
-    def place_close_order(self, stock: StockOrder) -> Optional[StockTradeRecord]:
+    def place_close_order(self, stock_order: StockOrder) -> Optional[StockTradeRecord]:
         """
         - Description: 下單平倉股票
         - Parameters:
-            - stock: StockOrder
+            - stock_order: StockOrder
                 目標股票的訂單資訊
         - Return:
             - position: StockTradeRecord
         """
 
         # Step 1: Calculate position value and close cost
-        position_value: float = stock.price * stock.volume
+        position_value: float = stock_order.price * stock_order.volume
         close_cost: float = StockUtils.calculate_transaction_commission(
-            price=stock.price, volume=stock.volume
+            price=stock_order.price, volume=stock_order.volume
         )
 
         # Step 2: Find the first open position of the stock (FIFO)
         position: Optional[StockTradeRecord] = self.account.get_first_open_position(
-            stock.stock_id
+            stock_order.stock_id
         )
 
         # Step 3: Execute close order & update account
         if position is not None and not position.is_closed:
-            logger.info(f"* Place Close Order: {stock.stock_id}")
+            logger.info(f"* Place Close Order: {stock_order.stock_id}")
 
             if position.position_type == PositionType.LONG:
-                position.date = stock.date
+                position.sell_date = stock_order.date
                 position.is_closed = True
-                position.sell_price = stock.price
+                position.sell_price = stock_order.price
+                position.sell_volume = stock_order.volume
                 position.commission += close_cost
                 position.tax = StockUtils.calculate_transaction_tax(
-                    stock.price, stock.volume
+                    stock_order.price, stock_order.volume
                 )
                 position.transaction_cost = position.commission + position.tax
                 position.realized_pnl = StockUtils.calculate_net_profit(
-                    position.buy_price, position.sell_price, position.volume
+                    position.buy_price, position.sell_price, position.sell_volume
                 )
 
                 logger.info(f"Realized PnL: {position.realized_pnl}")
-                self.account.realized_pnl += position.realized_pnl
-                logger.info(f"Account Realized PnL: {self.account.realized_pnl}")
 
                 position.roi = StockUtils.calculate_roi(
-                    position.buy_price, position.sell_price, position.volume
+                    position.buy_price, position.sell_price, position.sell_volume
                 )
 
                 self.account.balance += position_value - close_cost
-                # self.account.realized_pnl += position.realized_pnl
+                self.account.realized_pnl += position.realized_pnl
                 self.account.trade_records[position.id] = (
                     position  # 根據 position.id 更新 trade_records 中對應到的 position
                 )
