@@ -17,7 +17,7 @@ class BaseBacktestReporter(ABC):
         self.output_dir: Optional[Path] = output_dir  # Output directory
 
     @abstractmethod
-    def setup(self) -> None:
+    def setup(self, *args, **kwargs) -> None:
         """Set Up the Config of Reporter"""
         pass
 
@@ -42,11 +42,16 @@ class BaseBacktestReporter(ABC):
         pass
 
     @abstractmethod
-    def set_figure_config(self) -> None:
+    def set_figure_config(self, *args, **kwargs) -> None:
         """設置繪圖配置"""
         pass
 
     @abstractmethod
-    def save_figure(self) -> None:
+    def save_report(self, *args, **kwargs) -> None:
+        """儲存回測報告"""
+        pass
+
+    @abstractmethod
+    def save_figure(self, *args, **kwargs) -> None:
         """儲存回測報告圖表"""
         pass

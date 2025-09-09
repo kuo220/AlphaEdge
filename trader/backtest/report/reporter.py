@@ -1,6 +1,6 @@
 import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -47,45 +47,86 @@ class StockBacktestReporter(BaseBacktestReporter):
 
         self.price: StockPriceAPI = StockPriceAPI()
 
+    # def generate_trading_report(self) -> pd.DataFrame:
+    #     """生成回測報告 DataFrame"""
+
+    #     # Step 1: 產生完整日期清單
+    #     dates: List[datetime.date] = TimeUtils.generate_date_range(
+    #         start_date=self.start_date, end_date=self.end_date
+    #     )
+
+    #     # Step 2: 把交易紀錄轉成 dict {date: pnl}
+    #     pnl_dict: Dict[datetime.date, float] = {}
+    #     for record in self.account.trade_records.values():
+    #         pnl_dict[record.date] = pnl_dict.get(record.date, 0.0) + record.realized_pnl
+
+    #     # Step 3: 逐日累積 PnL 與資金餘額
+    #     daily_pnl_list: List[float] = []  # 每日損益
+    #     cumulative_pnl_value: float = 0.0  # 累計損益（暫存值）
+    #     cumulative_pnl_list: List[float] = []  # 每日累積損益
+    #     balance_value: float = self.account.init_capital  # 資金餘額（暫存值）
+    #     balance_list: List[float] = []  # 每日總資金（含已實現損益）
+
+    #     for date in dates:
+    #         daily_pnl = pnl_dict.get(date, 0.0)
+    #         cumulative_pnl_value += daily_pnl
+    #         balance_value += daily_pnl
+
+    #         daily_pnl_list.append(daily_pnl)
+    #         cumulative_pnl_list.append(cumulative_pnl_value)
+    #         balance_list.append(balance_value)
+
+    #     # Step 4: 建立 DataFrame（方便之後擴展）
+    #     df = pd.DataFrame(
+    #         {
+    #             "date": dates,
+    #             "pnl": daily_pnl_list,
+    #             "cumulative_pnl": cumulative_pnl_list,
+    #             "balance": balance_list,
+    #         }
+    #     )
+    #     df = df.set_index("date")
+    #     return df
+
     def generate_trading_report(self) -> pd.DataFrame:
-        """生成回測報告 DataFrame"""
+        """生成回測報告"""
+        report_columns: List[str] = [
+            "Stock ID",
+            "Position Type",
+            "Buy Date",
+            "Buy Price",
+            "Buy Volume",
+            "Sell Date",
+            "Sell Price",
+            "Sell Volume",
+            "Commission",
+            "Tax",
+            "Transaction Cost",
+            "Realized PnL",
+            "ROI",
+        ]
+        rows: List[Dict[str, Any]] = []
 
-        # Step 1: 產生完整日期清單
-        dates: List[datetime.date] = TimeUtils.generate_date_range(
-            start_date=self.start_date, end_date=self.end_date
-        )
-
-        # Step 2: 把交易紀錄轉成 dict {date: pnl}
-        pnl_dict: Dict[datetime.date, float] = {}
         for record in self.account.trade_records.values():
-            pnl_dict[record.date] = pnl_dict.get(record.date, 0.0) + record.realized_pnl
-
-        # Step 3: 逐日累積 PnL 與資金餘額
-        daily_pnl_list: List[float] = []  # 每日損益
-        cumulative_pnl_value: float = 0.0  # 累計損益（暫存值）
-        cumulative_pnl_list: List[float] = []  # 每日累積損益
-        balance_value: float = self.account.init_capital  # 資金餘額（暫存值）
-        balance_list: List[float] = []  # 每日總資金（含已實現損益）
-
-        for date in dates:
-            daily_pnl = pnl_dict.get(date, 0.0)
-            cumulative_pnl_value += daily_pnl
-            balance_value += daily_pnl
-
-            daily_pnl_list.append(daily_pnl)
-            cumulative_pnl_list.append(cumulative_pnl_value)
-            balance_list.append(balance_value)
-
-        # Step 4: 建立 DataFrame（方便之後擴展）
-        df = pd.DataFrame(
-            {
-                "date": dates,
-                "pnl": daily_pnl_list,
-                "cumulative_pnl": cumulative_pnl_list,
-                "balance": balance_list,
+            row = {
+                "Stock ID": record.stock_id,
+                "Position Type": record.position_type.value,
+                "Buy Date": record.buy_date,
+                "Buy Price": record.buy_price,
+                "Buy Volume": record.buy_volume,
+                "Sell Date": record.sell_date,
+                "Sell Price": record.sell_price,
+                "Sell Volume": record.sell_volume,
+                "Commission": record.commission,
+                "Tax": record.tax,
+                "Transaction Cost": record.transaction_cost,
+                "Realized PnL": record.realized_pnl,
+                "ROI": record.roi,
             }
-        )
-        df = df.set_index("date")
+            rows.append(row)
+
+        df = pd.DataFrame(rows, columns=report_columns)
+        self.save_report(df, f"{self.strategy.strategy_name}_trading_report.csv")
         return df
 
     def plot_balance_curve(self) -> None:
@@ -170,6 +211,24 @@ class StockBacktestReporter(BaseBacktestReporter):
 
         # Show figure
         fig.show(renderer="browser")
+
+    def save_report(self, df: pd.DataFrame, file_name: str = "") -> None:
+        """儲存回測報告"""
+        if not file_name:
+            raise ValueError("file_name 不能是空字串")
+
+        # 決定輸出路徑
+        if self.output_dir is not None:
+            save_path = self.output_dir / file_name
+        else:
+            save_path = Path(file_name)
+
+        # 確保資料夾存在
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # 輸出 CSV 檔案
+        df.to_csv(save_path, index=False, encoding='utf-8-sig')
+        logger.info(f"* Report saved to: {save_path}")
 
     def save_figure(self, fig: go.Figure, file_name: str = "") -> None:
         """

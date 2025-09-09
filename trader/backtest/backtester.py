@@ -294,8 +294,8 @@ class Backtester:
             logger.info(f"* Place Close Order: {stock_order.stock_id}")
 
             if position.position_type == PositionType.LONG:
-                position.sell_date = stock_order.date
                 position.is_closed = True
+                position.sell_date = stock_order.date
                 position.sell_price = stock_order.price
                 position.sell_volume = stock_order.volume
                 position.commission += close_cost

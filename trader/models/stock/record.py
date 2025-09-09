@@ -18,10 +18,10 @@ class StockTradeRecord:
         is_closed: bool = False,
         position_type: PositionType = PositionType.LONG,
         buy_date: datetime.date = None,
-        sell_date: datetime.date = None,
         buy_price: float = 0.0,
-        sell_price: float = 0.0,
         buy_volume: float = 0.0,
+        sell_date: datetime.date = None,
+        sell_price: float = 0.0,
         sell_volume: float = 0.0,
         commission: float = 0.0,
         tax: float = 0.0,
@@ -37,21 +37,15 @@ class StockTradeRecord:
         self.is_closed: bool = is_closed  # 是否已經平倉
         self.position_type: PositionType = position_type  # 持倉方向（Long or Short）
 
-        # Trade Date
-        self.buy_date: datetime.date = (
-            buy_date  # 交易日期（Tick會是Timestamp）
-        )
-        self.sell_date: datetime.date = (
-            sell_date  # 交易日期（Tick會是Timestamp）
-        )
+        # Buy Info
+        self.buy_date: datetime.date = (buy_date,)  # 買入日期
+        self.buy_price: float = (buy_price,)  # 買入價位
+        self.buy_volume: float = (buy_volume,)  # 買入股數
 
-        # Trade Price
-        self.buy_price: float = buy_price  # 買入價位
-        self.sell_price: float = sell_price  # 賣出價位
-
-        # Trade Quantity
-        self.buy_volume: float = buy_volume  # 交易股數
-        self.sell_volume: float = sell_volume  # 交易股數
+        # Sell Info
+        self.sell_date: datetime.date = (sell_date,)  # 賣出日期
+        self.sell_price: float = (sell_price,)  # 賣出價位
+        self.sell_volume: float = (sell_volume,)  # 賣出股數
 
         # Transaction Costs
         self.commission: float = commission  # 交易手續費
