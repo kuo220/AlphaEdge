@@ -47,12 +47,8 @@ class StockBacktestReporter(BaseBacktestReporter):
 
         self.price: StockPriceAPI = StockPriceAPI()
 
-    def generate_account_df(self) -> pd.DataFrame:
-        """生成帳戶 DataFrame"""
-        pass
-
-    def plot_equity_curve(self) -> None:
-        """繪製權益曲線圖（淨資產隨時間變化）"""
+    def generate_report_df(self) -> pd.DataFrame:
+        """生成回測報告 DataFrame"""
 
         # Step 1: 產生完整日期清單
         dates: List[datetime.date] = TimeUtils.generate_date_range(
@@ -60,48 +56,67 @@ class StockBacktestReporter(BaseBacktestReporter):
         )
 
         # Step 2: 把交易紀錄轉成 dict {date: pnl}
-        pnl_by_date: Dict[datetime.date, float] = {}
+        pnl_dict: Dict[datetime.date, float] = {}
         for record in self.account.trade_records.values():
-            pnl_by_date[record.date] = (
-                pnl_by_date.get(record.date, 0.0) + record.realized_pnl
-            )
+            pnl_dict[record.date] = pnl_dict.get(record.date, 0.0) + record.realized_pnl
 
-        # Step 3: 逐日累積 equity
-        cumulative_equity: List[float] = []
-        equity: float = self.account.init_capital
-        for d in dates:
-            if d in pnl_by_date:
-                equity += pnl_by_date[d]
-            cumulative_equity.append(equity)
+        # Step 3: 逐日累積 PnL 與資金餘額
+        daily_pnl_list: List[float] = []  # 每日損益
+        cumulative_pnl_value: float = 0.0  # 累計損益（暫存值）
+        cumulative_pnl_list: List[float] = []  # 每日累積損益
+        balance_value: float = self.account.init_capital  # 資金餘額（暫存值）
+        balance_list: List[float] = []  # 每日總資金（含已實現損益）
+
+        for date in dates:
+            daily_pnl = pnl_dict.get(date, 0.0)
+            cumulative_pnl_value += daily_pnl
+            balance_value += daily_pnl
+
+            daily_pnl_list.append(daily_pnl)
+            cumulative_pnl_list.append(cumulative_pnl_value)
+            balance_list.append(balance_value)
 
         # Step 4: 建立 DataFrame（方便之後擴展）
-        df = pd.DataFrame({"date": dates, "equity": cumulative_equity})
+        df = pd.DataFrame(
+            {
+                "date": dates,
+                "pnl": daily_pnl_list,
+                "cumulative_pnl": cumulative_pnl_list,
+                "balance": balance_list,
+            }
+        )
         df = df.set_index("date")
+        return df
+
+    def plot_balance_curve(self) -> None:
+        """繪製總資金曲線圖（總資金隨時間變化）"""
+
+        df: pd.DataFrame = self.generate_report_df()
 
         # TODO: 需處理日期顯示過於密集的問題
-        # Step 5: 繪製權益曲線圖
-        fig_title: str = "Equity Curve"
+        # Plot Balance Curve
+        fig_title: str = "Balance Curve"
         fig: go.Figure = go.Figure()
         fig.add_trace(
             go.Scatter(
                 x=df.index,
-                y=df["equity"],
+                y=df["balance"],
                 mode="lines",
                 line=dict(color="blue", width=2),
             )
         )
 
         self.set_figure_config(
-            fig, title=fig_title, xaxis_title="Date", yaxis_title="Equity"
+            fig, title=fig_title, xaxis_title="Date", yaxis_title="Balance"
         )
-        self.save_figure(fig, f"{self.strategy.strategy_name}_equity_curve.png")
+        self.save_figure(fig, f"{self.strategy.strategy_name}_balance_curve.png")
 
-    def plot_equity_and_benchmark_curve(self) -> None:
-        """繪製權益 & benchmark 曲線圖"""
+    def plot_balance_and_benchmark_curve(self) -> None:
+        """繪製總資金 & benchmark 曲線圖"""
         pass
 
-    def plot_mdd(self) -> None:
-        """繪製 Max Drawdown"""
+    def plot_balance_mdd(self) -> None:
+        """繪製總資金 Max Drawdown"""
         pass
 
     def set_figure_config(

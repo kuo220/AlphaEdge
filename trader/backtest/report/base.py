@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
-import pandas as pd
 from pathlib import Path
 from typing import Optional
+
+import pandas as pd
 
 from trader.models import StockAccount
 from trader.strategies.stock import BaseStockStrategy
@@ -21,23 +22,23 @@ class BaseBacktestReporter(ABC):
         pass
 
     @abstractmethod
-    def generate_account_df(self) -> pd.DataFrame:
-        """生成帳戶 DataFrame"""
+    def generate_report_df(self) -> pd.DataFrame:
+        """生成回測報告 DataFrame"""
         pass
 
     @abstractmethod
-    def plot_equity_curve(self) -> None:
-        """計算並繪製權益曲線（淨資產隨時間變化）"""
+    def plot_balance_curve(self) -> None:
+        """計算並繪製總資金曲線（總資金隨時間變化）"""
         pass
 
     @abstractmethod
-    def plot_equity_and_benchmark_curve(self) -> None:
-        """計算並繪製權益 & benchmark 曲線圖"""
+    def plot_balance_and_benchmark_curve(self) -> None:
+        """計算並繪製總資金 & benchmark 曲線圖"""
         pass
 
     @abstractmethod
-    def plot_mdd(self) -> None:
-        """計算並繪製 Max Drawdown"""
+    def plot_balance_mdd(self) -> None:
+        """計算並繪製總資金 Max Drawdown"""
         pass
 
     @abstractmethod
@@ -47,5 +48,5 @@ class BaseBacktestReporter(ABC):
 
     @abstractmethod
     def save_figure(self) -> None:
-        """儲存回測報告"""
+        """儲存回測報告圖表"""
         pass
