@@ -86,7 +86,11 @@ class Backtester:
         self.strategy_result_dir.mkdir(parents=True, exist_ok=True)
 
         # Set Log File Path
+        BACKTEST_LOGS_DIR_PATH.mkdir(parents=True, exist_ok=True)
         logger.add(f"{BACKTEST_LOGS_DIR_PATH}/{self.strategy.strategy_name}.log")
+
+        # load backtest dataset
+        self.load_datasets()
 
     def load_datasets(self) -> None:
         """從資料庫載入資料"""
@@ -111,8 +115,6 @@ class Backtester:
         logger.info(f"* Initial Capital: {self.strategy.init_capital}")
         logger.info(f"* Backtest Scale: {self.scale}")
 
-        # load backtest dataset
-        self.load_datasets()
         # load backtest period
         dates: List[datetime.date] = TimeUtils.generate_date_range(
             start_date=self.start_date, end_date=self.end_date
