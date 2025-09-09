@@ -331,6 +331,6 @@ class Backtester:
 
         # Generate Backtest Report (Chart)
         reporter = StockBacktestReporter(self.strategy, self.strategy_result_dir)
-        reporter.plot_equity_curve()
+        reporter.plot_balance_curve()
         # reporter.plot_equity_and_benchmark_curve()
         # reporter.plot_mdd()
