@@ -109,7 +109,7 @@ class MomentumStrategy(BaseStockStrategy):
             if self.account.check_has_position(stock_quote.stock_id):
                 if stock_quote.date >= self.account.get_first_open_position(
                     stock_quote.stock_id
-                ).date + datetime.timedelta(days=1):
+                ).buy_date + datetime.timedelta(days=1):
                     close_positions.append(stock_quote)
 
         return self.calculate_position_size(close_positions, Action.CLOSE)
