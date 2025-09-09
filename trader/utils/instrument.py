@@ -90,7 +90,7 @@ class StockUtils:
         return int(lots * Units.LOT)
 
     @staticmethod
-    def calculate_transaction_commission(price: float, volume: float) -> float:
+    def calculate_transaction_commission(price: float, volume: float) -> int:
         """
         - Description:
             計算股票買賣時的手續費
@@ -100,7 +100,7 @@ class StockUtils:
             - volume: float
                 成交股數（Unit: Shares）
         - Return:
-            - commission: float
+            - commission: int
                 手續費
         - Notes:
             For long position, the commission costs:
@@ -108,12 +108,12 @@ class StockUtils:
             - sell fee (券賣手續費 = 成交價 x 成交股數 x 手續費率 x discount)
         """
         return max(
-            price * volume * Commission.CommRate * Commission.Discount,
             Commission.MinFee,
+            int(price * volume * Commission.CommRate * Commission.Discount),
         )
 
     @staticmethod
-    def calculate_transaction_tax(price: float, volume: float) -> float:
+    def calculate_transaction_tax(price: float, volume: float) -> int:
         """
         - Description:
             計算股票賣出時的交易稅
@@ -123,20 +123,20 @@ class StockUtils:
             - volume: float
                 成交股數（Unit: Shares）
         - Return:
-            - tax: float
+            - tax: int
                 交易稅
         - Notes:
             For long position, the tax cost:
             - sell tax (券賣證交稅 = 成交價 x 成交股數 x 證交稅率)
         """
-        return price * volume * Commission.TaxRate
+        return max(1, int(price * volume * Commission.TaxRate))
 
     @staticmethod
     def calculate_transaction_cost(
         buy_price: float,
         sell_price: float,
         volume: float,
-    ) -> Tuple[float, float]:
+    ) -> Tuple[int, int]:
         """
         - Description:
             計算股票買賣的手續費、交易稅等摩擦成本
@@ -148,9 +148,9 @@ class StockUtils:
             - volume: float
                 股數（Unit: Shares）
         - Return:
-            - buy_transaction_cost: float
+            - buy_transaction_cost: int
                 買入交易成本
-            - sell_transaction_cost: float
+            - sell_transaction_cost: int
                 賣出交易成本
         - Notes:
             For long position, the transaction costs should contains:
@@ -160,7 +160,7 @@ class StockUtils:
         """
 
         # 買入 & 賣出的交易成本
-        buy_transaction_cost: float = StockUtils.calculate_transaction_commission(
+        buy_transaction_cost: int = StockUtils.calculate_transaction_commission(
             buy_price, volume
         )
         sell_transaction_cost: float = StockUtils.calculate_transaction_commission(
