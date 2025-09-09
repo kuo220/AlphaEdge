@@ -1,13 +1,11 @@
 import datetime
-import sys
-from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 import numpy as np
 import shioaji as sj
 
-from .constant import Commission
-from .time import TimeUtils
+from .constant import Commission, Units
+from .market_calendar import MarketCalendar
 
 """
 instrument.py
@@ -52,7 +50,9 @@ class StockUtils:
         """Shioaji: 取得指定股票在指定日期的漲跌幅"""
 
         # 取得前一個交易日的日期
-        last_trading_date: datetime.date = TimeUtils.get_last_trading_date(api, date)
+        last_trading_date: datetime.date = MarketCalendar.get_last_trading_date(
+            api, date
+        )
 
         # 計算指定交易日股票的漲幅
         cur_close_price: float = StockUtils.get_close_price(api, stock_id, date)
@@ -64,43 +64,103 @@ class StockUtils:
         return round((cur_close_price / prev_close_price - 1) * 100, 2)
 
     @staticmethod
-    def calculate_transaction_commission(price: float, volume: float) -> float:
-        """計算股票買賣時的手續費"""
+    def convert_share_to_lot(shares: float) -> int:
         """
-        For long position, the commission costs:
+        - Description: 將股數轉換為張數
+        - Parameters:
+            - shares: int
+                股數 (Unit: Shares)
+        - Return:
+            - lots: int
+                張數 (Unit: Lots)
+        """
+        return int(shares / Units.LOT)
+
+    @staticmethod
+    def convert_lot_to_share(lots: int) -> int:
+        """
+        - Description: 將張數轉換為股數
+        - Parameters:
+            - lots: int
+                張數 (Unit: Lots)
+        - Return:
+            - shares: int
+                股數 (Unit: Shares)
+        """
+        return int(lots * Units.LOT)
+
+    @staticmethod
+    def calculate_transaction_commission(price: float, volume: float) -> int:
+        """
+        - Description:
+            計算股票買賣時的手續費
+        - Parameters:
+            - price: float
+                成交價格
+            - volume: float
+                成交股數（Unit: Shares）
+        - Return:
+            - commission: int
+                手續費
+        - Notes:
+            For long position, the commission costs:
             - buy fee (券買手續費 = 成交價 x 成交股數 x 手續費率 x discount)
             - sell fee (券賣手續費 = 成交價 x 成交股數 x 手續費率 x discount)
         """
         return max(
-            price * volume * Commission.CommRate * Commission.Discount,
             Commission.MinFee,
+            int(price * volume * Commission.CommRate * Commission.Discount),
         )
 
     @staticmethod
-    def calculate_transaction_tax(price: float, volume: float) -> float:
-        """計算股票賣出時的交易稅"""
+    def calculate_transaction_tax(price: float, volume: float) -> int:
         """
-        For long position, the tax cost:
+        - Description:
+            計算股票賣出時的交易稅
+        - Parameters:
+            - price: float
+                成交價格
+            - volume: float
+                成交股數（Unit: Shares）
+        - Return:
+            - tax: int
+                交易稅
+        - Notes:
+            For long position, the tax cost:
             - sell tax (券賣證交稅 = 成交價 x 成交股數 x 證交稅率)
         """
-        return price * volume * Commission.TaxRate
+        return max(1, int(price * volume * Commission.TaxRate))
 
     @staticmethod
     def calculate_transaction_cost(
         buy_price: float,
         sell_price: float,
         volume: float,
-    ) -> Tuple[float, float]:
-        """計算股票買賣的手續費、交易稅等摩擦成本"""
+    ) -> Tuple[int, int]:
         """
-        For long position, the transaction costs should contains:
+        - Description:
+            計算股票買賣的手續費、交易稅等摩擦成本
+        - Parameters:
+            - buy_price: float
+                股票買入價格
+            - sell_price: float
+                股票賣出價格
+            - volume: float
+                股數（Unit: Shares）
+        - Return:
+            - buy_transaction_cost: int
+                買入交易成本
+            - sell_transaction_cost: int
+                賣出交易成本
+        - Notes:
+            For long position, the transaction costs should contains:
             - buy fee (券買手續費 = 成交價 x 成交股數 x 手續費率 x discount)
             - sell fee (券賣手續費 = 成交價 x 成交股數 x 手續費率 x discount)
             - sell tax (券賣證交稅 = 成交價 x 成交股數 x 證交稅率)
         """
 
         # 買入 & 賣出的交易成本
-        buy_transaction_cost: float = StockUtils.calculate_transaction_commission(
+        buy_transaction_cost: int = StockUtils.calculate_transaction_commission(
             buy_price, volume
         )
         sell_transaction_cost: float = StockUtils.calculate_transaction_commission(
@@ -122,7 +182,7 @@ class StockUtils:
             - sell_price: float
                 股票賣出價格
             - volume: float
-                股數
+                股數（Unit: Shares）
         - Return:
             - profit: float
         """
@@ -152,7 +212,7 @@ class StockUtils:
             - sell_price: float
                 股票賣出價格
             - volume: float
-                股數
+                股數（Unit: Shares）
         - Return:
             - roi: float
                 投資報酬率（%）

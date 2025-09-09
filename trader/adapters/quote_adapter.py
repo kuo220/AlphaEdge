@@ -1,13 +1,13 @@
 import datetime
-from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, List
 
-import numpy as np
 import pandas as pd
 
-from trader.api import StockPriceAPI, StockTickAPI
+from trader.api.stock_price_api import StockPriceAPI
+from trader.api.stock_tick_api import StockTickAPI
 from trader.models import StockQuote, TickQuote
-from trader.utils import Scale, StockUtils, Units
+from trader.utils import Scale
+from trader.utils.instrument import StockUtils
 
 
 class StockQuoteAdapter:
@@ -139,6 +139,10 @@ class StockQuoteAdapter:
         - Returns:
             - StockQuote
                 建立後的 StockQuote 物件
+        - Notes:
+            - Volume:
+                - Scale.TICK: Unit 資料原本就是 Lot
+                - Scale.DAY: Unit: Shares
         """
 
         if scale == Scale.TICK:
@@ -163,7 +167,7 @@ class StockQuoteAdapter:
                 scale=scale,
                 date=date,
                 cur_price=data.收盤價,
-                volume=data.成交股數,
+                volume=StockUtils.convert_share_to_lot(data.成交股數),
                 open=data.開盤價,
                 high=data.最高價,
                 low=data.最低價,

@@ -1,26 +1,8 @@
-import datetime
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple, Union
-
-import numpy as np
-import pandas as pd
-import plotly.express as px
+from typing import Optional
 
 from trader.models import StockAccount
-
-"""
-base.py
-
-Defines abstract base classes for performance-related modules.
-
-This file provides reusable interfaces for backtest performance analysis and report generation.
-Typical use cases include customizing analyzers or reports for different financial instruments
-(e.g. stocks, futures, options).
-
-Classes:
-- BaseAnalyzer: Interface for computing backtest metrics
-- BaseReport: Interface for generating performance reports
-"""
+from trader.strategies.stock import BaseStockStrategy
 
 
 class BaseBacktestAnalyzer(ABC):
@@ -28,8 +10,14 @@ class BaseBacktestAnalyzer(ABC):
 
     # TODO: 計算 Cumulative Capital (Equity Curve), MDD, ROI, Sharpe Ratio
 
-    def __init__(self, account: Union[StockAccount]):
-        self.account: Union[StockAccount] = account  # 帳戶資訊
+    def __init__(self, strategy: BaseStockStrategy):
+        self.strategy: BaseStockStrategy = strategy  # Backtest strategy
+        self.account: StockAccount = self.strategy.account  # Account
+
+    @abstractmethod
+    def setup(self) -> None:
+        """Set Up the Config of Analyzer"""
+        pass
 
     # ===== Equity-based Metrics =====
     @abstractmethod

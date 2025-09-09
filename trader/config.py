@@ -1,10 +1,8 @@
 import os
 from pathlib import Path
-from typing import List, Optional
 
 from dotenv import load_dotenv
 
-# from trader.utils import ShioajiAPI
 from trader.utils.path import get_static_resolved_path
 
 # Load environment variables from .env file
@@ -30,10 +28,10 @@ STOCK_STRATEGY_DIR_PATH: Path = get_static_resolved_path(
 
 """ === Backtest Result Directory Path === """
 BACKTEST_RESULT_DIR_PATH: Path = get_static_resolved_path(
-    base_dir=BASE_DIR_PATH, dir_name="backtest/performance/results"
+    base_dir=BASE_DIR_PATH, dir_name="backtest/results"
 )
 BACKTEST_LOGS_DIR_PATH: Path = get_static_resolved_path(
-    base_dir=BASE_DIR_PATH, dir_name="backtest/performance/results/logs"
+    base_dir=BASE_DIR_PATH, dir_name="backtest/results/logs"
 )
 
 """ === Crawl Data Downloads Path === """
@@ -108,18 +106,11 @@ DDB_USER: str = os.getenv("DDB_USER")
 DDB_PASSWORD: str = os.getenv("DDB_PASSWORD")
 
 
-# """ === Shioaji API === """
-# API_KEY: str = os.getenv("API_KEY")
-# API_SECRET_KEY: str = os.getenv("API_SECRET_KEY")
+""" === Shioaji API === """
+API_KEY: str = os.getenv("API_KEY")
+API_SECRET_KEY: str = os.getenv("API_SECRET_KEY")
 
-
-# """ === API list for crawling tick data === """
-# NUM_API: int = 4
-# API_LIST: List[ShioajiAPI] = []
-
-# # Add API from 11 ~ 17 and add API_1 (Mine)
-# for num in range(NUM_API):
-#     api: ShioajiAPI = ShioajiAPI(
-#         os.getenv(f"API_KEY_{num + 1}"), os.getenv(f"API_SECRET_KEY_{num + 1}")
-#     )
-#     API_LIST.append(api)
+""" === API list for crawling tick data === """
+NUM_API: int = 4
+API_KEYS = [os.getenv(f"API_KEY_{i + 1}") for i in range(NUM_API)]
+API_SECRET_KEYS = [os.getenv(f"API_SECRET_KEY_{i + 1}") for i in range(NUM_API)]

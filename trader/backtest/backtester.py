@@ -7,14 +7,14 @@ import pandas as pd
 from loguru import logger
 
 from trader.adapters import StockQuoteAdapter
-from trader.api import (
-    FinancialStatementAPI,
-    MonthlyRevenueReportAPI,
-    StockChipAPI,
-    StockPriceAPI,
-    StockTickAPI,
-)
-from trader.config import BACKTEST_LOGS_DIR_PATH
+from trader.api.financial_statement_api import FinancialStatementAPI
+from trader.api.monthly_revenue_report_api import MonthlyRevenueReportAPI
+from trader.api.stock_chip_api import StockChipAPI
+from trader.api.stock_price_api import StockPriceAPI
+from trader.api.stock_tick_api import StockTickAPI
+from trader.backtest.analysis.analyzer import StockBacktestAnalyzer
+from trader.backtest.report.reporter import StockBacktestReporter
+from trader.config import BACKTEST_LOGS_DIR_PATH, BACKTEST_RESULT_DIR_PATH
 from trader.models import (
     StockAccount,
     StockOrder,
@@ -23,15 +23,8 @@ from trader.models import (
     TickQuote,
 )
 from trader.strategies.stock import BaseStockStrategy
-from trader.utils import (
-    Commission,
-    Market,
-    PositionType,
-    Scale,
-    StockUtils,
-    TimeUtils,
-    Units,
-)
+from trader.utils import PositionType, Scale, TimeUtils
+from trader.utils.instrument import StockUtils
 from trader.utils.market_calendar import MarketCalendar
 
 """
@@ -78,8 +71,26 @@ class Backtester:
         self.cur_date: datetime.date = self.strategy.start_date  # 回測當前日
         self.end_date: datetime.date = self.strategy.end_date  # 回測結束日
 
-        """ === Set Log File Path """
+        """ === Backtest Result Directory === """
+        self.strategy_result_dir: Optional[Path] = None  # 策略回測結果資料夾
+
+        self.setup()
+
+    def setup(self):
+        """Set Up the Config of Backtester"""
+
+        # 確保每個 strategy 有獨立的結果資料夾
+        self.strategy_result_dir = (
+            Path(BACKTEST_RESULT_DIR_PATH) / self.strategy.strategy_name
+        )
+        self.strategy_result_dir.mkdir(parents=True, exist_ok=True)
+
+        # Set Log File Path
+        BACKTEST_LOGS_DIR_PATH.mkdir(parents=True, exist_ok=True)
         logger.add(f"{BACKTEST_LOGS_DIR_PATH}/{self.strategy.strategy_name}.log")
+
+        # load backtest dataset
+        self.load_datasets()
 
     def load_datasets(self) -> None:
         """從資料庫載入資料"""
@@ -94,7 +105,7 @@ class Backtester:
 
     # === Main Backtest Loop ===
     def run(self) -> None:
-        """執行 Backtest (目前只有全tick回測)"""
+        """執行 Backtest"""
 
         logger.info("========== Backtest Start ==========")
         logger.info(f"* Strategy Name: {self.strategy.strategy_name}")
@@ -104,8 +115,6 @@ class Backtester:
         logger.info(f"* Initial Capital: {self.strategy.init_capital}")
         logger.info(f"* Backtest Scale: {self.scale}")
 
-        # load backtest dataset
-        self.load_datasets()
         # load backtest period
         dates: List[datetime.date] = TimeUtils.generate_date_range(
             start_date=self.start_date, end_date=self.end_date
@@ -114,9 +123,7 @@ class Backtester:
         for date in dates:
             logger.info(f"--- {date.strftime('%Y/%m/%d')} ---")
 
-            if not MarketCalendar.check_stock_market_open(
-                data_api=self.price, date=date
-            ):
+            if not MarketCalendar.check_stock_market_open(api=self.price, date=date):
                 logger.info("* Stock Market Close\n")
                 continue
 
@@ -139,6 +146,9 @@ class Backtester:
             4. ROI: {round(self.account.roi, 2)}%
             """
         )
+
+        # Generate Backtest Report
+        self.generate_backtest_report()
 
     def run_tick_backtest(self, date: datetime.date) -> None:
         """Tick 級別的回測架構"""
@@ -218,7 +228,7 @@ class Backtester:
             self.place_close_order(order)
 
     # === Order Placement ===
-    def place_open_order(self, stock: StockOrder) -> Optional[StockTradeRecord]:
+    def place_open_order(self, stock_order: StockOrder) -> Optional[StockTradeRecord]:
         """
         - Description: 開倉下單股票
         - Parameters:
@@ -229,26 +239,29 @@ class Backtester:
         """
 
         # Step 1: Calculate position value and open cost
-        position_value: float = stock.price * stock.volume
+        position_value: float = stock_order.price * StockUtils.convert_lot_to_share(
+            stock_order.volume
+        )
         open_cost: float = StockUtils.calculate_transaction_commission(
-            price=stock.price, volume=stock.volume
+            price=stock_order.price,
+            volume=StockUtils.convert_lot_to_share(stock_order.volume),
         )
 
         # Step 2: Create position
         position: Optional[StockTradeRecord] = None
 
         # Step 3: Execute open order & update account
-        if stock.position_type == PositionType.LONG:
+        if stock_order.position_type == PositionType.LONG:
             if self.account.balance >= (position_value + open_cost):
-                logger.info(f"* Place Open Order: {stock.stock_id}")
+                logger.info(f"* Place Open Order: {stock_order.stock_id}")
 
                 position = StockTradeRecord(
                     id=self.account.trade_id_counter,
-                    stock_id=stock.stock_id,
-                    date=stock.date,
-                    position_type=stock.position_type,
-                    buy_price=stock.price,
-                    volume=stock.volume,
+                    stock_id=stock_order.stock_id,
+                    position_type=stock_order.position_type,
+                    buy_date=stock_order.date,
+                    buy_price=stock_order.price,
+                    buy_volume=stock_order.volume,
                     commission=open_cost,
                     transaction_cost=open_cost,
                 )
@@ -260,54 +273,61 @@ class Backtester:
 
         return position
 
-    def place_close_order(self, stock: StockOrder) -> Optional[StockTradeRecord]:
+    def place_close_order(self, stock_order: StockOrder) -> Optional[StockTradeRecord]:
         """
         - Description: 下單平倉股票
         - Parameters:
-            - stock: StockOrder
+            - stock_order: StockOrder
                 目標股票的訂單資訊
         - Return:
             - position: StockTradeRecord
         """
 
         # Step 1: Calculate position value and close cost
-        position_value: float = stock.price * stock.volume
+        position_value: float = stock_order.price * StockUtils.convert_lot_to_share(
+            stock_order.volume
+        )
         close_cost: float = StockUtils.calculate_transaction_commission(
-            price=stock.price, volume=stock.volume
+            price=stock_order.price,
+            volume=StockUtils.convert_lot_to_share(stock_order.volume),
         )
 
         # Step 2: Find the first open position of the stock (FIFO)
         position: Optional[StockTradeRecord] = self.account.get_first_open_position(
-            stock.stock_id
+            stock_order.stock_id
         )
 
         # Step 3: Execute close order & update account
         if position is not None and not position.is_closed:
-            logger.info(f"* Place Close Order: {stock.stock_id}")
+            logger.info(f"* Place Close Order: {stock_order.stock_id}")
 
             if position.position_type == PositionType.LONG:
-                position.date = stock.date
                 position.is_closed = True
-                position.sell_price = stock.price
+                position.sell_date = stock_order.date
+                position.sell_price = stock_order.price
+                position.sell_volume = stock_order.volume
                 position.commission += close_cost
                 position.tax = StockUtils.calculate_transaction_tax(
-                    stock.price, stock.volume
+                    stock_order.price,
+                    StockUtils.convert_lot_to_share(position.sell_volume),
                 )
                 position.transaction_cost = position.commission + position.tax
                 position.realized_pnl = StockUtils.calculate_net_profit(
-                    position.buy_price, position.sell_price, position.volume
+                    position.buy_price,
+                    position.sell_price,
+                    StockUtils.convert_lot_to_share(position.sell_volume),
                 )
 
                 logger.info(f"Realized PnL: {position.realized_pnl}")
-                self.account.realized_pnl += position.realized_pnl
-                logger.info(f"Account Realized PnL: {self.account.realized_pnl}")
 
                 position.roi = StockUtils.calculate_roi(
-                    position.buy_price, position.sell_price, position.volume
+                    position.buy_price,
+                    position.sell_price,
+                    StockUtils.convert_lot_to_share(position.sell_volume),
                 )
 
                 self.account.balance += position_value - close_cost
-                # self.account.realized_pnl += position.realized_pnl
+                self.account.realized_pnl += position.realized_pnl
                 self.account.trade_records[position.id] = (
                     position  # 根據 position.id 更新 trade_records 中對應到的 position
                 )
@@ -320,4 +340,10 @@ class Backtester:
     # === Report ===
     def generate_backtest_report(self) -> None:
         """生產回測報告"""
-        pass
+
+        # Generate Backtest Report (Chart)
+        reporter = StockBacktestReporter(self.strategy, self.strategy_result_dir)
+        reporter.generate_trading_report()
+        # reporter.plot_balance_curve()
+        # reporter.plot_equity_and_benchmark_curve()
+        # reporter.plot_mdd()

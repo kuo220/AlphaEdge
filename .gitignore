@@ -12,6 +12,7 @@ __pycache__/
 shioaji.log
 
 *.csv
+*.png
 *.log
 
 # Downloads Content

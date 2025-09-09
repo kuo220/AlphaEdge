@@ -1,21 +1,10 @@
-import datetime
-import os
-import sys
-from abc import ABC, abstractmethod
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import List, Optional
 
 import numpy as np
-import pandas as pd
-import plotly.express as px
 
-from trader.api import Chip, Data, QXData, Tick
-from trader.config import BACKTEST_RESULT_DIR_PATH
-from trader.models import StockAccount, StockOrder, StockQuote, StockTradeRecord
-from trader.utils import Market, PositionType, Scale
-
-from .base import BaseBacktestAnalyzer
-from .reporter import StockBacktestReporter
+from trader.backtest.analysis.base import BaseBacktestAnalyzer
+from trader.models import StockTradeRecord
+from trader.strategies.stock import BaseStockStrategy
 
 """
 analyzer.py
@@ -40,9 +29,9 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
     equity curve, MDD, and ROI
     """
 
-    def __init__(self, account: StockAccount):
+    def __init__(self, strategy: BaseStockStrategy):
         # Account
-        super().__init__(account)
+        super().__init__(strategy)
 
         # Trade Record List
         self.trade_records: List[StockTradeRecord] = [
@@ -50,8 +39,13 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
         ]
 
         # Statistics
+        self.benchmark: str = None  # Benchmark stock
+        self.risk_free_rate: float = None  # 無風險利率（暫定0.02）
+
+    def setup(self) -> None:
+        """Set Up the Config of Analyzer"""
         self.benchmark: str = "0050"
-        self.risk_free_rate: float = 0  # 無風險利率（暫定0）
+        self.risk_free_rate: float = 0.02  # 無風險利率（暫定0.02）
 
     # ===== Risk-Adjusted Metrics =====
     def compute_volatility(self) -> float:

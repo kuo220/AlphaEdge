@@ -66,6 +66,7 @@ class SQLiteUtils:
     ) -> Optional[Any]:
         """
         - Description: Retrieve the latest value in the table.
+
         - Parameters:
             - conn: sqlite3.Connection
                 SQLite database connection object.
@@ -73,6 +74,7 @@ class SQLiteUtils:
                 Name of the table to query.
             - col_name: str
                 Name of the value column to search.
+
         - Return: Optional[Any]
             - The latest value in the column, or None if not found.
         """
@@ -106,17 +108,18 @@ class SQLiteUtils:
         default_secondary_value: int,
     ) -> Tuple[int, int]:
         """
-        查詢指定 table 中最大 primary_col 的值，並找出其對應的最大 secondary_col 值。
+        - Description:
+            查詢指定 table 中最大 primary_col 的值，並找出其對應的最大 secondary_col 值。
 
-        Parameters:
-            conn (sqlite3.Connection): 資料庫連線
-            table_name (str): 資料表名稱
-            primary_col (str): 主欄位名稱（如 'year'）
-            secondary_col (str): 次欄位名稱（如 'month', 'season'）
-            default_primary_value (int): 查詢失敗時回傳的主欄位預設值
+        - Parameters:
+            - conn (sqlite3.Connection): 資料庫連線
+            - table_name (str): 資料表名稱
+            - primary_col (str): 主欄位名稱（如 'year'）
+            - secondary_col (str): 次欄位名稱（如 'month', 'season'）
+            - default_primary_value (int): 查詢失敗時回傳的主欄位預設值
             default_secondary_value (int): 查詢失敗時回傳的次欄位預設值
 
-        Returns:
+        - Returns:
             Tuple[int, int]: (主欄位最大值, 對應的次欄位最大值)，若查詢失敗則回傳預設值
         """
         latest_primary: Any = SQLiteUtils.get_table_latest_value(
@@ -150,3 +153,32 @@ class SQLiteUtils:
             return default_primary_value, default_secondary_value
 
         return int(latest_primary), int(latest_secondary)
+
+    @staticmethod
+    def drop_table(conn: sqlite3.Connection, table_name: str) -> bool:
+        """
+        - Description:
+            刪除指定 SQLite 資料庫中的資料表。
+
+        - Parameters:
+            conn (sqlite3.Connection): 資料庫連線
+            table_name (str): 要刪除的資料表名稱
+
+        - Returns:
+            bool: True if table dropped successfully, False otherwise
+        """
+        try:
+            # 先檢查 table 是否存在
+            if not SQLiteUtils.check_table_exist(conn=conn, table_name=table_name):
+                logger.warning(f"Table '{table_name}' does not exist. Skip drop.")
+                return False
+
+            query: str = f"DROP TABLE IF EXISTS {table_name}"
+            conn.execute(query)
+            conn.commit()
+            logger.info(f"Table '{table_name}' dropped successfully.")
+            return True
+
+        except sqlite3.Error as e:
+            logger.error(f"Failed to drop table '{table_name}': {e}")
+            return False

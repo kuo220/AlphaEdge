@@ -6,17 +6,17 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+from loguru import logger
 
-from trader.api import (
-    FinancialStatementAPI,
-    MonthlyRevenueReportAPI,
-    StockChipAPI,
-    StockPriceAPI,
-    StockTickAPI,
-)
+from trader.api.financial_statement_api import FinancialStatementAPI
+from trader.api.monthly_revenue_report_api import MonthlyRevenueReportAPI
+from trader.api.stock_chip_api import StockChipAPI
+from trader.api.stock_price_api import StockPriceAPI
+from trader.api.stock_tick_api import StockTickAPI
 from trader.models import StockAccount, StockOrder, StockQuote, StockTradeRecord
 from trader.strategies.stock import BaseStockStrategy
 from trader.utils import Action, Market, PositionType, Scale, Units
+from trader.utils.instrument import StockUtils
 from trader.utils.market_calendar import MarketCalendar
 
 
@@ -31,7 +31,7 @@ class MomentumStrategy(BaseStockStrategy):
         self.scale: Scale = Scale.DAY
 
         self.start_date: datetime.date = datetime.date(2020, 5, 1)
-        self.end_date: datetime.date = datetime.date(2020, 5, 10)
+        self.end_date: datetime.date = datetime.date(2020, 5, 30)
 
         self.setup_apis()
 
@@ -65,27 +65,38 @@ class MomentumStrategy(BaseStockStrategy):
         if self.max_holdings == 0:
             return []
 
-        yesterday: datetime.date = stock_quotes[0].date - datetime.timedelta(days=1)
-
-        if not MarketCalendar.check_stock_market_open(
-            data_api=self.price, date=yesterday
-        ):
-            return []
+        yesterday: datetime.date = MarketCalendar.get_last_trading_date(
+            api=self.price, date=stock_quotes[0].date
+        )
 
         yesterday_prices: pd.DataFrame = self.price.get(yesterday)
 
         for stock_quote in stock_quotes:
             # Condition 1: 當日漲 > 9% 的股票
             mask: pd.Series = yesterday_prices["stock_id"] == stock_quote.stock_id
-            close_price: float = yesterday_prices.loc[mask, "收盤價"].iloc[0]
+            if yesterday_prices.loc[mask, "收盤價"].empty:
+                logger.warning(f"股票 {stock_quote.stock_id} {yesterday} 收盤價為空")
+                continue
+            yesterday_close_price: float = yesterday_prices.loc[mask, "收盤價"].iloc[0]
 
-            price_chg: float = (stock_quote.close / close_price - 1) * 100
+            if yesterday_close_price == 0:
+                logger.warning(
+                    f"股票 {stock_quote.stock_id} {yesterday} 收盤價為 0 或 None"
+                )
+                continue
+
+            logger.info(f"昨天收盤價: {yesterday_close_price}")
+            logger.info(f"今天收盤價: {stock_quote.close}")
+
+            price_chg: float = (stock_quote.close / yesterday_close_price - 1) * 100
 
             if price_chg < 9:
                 continue
-
+            logger.info(
+                f"股票 {stock_quote.stock_id} 符合條件，漲幅 {round(price_chg, 2)}%"
+            )
             # Condition 2: Volume > 5000 Lot
-            if stock_quote.volume < 5000 * Units.LOT:
+            if stock_quote.volume < 5000:
                 continue
 
             open_positions.append(stock_quote)
@@ -101,7 +112,7 @@ class MomentumStrategy(BaseStockStrategy):
             if self.account.check_has_position(stock_quote.stock_id):
                 if stock_quote.date >= self.account.get_first_open_position(
                     stock_quote.stock_id
-                ).date + datetime.timedelta(days=1):
+                ).buy_date + datetime.timedelta(days=1):
                     close_positions.append(stock_quote)
 
         return self.calculate_position_size(close_positions, Action.CLOSE)
@@ -129,8 +140,10 @@ class MomentumStrategy(BaseStockStrategy):
                 per_position_size: float = self.account.balance / available_position_cnt
 
                 for stock_quote in stock_quotes:
-                    # Unit: Shares
-                    open_volume: int = int(per_position_size / stock_quote.close)
+                    # 計算可買張數：可用資金 / 每張價格
+                    open_volume: int = int(
+                        per_position_size / (stock_quote.close * Units.LOT)
+                    )
 
                     if open_volume >= 1:
                         orders.append(
@@ -157,7 +170,7 @@ class MomentumStrategy(BaseStockStrategy):
                         stock_id=stock_quote.stock_id,
                         date=stock_quote.date,
                         price=stock_quote.cur_price,
-                        volume=position.volume,
+                        volume=position.buy_volume,
                         position_type=position.position_type,
                     )
                 )
