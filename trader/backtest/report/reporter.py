@@ -47,7 +47,7 @@ class StockBacktestReporter(BaseBacktestReporter):
 
         self.price: StockPriceAPI = StockPriceAPI()
 
-    def generate_report_df(self) -> pd.DataFrame:
+    def generate_trading_report(self) -> pd.DataFrame:
         """生成回測報告 DataFrame"""
 
         # Step 1: 產生完整日期清單
@@ -91,7 +91,7 @@ class StockBacktestReporter(BaseBacktestReporter):
     def plot_balance_curve(self) -> None:
         """繪製總資金曲線圖（總資金隨時間變化）"""
 
-        df: pd.DataFrame = self.generate_report_df()
+        df: pd.DataFrame = self.generate_trading_report()
 
         # TODO: 需處理日期顯示過於密集的問題
         # Plot Balance Curve

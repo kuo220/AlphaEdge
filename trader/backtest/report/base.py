@@ -22,7 +22,7 @@ class BaseBacktestReporter(ABC):
         pass
 
     @abstractmethod
-    def generate_report_df(self) -> pd.DataFrame:
+    def generate_trading_report(self) -> pd.DataFrame:
         """生成回測報告 DataFrame"""
         pass
 
