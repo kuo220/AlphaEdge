@@ -19,11 +19,11 @@ class TickQuote:
         stock_id: str = "",
         time: pd.Timestamp = None,
         close: float = 0.0,
-        volume: int = 0,
+        volume: int = 0,  # Unit: Lot
         bid_price: float = 0.0,
-        bid_volume: int = 0,
+        bid_volume: int = 0,  # Unit: Lot
         ask_price: float = 0.0,
-        ask_volume: int = 0,
+        ask_volume: int = 0,  # Unit: Lot
         tick_type: int = 0,
     ):
         # Basic Info
@@ -32,7 +32,7 @@ class TickQuote:
 
         # Current Price & Volume
         self.close: float = close  # 成交價
-        self.volume: float = volume  # 成交量（Unit: Lot）
+        self.volume: int = volume  # 成交量（Unit: Lot）
 
         # Bid & Ask Price & Volume
         self.bid_price: float = bid_price  # 委買價
@@ -53,7 +53,7 @@ class StockQuote:
         scale: Scale = None,
         date: datetime.datetime = None,
         cur_price: float = 0.0,
-        volume: float = 0.0,
+        volume: int = 0,  # Unit: Lot
         open: float = 0.0,
         high: float = 0.0,
         low: float = 0.0,
@@ -67,7 +67,7 @@ class StockQuote:
 
         # Current Price & Volume
         self.cur_price: float = cur_price  # Current price
-        self.volume: float = volume  # order's volume (Unit: Shares)
+        self.volume: int = volume  # order's volume (Unit: Lot)
 
         # OHLC Info
         self.open: float = open  # Open price

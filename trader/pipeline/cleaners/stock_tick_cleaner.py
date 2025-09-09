@@ -56,7 +56,20 @@ class StockTickCleaner(BaseDataCleaner):
         df: pd.DataFrame,
         stock_id: str,
     ) -> pd.DataFrame:
-        """統一 tick data 的格式"""
+        """
+        - Description:
+            統一 tick data 的格式
+        - Parameters:
+            - df: pd.DataFrame
+                tick data
+            - stock_id: str
+                股票代號
+        - Returns:
+            - pd.DataFrame
+                統一後的 tick data
+        - Notes:
+            - Volume: Unit: Lot
+        """
 
         df.rename(columns={"ts": "time"}, inplace=True)
         df["stock_id"] = stock_id

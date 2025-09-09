@@ -19,10 +19,10 @@ class StockTradeRecord:
         position_type: PositionType = PositionType.LONG,
         buy_date: datetime.date = None,
         buy_price: float = 0.0,
-        buy_volume: float = 0.0,
+        buy_volume: int = 0,
         sell_date: datetime.date = None,
         sell_price: float = 0.0,
-        sell_volume: float = 0.0,
+        sell_volume: int = 0,
         commission: float = 0.0,
         tax: float = 0.0,
         transaction_cost: float = 0.0,
@@ -40,12 +40,12 @@ class StockTradeRecord:
         # Buy Info
         self.buy_date: datetime.date = buy_date  # 買入日期
         self.buy_price: float = buy_price  # 買入價位
-        self.buy_volume: float = buy_volume  # 買入張數
+        self.buy_volume: int = buy_volume  # 買入張數
 
         # Sell Info
         self.sell_date: datetime.date = sell_date  # 賣出日期
         self.sell_price: float = sell_price  # 賣出價位
-        self.sell_volume: float = sell_volume  # 賣出張數
+        self.sell_volume: int = sell_volume  # 賣出張數
 
         # Transaction Costs
         self.commission: float = commission  # 交易手續費

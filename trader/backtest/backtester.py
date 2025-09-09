@@ -237,9 +237,12 @@ class Backtester:
         """
 
         # Step 1: Calculate position value and open cost
-        position_value: float = stock_order.price * stock_order.volume
+        position_value: float = stock_order.price * StockUtils.convert_lot_to_share(
+            stock_order.volume
+        )
         open_cost: float = StockUtils.calculate_transaction_commission(
-            price=stock_order.price, volume=stock_order.volume
+            price=stock_order.price,
+            volume=StockUtils.convert_lot_to_share(stock_order.volume),
         )
 
         # Step 2: Create position
@@ -279,9 +282,12 @@ class Backtester:
         """
 
         # Step 1: Calculate position value and close cost
-        position_value: float = stock_order.price * stock_order.volume
+        position_value: float = stock_order.price * StockUtils.convert_lot_to_share(
+            stock_order.volume
+        )
         close_cost: float = StockUtils.calculate_transaction_commission(
-            price=stock_order.price, volume=stock_order.volume
+            price=stock_order.price,
+            volume=StockUtils.convert_lot_to_share(stock_order.volume),
         )
 
         # Step 2: Find the first open position of the stock (FIFO)
@@ -300,17 +306,22 @@ class Backtester:
                 position.sell_volume = stock_order.volume
                 position.commission += close_cost
                 position.tax = StockUtils.calculate_transaction_tax(
-                    stock_order.price, stock_order.volume
+                    stock_order.price,
+                    StockUtils.convert_lot_to_share(position.sell_volume),
                 )
                 position.transaction_cost = position.commission + position.tax
                 position.realized_pnl = StockUtils.calculate_net_profit(
-                    position.buy_price, position.sell_price, position.sell_volume
+                    position.buy_price,
+                    position.sell_price,
+                    StockUtils.convert_lot_to_share(position.sell_volume),
                 )
 
                 logger.info(f"Realized PnL: {position.realized_pnl}")
 
                 position.roi = StockUtils.calculate_roi(
-                    position.buy_price, position.sell_price, position.sell_volume
+                    position.buy_price,
+                    position.sell_price,
+                    StockUtils.convert_lot_to_share(position.sell_volume),
                 )
 
                 self.account.balance += position_value - close_cost

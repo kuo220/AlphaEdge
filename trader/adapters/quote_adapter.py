@@ -139,6 +139,10 @@ class StockQuoteAdapter:
         - Returns:
             - StockQuote
                 建立後的 StockQuote 物件
+        - Notes:
+            - Volume:
+                - Scale.TICK: Unit 資料原本就是 Lot
+                - Scale.DAY: Unit: Shares
         """
 
         if scale == Scale.TICK:
@@ -163,7 +167,7 @@ class StockQuoteAdapter:
                 scale=scale,
                 date=date,
                 cur_price=data.收盤價,
-                volume=data.成交股數,
+                volume=StockUtils.convert_share_to_lot(data.成交股數),
                 open=data.開盤價,
                 high=data.最高價,
                 low=data.最低價,

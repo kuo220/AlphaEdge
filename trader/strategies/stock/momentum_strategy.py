@@ -16,6 +16,7 @@ from trader.api.stock_tick_api import StockTickAPI
 from trader.models import StockAccount, StockOrder, StockQuote, StockTradeRecord
 from trader.strategies.stock import BaseStockStrategy
 from trader.utils import Action, Market, PositionType, Scale, Units
+from trader.utils.instrument import StockUtils
 from trader.utils.market_calendar import MarketCalendar
 
 
@@ -91,9 +92,11 @@ class MomentumStrategy(BaseStockStrategy):
 
             if price_chg < 9:
                 continue
-            logger.info(f"股票 {stock_quote.stock_id} 符合條件，漲幅 {round(price_chg, 2)}%")
+            logger.info(
+                f"股票 {stock_quote.stock_id} 符合條件，漲幅 {round(price_chg, 2)}%"
+            )
             # Condition 2: Volume > 5000 Lot
-            if stock_quote.volume < 5000 * Units.LOT:
+            if stock_quote.volume < 5000:
                 continue
 
             open_positions.append(stock_quote)
@@ -137,8 +140,10 @@ class MomentumStrategy(BaseStockStrategy):
                 per_position_size: float = self.account.balance / available_position_cnt
 
                 for stock_quote in stock_quotes:
-                    # Unit: Lot
-                    open_volume: int = int(per_position_size / (stock_quote.close * Units.LOT))
+                    # 計算可買張數：可用資金 / 每張價格
+                    open_volume: int = int(
+                        per_position_size / (stock_quote.close * Units.LOT)
+                    )
 
                     if open_volume >= 1:
                         orders.append(
