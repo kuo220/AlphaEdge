@@ -94,6 +94,9 @@ class StockChipLoader(BaseDataLoader):
         if self.conn is None:
             self.connect()
 
+        # Ensure Database Table Exists
+        self.create_missing_tables()
+
         file_cnt: int = 0
         for file_path in self.chip_dir.iterdir():
             # Skip non-CSV files

@@ -10,7 +10,6 @@ from loguru import logger
 from trader.pipeline.crawlers.base import BaseDataCrawler
 from trader.pipeline.crawlers.utils.request_utils import RequestUtils
 from trader.pipeline.utils import URLManager
-from trader.pipeline.utils.data_utils import DataUtils
 from trader.utils import TimeUtils
 
 """

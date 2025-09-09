@@ -16,7 +16,7 @@ class StockOrder:
         stock_id: str = "",
         date: datetime.datetime = None,
         price: float = 0.0,
-        volume: float = 0.0,
+        volume: int = 0,  # Unit: Lot
         position_type: PositionType = PositionType.LONG,
     ):
         # Basic Info
@@ -25,5 +25,5 @@ class StockOrder:
 
         # Order Info
         self.price: float = price  # 交易價位
-        self.volume: float = volume  # 交易股數（Unit: Shares）
+        self.volume: int = volume  # 交易張數（Unit: Lot）
         self.position_type: PositionType = position_type  # 持倉方向（Long or Short）

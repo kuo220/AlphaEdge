@@ -63,6 +63,9 @@ class StockPriceCleaner(BaseDataCleaner):
             keep="first",
         )
 
+        # Replace NaN with 0
+        df = DataUtils.fill_nan(df, 0)
+
         df.to_csv(
             self.price_dir / f"twse_{TimeUtils.format_date(date)}.csv",
             index=False,
@@ -136,6 +139,9 @@ class StockPriceCleaner(BaseDataCleaner):
             subset=["date", "stock_id", "證券名稱"],
             keep="first",
         )
+
+        # Replace NaN with 0
+        df = DataUtils.fill_nan(df, 0)
 
         df.to_csv(
             self.price_dir / f"tpex_{TimeUtils.format_date(date)}.csv",
