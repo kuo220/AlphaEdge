@@ -242,9 +242,9 @@ class Backtester:
         position_value: float = stock_order.price * StockUtils.convert_lot_to_share(
             stock_order.volume
         )
-        open_cost: float = StockUtils.calculate_transaction_commission(
-            price=stock_order.price,
-            volume=StockUtils.convert_lot_to_share(stock_order.volume),
+        open_cost, _ = StockUtils.calculate_transaction_cost(
+            buy_price=stock_order.price,
+            volume=stock_order.volume,
         )
 
         # Step 2: Create position
@@ -283,10 +283,87 @@ class Backtester:
                 實際被平倉的所有倉位（可能為多筆）
         """
 
-        # TODO: 需要處理倉位的拆分情況
-
         # 儲存此次平倉產生的所有倉位紀錄
-        positions: List[StockTradeRecord] = []
+        close_positions: List[StockTradeRecord] = []
+
+        # 從帳戶抓出所有尚未平倉的該股票倉位（FIFO）
+        open_positions: List[StockTradeRecord] = [
+            p for p in self.account.positions
+            if p.stock_id == stock_order.stock_id and not p.is_closed
+        ]
+
+        for position in open_positions:
+            if position.buy_volume == stock_order.volume:
+
+                # Step 1: Calculate position value and close cost
+                position_value: float = stock_order.price * StockUtils.convert_lot_to_share(
+                    stock_order.volume
+                )
+                close_cost: float = StockUtils.calculate_transaction_commission(
+                    price=stock_order.price,
+                    volume=stock_order.volume,
+                )
+
+                # Step 2: Find the first open position of the stock (FIFO)
+                position: Optional[StockTradeRecord] = self.account.get_first_open_position(
+                    stock_order.stock_id
+                )
+
+                # Step 3: Execute close order & update account
+                if position is not None and not position.is_closed:
+                    logger.info(f"* Place Close Order: {stock_order.stock_id}")
+
+                    if position.position_type == PositionType.LONG:
+                        position.is_closed = True
+                        position.sell_date = stock_order.date
+                        position.sell_price = stock_order.price
+                        position.sell_volume = stock_order.volume
+                        position.commission += close_cost
+                        position.tax = StockUtils.calculate_transaction_tax(
+                            stock_order.price,
+                            position.sell_volume,
+                        )
+                        position.transaction_cost = position.commission + position.tax
+                        position.realized_pnl = StockUtils.calculate_net_profit(
+                            position.buy_price,
+                            position.sell_price,
+                            StockUtils.convert_lot_to_share(position.sell_volume),
+                        )
+
+                        logger.info(f"Realized PnL: {position.realized_pnl}")
+
+                        position.roi = StockUtils.calculate_roi(
+                            position.buy_price,
+                            position.sell_price,
+                            StockUtils.convert_lot_to_share(position.sell_volume),
+                        )
+
+                        self.account.balance += position_value - close_cost
+                        self.account.realized_pnl += position.realized_pnl
+                        self.account.trade_records[position.id] = (
+                            position  # 根據 position.id 更新 trade_records 中對應到的 position
+                        )
+                        self.account.positions = [
+                            p for p in self.account.positions if p.id != position.id
+                        ]  # 每一筆開倉的部位都會記錄一個 id，因此這邊只會刪除對應到 id 的部位
+
+        return close_positions
+
+
+
+
+    def place_close_order(self, stock_order: StockOrder) -> List[StockTradeRecord]:
+        """
+        - Description: 下單平倉股票（支援 FIFO 拆倉與部分平倉）
+        - Parameters:
+            - stock_order: StockOrder
+                目標股票的訂單資訊
+        - Return:
+            - closed_positions: List[StockTradeRecord]
+                實際被平倉的所有倉位（可能為多筆）
+        """
+
+        # TODO: 需要處理倉位的拆分情況
 
         # Step 1: Calculate position value and close cost
         position_value: float = stock_order.price * StockUtils.convert_lot_to_share(
@@ -294,7 +371,7 @@ class Backtester:
         )
         close_cost: float = StockUtils.calculate_transaction_commission(
             price=stock_order.price,
-            volume=StockUtils.convert_lot_to_share(stock_order.volume),
+            volume=stock_order.volume,
         )
 
         # Step 2: Find the first open position of the stock (FIFO)
@@ -314,7 +391,7 @@ class Backtester:
                 position.commission += close_cost
                 position.tax = StockUtils.calculate_transaction_tax(
                     stock_order.price,
-                    StockUtils.convert_lot_to_share(position.sell_volume),
+                    position.sell_volume,
                 )
                 position.transaction_cost = position.commission + position.tax
                 position.realized_pnl = StockUtils.calculate_net_profit(
