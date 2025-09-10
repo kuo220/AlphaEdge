@@ -41,8 +41,8 @@ class StockAccount:
             {}
         )  # 股票歷史交易紀錄 Ex: {id: StockTradeRecord}
 
-    def get_next_trade_id(self) -> int:
-        """取得下一筆交易編號"""
+    def generate_trade_id(self) -> int:
+        """生成下一筆交易編號"""
 
         self.trade_id_counter += 1
         return self.trade_id_counter

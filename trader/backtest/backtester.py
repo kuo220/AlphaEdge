@@ -256,7 +256,7 @@ class Backtester:
                 logger.info(f"* Place Open Order: {stock_order.stock_id}")
 
                 position = StockTradeRecord(
-                    id=self.account.get_next_trade_id(),
+                    id=self.account.generate_trade_id(),
                     stock_id=stock_order.stock_id,
                     position_type=stock_order.position_type,
                     buy_date=stock_order.date,
