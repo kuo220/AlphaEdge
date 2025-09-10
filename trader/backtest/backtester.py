@@ -288,7 +288,8 @@ class Backtester:
 
         # 從帳戶抓出所有尚未平倉的該股票倉位（FIFO）
         open_positions: List[StockTradeRecord] = [
-            p for p in self.account.positions
+            p
+            for p in self.account.positions
             if p.stock_id == stock_order.stock_id and not p.is_closed
         ]
 
@@ -296,8 +297,9 @@ class Backtester:
             if position.buy_volume == stock_order.volume:
 
                 # Step 1: Calculate position value and close cost
-                position_value: float = stock_order.price * StockUtils.convert_lot_to_share(
-                    stock_order.volume
+                position_value: float = (
+                    stock_order.price
+                    * StockUtils.convert_lot_to_share(stock_order.volume)
                 )
                 close_cost: float = StockUtils.calculate_transaction_commission(
                     price=stock_order.price,
@@ -305,8 +307,8 @@ class Backtester:
                 )
 
                 # Step 2: Find the first open position of the stock (FIFO)
-                position: Optional[StockTradeRecord] = self.account.get_first_open_position(
-                    stock_order.stock_id
+                position: Optional[StockTradeRecord] = (
+                    self.account.get_first_open_position(stock_order.stock_id)
                 )
 
                 # Step 3: Execute close order & update account
@@ -348,9 +350,6 @@ class Backtester:
                         ]  # 每一筆開倉的部位都會記錄一個 id，因此這邊只會刪除對應到 id 的部位
 
         return close_positions
-
-
-
 
     def place_close_order(self, stock_order: StockOrder) -> List[StockTradeRecord]:
         """

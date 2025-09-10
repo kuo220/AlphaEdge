@@ -90,7 +90,7 @@ class StockUtils:
         return int(lots * Units.LOT)
 
     @staticmethod
-    def calculate_transaction_commission(price: float=0.0, volume: int=0) -> int:
+    def calculate_transaction_commission(price: float = 0.0, volume: int = 0) -> int:
         """
         - Description:
             計算股票買賣時的手續費
@@ -109,11 +109,16 @@ class StockUtils:
         """
         return max(
             Commission.MinFee,
-            int(price * StockUtils.convert_lot_to_share(volume) * Commission.CommRate * Commission.Discount),
+            int(
+                price
+                * StockUtils.convert_lot_to_share(volume)
+                * Commission.CommRate
+                * Commission.Discount
+            ),
         )
 
     @staticmethod
-    def calculate_transaction_tax(price: float=0.0, volume: int=0) -> int:
+    def calculate_transaction_tax(price: float = 0.0, volume: int = 0) -> int:
         """
         - Description:
             計算股票賣出時的交易稅
@@ -129,13 +134,15 @@ class StockUtils:
             For long position, the tax cost:
             - sell tax (券賣證交稅 = 成交價 x 成交股數 x 證交稅率)
         """
-        return max(1, int(price * StockUtils.convert_lot_to_share(volume) * Commission.TaxRate))
+        return max(
+            1, int(price * StockUtils.convert_lot_to_share(volume) * Commission.TaxRate)
+        )
 
     @staticmethod
     def calculate_transaction_cost(
-        buy_price: float=0.0,
-        sell_price: float=0.0,
-        volume: int=0,
+        buy_price: float = 0.0,
+        sell_price: float = 0.0,
+        volume: int = 0,
     ) -> Tuple[int, int]:
         """
         - Description:
@@ -192,7 +199,9 @@ class StockUtils:
 
         # 買入 & 賣出手續費
         buy_comm, sell_comm = StockUtils.calculate_transaction_cost(
-            buy_price=buy_price, sell_price=sell_price, volume=volume,
+            buy_price=buy_price,
+            sell_price=sell_price,
+            volume=volume,
         )
 
         profit: float = (sell_value - buy_value) - (buy_comm + sell_comm)
@@ -220,7 +229,9 @@ class StockUtils:
 
         buy_value: float = buy_price * StockUtils.convert_lot_to_share(volume)
         buy_comm, _ = StockUtils.calculate_transaction_cost(
-            buy_price=buy_price, sell_price=sell_price, volume=volume,
+            buy_price=buy_price,
+            sell_price=sell_price,
+            volume=volume,
         )
 
         # 計算投資成本
@@ -229,7 +240,9 @@ class StockUtils:
             return 0.0
 
         roi: float = (
-            StockUtils.calculate_net_profit(buy_price=buy_price, sell_price=sell_price, volume=volume)
+            StockUtils.calculate_net_profit(
+                buy_price=buy_price, sell_price=sell_price, volume=volume
+            )
             / investment_cost
         ) * 100
         return round(roi, 2)
