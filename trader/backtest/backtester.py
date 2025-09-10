@@ -256,7 +256,7 @@ class Backtester:
                 logger.info(f"* Place Open Order: {stock_order.stock_id}")
 
                 position = StockTradeRecord(
-                    id=self.account.trade_id_counter,
+                    id=self.account.get_next_trade_id(),
                     stock_id=stock_order.stock_id,
                     position_type=stock_order.position_type,
                     buy_date=stock_order.date,
@@ -266,22 +266,27 @@ class Backtester:
                     transaction_cost=open_cost,
                 )
 
-                self.account.trade_id_counter += 1
                 self.account.balance -= position_value + open_cost
                 self.account.positions.append(position)
                 self.account.trade_records[position.id] = position
 
         return position
 
-    def place_close_order(self, stock_order: StockOrder) -> Optional[StockTradeRecord]:
+    def place_close_order(self, stock_order: StockOrder) -> List[StockTradeRecord]:
         """
-        - Description: 下單平倉股票
+        - Description: 下單平倉股票（支援 FIFO 拆倉與部分平倉）
         - Parameters:
             - stock_order: StockOrder
                 目標股票的訂單資訊
         - Return:
-            - position: StockTradeRecord
+            - closed_positions: List[StockTradeRecord]
+                實際被平倉的所有倉位（可能為多筆）
         """
+
+        # TODO: 需要處理倉位的拆分情況
+
+        # 儲存此次平倉產生的所有倉位紀錄
+        positions: List[StockTradeRecord] = []
 
         # Step 1: Calculate position value and close cost
         position_value: float = stock_order.price * StockUtils.convert_lot_to_share(
