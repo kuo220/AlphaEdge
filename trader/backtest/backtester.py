@@ -14,12 +14,12 @@ from trader.api.stock_price_api import StockPriceAPI
 from trader.api.stock_tick_api import StockTickAPI
 from trader.backtest.analysis.analyzer import StockBacktestAnalyzer
 from trader.backtest.report.reporter import StockBacktestReporter
-from trader.config import BACKTEST_LOGS_DIR_PATH, BACKTEST_RESULT_DIR_PATH
+from trader.managers.stock.position.position_manager import StockPositionManager
 from trader.models import (
     StockAccount,
     StockOrder,
-    StockQuote,
     StockPosition,
+    StockQuote,
     StockTradeRecord,
     TickQuote,
 )
@@ -27,6 +27,7 @@ from trader.strategies.stock import BaseStockStrategy
 from trader.utils import Action, PositionType, Scale, TimeUtils
 from trader.utils.instrument import StockUtils
 from trader.utils.market_calendar import MarketCalendar
+from trader.config import BACKTEST_LOGS_DIR_PATH, BACKTEST_RESULT_DIR_PATH
 
 """
 Backtesting engine that simulates trading based on strategy signals.
@@ -55,6 +56,9 @@ class Backtester:
             self.strategy.init_capital
         )  # 虛擬帳戶資訊
         self.strategy.setup_account(self.account)  # 設置虛擬帳戶資訊
+
+        """ === Position Manager === """
+        self.position_manager: StockPositionManager = StockPositionManager(self.account)  # 設置倉位管理器
 
         """ === Datasets === """
         self.tick: Optional[StockTickAPI] = None  # Ticks data
@@ -382,71 +386,6 @@ class Backtester:
                     pass
 
         return close_positions
-
-    # def place_close_order(self, stock_order: StockOrder) -> List[StockTradeRecord]:
-    #     """
-    #     - Description: 下單平倉股票（支援 FIFO 拆倉與部分平倉）
-    #     - Parameters:
-    #         - stock_order: StockOrder
-    #             目標股票的訂單資訊
-    #     - Return:
-    #         - closed_positions: List[StockTradeRecord]
-    #             實際被平倉的所有倉位（可能為多筆）
-    #     """
-
-    #     # Step 1: Calculate position value and close cost
-    #     position_value: float = stock_order.price * StockUtils.convert_lot_to_share(
-    #         stock_order.volume
-    #     )
-    #     close_cost: float = StockUtils.calculate_transaction_commission(
-    #         price=stock_order.price,
-    #         volume=stock_order.volume,
-    #     )
-
-    #     # Step 2: Find the first open position of the stock (FIFO)
-    #     position: Optional[StockTradeRecord] = self.account.get_first_open_position(
-    #         stock_order.stock_id
-    #     )
-
-    #     # Step 3: Execute close order & update account
-    #     if position is not None and not position.is_closed:
-    #         logger.info(f"* Place Close Order: {stock_order.stock_id}")
-
-    #         if position.position_type == PositionType.LONG:
-    #             position.is_closed = True
-    #             position.sell_date = stock_order.date
-    #             position.sell_price = stock_order.price
-    #             position.sell_volume = stock_order.volume
-    #             position.commission += close_cost
-    #             position.tax = StockUtils.calculate_transaction_tax(
-    #                 stock_order.price,
-    #                 position.sell_volume,
-    #             )
-    #             position.transaction_cost = position.commission + position.tax
-    #             position.realized_pnl = StockUtils.calculate_net_profit(
-    #                 position.buy_price,
-    #                 position.sell_price,
-    #                 StockUtils.convert_lot_to_share(position.sell_volume),
-    #             )
-
-    #             logger.info(f"Realized PnL: {position.realized_pnl}")
-
-    #             position.roi = StockUtils.calculate_roi(
-    #                 position.buy_price,
-    #                 position.sell_price,
-    #                 StockUtils.convert_lot_to_share(position.sell_volume),
-    #             )
-
-    #             self.account.balance += position_value - close_cost
-    #             self.account.realized_pnl += position.realized_pnl
-    #             self.account.trade_records[position.id] = (
-    #                 position  # 根據 position.id 更新 trade_records 中對應到的 position
-    #             )
-    #             self.account.positions = [
-    #                 p for p in self.account.positions if p.id != position.id
-    #             ]  # 每一筆開倉的部位都會記錄一個 id，因此這邊只會刪除對應到 id 的部位
-
-    #     return position
 
     # === Report ===
     def generate_backtest_report(self) -> None:
