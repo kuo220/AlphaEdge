@@ -238,13 +238,9 @@ class Backtester:
             - position: StockTradeRecord
         """
 
-        # Step 1: Calculate position value and open cost
+        # Step 1: Calculate position value
         position_value: float = stock_order.price * StockUtils.convert_lot_to_share(
             stock_order.volume
-        )
-        open_cost, _ = StockUtils.calculate_transaction_cost(
-            buy_price=stock_order.price,
-            volume=stock_order.volume,
         )
 
         # Step 2: Create position
@@ -252,6 +248,11 @@ class Backtester:
 
         # Step 3: Execute open order & update account
         if stock_order.position_type == PositionType.LONG:
+            open_cost, _ = StockUtils.calculate_transaction_cost(
+                buy_price=stock_order.price,
+                volume=stock_order.volume,
+            )
+
             if self.account.balance >= (position_value + open_cost):
                 logger.info(f"* Place Open Order: {stock_order.stock_id}")
 
@@ -282,6 +283,7 @@ class Backtester:
             - closed_positions: List[StockTradeRecord]
                 實際被平倉的所有倉位（可能為多筆）
         """
+        # TODO: 需要處理倉位的拆分情況
 
         # 儲存此次平倉產生的所有倉位紀錄
         close_positions: List[StockTradeRecord] = []
@@ -294,60 +296,57 @@ class Backtester:
         ]
 
         for position in open_positions:
-            if position.buy_volume == stock_order.volume:
+            # 如果倉位張數與要平倉張數相同，則直接平倉
+            if stock_order.position_type == PositionType.LONG:
+                if position.buy_volume == stock_order.volume:
 
-                # Step 1: Calculate position value and close cost
-                position_value: float = (
-                    stock_order.price
-                    * StockUtils.convert_lot_to_share(stock_order.volume)
-                )
-                close_cost: float = StockUtils.calculate_transaction_commission(
-                    price=stock_order.price,
-                    volume=stock_order.volume,
-                )
+                    # Step 1: Calculate position value and close cost
+                    position_value: float = (
+                        stock_order.price
+                        * StockUtils.convert_lot_to_share(stock_order.volume)
+                    )
+                    close_cost: float = StockUtils.calculate_transaction_commission(
+                        price=stock_order.price,
+                        volume=stock_order.volume,
+                    )
 
-                # Step 2: Find the first open position of the stock (FIFO)
-                position: Optional[StockTradeRecord] = (
-                    self.account.get_first_open_position(stock_order.stock_id)
-                )
+                    # Step 3: Execute close order & update account
+                    if position is not None and not position.is_closed:
+                        logger.info(f"* Place Close Order: {stock_order.stock_id}")
 
-                # Step 3: Execute close order & update account
-                if position is not None and not position.is_closed:
-                    logger.info(f"* Place Close Order: {stock_order.stock_id}")
+                        if position.position_type == PositionType.LONG:
+                            position.is_closed = True
+                            position.sell_date = stock_order.date
+                            position.sell_price = stock_order.price
+                            position.sell_volume = stock_order.volume
+                            position.commission += close_cost
+                            position.tax = StockUtils.calculate_transaction_tax(
+                                stock_order.price,
+                                position.sell_volume,
+                            )
+                            position.transaction_cost = position.commission + position.tax
+                            position.realized_pnl = StockUtils.calculate_net_profit(
+                                position.buy_price,
+                                position.sell_price,
+                                StockUtils.convert_lot_to_share(position.sell_volume),
+                            )
 
-                    if position.position_type == PositionType.LONG:
-                        position.is_closed = True
-                        position.sell_date = stock_order.date
-                        position.sell_price = stock_order.price
-                        position.sell_volume = stock_order.volume
-                        position.commission += close_cost
-                        position.tax = StockUtils.calculate_transaction_tax(
-                            stock_order.price,
-                            position.sell_volume,
-                        )
-                        position.transaction_cost = position.commission + position.tax
-                        position.realized_pnl = StockUtils.calculate_net_profit(
-                            position.buy_price,
-                            position.sell_price,
-                            StockUtils.convert_lot_to_share(position.sell_volume),
-                        )
+                            logger.info(f"Realized PnL: {position.realized_pnl}")
 
-                        logger.info(f"Realized PnL: {position.realized_pnl}")
+                            position.roi = StockUtils.calculate_roi(
+                                position.buy_price,
+                                position.sell_price,
+                                StockUtils.convert_lot_to_share(position.sell_volume),
+                            )
 
-                        position.roi = StockUtils.calculate_roi(
-                            position.buy_price,
-                            position.sell_price,
-                            StockUtils.convert_lot_to_share(position.sell_volume),
-                        )
-
-                        self.account.balance += position_value - close_cost
-                        self.account.realized_pnl += position.realized_pnl
-                        self.account.trade_records[position.id] = (
-                            position  # 根據 position.id 更新 trade_records 中對應到的 position
-                        )
-                        self.account.positions = [
-                            p for p in self.account.positions if p.id != position.id
-                        ]  # 每一筆開倉的部位都會記錄一個 id，因此這邊只會刪除對應到 id 的部位
+                            self.account.balance += position_value - close_cost
+                            self.account.realized_pnl += position.realized_pnl
+                            self.account.trade_records[position.id] = (
+                                position  # 根據 position.id 更新 trade_records 中對應到的 position
+                            )
+                            self.account.positions = [
+                                p for p in self.account.positions if p.id != position.id
+                            ]  # 每一筆開倉的部位都會記錄一個 id，因此這邊只會刪除對應到 id 的部位
 
         return close_positions
 
@@ -361,8 +360,6 @@ class Backtester:
             - closed_positions: List[StockTradeRecord]
                 實際被平倉的所有倉位（可能為多筆）
         """
-
-        # TODO: 需要處理倉位的拆分情況
 
         # Step 1: Calculate position value and close cost
         position_value: float = stock_order.price * StockUtils.convert_lot_to_share(

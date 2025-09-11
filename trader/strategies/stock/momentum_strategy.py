@@ -101,7 +101,7 @@ class MomentumStrategy(BaseStockStrategy):
 
             open_positions.append(stock_quote)
 
-        return self.calculate_position_size(open_positions, Action.OPEN)
+        return self.calculate_position_size(open_positions, Action.BUY)
 
     def check_close_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
         """平倉策略（Long & Short）"""
@@ -115,7 +115,7 @@ class MomentumStrategy(BaseStockStrategy):
                 ).buy_date + datetime.timedelta(days=1):
                     close_positions.append(stock_quote)
 
-        return self.calculate_position_size(close_positions, Action.CLOSE)
+        return self.calculate_position_size(close_positions, Action.SELL)
 
     def check_stop_loss_signal(
         self, stock_quotes: List[StockQuote]
@@ -130,7 +130,7 @@ class MomentumStrategy(BaseStockStrategy):
 
         orders: List[StockOrder] = []
 
-        if action == Action.OPEN:
+        if action == Action.BUY:
             if self.max_holdings is not None:
                 available_position_cnt: int = max(
                     0, self.max_holdings - self.account.get_position_count()
@@ -150,16 +150,17 @@ class MomentumStrategy(BaseStockStrategy):
                             StockOrder(
                                 stock_id=stock_quote.stock_id,
                                 date=stock_quote.date,
-                                price=stock_quote.cur_price,
-                                volume=open_volume,
+                                action=action,
                                 position_type=PositionType.LONG,
+                                price=stock_quote.cur_price,
+                                volume=open_volume
                             )
                         )
                         available_position_cnt -= 1
 
                     if available_position_cnt == 0:
                         break
-        elif action == Action.CLOSE:
+        elif action == Action.SELL:
             for stock_quote in stock_quotes:
                 position: StockTradeRecord = self.account.get_first_open_position(
                     stock_quote.stock_id
@@ -169,9 +170,10 @@ class MomentumStrategy(BaseStockStrategy):
                     StockOrder(
                         stock_id=stock_quote.stock_id,
                         date=stock_quote.date,
+                        action=action,
+                        position_type=position.position_type,
                         price=stock_quote.cur_price,
                         volume=position.buy_volume,
-                        position_type=position.position_type,
                     )
                 )
         return orders
