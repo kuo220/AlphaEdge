@@ -1,0 +1,176 @@
+.
+├── README.md
+├── dev
+│   ├── env
+│   │   ├── quant_mac.yml
+│   │   └── quant_win.yml
+│   └── scripts
+│       ├── clean_pycache.ps1
+│       └── clean_pycache.sh
+├── kuo_test.ipynb
+├── run.py
+├── shioaji.log
+├── tasks
+│   ├── __init__.py
+│   └── update_db.py
+├── tick.png
+├── trader
+│   ├── __init__.py
+│   ├── adapters
+│   │   ├── __init__.py
+│   │   └── quote_adapter.py
+│   ├── api
+│   │   ├── __init__.py
+│   │   ├── base.py
+│   │   ├── financial_statement_api.py
+│   │   ├── monthly_revenue_report_api.py
+│   │   ├── old api
+│   │   │   ├── data.py
+│   │   │   └── qx_data.py
+│   │   ├── stock_chip_api.py
+│   │   ├── stock_price_api.py
+│   │   └── stock_tick_api.py
+│   ├── backtest
+│   │   ├── README.md
+│   │   ├── __init__.py
+│   │   ├── analysis
+│   │   │   ├── __init__.py
+│   │   │   ├── analyzer.py
+│   │   │   └── base.py
+│   │   ├── backtester.py
+│   │   ├── report
+│   │   │   ├── __init__.py
+│   │   │   ├── base.py
+│   │   │   └── reporter.py
+│   │   └── results
+│   │       ├── Momentum
+│   │       │   └── Momentum_trading_report.csv
+│   │       └── logs
+│   │           └── Momentum.log
+│   ├── certs
+│   │   └── certs.cer
+│   ├── config.py
+│   ├── data
+│   │   ├── managers
+│   │   └── utils
+│   ├── database
+│   │   └── data.db
+│   ├── logs
+│   │   ├── financial_statement_api.log
+│   │   ├── monthly_revenue_report_api.log
+│   │   ├── stock_chip_api.log
+│   │   ├── stock_price_api.log
+│   │   └── update_monthly_revenue_report.log
+│   ├── managers
+│   │   └── position
+│   │       ├── base.py
+│   │       └── position_manager.py
+│   ├── models
+│   │   ├── __init__.py
+│   │   └── stock
+│   │       ├── __init__.py
+│   │       ├── account.py
+│   │       ├── order.py
+│   │       ├── position.py
+│   │       ├── quote.py
+│   │       └── record.py
+│   ├── others
+│   │   ├── Ek_strategy.py
+│   │   └── task.py
+│   ├── pipeline
+│   │   ├── __init__.py
+│   │   ├── cleaners
+│   │   │   ├── __init__.py
+│   │   │   ├── base.py
+│   │   │   ├── financial_statement_cleaner.py
+│   │   │   ├── monthly_revenue_report_cleaner.py
+│   │   │   ├── stock_chip_cleaner.py
+│   │   │   ├── stock_price_cleaner.py
+│   │   │   └── stock_tick_cleaner.py
+│   │   ├── crawlers
+│   │   │   ├── __init__.py
+│   │   │   ├── base.py
+│   │   │   ├── financial_statement_crawler.py
+│   │   │   ├── monthly_revenue_report_crawler.py
+│   │   │   ├── qx_crawler.py
+│   │   │   ├── stock_chip_crawler.py
+│   │   │   ├── stock_info_crawler.py
+│   │   │   ├── stock_price_crawler.py
+│   │   │   ├── stock_tick_crawler.py
+│   │   │   └── utils
+│   │   │       ├── payload.py
+│   │   │       └── request_utils.py
+│   │   ├── downloads
+│   │   │   └── meta
+│   │   │       ├── financial_statement
+│   │   │       │   ├── balance_sheet
+│   │   │       │   │   ├── balance_sheet_all_columns.json
+│   │   │       │   │   ├── balance_sheet_cleaned_columns.json
+│   │   │       │   │   └── balance_sheet_column_map.json
+│   │   │       │   ├── cash_flow
+│   │   │       │   │   ├── cash_flow_all_columns.json
+│   │   │       │   │   ├── cash_flow_cleaned_columns.json
+│   │   │       │   │   └── cash_flow_column_map.json
+│   │   │       │   └── comprehensive_income
+│   │   │       │       ├── comprehensive_income_all_columns.json
+│   │   │       │       ├── comprehensive_income_cleaned_columns.json
+│   │   │       │       └── comprehensive_income_column_map.json
+│   │   │       ├── monthly_revenue_report
+│   │   │       │   ├── monthly_revenue_report_all_columns.json
+│   │   │       │   ├── monthly_revenue_report_cleaned_columns.json
+│   │   │       │   └── monthly_revenue_report_column_map.json
+│   │   │       └── tick
+│   │   │           ├── tick_metadata.json
+│   │   │           └── tick_metadata_backup.json
+│   │   ├── loaders
+│   │   │   ├── __init__.py
+│   │   │   ├── base.py
+│   │   │   ├── financial_statement_loader.py
+│   │   │   ├── monthly_revenue_report_loader.py
+│   │   │   ├── stock_chip_loader.py
+│   │   │   ├── stock_price_loader.py
+│   │   │   └── stock_tick_loader.py
+│   │   ├── others
+│   │   │   └── financial_statement_column_map.py
+│   │   ├── updaters
+│   │   │   ├── __init__.py
+│   │   │   ├── base.py
+│   │   │   ├── financial_statement_updater.py
+│   │   │   ├── monthly_revenue_report_updater.py
+│   │   │   ├── stock_chip_updater.py
+│   │   │   ├── stock_price_updater.py
+│   │   │   └── stock_tick_updater.py
+│   │   └── utils
+│   │       ├── __init__.py
+│   │       ├── constant.py
+│   │       ├── data_utils.py
+│   │       ├── sqlite_utils.py
+│   │       ├── stock_tick_utils.py
+│   │       └── url_manager.py
+│   ├── shioaji.log
+│   ├── strategies
+│   │   ├── README.md
+│   │   ├── __init__.py
+│   │   ├── stock
+│   │   │   ├── __init__.py
+│   │   │   ├── base.py
+│   │   │   └── momentum_strategy.py
+│   │   └── strategy_loader.py
+│   ├── tasks
+│   │   └── shioaji.log
+│   └── utils
+│       ├── __init__.py
+│       ├── account.py
+│       ├── callback.py
+│       ├── constant.py
+│       ├── decorators.py
+│       ├── instrument.py
+│       ├── market_calendar.py
+│       ├── notify.py
+│       ├── order.py
+│       ├── path.py
+│       └── time.py
+├── tree.txt
+└── update_db.ipynb
+
+46 directories, 128 files

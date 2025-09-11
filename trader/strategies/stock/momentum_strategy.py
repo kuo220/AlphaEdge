@@ -153,7 +153,7 @@ class MomentumStrategy(BaseStockStrategy):
                                 action=action,
                                 position_type=PositionType.LONG,
                                 price=stock_quote.cur_price,
-                                volume=open_volume
+                                volume=open_volume,
                             )
                         )
                         available_position_cnt -= 1

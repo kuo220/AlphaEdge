@@ -67,6 +67,12 @@ class StockAccount:
                 return position
         return None
 
+    def remove_positions_by_stock_id(self, stock_id: str) -> None:
+        """根據股票代號移除庫存中的部位"""
+        self.positions = [
+            position for position in self.positions if position.stock_id != stock_id
+        ]
+
     def check_has_position(self, stock_id: str) -> bool:
         """檢查指定的股票是否有在庫存"""
         return any(position.stock_id == stock_id for position in self.positions)
