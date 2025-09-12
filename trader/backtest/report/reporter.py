@@ -56,9 +56,6 @@ class StockBacktestReporter(BaseBacktestReporter):
         # Price data
         self.price: StockPriceAPI = StockPriceAPI()
 
-        # Trading report
-        self.trading_report: pd.DataFrame = self.generate_trading_report()
-
     def generate_trading_report(self) -> pd.DataFrame:
         """生成回測報告"""
 
@@ -114,21 +111,21 @@ class StockBacktestReporter(BaseBacktestReporter):
         self.save_report(df, f"{self.strategy.strategy_name}_trading_report.csv")
         return df
 
-    # def generate_plot_data(self) -> pd.DataFrame:
-    #     """生成繪圖用的 DataFrame"""
-    #     df: pd.DataFrame = self.generate_trading_report()
-
-    #     # Generate complete dates list
-    #     dates: List[datetime.date] = TimeUtils.generate_date_range(
-    #         start_date=self.start_date, end_date=self.end_date
-    #     )
-
     def plot_balance_curve(self) -> None:
         """繪製總資金曲線圖（總資金隨時間變化）"""
 
-        df: pd.DataFrame = self.trading_report
+        df: pd.DataFrame = self.trading_report.copy()
 
-        # TODO: 需處理日期顯示過於密集的問題
+        # Add initial row
+        init_row: pd.DataFrame = pd.DataFrame([{
+            "Sell Date": self.start_date,
+            "Cumulative PnL": 0.0,
+            "Cumulative Balance": self.account.init_capital,
+        }])
+
+        # Concatenate initial row
+        df = pd.concat([init_row, df], ignore_index=True)
+
         # Plot Balance Curve
         fig_title: str = "Balance Curve"
         fig: go.Figure = go.Figure()
