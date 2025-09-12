@@ -117,11 +117,15 @@ class StockBacktestReporter(BaseBacktestReporter):
         df: pd.DataFrame = self.trading_report.copy()
 
         # Add initial row
-        init_row: pd.DataFrame = pd.DataFrame([{
-            "Sell Date": self.start_date,
-            "Cumulative PnL": 0.0,
-            "Cumulative Balance": self.account.init_capital,
-        }])
+        init_row: pd.DataFrame = pd.DataFrame(
+            [
+                {
+                    "Sell Date": self.start_date,
+                    "Cumulative PnL": 0.0,
+                    "Cumulative Balance": self.account.init_capital,
+                }
+            ]
+        )
 
         # Concatenate initial row
         df = pd.concat([init_row, df], ignore_index=True)

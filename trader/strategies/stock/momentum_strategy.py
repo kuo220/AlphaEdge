@@ -110,13 +110,11 @@ class MomentumStrategy(BaseStockStrategy):
 
         for stock_quote in stock_quotes:
             if self.account.check_has_position(stock_quote.stock_id):
-                position: Optional[StockPosition] = self.account.get_first_open_position(
-                    stock_quote.stock_id
+                position: Optional[StockPosition] = (
+                    self.account.get_first_open_position(stock_quote.stock_id)
                 )
                 if position is None:
-                    logger.warning(
-                        f"股票 {stock_quote.stock_id} 沒有開倉記錄"
-                    )
+                    logger.warning(f"股票 {stock_quote.stock_id} 沒有開倉記錄")
                     continue
                 if stock_quote.date >= position.date + datetime.timedelta(days=1):
                     close_positions.append(stock_quote)
