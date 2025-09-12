@@ -13,7 +13,7 @@ from trader.api.monthly_revenue_report_api import MonthlyRevenueReportAPI
 from trader.api.stock_chip_api import StockChipAPI
 from trader.api.stock_price_api import StockPriceAPI
 from trader.api.stock_tick_api import StockTickAPI
-from trader.models import StockAccount, StockOrder, StockQuote, StockTradeRecord
+from trader.models import StockAccount, StockOrder, StockPosition, StockQuote
 from trader.strategies.stock import BaseStockStrategy
 from trader.utils import Action, Market, PositionType, Scale, Units
 from trader.utils.instrument import StockUtils
@@ -162,9 +162,12 @@ class MomentumStrategy(BaseStockStrategy):
                         break
         elif action == Action.SELL:
             for stock_quote in stock_quotes:
-                position: StockTradeRecord = self.account.get_first_open_position(
-                    stock_quote.stock_id
+                position: Optional[StockPosition] = (
+                    self.account.get_first_open_position(stock_quote.stock_id)
                 )
+
+                if position is None:
+                    continue
 
                 orders.append(
                     StockOrder(
@@ -173,7 +176,7 @@ class MomentumStrategy(BaseStockStrategy):
                         action=action,
                         position_type=position.position_type,
                         price=stock_quote.cur_price,
-                        volume=position.buy_volume,
+                        volume=position.volume,
                     )
                 )
         return orders

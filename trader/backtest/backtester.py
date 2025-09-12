@@ -14,6 +14,7 @@ from trader.api.stock_price_api import StockPriceAPI
 from trader.api.stock_tick_api import StockTickAPI
 from trader.backtest.analysis.analyzer import StockBacktestAnalyzer
 from trader.backtest.report.reporter import StockBacktestReporter
+from trader.config import BACKTEST_LOGS_DIR_PATH, BACKTEST_RESULT_DIR_PATH
 from trader.managers.stock.position.position_manager import StockPositionManager
 from trader.models import (
     StockAccount,
@@ -27,7 +28,6 @@ from trader.strategies.stock import BaseStockStrategy
 from trader.utils import Action, PositionType, Scale, TimeUtils
 from trader.utils.instrument import StockUtils
 from trader.utils.market_calendar import MarketCalendar
-from trader.config import BACKTEST_LOGS_DIR_PATH, BACKTEST_RESULT_DIR_PATH
 
 """
 Backtesting engine that simulates trading based on strategy signals.
@@ -190,7 +190,9 @@ class Backtester:
         pass
 
     # === Signal Execution ===
-    def execute_open_signal(self, stock_quotes: List[StockQuote]) -> List[StockPosition]:
+    def execute_open_signal(
+        self, stock_quotes: List[StockQuote]
+    ) -> List[StockPosition]:
         """若倉位數量未達到限制且有開倉訊號，則執行開倉"""
 
         # Get open orders
@@ -199,12 +201,16 @@ class Backtester:
         # Execute open orders
         open_positions: List[StockPosition] = []
         for order in open_orders:
-            open_position: Optional[StockPosition] = self.position_manager.open_position(order)
+            open_position: Optional[StockPosition] = (
+                self.position_manager.open_position(order)
+            )
             if open_position:
                 open_positions.append(open_position)
         return open_positions
 
-    def execute_close_signal(self, stock_quotes: List[StockQuote]) -> List[StockTradeRecord]:
+    def execute_close_signal(
+        self, stock_quotes: List[StockQuote]
+    ) -> List[StockTradeRecord]:
         """執行平倉邏輯：先判斷停損訊號，後判斷一般平倉"""
 
         # Find stocks with existing positions
@@ -225,7 +231,9 @@ class Backtester:
 
         # Execute stop loss orders
         for order in stop_loss_orders:
-            close_positions: List[StockTradeRecord] = self.position_manager.close_position(order)
+            close_positions: List[StockTradeRecord] = (
+                self.position_manager.close_position(order)
+            )
             close_records.extend(close_positions)
 
         # After executing stop loss, recheck the remaining positions
@@ -240,7 +248,9 @@ class Backtester:
 
         # Execute close orders
         for order in close_orders:
-            close_positions: List[StockTradeRecord] = self.position_manager.close_position(order)
+            close_positions: List[StockTradeRecord] = (
+                self.position_manager.close_position(order)
+            )
             close_records.extend(close_positions)
 
         return close_records

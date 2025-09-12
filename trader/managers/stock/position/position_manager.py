@@ -112,7 +112,9 @@ class StockPositionManager(BasePositionManager):
                 position.position_type == PositionType.LONG
                 and stock_order.action == Action.SELL
             ):
-                logger.info(f"* Place Close Order: {stock_order.stock_id} ({close_volume} lots)")
+                logger.info(
+                    f"* Place Close Order: {stock_order.stock_id} ({close_volume} lots)"
+                )
 
                 # 這筆 position 要平倉的數量
                 close_volume: int = min(position.volume, remaining_close_volume)
@@ -188,7 +190,9 @@ class StockPositionManager(BasePositionManager):
                 position.position_type == PositionType.SHORT
                 and stock_order.action == Action.BUY
             ):
-                logger.info(f"* Place Close Order: {stock_order.stock_id} ({close_volume} lots)")
+                logger.info(
+                    f"* Place Close Order: {stock_order.stock_id} ({close_volume} lots)"
+                )
                 pass
 
         if remaining_close_volume > 0:

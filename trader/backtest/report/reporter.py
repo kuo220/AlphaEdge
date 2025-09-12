@@ -142,7 +142,10 @@ class StockBacktestReporter(BaseBacktestReporter):
         )
 
         self.set_figure_config(
-            fig, title=fig_title, xaxis_title="Sell Date", yaxis_title="Cumulative Balance"
+            fig,
+            title=fig_title,
+            xaxis_title="Sell Date",
+            yaxis_title="Cumulative Balance",
         )
         self.save_figure(fig, f"{self.strategy.strategy_name}_balance_curve.png")
 
