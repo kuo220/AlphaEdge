@@ -58,7 +58,9 @@ class Backtester:
         self.strategy.setup_account(self.account)  # 設置虛擬帳戶資訊
 
         """ === Position Manager === """
-        self.position_manager: StockPositionManager = StockPositionManager(self.account)  # 設置倉位管理器
+        self.position_manager: StockPositionManager = StockPositionManager(
+            self.account
+        )  # 設置倉位管理器
 
         """ === Datasets === """
         self.tick: Optional[StockTickAPI] = None  # Ticks data

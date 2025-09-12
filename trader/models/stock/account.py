@@ -74,9 +74,7 @@ class StockAccount:
 
     def remove_closed_positions(self) -> None:
         """移除已平倉的部位"""
-        self.positions = [
-            position for position in self.positions if position.is_closed
-        ]
+        self.positions = [position for position in self.positions if position.is_closed]
 
     def check_has_position(self, stock_id: str) -> bool:
         """檢查指定的股票是否有在庫存"""
@@ -85,9 +83,7 @@ class StockAccount:
     def update_realized_pnl(self):
         """更新已實現損益"""
         self.realized_pnl = sum(
-            record.realized_pnl
-            for record in self.trade_records
-            if record.is_closed
+            record.realized_pnl for record in self.trade_records if record.is_closed
         )
 
     def update_roi(self):
@@ -97,9 +93,7 @@ class StockAccount:
     def update_transaction_cost(self):
         """更新交易成本"""
 
-        self.total_commission = sum(
-            record.commission for record in self.trade_records
-        )
+        self.total_commission = sum(record.commission for record in self.trade_records)
         self.total_tax = sum(record.tax for record in self.trade_records)
         self.total_transaction_cost = self.total_commission + self.total_tax
 

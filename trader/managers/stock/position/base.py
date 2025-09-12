@@ -25,8 +25,3 @@ class BasePositionManager(ABC):
     def close_position(self, *args, **kwargs) -> None:
         """Close Position"""
         pass
-
-    @abstractmethod
-    def split_position(self, *args, **kwargs) -> None:
-        """Split Position"""
-        pass
