@@ -112,12 +112,12 @@ class StockPositionManager(BasePositionManager):
                 position.position_type == PositionType.LONG
                 and stock_order.action == Action.SELL
             ):
+                # 這筆 position 要平倉的數量
+                close_volume: int = min(position.volume, remaining_close_volume)
+
                 logger.info(
                     f"* Place Close Order: {stock_order.stock_id} ({close_volume} lots)"
                 )
-
-                # 這筆 position 要平倉的數量
-                close_volume: int = min(position.volume, remaining_close_volume)
 
                 # Calculate position value
                 position_value: float = self.calculate_position_value(
