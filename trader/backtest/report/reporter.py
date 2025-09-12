@@ -35,61 +35,71 @@ class StockBacktestReporter(BaseBacktestReporter):
     def __init__(self, strategy: BaseStockStrategy, output_dir: Optional[Path] = None):
         super().__init__(strategy, output_dir)
 
+        # Backtest date
         self.start_date: datetime.date = self.strategy.start_date  # Backtest start date
         self.end_date: datetime.date = self.strategy.end_date  # Backtest end date
 
+        # Benchmark
         self.benchmark: str = "0050"  # Benchmark stock
+
+        # Price data
         self.price: StockPriceAPI = None  # Price data
+
+        # Trading report
+        self.trading_report: pd.DataFrame = None  # Trading report
         self.setup()
 
     def setup(self) -> None:
         """Set Up the Config of Reporter"""
 
+        # Price data
         self.price: StockPriceAPI = StockPriceAPI()
+        self.trading_report: pd.DataFrame = self.generate_trading_report()
 
-    # def generate_trading_report(self) -> pd.DataFrame:
-    #     """生成回測報告 DataFrame"""
+    def generate_trading_report_2(self) -> pd.DataFrame:
+        """生成回測報告 DataFrame"""
 
-    #     # Step 1: 產生完整日期清單
-    #     dates: List[datetime.date] = TimeUtils.generate_date_range(
-    #         start_date=self.start_date, end_date=self.end_date
-    #     )
+        # Step 1: 產生完整日期清單
+        dates: List[datetime.date] = TimeUtils.generate_date_range(
+            start_date=self.start_date, end_date=self.end_date
+        )
 
-    #     # Step 2: 把交易紀錄轉成 dict {date: pnl}
-    #     pnl_dict: Dict[datetime.date, float] = {}
-    #     for record in self.account.trade_records.values():
-    #         pnl_dict[record.date] = pnl_dict.get(record.date, 0.0) + record.realized_pnl
+        # Step 2: 把交易紀錄轉成 dict {date: pnl}
+        pnl_dict: Dict[datetime.date, float] = {}
+        for record in self.account.trade_records.values():
+            pnl_dict[record.date] = pnl_dict.get(record.date, 0.0) + record.realized_pnl
 
-    #     # Step 3: 逐日累積 PnL 與資金餘額
-    #     daily_pnl_list: List[float] = []  # 每日損益
-    #     cumulative_pnl_value: float = 0.0  # 累計損益（暫存值）
-    #     cumulative_pnl_list: List[float] = []  # 每日累積損益
-    #     balance_value: float = self.account.init_capital  # 資金餘額（暫存值）
-    #     balance_list: List[float] = []  # 每日總資金（含已實現損益）
+        # Step 3: 逐日累積 PnL 與資金餘額
+        daily_pnl_list: List[float] = []  # 每日損益
+        cumulative_pnl_value: float = 0.0  # 累計損益（暫存值）
+        cumulative_pnl_list: List[float] = []  # 每日累積損益
+        balance_value: float = self.account.init_capital  # 資金餘額（暫存值）
+        balance_list: List[float] = []  # 每日總資金（含已實現損益）
 
-    #     for date in dates:
-    #         daily_pnl = pnl_dict.get(date, 0.0)
-    #         cumulative_pnl_value += daily_pnl
-    #         balance_value += daily_pnl
+        for date in dates:
+            daily_pnl = pnl_dict.get(date, 0.0)
+            cumulative_pnl_value += daily_pnl
+            balance_value += daily_pnl
 
-    #         daily_pnl_list.append(daily_pnl)
-    #         cumulative_pnl_list.append(cumulative_pnl_value)
-    #         balance_list.append(balance_value)
+            daily_pnl_list.append(daily_pnl)
+            cumulative_pnl_list.append(cumulative_pnl_value)
+            balance_list.append(balance_value)
 
-    #     # Step 4: 建立 DataFrame（方便之後擴展）
-    #     df = pd.DataFrame(
-    #         {
-    #             "date": dates,
-    #             "pnl": daily_pnl_list,
-    #             "cumulative_pnl": cumulative_pnl_list,
-    #             "balance": balance_list,
-    #         }
-    #     )
-    #     df = df.set_index("date")
-    #     return df
+        # Step 4: 建立 DataFrame（方便之後擴展）
+        df = pd.DataFrame(
+            {
+                "date": dates,
+                "pnl": daily_pnl_list,
+                "cumulative_pnl": cumulative_pnl_list,
+                "balance": balance_list,
+            }
+        )
+        df = df.set_index("date")
+        return df
 
     def generate_trading_report(self) -> pd.DataFrame:
         """生成回測報告"""
+
         report_columns: List[str] = [
             "Stock ID",
             "Position Type",
@@ -104,10 +114,20 @@ class StockBacktestReporter(BaseBacktestReporter):
             "Transaction Cost",
             "Realized PnL",
             "ROI",
+            "Cumulative PnL",
+            "Cumulative Balance",
         ]
-        rows: List[Dict[str, Any]] = []
 
-        for record in self.account.trade_records.values():
+        # Initialize cumulative values for PnL and Balance
+        cumulative_pnl: float = 0.0
+        cumulative_balance: float = self.account.init_capital
+
+        # Generate trading report
+        rows: List[Dict[str, Any]] = []
+        for record in self.account.trade_records:
+            cumulative_pnl += record.realized_pnl
+            cumulative_balance += record.realized_pnl
+
             row = {
                 "Stock ID": record.stock_id,
                 "Position Type": record.position_type.value,
@@ -122,9 +142,12 @@ class StockBacktestReporter(BaseBacktestReporter):
                 "Transaction Cost": record.transaction_cost,
                 "Realized PnL": record.realized_pnl,
                 "ROI": record.roi,
+                "Cumulative PnL": cumulative_pnl,
+                "Cumulative Balance": cumulative_balance,
             }
             rows.append(row)
 
+        # Convert to DataFrame
         df = pd.DataFrame(rows, columns=report_columns)
         self.save_report(df, f"{self.strategy.strategy_name}_trading_report.csv")
         return df
