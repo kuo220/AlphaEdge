@@ -47,6 +47,7 @@ class StockBacktestReporter(BaseBacktestReporter):
 
         # Trading report
         self.trading_report: pd.DataFrame = None  # Trading report
+
         self.setup()
 
     def setup(self) -> None:
@@ -54,48 +55,9 @@ class StockBacktestReporter(BaseBacktestReporter):
 
         # Price data
         self.price: StockPriceAPI = StockPriceAPI()
+
+        # Trading report
         self.trading_report: pd.DataFrame = self.generate_trading_report()
-
-    def generate_trading_report_2(self) -> pd.DataFrame:
-        """生成回測報告 DataFrame"""
-
-        # Step 1: 產生完整日期清單
-        dates: List[datetime.date] = TimeUtils.generate_date_range(
-            start_date=self.start_date, end_date=self.end_date
-        )
-
-        # Step 2: 把交易紀錄轉成 dict {date: pnl}
-        pnl_dict: Dict[datetime.date, float] = {}
-        for record in self.account.trade_records.values():
-            pnl_dict[record.date] = pnl_dict.get(record.date, 0.0) + record.realized_pnl
-
-        # Step 3: 逐日累積 PnL 與資金餘額
-        daily_pnl_list: List[float] = []  # 每日損益
-        cumulative_pnl_value: float = 0.0  # 累計損益（暫存值）
-        cumulative_pnl_list: List[float] = []  # 每日累積損益
-        balance_value: float = self.account.init_capital  # 資金餘額（暫存值）
-        balance_list: List[float] = []  # 每日總資金（含已實現損益）
-
-        for date in dates:
-            daily_pnl = pnl_dict.get(date, 0.0)
-            cumulative_pnl_value += daily_pnl
-            balance_value += daily_pnl
-
-            daily_pnl_list.append(daily_pnl)
-            cumulative_pnl_list.append(cumulative_pnl_value)
-            balance_list.append(balance_value)
-
-        # Step 4: 建立 DataFrame（方便之後擴展）
-        df = pd.DataFrame(
-            {
-                "date": dates,
-                "pnl": daily_pnl_list,
-                "cumulative_pnl": cumulative_pnl_list,
-                "balance": balance_list,
-            }
-        )
-        df = df.set_index("date")
-        return df
 
     def generate_trading_report(self) -> pd.DataFrame:
         """生成回測報告"""
@@ -152,10 +114,19 @@ class StockBacktestReporter(BaseBacktestReporter):
         self.save_report(df, f"{self.strategy.strategy_name}_trading_report.csv")
         return df
 
+    # def generate_plot_data(self) -> pd.DataFrame:
+    #     """生成繪圖用的 DataFrame"""
+    #     df: pd.DataFrame = self.generate_trading_report()
+
+    #     # Generate complete dates list
+    #     dates: List[datetime.date] = TimeUtils.generate_date_range(
+    #         start_date=self.start_date, end_date=self.end_date
+    #     )
+
     def plot_balance_curve(self) -> None:
         """繪製總資金曲線圖（總資金隨時間變化）"""
 
-        df: pd.DataFrame = self.generate_trading_report()
+        df: pd.DataFrame = self.trading_report
 
         # TODO: 需處理日期顯示過於密集的問題
         # Plot Balance Curve
@@ -163,15 +134,15 @@ class StockBacktestReporter(BaseBacktestReporter):
         fig: go.Figure = go.Figure()
         fig.add_trace(
             go.Scatter(
-                x=df.index,
-                y=df["balance"],
+                x=df["Sell Date"],
+                y=df["Cumulative Balance"],
                 mode="lines",
                 line=dict(color="blue", width=2),
             )
         )
 
         self.set_figure_config(
-            fig, title=fig_title, xaxis_title="Date", yaxis_title="Balance"
+            fig, title=fig_title, xaxis_title="Sell Date", yaxis_title="Cumulative Balance"
         )
         self.save_figure(fig, f"{self.strategy.strategy_name}_balance_curve.png")
 
