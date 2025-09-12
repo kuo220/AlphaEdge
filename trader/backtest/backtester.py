@@ -190,20 +190,24 @@ class Backtester:
         pass
 
     # === Signal Execution ===
-    def execute_open_signal(self, stock_quotes: List[StockQuote]) -> None:
+    def execute_open_signal(self, stock_quotes: List[StockQuote]) -> List[StockPosition]:
         """若倉位數量未達到限制且有開倉訊號，則執行開倉"""
 
-        # Step 1: Get open orders
+        # Get open orders
         open_orders: List[StockOrder] = self.strategy.check_open_signal(stock_quotes)
 
-        # Step 2: Execute open orders
+        # Execute open orders
+        open_positions: List[StockPosition] = []
         for order in open_orders:
-            self.place_open_order(order)
+            open_position: Optional[StockPosition] = self.position_manager.open_position(order)
+            if open_position:
+                open_positions.append(open_position)
+        return open_positions
 
-    def execute_close_signal(self, stock_quotes: List[StockQuote]) -> None:
+    def execute_close_signal(self, stock_quotes: List[StockQuote]) -> List[StockTradeRecord]:
         """執行平倉邏輯：先判斷停損訊號，後判斷一般平倉"""
 
-        # Step 1:find stocks with existing positions
+        # Find stocks with existing positions
         positions: List[StockQuote] = [
             sq for sq in stock_quotes if self.account.check_has_position(sq.stock_id)
         ]
@@ -211,183 +215,35 @@ class Backtester:
         if not positions:
             return
 
-        # Step 2: Get stop loss orders
+        # Get stop loss orders
         stop_loss_orders: List[StockOrder] = self.strategy.check_stop_loss_signal(
             positions
         )
 
-        # Step 3: Execute stop loss orders
+        # Close records
+        close_records: List[StockTradeRecord] = []
+
+        # Execute stop loss orders
         for order in stop_loss_orders:
-            self.place_close_order(order)
+            close_positions: List[StockTradeRecord] = self.position_manager.close_position(order)
+            close_records.extend(close_positions)
 
         # After executing stop loss, recheck the remaining positions
         remaining_positions: List[StockQuote] = [
             sq for sq in stock_quotes if self.account.check_has_position(sq.stock_id)
         ]
 
-        # Step 4: Get close orders
+        # Get close orders
         close_orders: List[StockOrder] = self.strategy.check_close_signal(
             remaining_positions
         )
 
-        # Step 5: Execute close orders
+        # Execute close orders
         for order in close_orders:
-            self.place_close_order(order)
+            close_positions: List[StockTradeRecord] = self.position_manager.close_position(order)
+            close_records.extend(close_positions)
 
-    # === Order Placement ===
-    def place_open_order(self, stock_order: StockOrder) -> Optional[StockTradeRecord]:
-        """
-        - Description: 開倉下單股票
-        - Parameters:
-            - stock: StockOrder
-                目標股票的訂單資訊
-        - Return:
-            - position: StockTradeRecord
-        """
-
-        # Calculate position value
-        position_value: float = stock_order.price * StockUtils.convert_lot_to_share(
-            stock_order.volume
-        )
-
-        # Create position
-        position: Optional[StockTradeRecord] = None
-
-        # Execute open order & update account
-        if stock_order.position_type == PositionType.LONG:
-            open_cost: int = 0
-            open_cost, _ = StockUtils.calculate_transaction_cost(
-                buy_price=stock_order.price,
-                volume=stock_order.volume,
-            )
-
-            if self.account.balance >= position_value + open_cost:
-                logger.info(f"* Place Open Order: {stock_order.stock_id}")
-
-                position = StockTradeRecord(
-                    id=self.account.generate_trade_id(),
-                    stock_id=stock_order.stock_id,
-                    position_type=stock_order.position_type,
-                    buy_date=stock_order.date,
-                    buy_price=stock_order.price,
-                    buy_volume=stock_order.volume,
-                    commission=open_cost,
-                    transaction_cost=open_cost,
-                )
-
-                self.account.balance -= position_value + open_cost
-                self.account.positions.append(position)
-                self.account.trade_records[position.id] = position
-
-        return position
-
-    def place_close_order(self, stock_order: StockOrder) -> List[StockTradeRecord]:
-        """
-        - Description: 下單平倉股票（支援 FIFO 拆倉與部分平倉）
-        - Parameters:
-            - stock_order: StockOrder
-                目標股票的訂單資訊
-        - Return:
-            - closed_positions: List[StockTradeRecord]
-                實際被平倉的所有倉位（可能為多筆）
-        """
-        # TODO: 需要處理倉位的拆分情況
-
-        # 要平倉的倉位 List
-        close_positions: List[StockTradeRecord] = []
-
-        # 從帳戶抓出所有尚未平倉的該股票倉位（FIFO）
-        open_positions: List[StockTradeRecord] = [
-            p
-            for p in self.account.positions
-            if p.stock_id == stock_order.stock_id and not p.is_closed
-        ]
-
-        # Calculate total open volume
-        total_open_volume: int = sum(p.buy_volume for p in open_positions)
-
-        # Check if the open volume is enough
-        if stock_order.volume > total_open_volume:
-            logger.warning(
-                f"[Place Close Order] 庫存不足！{stock_order.stock_id} 庫存 {total_open_volume} 張，欲賣出 {stock_order.volume} 張"
-            )
-
-        # Execute close order
-        for position in open_positions:
-            # 多單平倉
-            if (
-                position.position_type == PositionType.LONG
-                and stock_order.action == Action.SELL
-            ):
-                # Case 1: 倉位張數 == 要平倉張數 -> 直接平倉
-                if position.buy_volume == stock_order.volume:
-                    # Calculate position value
-                    position_value: float = (
-                        stock_order.price
-                        * StockUtils.convert_lot_to_share(stock_order.volume)
-                    )
-                    # Calculate close cost
-                    close_cost: int = 0
-                    _, close_cost = StockUtils.calculate_transaction_cost(
-                        sell_price=stock_order.price,
-                        volume=stock_order.volume,
-                    )
-
-                    # Execute close order
-                    if not position.is_closed:
-                        logger.info(f"* Place Close Order: {stock_order.stock_id}")
-
-                        position.is_closed = True
-                        position.sell_date = stock_order.date
-                        position.sell_price = stock_order.price
-                        position.sell_volume = stock_order.volume
-                        position.commission += close_cost
-                        position.tax = StockUtils.calculate_transaction_tax(
-                            stock_order.price,
-                            position.sell_volume,
-                        )
-                        position.transaction_cost = position.commission + position.tax
-                        position.realized_pnl = StockUtils.calculate_net_profit(
-                            position.buy_price,
-                            position.sell_price,
-                            StockUtils.convert_lot_to_share(position.sell_volume),
-                        )
-
-                        logger.info(f"Realized PnL: {position.realized_pnl}")
-
-                        position.roi = StockUtils.calculate_roi(
-                            position.buy_price,
-                            position.sell_price,
-                            StockUtils.convert_lot_to_share(position.sell_volume),
-                        )
-
-                        self.account.balance += position_value - close_cost
-                        self.account.realized_pnl += position.realized_pnl
-                        self.account.trade_records[position.id] = (
-                            position  # 根據 position.id 更新 trade_records 中對應到的 position
-                        )
-                        self.account.remove_positions_by_stock_id(position.stock_id)
-                # Case 2: 倉位張數 > 要平倉張數 -> 部分平倉
-                elif position.buy_volume > stock_order.volume:
-                    pass
-                # Case 3: 倉位張數 < 要平倉張數 -> 直接平倉
-                else:
-                    # 總平倉張數 = 要平倉張數 - 倉位張數
-                    total_close_volume: int = stock_order.volume - position.buy_volume
-                    # 部分平倉
-                    for i in range(total_close_volume):
-                        # 計算平倉張數
-                        close_volume: int = min(position.buy_volume, total_close_volume)
-                        # 計算平倉價位
-                        close_price: float = position.buy_price
-                        # 計算平倉成本
-                        close_cost: int = StockUtils.calculate_transaction_cost(
-                            sell_price=close_price,
-                            volume=close_volume,
-                        )
-                    pass
-
-        return close_positions
+        return close_records
 
     # === Report ===
     def generate_backtest_report(self) -> None:
