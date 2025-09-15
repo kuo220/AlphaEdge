@@ -129,7 +129,7 @@ class StockBacktestReporter(BaseBacktestReporter):
 
         df: pd.DataFrame = self.trading_report.copy()
 
-        # Add initial row
+        # Add a row for the initial capital
         init_row: pd.DataFrame = pd.DataFrame(
             [
                 {
@@ -166,18 +166,21 @@ class StockBacktestReporter(BaseBacktestReporter):
     def plot_balance_and_benchmark_curve(self) -> None:
         """繪製總資金 & benchmark 曲線圖"""
 
-        # Benchmark 淨值曲線
+        # === Benchmark 淨值曲線 ===
         benchmark_net_worth: pd.Series = (
             self.benchmark_price
             / self.benchmark_price.iloc[0]
             * self.account.init_capital
         )
-        benchmark_net_worth = pd.concat([
-            pd.Series(self.account.init_capital, index=[self.origin_date]),
-            benchmark_net_worth
-        ])
+        # 加入初始資金節點
+        benchmark_net_worth = pd.concat(
+            [
+                pd.Series(self.account.init_capital, index=[self.origin_date]),
+                benchmark_net_worth,
+            ]
+        )
 
-        # 策略累積資金資料
+        # === 策略累積資金資料 ===
         balance_df: pd.DataFrame = self.trading_report[
             ["Sell Date", "Cumulative Balance"]
         ].copy()
@@ -189,12 +192,12 @@ class StockBacktestReporter(BaseBacktestReporter):
             .astype(float)
         )
         init_row: pd.Series = pd.Series(
-            self.account.init_capital,
-            index=[self.origin_date]
+            self.account.init_capital, index=[self.origin_date]
         )
+        # 加入初始資金節點
         cumulative_balance = pd.concat([init_row, cumulative_balance])
 
-        # 整理 DataFrame 用來繪圖
+        # === 整理 DataFrame 用來繪圖 ===
         networth_df: pd.DataFrame = pd.DataFrame(
             {
                 "Date": cumulative_balance.index,
@@ -252,14 +255,17 @@ class StockBacktestReporter(BaseBacktestReporter):
     def plot_balance_mdd(self) -> None:
         """繪製總資金 Max Drawdown"""
 
-        # 計算 Benchmark 的 MDD (%)
-        mdd_benchmark: pd.Series = (self.benchmark_price / self.benchmark_price.cummax() - 1) * 100
-        mdd_benchmark = pd.concat([
-            pd.Series(0.0, index=[self.origin_date]),  # 起點 MDD 為 0%
-            mdd_benchmark
-        ])
+        # === 計算 Benchmark 的 MDD (%) ===
+        mdd_benchmark: pd.Series = (
+            self.benchmark_price / self.benchmark_price.cummax() - 1
+        ) * 100
 
-        # 累積資金資料
+        # 加入初始資金節點
+        mdd_benchmark = pd.concat(
+            [pd.Series(0.0, index=[self.origin_date]), mdd_benchmark]  # 起點 MDD 為 0%
+        )
+
+        # === 累積資金資料 ===
         balance_df: pd.DataFrame = self.trading_report[
             ["Sell Date", "Cumulative Balance"]
         ].copy()
@@ -272,13 +278,13 @@ class StockBacktestReporter(BaseBacktestReporter):
             .astype(float)
         )
         init_row: pd.Series = pd.Series(
-            self.account.init_capital,
-            index=[self.origin_date]
+            self.account.init_capital, index=[self.origin_date]
         )
+        # 加入初始資金節點
         cumulative_balance = pd.concat([init_row, cumulative_balance])
         mdd_balance = (cumulative_balance / cumulative_balance.cummax() - 1) * 100
 
-        # 整理 DataFrame 用來繪圖
+        # === 整理 DataFrame 用來繪圖 ===
         mdd_df: pd.DataFrame = pd.DataFrame(
             {
                 "Date": cumulative_balance.index,
