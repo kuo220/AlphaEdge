@@ -46,7 +46,6 @@ class BaseBacktestReporter(ABC):
         """計算並繪製每天的利潤"""
         pass
 
-
     @abstractmethod
     def set_figure_config(self, *args, **kwargs) -> None:
         """設置繪圖配置"""

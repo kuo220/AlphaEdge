@@ -156,13 +156,82 @@ class StockBacktestReporter(BaseBacktestReporter):
 
     def plot_balance_mdd(self) -> None:
         """繪製總資金 Max Drawdown"""
-        pass
+
+        # --- Benchmark 價格資料 ---
+        # 取得回測期間的每日收盤價
+        close_price: pd.DataFrame = self.price.get_stock_price(
+            stock_id=self.benchmark,
+            start_date=self.start_date,
+            end_date=self.end_date,
+        )
+
+        # 計算 Benchmark 的 MDD (%)
+        benchmark_price: pd.Series = close_price["收盤價"]
+        benchmark_price.index = pd.to_datetime(close_price["date"]).dt.date
+        mdd_benchmark = (benchmark_price / benchmark_price.cummax() - 1) * 100
+
+        # --- 累積資金資料 ---
+        balance_df: pd.DataFrame = self.trading_report[
+            ["Sell Date", "Cumulative Balance"]
+        ].copy()
+        balance_df["Sell Date"] = pd.to_datetime(balance_df["Sell Date"])
+
+        # 依日期取每日最後一筆 balance（避免一天多筆交易造成重複）
+        cumulative_balance: pd.Series = (
+            balance_df.groupby(balance_df["Sell Date"].dt.date)["Cumulative Balance"]
+            .last()
+            .astype(float)
+        )
+        mdd_balance = (cumulative_balance / cumulative_balance.cummax() - 1) * 100
+
+        # --- 整理 DataFrame 用來繪圖 ---
+        mdd_df = pd.DataFrame(
+            {
+                "Date": cumulative_balance.index,
+                "Strategy MDD": mdd_balance.values,
+                f"{self.benchmark} MDD": mdd_benchmark.loc[
+                    cumulative_balance.index
+                ].values,
+            }
+        )
+
+        # --- 畫圖 ---
+        fig = go.Figure()
+        fig.add_trace(
+            go.Scatter(
+                x=mdd_df["Date"],
+                y=mdd_df["Strategy MDD"],
+                mode="lines",
+                name="Strategy MDD",
+                line=dict(color="blue", width=2),
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=mdd_df["Date"],
+                y=mdd_df[f"{self.benchmark} MDD"],
+                mode="lines",
+                name=f"{self.benchmark} MDD",
+                line=dict(color="red", width=2),
+            )
+        )
+
+        # 設置圖表配置
+        self.set_figure_config(
+            fig,
+            title=f"MDD ({self.start_date.strftime('%Y/%m/%d')} ~ {self.end_date.strftime('%Y/%m/%d')})",
+            xaxis_title="Date",
+            yaxis_title="MDD (%)",
+        )
+        self.save_figure(fig, f"{self.strategy.strategy_name}_mdd.png")
 
     def plot_everyday_profit(self) -> None:
         """繪製每天的利潤"""
 
         # 轉換 Sell Date 為 datetime 格式
-        profit_df: pd.DataFrame = self.trading_report[["Sell Date", "Realized PnL"]].copy()
+        profit_df: pd.DataFrame = self.trading_report[
+            ["Sell Date", "Realized PnL"]
+        ].copy()
         profit_df["Sell Date"] = pd.to_datetime(profit_df["Sell Date"])
 
         # 群組並計算每日總損益
