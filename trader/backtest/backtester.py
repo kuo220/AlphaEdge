@@ -260,8 +260,11 @@ class Backtester:
         """生產回測報告"""
 
         # Generate Backtest Report (Chart)
-        reporter = StockBacktestReporter(self.strategy, self.strategy_result_dir)
-        reporter.trading_report = reporter.generate_trading_report()
+        reporter: StockBacktestReporter = StockBacktestReporter(self.strategy, self.strategy_result_dir)
+        df: pd.DataFrame = reporter.generate_trading_report()
+        reporter.trading_report = df
+
         reporter.plot_balance_curve()
+        reporter.plot_everyday_profit()
         # reporter.plot_equity_and_benchmark_curve()
         # reporter.plot_mdd()

@@ -158,6 +158,41 @@ class StockBacktestReporter(BaseBacktestReporter):
         """繪製總資金 Max Drawdown"""
         pass
 
+    def plot_everyday_profit(self) -> None:
+        """繪製每天的利潤"""
+
+        # 轉換 Sell Date 為 datetime 格式
+        profit_df: pd.DataFrame = self.trading_report[["Sell Date", "Realized PnL"]].copy()
+        profit_df["Sell Date"] = pd.to_datetime(profit_df["Sell Date"])
+
+        # 群組並計算每日總損益
+        daily_profit = (
+            profit_df.groupby(profit_df["Sell Date"].dt.date)["Realized PnL"]
+            .sum()
+            .reset_index()
+            .rename(columns={"Sell Date": "Date", "Realized PnL": "Daily PnL"})
+        )
+
+        # 建立 bar chart
+        fig = go.Figure()
+        fig.add_trace(
+            go.Bar(
+                x=daily_profit["Date"],
+                y=daily_profit["Daily PnL"],
+                marker_color="green",
+                name="Daily Profit",
+            )
+        )
+
+        # 設置圖表配置
+        self.set_figure_config(
+            fig,
+            title="Everyday Profit",
+            xaxis_title="Date",
+            yaxis_title="Daily PnL",
+        )
+        self.save_figure(fig, f"{self.strategy.strategy_name}_everyday_profit.png")
+
     def set_figure_config(
         self,
         fig: go.Figure,
@@ -165,6 +200,7 @@ class StockBacktestReporter(BaseBacktestReporter):
         xaxis_title: str = "",
         yaxis_title: str = "",
         fig_text: str = "",
+        show: bool = True,
     ) -> None:
         """設置繪圖配置"""
 
@@ -208,7 +244,8 @@ class StockBacktestReporter(BaseBacktestReporter):
             )
 
         # Show figure
-        fig.show(renderer="browser")
+        if show:
+            fig.show(renderer="browser")
 
     def save_report(self, df: pd.DataFrame, file_name: str = "") -> None:
         """儲存回測報告"""
