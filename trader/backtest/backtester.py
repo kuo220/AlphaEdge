@@ -267,7 +267,6 @@ class Backtester:
         reporter.trading_report = df
 
         reporter.plot_balance_curve()
-        reporter.plot_everyday_profit()
+        reporter.plot_balance_and_benchmark_curve()
         reporter.plot_balance_mdd()
-        # reporter.plot_equity_and_benchmark_curve()
-        # reporter.plot_mdd()
+        reporter.plot_everyday_profit()

@@ -44,6 +44,7 @@ class StockBacktestReporter(BaseBacktestReporter):
 
         # Price data
         self.price: StockPriceAPI = None  # Price data
+        self.benchmark_price: pd.Series = None  # Benchmark price
 
         # Trading report
         self.trading_report: pd.DataFrame = None  # Trading report
@@ -55,6 +56,15 @@ class StockBacktestReporter(BaseBacktestReporter):
 
         # Price data
         self.price: StockPriceAPI = StockPriceAPI()
+
+        # Benchmark price
+        self.price_df: pd.DataFrame = self.price.get_stock_price(
+            stock_id=self.benchmark,
+            start_date=self.start_date,
+            end_date=self.end_date,
+        )
+        self.benchmark_price = self.price_df["收盤價"]
+        self.benchmark_price.index = pd.to_datetime(self.price_df["date"]).dt.date
 
     def generate_trading_report(self) -> pd.DataFrame:
         """生成回測報告"""
@@ -107,7 +117,7 @@ class StockBacktestReporter(BaseBacktestReporter):
             rows.append(row)
 
         # Convert to DataFrame
-        df = pd.DataFrame(rows, columns=report_columns)
+        df: pd.DataFrame = pd.DataFrame(rows, columns=report_columns)
         self.save_report(df, f"{self.strategy.strategy_name}_trading_report.csv")
         return df
 
@@ -152,25 +162,88 @@ class StockBacktestReporter(BaseBacktestReporter):
 
     def plot_balance_and_benchmark_curve(self) -> None:
         """繪製總資金 & benchmark 曲線圖"""
-        pass
+
+        # Benchmark 淨值曲線
+        benchmark_net_worth = (
+            self.benchmark_price
+            / self.benchmark_price.iloc[0]
+            * self.account.init_capital
+        )
+
+        # 策略累積資金資料
+        balance_df: pd.DataFrame = self.trading_report[
+            ["Sell Date", "Cumulative Balance"]
+        ].copy()
+        balance_df["Sell Date"] = pd.to_datetime(balance_df["Sell Date"])
+
+        cumulative_balance: pd.Series = (
+            balance_df.groupby(balance_df["Sell Date"].dt.date)["Cumulative Balance"]
+            .last()
+            .astype(float)
+        )
+
+        # 整理 DataFrame 用來繪圖
+        networth_df: pd.DataFrame = pd.DataFrame(
+            {
+                "Date": cumulative_balance.index,
+                "Strategy Net Worth": cumulative_balance.values,
+                f"{self.benchmark} Net Worth": benchmark_net_worth.loc[
+                    cumulative_balance.index
+                ].values,
+            }
+        )
+
+        # 計算報酬率 (ROI)
+        strategy_roi: float = round(
+            (cumulative_balance.iloc[-1] / self.account.init_capital - 1) * 100, 2
+        )
+        benchmark_roi: float = round(
+            (self.benchmark_price.iloc[-1] / self.benchmark_price.iloc[0] - 1) * 100, 2
+        )
+
+        roi_text: str = (
+            f"Strategy Total ROI(%): {strategy_roi}%\n"
+            f"{self.benchmark} Total ROI(%): {benchmark_roi}%"
+        )
+
+        # 畫圖
+        fig: go.Figure = go.Figure()
+        fig.add_trace(
+            go.Scatter(
+                x=networth_df["Date"],
+                y=networth_df["Strategy Net Worth"],
+                mode="lines",
+                name="Strategy Net Worth",
+                line=dict(color="blue", width=2),
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=networth_df["Date"],
+                y=networth_df[f"{self.benchmark} Net Worth"],
+                mode="lines",
+                name=f"{self.benchmark} Net Worth",
+                line=dict(color="red", width=2),
+            )
+        )
+
+        self.set_figure_config(
+            fig,
+            title=f"Strategy vs {self.benchmark} Net Worth "
+            f"({self.start_date.strftime('%Y/%m/%d')} ~ {self.end_date.strftime('%Y/%m/%d')})",
+            xaxis_title="Date",
+            yaxis_title="Net Worth",
+            fig_text=roi_text,
+        )
+        self.save_figure(fig, f"{self.strategy.strategy_name}_networth.png")
 
     def plot_balance_mdd(self) -> None:
         """繪製總資金 Max Drawdown"""
 
-        # --- Benchmark 價格資料 ---
-        # 取得回測期間的每日收盤價
-        close_price: pd.DataFrame = self.price.get_stock_price(
-            stock_id=self.benchmark,
-            start_date=self.start_date,
-            end_date=self.end_date,
-        )
-
         # 計算 Benchmark 的 MDD (%)
-        benchmark_price: pd.Series = close_price["收盤價"]
-        benchmark_price.index = pd.to_datetime(close_price["date"]).dt.date
-        mdd_benchmark = (benchmark_price / benchmark_price.cummax() - 1) * 100
+        mdd_benchmark = (self.benchmark_price / self.benchmark_price.cummax() - 1) * 100
 
-        # --- 累積資金資料 ---
+        # 累積資金資料
         balance_df: pd.DataFrame = self.trading_report[
             ["Sell Date", "Cumulative Balance"]
         ].copy()
@@ -184,8 +257,8 @@ class StockBacktestReporter(BaseBacktestReporter):
         )
         mdd_balance = (cumulative_balance / cumulative_balance.cummax() - 1) * 100
 
-        # --- 整理 DataFrame 用來繪圖 ---
-        mdd_df = pd.DataFrame(
+        # 整理 DataFrame 用來繪圖
+        mdd_df: pd.DataFrame = pd.DataFrame(
             {
                 "Date": cumulative_balance.index,
                 "Strategy MDD": mdd_balance.values,
@@ -195,8 +268,8 @@ class StockBacktestReporter(BaseBacktestReporter):
             }
         )
 
-        # --- 畫圖 ---
-        fig = go.Figure()
+        # 畫圖
+        fig: go.Figure = go.Figure()
         fig.add_trace(
             go.Scatter(
                 x=mdd_df["Date"],
@@ -216,7 +289,7 @@ class StockBacktestReporter(BaseBacktestReporter):
             )
         )
 
-        # 設置圖表配置
+        # 設置圖表配置 (MDD)
         self.set_figure_config(
             fig,
             title=f"MDD ({self.start_date.strftime('%Y/%m/%d')} ~ {self.end_date.strftime('%Y/%m/%d')})",
@@ -235,7 +308,7 @@ class StockBacktestReporter(BaseBacktestReporter):
         profit_df["Sell Date"] = pd.to_datetime(profit_df["Sell Date"])
 
         # 群組並計算每日總損益
-        daily_profit = (
+        daily_profit: pd.DataFrame = (
             profit_df.groupby(profit_df["Sell Date"].dt.date)["Realized PnL"]
             .sum()
             .reset_index()
@@ -243,7 +316,7 @@ class StockBacktestReporter(BaseBacktestReporter):
         )
 
         # 建立 bar chart
-        fig = go.Figure()
+        fig: go.Figure = go.Figure()
         fig.add_trace(
             go.Bar(
                 x=daily_profit["Date"],
