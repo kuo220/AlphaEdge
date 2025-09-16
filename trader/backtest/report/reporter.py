@@ -221,7 +221,7 @@ class StockBacktestReporter(BaseBacktestReporter):
             f"{self.benchmark} Total ROI(%): {benchmark_roi}%"
         )
 
-        # 畫圖
+        # === 繪製圖表 ===
         fig: go.Figure = go.Figure()
         fig.add_trace(
             go.Scatter(
@@ -295,7 +295,7 @@ class StockBacktestReporter(BaseBacktestReporter):
             }
         )
 
-        # 畫圖
+        # === 繪製圖表 ===
         fig: go.Figure = go.Figure()
         fig.add_trace(
             go.Scatter(
