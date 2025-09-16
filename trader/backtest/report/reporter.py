@@ -35,61 +35,43 @@ class StockBacktestReporter(BaseBacktestReporter):
     def __init__(self, strategy: BaseStockStrategy, output_dir: Optional[Path] = None):
         super().__init__(strategy, output_dir)
 
+        # Backtest date
         self.start_date: datetime.date = self.strategy.start_date  # Backtest start date
         self.end_date: datetime.date = self.strategy.end_date  # Backtest end date
 
+        # 起始前一天，用來當作初始資金節點
+        self.origin_date: datetime.date = self.start_date - datetime.timedelta(days=1)
+
+        # Benchmark
         self.benchmark: str = "0050"  # Benchmark stock
+
+        # Price data
         self.price: StockPriceAPI = None  # Price data
+        self.benchmark_price: pd.Series = None  # Benchmark price
+
+        # Trading report
+        self.trading_report: pd.DataFrame = None  # Trading report
+
         self.setup()
 
     def setup(self) -> None:
         """Set Up the Config of Reporter"""
 
+        # Price data
         self.price: StockPriceAPI = StockPriceAPI()
 
-    # def generate_trading_report(self) -> pd.DataFrame:
-    #     """生成回測報告 DataFrame"""
-
-    #     # Step 1: 產生完整日期清單
-    #     dates: List[datetime.date] = TimeUtils.generate_date_range(
-    #         start_date=self.start_date, end_date=self.end_date
-    #     )
-
-    #     # Step 2: 把交易紀錄轉成 dict {date: pnl}
-    #     pnl_dict: Dict[datetime.date, float] = {}
-    #     for record in self.account.trade_records.values():
-    #         pnl_dict[record.date] = pnl_dict.get(record.date, 0.0) + record.realized_pnl
-
-    #     # Step 3: 逐日累積 PnL 與資金餘額
-    #     daily_pnl_list: List[float] = []  # 每日損益
-    #     cumulative_pnl_value: float = 0.0  # 累計損益（暫存值）
-    #     cumulative_pnl_list: List[float] = []  # 每日累積損益
-    #     balance_value: float = self.account.init_capital  # 資金餘額（暫存值）
-    #     balance_list: List[float] = []  # 每日總資金（含已實現損益）
-
-    #     for date in dates:
-    #         daily_pnl = pnl_dict.get(date, 0.0)
-    #         cumulative_pnl_value += daily_pnl
-    #         balance_value += daily_pnl
-
-    #         daily_pnl_list.append(daily_pnl)
-    #         cumulative_pnl_list.append(cumulative_pnl_value)
-    #         balance_list.append(balance_value)
-
-    #     # Step 4: 建立 DataFrame（方便之後擴展）
-    #     df = pd.DataFrame(
-    #         {
-    #             "date": dates,
-    #             "pnl": daily_pnl_list,
-    #             "cumulative_pnl": cumulative_pnl_list,
-    #             "balance": balance_list,
-    #         }
-    #     )
-    #     df = df.set_index("date")
-    #     return df
+        # Benchmark price
+        self.price_df: pd.DataFrame = self.price.get_stock_price(
+            stock_id=self.benchmark,
+            start_date=self.start_date,
+            end_date=self.end_date,
+        )
+        self.benchmark_price = self.price_df["收盤價"]
+        self.benchmark_price.index = pd.to_datetime(self.price_df["date"]).dt.date
 
     def generate_trading_report(self) -> pd.DataFrame:
         """生成回測報告"""
+
         report_columns: List[str] = [
             "Stock ID",
             "Position Type",
@@ -104,10 +86,20 @@ class StockBacktestReporter(BaseBacktestReporter):
             "Transaction Cost",
             "Realized PnL",
             "ROI",
+            "Cumulative PnL",
+            "Cumulative Balance",
         ]
-        rows: List[Dict[str, Any]] = []
 
-        for record in self.account.trade_records.values():
+        # Initialize cumulative values for PnL and Balance
+        cumulative_pnl: float = 0.0
+        cumulative_balance: float = self.account.init_capital
+
+        # Generate trading report
+        rows: List[Dict[str, Any]] = []
+        for record in self.account.trade_records:
+            cumulative_pnl += record.realized_pnl
+            cumulative_balance += record.realized_pnl
+
             row = {
                 "Stock ID": record.stock_id,
                 "Position Type": record.position_type.value,
@@ -122,43 +114,253 @@ class StockBacktestReporter(BaseBacktestReporter):
                 "Transaction Cost": record.transaction_cost,
                 "Realized PnL": record.realized_pnl,
                 "ROI": record.roi,
+                "Cumulative PnL": cumulative_pnl,
+                "Cumulative Balance": cumulative_balance,
             }
             rows.append(row)
 
-        df = pd.DataFrame(rows, columns=report_columns)
+        # Convert to DataFrame
+        df: pd.DataFrame = pd.DataFrame(rows, columns=report_columns)
         self.save_report(df, f"{self.strategy.strategy_name}_trading_report.csv")
         return df
 
     def plot_balance_curve(self) -> None:
         """繪製總資金曲線圖（總資金隨時間變化）"""
 
-        df: pd.DataFrame = self.generate_trading_report()
+        df: pd.DataFrame = self.trading_report.copy()
 
-        # TODO: 需處理日期顯示過於密集的問題
+        # Add a row for the initial capital
+        init_row: pd.DataFrame = pd.DataFrame(
+            [
+                {
+                    "Sell Date": self.origin_date,
+                    "Cumulative PnL": 0.0,
+                    "Cumulative Balance": self.account.init_capital,
+                }
+            ]
+        )
+
+        # Concatenate initial row
+        df = pd.concat([init_row, df], ignore_index=True)
+
         # Plot Balance Curve
         fig_title: str = "Balance Curve"
         fig: go.Figure = go.Figure()
         fig.add_trace(
             go.Scatter(
-                x=df.index,
-                y=df["balance"],
+                x=df["Sell Date"],
+                y=df["Cumulative Balance"],
                 mode="lines",
                 line=dict(color="blue", width=2),
             )
         )
 
         self.set_figure_config(
-            fig, title=fig_title, xaxis_title="Date", yaxis_title="Balance"
+            fig,
+            title=fig_title,
+            xaxis_title="Sell Date",
+            yaxis_title="Cumulative Balance",
         )
         self.save_figure(fig, f"{self.strategy.strategy_name}_balance_curve.png")
 
     def plot_balance_and_benchmark_curve(self) -> None:
         """繪製總資金 & benchmark 曲線圖"""
-        pass
+
+        # === Benchmark 淨值曲線 ===
+        benchmark_net_worth: pd.Series = (
+            self.benchmark_price
+            / self.benchmark_price.iloc[0]
+            * self.account.init_capital
+        )
+        # 加入初始資金節點
+        benchmark_net_worth = pd.concat(
+            [
+                pd.Series(self.account.init_capital, index=[self.origin_date]),
+                benchmark_net_worth,
+            ]
+        )
+
+        # === 策略累積資金資料 ===
+        balance_df: pd.DataFrame = self.trading_report[
+            ["Sell Date", "Cumulative Balance"]
+        ].copy()
+        balance_df["Sell Date"] = pd.to_datetime(balance_df["Sell Date"])
+
+        cumulative_balance: pd.Series = (
+            balance_df.groupby(balance_df["Sell Date"].dt.date)["Cumulative Balance"]
+            .last()
+            .astype(float)
+        )
+        init_row: pd.Series = pd.Series(
+            self.account.init_capital, index=[self.origin_date]
+        )
+        # 加入初始資金節點
+        cumulative_balance = pd.concat([init_row, cumulative_balance])
+
+        # === 整理 DataFrame 用來繪圖 ===
+        networth_df: pd.DataFrame = pd.DataFrame(
+            {
+                "Date": cumulative_balance.index,
+                "Strategy Net Worth": cumulative_balance.values,
+                f"{self.benchmark} Net Worth": benchmark_net_worth.loc[
+                    cumulative_balance.index
+                ].values,
+            }
+        )
+
+        # 計算報酬率 (ROI)
+        strategy_roi: float = round(
+            (cumulative_balance.iloc[-1] / self.account.init_capital - 1) * 100, 2
+        )
+        benchmark_roi: float = round(
+            (self.benchmark_price.iloc[-1] / self.benchmark_price.iloc[0] - 1) * 100, 2
+        )
+
+        roi_text: str = (
+            f"Strategy Total ROI(%): {strategy_roi}%\n"
+            f"{self.benchmark} Total ROI(%): {benchmark_roi}%"
+        )
+
+        # === 繪製圖表 ===
+        fig: go.Figure = go.Figure()
+        fig.add_trace(
+            go.Scatter(
+                x=networth_df["Date"],
+                y=networth_df["Strategy Net Worth"],
+                mode="lines",
+                name="Strategy Net Worth",
+                line=dict(color="blue", width=2),
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=networth_df["Date"],
+                y=networth_df[f"{self.benchmark} Net Worth"],
+                mode="lines",
+                name=f"{self.benchmark} Net Worth",
+                line=dict(color="red", width=2),
+            )
+        )
+
+        self.set_figure_config(
+            fig,
+            title=f"Strategy vs {self.benchmark} Net Worth "
+            f"({self.start_date.strftime('%Y/%m/%d')} ~ {self.end_date.strftime('%Y/%m/%d')})",
+            xaxis_title="Date",
+            yaxis_title="Net Worth",
+            fig_text=roi_text,
+        )
+        self.save_figure(fig, f"{self.strategy.strategy_name}_networth.png")
 
     def plot_balance_mdd(self) -> None:
         """繪製總資金 Max Drawdown"""
-        pass
+
+        # === 計算 Benchmark 的 MDD (%) ===
+        mdd_benchmark: pd.Series = (
+            self.benchmark_price / self.benchmark_price.cummax() - 1
+        ) * 100
+
+        # 加入初始資金節點
+        mdd_benchmark = pd.concat(
+            [pd.Series(0.0, index=[self.origin_date]), mdd_benchmark]  # 起點 MDD 為 0%
+        )
+
+        # === 累積資金資料 ===
+        balance_df: pd.DataFrame = self.trading_report[
+            ["Sell Date", "Cumulative Balance"]
+        ].copy()
+        balance_df["Sell Date"] = pd.to_datetime(balance_df["Sell Date"])
+
+        # 依日期取每日最後一筆 balance（避免一天多筆交易造成重複）
+        cumulative_balance: pd.Series = (
+            balance_df.groupby(balance_df["Sell Date"].dt.date)["Cumulative Balance"]
+            .last()
+            .astype(float)
+        )
+        init_row: pd.Series = pd.Series(
+            self.account.init_capital, index=[self.origin_date]
+        )
+        # 加入初始資金節點
+        cumulative_balance = pd.concat([init_row, cumulative_balance])
+        mdd_balance = (cumulative_balance / cumulative_balance.cummax() - 1) * 100
+
+        # === 整理 DataFrame 用來繪圖 ===
+        mdd_df: pd.DataFrame = pd.DataFrame(
+            {
+                "Date": cumulative_balance.index,
+                "Strategy MDD": mdd_balance.values,
+                f"{self.benchmark} MDD": mdd_benchmark.loc[
+                    cumulative_balance.index
+                ].values,
+            }
+        )
+
+        # === 繪製圖表 ===
+        fig: go.Figure = go.Figure()
+        fig.add_trace(
+            go.Scatter(
+                x=mdd_df["Date"],
+                y=mdd_df["Strategy MDD"],
+                mode="lines",
+                name="Strategy MDD",
+                line=dict(color="blue", width=2),
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=mdd_df["Date"],
+                y=mdd_df[f"{self.benchmark} MDD"],
+                mode="lines",
+                name=f"{self.benchmark} MDD",
+                line=dict(color="red", width=2),
+            )
+        )
+
+        # 設置圖表配置 (MDD)
+        self.set_figure_config(
+            fig,
+            title=f"MDD ({self.start_date.strftime('%Y/%m/%d')} ~ {self.end_date.strftime('%Y/%m/%d')})",
+            xaxis_title="Date",
+            yaxis_title="MDD (%)",
+        )
+        self.save_figure(fig, f"{self.strategy.strategy_name}_mdd.png")
+
+    def plot_everyday_profit(self) -> None:
+        """繪製每天的利潤"""
+
+        # 轉換 Sell Date 為 datetime 格式
+        profit_df: pd.DataFrame = self.trading_report[
+            ["Sell Date", "Realized PnL"]
+        ].copy()
+        profit_df["Sell Date"] = pd.to_datetime(profit_df["Sell Date"])
+
+        # 群組並計算每日總損益
+        daily_profit: pd.DataFrame = (
+            profit_df.groupby(profit_df["Sell Date"].dt.date)["Realized PnL"]
+            .sum()
+            .reset_index()
+            .rename(columns={"Sell Date": "Date", "Realized PnL": "Daily PnL"})
+        )
+
+        # 建立 bar chart
+        fig: go.Figure = go.Figure()
+        fig.add_trace(
+            go.Bar(
+                x=daily_profit["Date"],
+                y=daily_profit["Daily PnL"],
+                marker_color="green",
+                name="Daily Profit",
+            )
+        )
+
+        # 設置圖表配置
+        self.set_figure_config(
+            fig,
+            title="Everyday Profit",
+            xaxis_title="Date",
+            yaxis_title="Daily PnL",
+        )
+        self.save_figure(fig, f"{self.strategy.strategy_name}_everyday_profit.png")
 
     def set_figure_config(
         self,
@@ -167,6 +369,7 @@ class StockBacktestReporter(BaseBacktestReporter):
         xaxis_title: str = "",
         yaxis_title: str = "",
         fig_text: str = "",
+        show: bool = True,
     ) -> None:
         """設置繪圖配置"""
 
@@ -210,7 +413,8 @@ class StockBacktestReporter(BaseBacktestReporter):
             )
 
         # Show figure
-        fig.show(renderer="browser")
+        if show:
+            fig.show(renderer="browser")
 
     def save_report(self, df: pd.DataFrame, file_name: str = "") -> None:
         """儲存回測報告"""
