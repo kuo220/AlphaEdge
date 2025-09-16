@@ -1,6 +1,6 @@
 import datetime
 
-from trader.utils import PositionType
+from trader.utils import Action, PositionType
 
 """
 This module defines the structure for stock orders used in the backtesting phase,
@@ -13,17 +13,19 @@ class StockOrder:
 
     def __init__(
         self,
-        stock_id: str = "",
-        date: datetime.datetime = None,
-        price: float = 0.0,
-        volume: int = 0,  # Unit: Lot
-        position_type: PositionType = PositionType.LONG,
+        stock_id: str = "",  # 股票代號
+        date: datetime.datetime = None,  # 交易日期（Tick會是Timestamp）
+        action: Action = Action.BUY,  # 訂單動作（Buy / Sell）
+        position_type: PositionType = PositionType.LONG,  # 持倉方向（Long / Short）
+        price: float = 0.0,  # 交易價位
+        volume: int = 0,  # 交易張數（Unit: Lot）
     ):
         # Basic Info
-        self.stock_id: str = stock_id  # 股票代號
-        self.date: datetime.datetime = date  # 交易日期（Tick會是Timestamp）
+        self.stock_id: str = stock_id
+        self.date: datetime.datetime = date
 
         # Order Info
-        self.price: float = price  # 交易價位
-        self.volume: int = volume  # 交易張數（Unit: Lot）
-        self.position_type: PositionType = position_type  # 持倉方向（Long or Short）
+        self.action: Action = action
+        self.position_type: PositionType = position_type
+        self.price: float = price
+        self.volume: int = volume
