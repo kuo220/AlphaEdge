@@ -31,7 +31,7 @@ class MomentumStrategy(BaseStockStrategy):
         self.scale: Scale = Scale.DAY
 
         self.start_date: datetime.date = datetime.date(2020, 5, 1)
-        self.end_date: datetime.date = datetime.date(2020, 5, 30)
+        self.end_date: datetime.date = datetime.date(2025, 5, 31)
 
         self.setup_apis()
 
@@ -85,15 +85,12 @@ class MomentumStrategy(BaseStockStrategy):
                 )
                 continue
 
-            logger.info(f"昨天收盤價: {yesterday_close_price}")
-            logger.info(f"今天收盤價: {stock_quote.close}")
-
             price_chg: float = (stock_quote.close / yesterday_close_price - 1) * 100
 
             if price_chg < 9:
                 continue
             logger.info(
-                f"股票 {stock_quote.stock_id} 符合條件，漲幅 {round(price_chg, 2)}%"
+                f"股票 {stock_quote.stock_id} 漲幅 {round(price_chg, 2)}%"
             )
             # Condition 2: Volume > 5000 Lot
             if stock_quote.volume < 5000:
