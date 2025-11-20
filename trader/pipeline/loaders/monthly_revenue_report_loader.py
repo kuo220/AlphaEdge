@@ -127,13 +127,60 @@ class MonthlyRevenueReportLoader(BaseDataLoader):
                 continue
             try:
                 df: pd.DataFrame = pd.read_csv(file_path)
-                df.to_sql(
-                    MONTHLY_REVENUE_TABLE_NAME,
-                    self.conn,
-                    if_exists="append",
-                    index=False,
-                )
-                logger.info(f"Save {file_path} into database")
+                
+                # 檢查並過濾掉已存在的記錄
+                if not df.empty:
+                    # 確保 stock_id 是字串型別，避免與資料庫中的 TEXT 型別不一致
+                    if 'stock_id' in df.columns:
+                        df['stock_id'] = df['stock_id'].astype(str)
+                    
+                    # 查詢資料庫中已存在的記錄
+                    existing_query = f"""
+                    SELECT year, month, stock_id, "公司名稱"
+                    FROM {MONTHLY_REVENUE_TABLE_NAME}
+                    """
+                    existing_df = pd.read_sql_query(existing_query, self.conn)
+                    
+                    # 確保 existing_df 的 stock_id 也是字串型別
+                    if not existing_df.empty and 'stock_id' in existing_df.columns:
+                        existing_df['stock_id'] = existing_df['stock_id'].astype(str)
+                    
+                    if not existing_df.empty:
+                        # 合併 DataFrame 來找出重複的記錄
+                        df_merged = df.merge(
+                            existing_df,
+                            on=["year", "month", "stock_id", "公司名稱"],
+                            how="left",
+                            indicator=True
+                        )
+                        # 只保留不存在於資料庫中的記錄
+                        df_new = df_merged[df_merged["_merge"] == "left_only"].drop(
+                            columns=["_merge"]
+                        )
+                        # 還原原始欄位（移除合併時可能產生的重複欄位）
+                        df_new = df_new[df.columns]
+                    else:
+                        df_new = df
+                    
+                    # 只插入新記錄
+                    if not df_new.empty:
+                        df_new.to_sql(
+                            MONTHLY_REVENUE_TABLE_NAME,
+                            self.conn,
+                            if_exists="append",
+                            index=False,
+                        )
+                        logger.info(
+                            f"Save {file_path} into database "
+                            f"({len(df_new)} new records, {len(df) - len(df_new)} duplicates skipped)"
+                        )
+                    else:
+                        logger.info(
+                            f"Skip {file_path}: all records already exist in database"
+                        )
+                else:
+                    logger.warning(f"Skip {file_path}: file is empty")
+                
                 file_cnt += 1
             except Exception as e:
                 logger.warning(f"Error saving {file_path}: {e}")
