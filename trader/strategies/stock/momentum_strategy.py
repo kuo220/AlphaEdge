@@ -89,9 +89,7 @@ class MomentumStrategy(BaseStockStrategy):
 
             if price_chg < 9:
                 continue
-            logger.info(
-                f"股票 {stock_quote.stock_id} 漲幅 {round(price_chg, 2)}%"
-            )
+            logger.info(f"股票 {stock_quote.stock_id} 漲幅 {round(price_chg, 2)}%")
             # Condition 2: Volume > 5000 Lot
             if stock_quote.volume < 5000:
                 continue

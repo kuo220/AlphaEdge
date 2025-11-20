@@ -74,7 +74,9 @@ class StockAccount:
 
     def remove_closed_positions(self) -> None:
         """移除已平倉的部位"""
-        self.positions = [position for position in self.positions if not position.is_closed]
+        self.positions = [
+            position for position in self.positions if not position.is_closed
+        ]
 
     def check_has_position(self, stock_id: str) -> bool:
         """檢查指定的股票是否有在庫存"""
