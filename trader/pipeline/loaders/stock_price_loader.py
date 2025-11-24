@@ -165,8 +165,7 @@ class StockPriceLoader(BaseDataLoader):
                 if not existing_keys:
                     # 如果資料庫是空的，直接插入所有資料
                     new_df = df.drop(columns=["_key"])
-                    # 更新 existing_keys，避免後續檔案的重複資料
-                    existing_keys = set(df["_key"])
+                    new_keys = set(df["_key"])
                 else:
                     # 過濾出新資料（不在 existing_keys 中的）
                     mask = ~df["_key"].isin(existing_keys)
@@ -177,15 +176,16 @@ class StockPriceLoader(BaseDataLoader):
                         skipped_cnt += 1
                         continue
                     
-                    # 更新 existing_keys，避免後續檔案的重複資料
-                    # 修正：使用 mask 過濾後的 _key 值
+                    # 取得要插入的新資料的 key（用於後續更新 existing_keys）
                     new_keys = set(df.loc[mask, "_key"])
-                    existing_keys.update(new_keys)
                 
-                # 插入新資料
+                # 插入新資料（只有在插入成功後才更新 existing_keys）
                 new_df.to_sql(
                     PRICE_TABLE_NAME, self.conn, if_exists="append", index=False
                 )
+                
+                # 插入成功後，更新 existing_keys 避免後續檔案的重複資料
+                existing_keys.update(new_keys)
                 skipped_rows = original_count - len(new_df)
                 if skipped_rows > 0:
                     logger.info(
