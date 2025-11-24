@@ -93,25 +93,119 @@ class StockPriceLoader(BaseDataLoader):
         # Ensure Database Table Exists
         self.create_missing_tables()
 
+        # 取得所有 CSV 檔案並排序，確保處理順序一致
+        csv_files = sorted([f for f in self.price_dir.iterdir() if f.suffix == ".csv"])
+        total_files = len(csv_files)
+        
+        if total_files == 0:
+            logger.info("No CSV files found in price directory")
+            return
+        
+        logger.info(f"Found {total_files} CSV files to process")
+        
+        # 查詢資料庫中已存在的資料（根據主鍵）
+        # 使用更有效率的查詢方式，只查詢需要的欄位
+        logger.info("Loading existing data from database...")
+        existing_query = f"""
+        SELECT date, stock_id, "證券名稱" 
+        FROM {PRICE_TABLE_NAME}
+        """
+        existing_df = pd.read_sql_query(existing_query, self.conn)
+        
+        # 如果有已存在的資料，建立一個 set 來快速查找
+        existing_keys = set()
+        if not existing_df.empty:
+            existing_keys = set(
+                zip(
+                    existing_df["date"].astype(str),
+                    existing_df["stock_id"].astype(str),
+                    existing_df["證券名稱"].astype(str),
+                )
+            )
+            logger.info(f"Loaded {len(existing_keys)} existing records from database")
+        else:
+            logger.info("Database is empty, will insert all data")
+
         file_cnt: int = 0
-        for file_path in self.price_dir.iterdir():
-            # Skip non-CSV files
-            if file_path.suffix != ".csv":
-                continue
+        skipped_cnt: int = 0
+        error_cnt: int = 0
+        
+        for idx, file_path in enumerate(csv_files, 1):
             try:
+                # 顯示進度
+                logger.info(f"Processing [{idx}/{total_files}] {file_path.name}...")
+                
                 df: pd.DataFrame = pd.read_csv(file_path)
-                df.to_sql(PRICE_TABLE_NAME, self.conn, if_exists="append", index=False)
-                logger.info(f"Saved {file_path} into database")
+                
+                if df.empty:
+                    logger.warning(f"Skipped {file_path.name} (file is empty)")
+                    skipped_cnt += 1
+                    continue
+                
+                # 記錄原始資料筆數
+                original_count = len(df)
+                
+                # 建立當前資料的 key tuple（用於過濾和去重）
+                df["_key"] = list(
+                    zip(
+                        df["date"].astype(str),
+                        df["stock_id"].astype(str),
+                        df["證券名稱"].astype(str),
+                    )
+                )
+                
+                # 先處理同一個檔案內的重複資料（保留第一筆）
+                if df["_key"].duplicated().any():
+                    df = df.drop_duplicates(subset=["_key"], keep="first")
+                    logger.debug(
+                        f"Removed {original_count - len(df)} duplicate rows within {file_path.name}"
+                    )
+                
+                # 過濾掉資料庫中已存在的資料
+                if not existing_keys:
+                    # 如果資料庫是空的，直接插入所有資料
+                    new_df = df.drop(columns=["_key"])
+                    # 更新 existing_keys，避免後續檔案的重複資料
+                    existing_keys = set(df["_key"])
+                else:
+                    # 過濾出新資料（不在 existing_keys 中的）
+                    mask = ~df["_key"].isin(existing_keys)
+                    new_df = df[mask].drop(columns=["_key"])
+                    
+                    if new_df.empty:
+                        logger.info(f"Skipped {file_path.name} (all data already exists)")
+                        skipped_cnt += 1
+                        continue
+                    
+                    # 更新 existing_keys，避免後續檔案的重複資料
+                    # 修正：使用 mask 過濾後的 _key 值
+                    new_keys = set(df.loc[mask, "_key"])
+                    existing_keys.update(new_keys)
+                
+                # 插入新資料
+                new_df.to_sql(
+                    PRICE_TABLE_NAME, self.conn, if_exists="append", index=False
+                )
+                skipped_rows = original_count - len(new_df)
+                if skipped_rows > 0:
+                    logger.info(
+                        f"Saved {file_path.name} into database ({len(new_df)} new rows, {skipped_rows} skipped)"
+                    )
+                else:
+                    logger.info(
+                        f"Saved {file_path.name} into database ({len(new_df)} rows)"
+                    )
                 file_cnt += 1
             except Exception as e:
-                logger.warning(f"Error saving {file_path}: {e}")
+                logger.error(f"Error saving {file_path.name}: {e}", exc_info=True)
+                error_cnt += 1
 
         self.conn.commit()
         self.disconnect()
 
         if remove_files:
             shutil.rmtree(self.price_dir)
-        logger.info(f"Total files processed: {file_cnt}")
+        logger.info(f"Total files processed: {file_cnt} new, {skipped_cnt} skipped, {error_cnt} errors")
 
     def create_missing_tables(self) -> None:
         """確保股票價格資料表存在"""
