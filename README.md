@@ -130,10 +130,10 @@ def setup_apis(self):
     self.chip = StockChipAPI()  # 籌碼資料
     self.mrr = MonthlyRevenueReportAPI()  # 月營收資料
     self.fs = FinancialStatementAPI()  # 財報資料
-
+    
     if self.scale in (Scale.TICK, Scale.MIX):
         self.tick = StockTickAPI()  # 逐筆資料
-
+    
     if self.scale in (Scale.DAY, Scale.MIX):
         self.price = StockPriceAPI()  # 日線資料
 ```
@@ -144,12 +144,12 @@ def setup_apis(self):
 ```python
 def check_open_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
     open_positions = []
-
+    
     for stock_quote in stock_quotes:
         # 你的開倉條件判斷
         if your_condition:
             open_positions.append(stock_quote)
-
+    
     return self.calculate_position_size(open_positions, Action.BUY)
 ```
 
@@ -159,13 +159,13 @@ def check_open_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
 ```python
 def check_close_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
     close_positions = []
-
+    
     for stock_quote in stock_quotes:
         if self.account.check_has_position(stock_quote.stock_id):
             # 你的平倉條件判斷
             if your_condition:
                 close_positions.append(stock_quote)
-
+    
     return self.calculate_position_size(close_positions, Action.SELL)
 ```
 
@@ -175,14 +175,14 @@ def check_close_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]
 ```python
 def check_stop_loss_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
     stop_loss_orders = []
-
+    
     for stock_quote in stock_quotes:
         if self.account.check_has_position(stock_quote.stock_id):
             position = self.account.get_first_open_position(stock_quote.stock_id)
             # 你的停損條件判斷（例如：虧損超過 5%）
             if (stock_quote.close / position.price - 1) < -0.05:
                 stop_loss_orders.append(stock_quote)
-
+    
     return self.calculate_position_size(stop_loss_orders, Action.SELL)
 ```
 
@@ -194,21 +194,21 @@ def calculate_position_size(
     self, stock_quotes: List[StockQuote], action: Action
 ) -> List[StockOrder]:
     orders = []
-
+    
     if action == Action.BUY:
         # 計算可買張數
         available_position_cnt = max(
             0, self.max_holdings - self.account.get_position_count()
         )
-
+        
         if available_position_cnt > 0:
             per_position_size = self.account.balance / available_position_cnt
-
+            
             for stock_quote in stock_quotes:
                 open_volume = int(
                     per_position_size / (stock_quote.close * Units.LOT)
                 )
-
+                
                 if open_volume >= 1:
                     orders.append(
                         StockOrder(
@@ -221,7 +221,7 @@ def calculate_position_size(
                         )
                     )
                     available_position_cnt -= 1
-
+                    
                     if available_position_cnt == 0:
                         break
     elif action == Action.SELL:
@@ -230,7 +230,7 @@ def calculate_position_size(
             position = self.account.get_first_open_position(stock_quote.stock_id)
             if position is None:
                 continue
-
+            
             orders.append(
                 StockOrder(
                     stock_id=stock_quote.stock_id,
@@ -241,7 +241,7 @@ def calculate_position_size(
                     volume=position.volume,
                 )
             )
-
+    
     return orders
 ```
 
@@ -252,23 +252,23 @@ def calculate_position_size(
 ```python
 def __init__(self):
     super().__init__()
-
+    
     # === 策略基本資訊 ===
     self.strategy_name: str = "MyStrategy"  # 策略名稱
     self.market: str = Market.STOCK  # 市場類型
     self.position_type: str = PositionType.LONG  # 部位方向（多/空）
     self.enable_intraday: bool = True  # 是否允許當沖
-
+    
     # === 帳戶設定 ===
     self.init_capital: float = 1000000.0  # 初始資金
     self.max_holdings: Optional[int] = 10  # 最大持倉檔數
-
+    
     # === 回測設定 ===
     self.is_backtest: bool = True  # 是否為回測模式
     self.scale: str = Scale.DAY  # 回測級別
     self.start_date: datetime.date = datetime.date(2020, 1, 1)  # 回測起始日
     self.end_date: datetime.date = datetime.date(2025, 5, 31)  # 回測結束日
-
+    
     # 載入資料 API
     self.setup_apis()
 ```
