@@ -139,7 +139,9 @@ class MonthlyRevenueReportLoader(BaseDataLoader):
                     SELECT year, month, stock_id, "公司名稱"
                     FROM {MONTHLY_REVENUE_TABLE_NAME}
                     """
-                    existing_df: pd.DataFrame = pd.read_sql_query(existing_query, self.conn)
+                    existing_df: pd.DataFrame = pd.read_sql_query(
+                        existing_query, self.conn
+                    )
 
                     # 確保 existing_df 的 stock_id 也是字串型別
                     if not existing_df.empty and "stock_id" in existing_df.columns:
@@ -154,9 +156,9 @@ class MonthlyRevenueReportLoader(BaseDataLoader):
                             indicator=True,
                         )
                         # 只保留不存在於資料庫中的記錄
-                        df_new: pd.DataFrame = df_merged[df_merged["_merge"] == "left_only"].drop(
-                            columns=["_merge"]
-                        )
+                        df_new: pd.DataFrame = df_merged[
+                            df_merged["_merge"] == "left_only"
+                        ].drop(columns=["_merge"])
                         # 還原原始欄位（移除合併時可能產生的重複欄位）
                         df_new = df_new[df.columns]
                     else:
