@@ -66,7 +66,10 @@ class SimpleLongStrategy(BaseStockStrategy):
         open_positions: List[StockQuote] = []
 
         # 檢查是否已達最大持倉數
-        if self.max_holdings > 0 and self.account.get_position_count() >= self.max_holdings:
+        if (
+            self.max_holdings > 0
+            and self.account.get_position_count() >= self.max_holdings
+        ):
             return []
 
         # 取得前一個交易日的價格資料
@@ -93,7 +96,10 @@ class SimpleLongStrategy(BaseStockStrategy):
             price_chg: float = (stock_quote.close / yesterday_close - 1) * 100
 
             # 開倉條件：漲幅超過設定值且成交量超過設定值
-            if price_chg >= self.min_price_change_pct and stock_quote.volume >= self.min_volume:
+            if (
+                price_chg >= self.min_price_change_pct
+                and stock_quote.volume >= self.min_volume
+            ):
                 logger.info(
                     f"股票 {stock_quote.stock_id} 符合開倉條件："
                     f"漲幅 {round(price_chg, 2)}%，成交量 {stock_quote.volume} 張"
@@ -114,8 +120,8 @@ class SimpleLongStrategy(BaseStockStrategy):
                 continue
 
             # 取得持倉資訊
-            position: Optional[StockPosition] = (
-                self.account.get_first_open_position(stock_quote.stock_id)
+            position: Optional[StockPosition] = self.account.get_first_open_position(
+                stock_quote.stock_id
             )
             if position is None:
                 continue
@@ -154,8 +160,8 @@ class SimpleLongStrategy(BaseStockStrategy):
                 continue
 
             # 取得持倉資訊
-            position: Optional[StockPosition] = (
-                self.account.get_first_open_position(stock_quote.stock_id)
+            position: Optional[StockPosition] = self.account.get_first_open_position(
+                stock_quote.stock_id
             )
             if position is None:
                 continue

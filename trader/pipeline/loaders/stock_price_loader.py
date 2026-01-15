@@ -107,7 +107,7 @@ class StockPriceLoader(BaseDataLoader):
         # 使用更有效率的查詢方式，只查詢需要的欄位
         logger.info("Loading existing data from database...")
         existing_query = f"""
-        SELECT date, stock_id, "證券名稱" 
+        SELECT date, stock_id, "證券名稱"
         FROM {PRICE_TABLE_NAME}
         """
         existing_df = pd.read_sql_query(existing_query, self.conn)
