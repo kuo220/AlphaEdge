@@ -130,7 +130,7 @@ class StockPriceLoader(BaseDataLoader):
         skipped_cnt: int = 0
         error_cnt: int = 0
 
-        for idx, file_path in enumerate(csv_files, 1):
+        for idx, file_path in enumerate(csv_files, start=1):
             try:
                 # 顯示進度
                 logger.info(f"Processing [{idx}/{total_files}] {file_path.name}...")
