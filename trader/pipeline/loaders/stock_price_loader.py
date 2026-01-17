@@ -107,7 +107,7 @@ class StockPriceLoader(BaseDataLoader):
         # 使用更有效率的查詢方式，只查詢需要的欄位
         logger.info("Loading existing data from database...")
         existing_query = f"""
-        SELECT date, stock_id, "證券名稱" 
+        SELECT date, stock_id, "證券名稱"
         FROM {PRICE_TABLE_NAME}
         """
         existing_df = pd.read_sql_query(existing_query, self.conn)
@@ -130,7 +130,7 @@ class StockPriceLoader(BaseDataLoader):
         skipped_cnt: int = 0
         error_cnt: int = 0
 
-        for idx, file_path in enumerate(csv_files, 1):
+        for idx, file_path in enumerate(csv_files, start=1):
             try:
                 # 顯示進度
                 logger.info(f"Processing [{idx}/{total_files}] {file_path.name}...")
