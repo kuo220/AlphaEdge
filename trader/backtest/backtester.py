@@ -263,8 +263,7 @@ class Backtester:
         reporter: StockBacktestReporter = StockBacktestReporter(
             self.strategy, self.strategy_result_dir
         )
-        df: pd.DataFrame = reporter.generate_trading_report()
-        reporter.trading_report = df
+        reporter.trading_report = reporter.generate_trading_report()
 
         reporter.plot_balance_curve()
         reporter.plot_balance_and_benchmark_curve()
