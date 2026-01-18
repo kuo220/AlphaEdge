@@ -184,7 +184,7 @@ class StockPositionManager(BasePositionManager):
                     position.is_closed = True
 
                 # Update account
-                self.account.balance += position_value - total_transaction_cost
+                self.account.balance += position_value - (sell_commission + sell_tax)
                 self.account.realized_pnl += record.realized_pnl
                 self.account.trade_records.append(record)
 
