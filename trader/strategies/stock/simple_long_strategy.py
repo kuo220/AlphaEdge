@@ -38,10 +38,10 @@ class SimpleLongStrategy(BaseStockStrategy):
         self.is_backtest: bool = True
         self.scale: str = Scale.DAY  # 使用日線回測
         self.start_date: datetime.date = datetime.date(2025, 1, 1)
-        self.end_date: datetime.date = datetime.date(2025, 5, 31)
+        self.end_date: datetime.date = datetime.date(2025, 12, 31)
 
         # === 策略參數 ===
-        self.min_price_change_pct: float = 3.0  # 最小漲幅百分比（開倉條件）
+        self.min_price_change_pct: float = 8.0  # 最小漲幅百分比（開倉條件）
         self.min_volume: int = 1000  # 最小成交量（張數，開倉條件）
         self.max_holding_days: int = 5  # 最大持倉天數（平倉條件）
         self.profit_target_pct: float = 10.0  # 獲利目標百分比（平倉條件）
@@ -211,6 +211,10 @@ class SimpleLongStrategy(BaseStockStrategy):
 
                     # 至少買 1 張
                     if open_volume >= 1:
+                        logger.info(
+                            f"計算買入張數：股票 {stock_quote.stock_id}，"
+                            f"價格 {stock_quote.close}，下單張數 {open_volume} 張"
+                        )
                         orders.append(
                             StockOrder(
                                 stock_id=stock_quote.stock_id,
@@ -233,6 +237,12 @@ class SimpleLongStrategy(BaseStockStrategy):
                 if position is None:
                     continue
 
+                # 計算要賣出的張數（1 張 = 1000 股）
+                sell_volume: int = position.volume // Units.LOT
+                logger.info(
+                    f"計算賣出張數：股票 {stock_quote.stock_id}，"
+                    f"價格 {stock_quote.close}，下單張數 {sell_volume} 張"
+                )
                 orders.append(
                     StockOrder(
                         stock_id=stock_quote.stock_id,
