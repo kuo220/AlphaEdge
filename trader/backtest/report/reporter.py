@@ -1,6 +1,6 @@
 import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -31,6 +31,13 @@ Intended for use in strategy evaluation and performance review.
 
 class StockBacktestReporter(BaseBacktestReporter):
     """Generates visual reports based on backtest results"""
+
+    # 股票分割配置：{股票代號: [(分割日期, 分割比例), ...]}
+    # 分割比例格式：1:4 表示 1 拆 4（1 股變成 4 股，調整因子為 4）
+    # 範例：{"0050": [(datetime.date(2025, 6, 18), 4)]}
+    STOCK_SPLITS: Dict[str, List[Tuple[datetime.date, float]]] = {
+        "0050": [(datetime.date(2025, 6, 18), 4.0)],  # 2025/06/18 1 拆 4
+    }
 
     def __init__(self, strategy: BaseStockStrategy, output_dir: Optional[Path] = None):
         super().__init__(strategy, output_dir)
@@ -68,6 +75,170 @@ class StockBacktestReporter(BaseBacktestReporter):
         )
         self.benchmark_price = self.price_df["收盤價"]
         self.benchmark_price.index = pd.to_datetime(self.price_df["date"]).dt.date
+
+    def _get_adjusted_price(self, price_series: pd.Series, stock_id: str) -> pd.Series:
+        """
+        計算調整後價格（處理股票分割，支援多次分割）
+
+        Args:
+            price_series: 原始價格序列（已排序）
+            stock_id: 股票代號
+
+        Returns:
+            調整後價格序列
+
+        Note:
+            對於股票分割（如 1 拆 4），分割日期及之後的價格需要乘以調整因子（4），
+            這樣可以確保價格序列的連續性。
+
+            範例（單次分割）：
+            - 分割前 100 元（保持原樣）
+            - 分割後 25 元 → 調整後 100 元（25 × 4）
+            - 這樣可以確保價格序列連續：100 → 100，而不是 100 → 25
+
+            範例（多次分割）：
+            假設有兩次分割：
+            - 2025/06/18: 1 拆 4（調整因子 4）
+            - 2025/12/18: 1 拆 2（調整因子 2）
+
+            原始價格：
+            - 2025/06/17: 100 元（分割前）
+            - 2025/06/18: 25 元（第一次分割後）
+            - 2025/12/17: 25 元
+            - 2025/12/18: 12.5 元（第二次分割後）
+
+            調整後價格：
+            - 2025/06/17: 100 元（不變）
+            - 2025/06/18: 25 × 4 = 100 元（第一次調整）
+            - 2025/12/17: 25 × 4 = 100 元（第一次調整）
+            - 2025/12/18: 12.5 × 4 × 2 = 100 元（累積調整：先×4，再×2）
+
+            注意：後續分割會在前一次調整的基礎上再次調整，形成累積調整因子。
+        """
+        if stock_id not in self.STOCK_SPLITS:
+            return price_series
+
+        adjusted_price = price_series.copy()
+        splits = self.STOCK_SPLITS[stock_id]
+
+        # 確保索引是 date 類型，並排序
+        if len(adjusted_price) > 0:
+            # 轉換索引為 date 類型（如果還不是）
+            if not isinstance(adjusted_price.index[0], datetime.date):
+                adjusted_price.index = pd.to_datetime(adjusted_price.index).date
+            # 確保索引是 date 類型的列表
+            index_dates = [
+                d if isinstance(d, datetime.date) else pd.to_datetime(d).date()
+                for d in adjusted_price.index
+            ]
+            adjusted_price.index = pd.Index(index_dates)
+
+        adjusted_price = adjusted_price.sort_index()
+
+        # 按日期排序（從舊到新），從最早的分割開始處理
+        splits_sorted = sorted(splits, key=lambda x: x[0])
+
+        if len(splits_sorted) > 1:
+            logger.info(
+                f"股票 {stock_id} 有 {len(splits_sorted)} 次分割事件，將使用累積調整因子處理"
+            )
+
+        # 對於每個分割事件，調整分割日期及之後的價格
+        # 注意：後續的分割會在前一次調整的基礎上再次調整，形成累積調整
+        # 例如：第一次分割 1拆4（調整因子4），第二次分割 1拆2（調整因子2）
+        # 則第二次分割後的價格會被調整為：原始價格 × 4 × 2 = 原始價格 × 8
+        cumulative_ratio = 1.0  # 累積調整因子
+        for i, (split_date, split_ratio) in enumerate(splits_sorted):
+            # 確保 split_date 是 date 類型
+            if isinstance(split_date, datetime.datetime):
+                split_date = split_date.date()
+            elif isinstance(split_date, str):
+                split_date = datetime.datetime.strptime(split_date, "%Y-%m-%d").date()
+
+            # 計算當前分割的調整範圍
+            # 每次分割都會調整該分割日期及之後的所有價格
+            # 注意：後續分割的價格已經經過之前所有分割的累積調整，所以會形成累積調整因子
+            mask = adjusted_price.index >= split_date
+
+            num_adjusted = mask.sum()
+
+            if num_adjusted > 0:
+                # 記錄調整前的價格範圍（用於調試）
+                before_prices = adjusted_price.loc[mask]
+                first_adjusted_date = adjusted_price.loc[mask].index[0]
+                last_adjusted_date = adjusted_price.loc[mask].index[-1]
+
+                # 記錄分割日期前一天的價格（如果存在），用於驗證調整是否正確
+                price_before_split = None
+                if split_date in adjusted_price.index:
+                    # 找到分割日期前一天的價格
+                    dates_before = adjusted_price.index[
+                        adjusted_price.index < split_date
+                    ]
+                    if len(dates_before) > 0:
+                        price_before_split = adjusted_price.loc[dates_before[-1]]
+                elif first_adjusted_date in adjusted_price.index:
+                    # 如果分割日期不在索引中，使用調整範圍的第一天
+                    dates_before = adjusted_price.index[
+                        adjusted_price.index < first_adjusted_date
+                    ]
+                    if len(dates_before) > 0:
+                        price_before_split = adjusted_price.loc[dates_before[-1]]
+
+                # 應用當前分割的調整因子
+                adjusted_price.loc[mask] *= split_ratio
+                cumulative_ratio *= split_ratio  # 更新累積調整因子
+
+                after_prices = adjusted_price.loc[mask]
+
+                # 記錄分割日期當天的調整前後價格（如果存在）
+                price_on_split_date_before = None
+                price_on_split_date_after = None
+                if split_date in before_prices.index:
+                    price_on_split_date_before = before_prices.loc[split_date]
+                    price_on_split_date_after = after_prices.loc[split_date]
+                elif first_adjusted_date in before_prices.index:
+                    price_on_split_date_before = before_prices.loc[first_adjusted_date]
+                    price_on_split_date_after = after_prices.loc[first_adjusted_date]
+
+                logger.info(
+                    f"股票分割調整 [{i+1}/{len(splits_sorted)}]: {stock_id} 在 {split_date} 進行 1:{int(split_ratio)} 分割，"
+                    f"調整了 {num_adjusted} 筆價格數據（{first_adjusted_date} ~ {last_adjusted_date}）。"
+                    f"當前調整因子: {split_ratio}, 累積調整因子: {cumulative_ratio}。"
+                    f"調整前價格範圍: {before_prices.min():.2f} ~ {before_prices.max():.2f}, "
+                    f"調整後價格範圍: {after_prices.min():.2f} ~ {after_prices.max():.2f}"
+                )
+
+                # 添加詳細的調試信息
+                if price_before_split is not None:
+                    logger.debug(f"  分割前一天價格: {price_before_split:.2f}")
+                if (
+                    price_on_split_date_before is not None
+                    and price_on_split_date_after is not None
+                ):
+                    logger.debug(
+                        f"  分割當天價格: {price_on_split_date_before:.2f} → {price_on_split_date_after:.2f} "
+                        f"(調整因子: {split_ratio}, 驗證: {price_on_split_date_before:.2f} × {split_ratio} = {price_on_split_date_before * split_ratio:.2f})"
+                    )
+                    # 驗證調整是否正確：分割當天的調整後價格應該接近分割前一天的價格
+                    if price_before_split is not None:
+                        diff_pct = (
+                            abs(price_on_split_date_after - price_before_split)
+                            / price_before_split
+                            * 100
+                        )
+                        if diff_pct > 5:  # 如果差異超過 5%，發出警告
+                            logger.warning(
+                                f"  警告：分割當天調整後價格 ({price_on_split_date_after:.2f}) 與分割前一天價格 ({price_before_split:.2f}) 差異較大 ({diff_pct:.2f}%)，"
+                                f"可能表示分割比例配置不正確或數據有問題"
+                            )
+            else:
+                logger.warning(
+                    f"股票分割調整 [{i+1}/{len(splits_sorted)}]: {stock_id} 在 {split_date} 的分割事件沒有找到需要調整的價格數據。"
+                    f"可用日期範圍: {adjusted_price.index.min()} ~ {adjusted_price.index.max()}"
+                )
+
+        return adjusted_price
 
     def generate_trading_report(self) -> pd.DataFrame:
         """生成回測報告"""
@@ -166,10 +337,31 @@ class StockBacktestReporter(BaseBacktestReporter):
     def plot_balance_and_benchmark_curve(self) -> None:
         """繪製總資金 & benchmark 曲線圖"""
 
+        # === 清理 benchmark_price 數據 ===
+        # 移除缺失值和 0 值（0 值可能是數據錯誤或停牌），並確保索引唯一且排序
+        # 注意：股票收盤價不可能是負數，所以不需要特別檢查負數
+        benchmark_price_clean = self.benchmark_price.copy()
+        benchmark_price_clean = benchmark_price_clean[
+            benchmark_price_clean.notna() & (benchmark_price_clean > 0)
+        ]
+        benchmark_price_clean = benchmark_price_clean.sort_index()
+        benchmark_price_clean = benchmark_price_clean[
+            ~benchmark_price_clean.index.duplicated(keep="last")
+        ]
+
+        if len(benchmark_price_clean) == 0:
+            logger.warning(f"benchmark_price 數據異常，無法繪製 benchmark 曲線")
+            return
+
+        # === 計算調整後價格（處理股票分割） ===
+        benchmark_price_adjusted = self._get_adjusted_price(
+            benchmark_price_clean, self.benchmark
+        )
+
         # === Benchmark 淨值曲線 ===
         benchmark_net_worth: pd.Series = (
-            self.benchmark_price
-            / self.benchmark_price.iloc[0]
+            benchmark_price_adjusted
+            / benchmark_price_adjusted.iloc[0]
             * self.account.init_capital
         )
         # 加入初始資金節點
@@ -198,13 +390,26 @@ class StockBacktestReporter(BaseBacktestReporter):
         cumulative_balance = pd.concat([init_row, cumulative_balance])
 
         # === 整理 DataFrame 用來繪圖 ===
+        # 使用 benchmark 的所有交易日作為基準日期（確保日期對齊正確）
+        # benchmark 的日期通常是完整的交易日曆，所以用它作為基準更合理
+        all_dates = benchmark_net_worth.index.sort_values()
+
+        # 將策略數據重新索引到 benchmark 的日期上，使用前向填充處理沒有交易的日期
+        cumulative_balance_aligned = cumulative_balance.reindex(all_dates).ffill()
+        # 如果仍有 NaN（例如在第一次交易之前的日期），用初始資金填充
+        if cumulative_balance_aligned.isna().any():
+            cumulative_balance_aligned = cumulative_balance_aligned.fillna(
+                self.account.init_capital
+            )
+
+        # benchmark_net_worth 已經在 all_dates 上（因為 all_dates 就是從它的 index 來的），直接使用即可
+        benchmark_net_worth_aligned = benchmark_net_worth
+
         networth_df: pd.DataFrame = pd.DataFrame(
             {
-                "Date": cumulative_balance.index,
-                "Strategy Net Worth": cumulative_balance.values,
-                f"{self.benchmark} Net Worth": benchmark_net_worth.loc[
-                    cumulative_balance.index
-                ].values,
+                "Date": all_dates,
+                "Strategy Net Worth": cumulative_balance_aligned.values,
+                f"{self.benchmark} Net Worth": benchmark_net_worth_aligned.values,
             }
         )
 
@@ -213,7 +418,9 @@ class StockBacktestReporter(BaseBacktestReporter):
             (cumulative_balance.iloc[-1] / self.account.init_capital - 1) * 100, 2
         )
         benchmark_roi: float = round(
-            (self.benchmark_price.iloc[-1] / self.benchmark_price.iloc[0] - 1) * 100, 2
+            (benchmark_price_adjusted.iloc[-1] / benchmark_price_adjusted.iloc[0] - 1)
+            * 100,
+            2,
         )
 
         roi_text: str = (
@@ -255,9 +462,31 @@ class StockBacktestReporter(BaseBacktestReporter):
     def plot_balance_mdd(self) -> None:
         """繪製總資金 Max Drawdown"""
 
+        # === 清理 benchmark_price 數據 ===
+        # 移除缺失值和 0 值（0 值可能是數據錯誤或停牌），並確保索引唯一且排序
+        # 注意：股票收盤價不可能是負數，所以不需要特別檢查負數
+        benchmark_price_clean = self.benchmark_price.copy()
+        benchmark_price_clean = benchmark_price_clean[
+            benchmark_price_clean.notna() & (benchmark_price_clean > 0)
+        ]
+        benchmark_price_clean = benchmark_price_clean.sort_index()
+        benchmark_price_clean = benchmark_price_clean[
+            ~benchmark_price_clean.index.duplicated(keep="last")
+        ]
+
+        if len(benchmark_price_clean) == 0:
+            logger.warning(f"benchmark_price 數據異常，無法繪製 benchmark MDD")
+            return
+
+        # === 計算調整後價格（處理股票分割） ===
+        benchmark_price_adjusted = self._get_adjusted_price(
+            benchmark_price_clean, self.benchmark
+        )
+
         # === 計算 Benchmark 的 MDD (%) ===
+        # 使用調整後價格計算 MDD，這樣可以正確處理股票分割
         mdd_benchmark: pd.Series = (
-            self.benchmark_price / self.benchmark_price.cummax() - 1
+            benchmark_price_adjusted / benchmark_price_adjusted.cummax() - 1
         ) * 100
 
         # 加入初始資金節點
@@ -282,16 +511,33 @@ class StockBacktestReporter(BaseBacktestReporter):
         )
         # 加入初始資金節點
         cumulative_balance = pd.concat([init_row, cumulative_balance])
-        mdd_balance = (cumulative_balance / cumulative_balance.cummax() - 1) * 100
 
         # === 整理 DataFrame 用來繪圖 ===
+        # 使用 benchmark 的所有交易日作為基準日期（確保日期對齊正確）
+        # benchmark 的日期通常是完整的交易日曆，所以用它作為基準更合理
+        all_dates = mdd_benchmark.index.sort_values()
+
+        # 將策略數據重新索引到 benchmark 的日期上，使用前向填充處理沒有交易的日期
+        cumulative_balance_aligned = cumulative_balance.reindex(all_dates).ffill()
+        # 如果仍有 NaN（例如在第一次交易之前的日期），用初始資金填充
+        if cumulative_balance_aligned.isna().any():
+            cumulative_balance_aligned = cumulative_balance_aligned.fillna(
+                self.account.init_capital
+            )
+
+        # 在對齊後的日期上計算策略的 MDD
+        mdd_balance = (
+            cumulative_balance_aligned / cumulative_balance_aligned.cummax() - 1
+        ) * 100
+
+        # mdd_benchmark 已經在 all_dates 上（因為 all_dates 就是從它的 index 來的），直接使用即可
+        mdd_benchmark_aligned = mdd_benchmark
+
         mdd_df: pd.DataFrame = pd.DataFrame(
             {
-                "Date": cumulative_balance.index,
+                "Date": all_dates,
                 "Strategy MDD": mdd_balance.values,
-                f"{self.benchmark} MDD": mdd_benchmark.loc[
-                    cumulative_balance.index
-                ].values,
+                f"{self.benchmark} MDD": mdd_benchmark_aligned.values,
             }
         )
 
