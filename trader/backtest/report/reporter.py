@@ -138,11 +138,6 @@ class StockBacktestReporter(BaseBacktestReporter):
         # 按日期排序（從舊到新），從最早的分割開始處理
         splits_sorted = sorted(splits, key=lambda x: x[0])
 
-        if len(splits_sorted) > 1:
-            logger.info(
-                f"股票 {stock_id} 有 {len(splits_sorted)} 次分割事件，將使用累積調整因子處理"
-            )
-
         # 對於每個分割事件，調整分割日期及之後的價格
         # 注意：後續的分割會在前一次調整的基礎上再次調整，形成累積調整
         # 例如：第一次分割 1拆4（調整因子4），第二次分割 1拆2（調整因子2）
@@ -202,39 +197,28 @@ class StockBacktestReporter(BaseBacktestReporter):
                     price_on_split_date_after = after_prices.loc[first_adjusted_date]
 
                 logger.info(
-                    f"股票分割調整 [{i+1}/{len(splits_sorted)}]: {stock_id} 在 {split_date} 進行 1:{int(split_ratio)} 分割，"
-                    f"調整了 {num_adjusted} 筆價格數據（{first_adjusted_date} ~ {last_adjusted_date}）。"
-                    f"當前調整因子: {split_ratio}, 累積調整因子: {cumulative_ratio}。"
-                    f"調整前價格範圍: {before_prices.min():.2f} ~ {before_prices.max():.2f}, "
-                    f"調整後價格範圍: {after_prices.min():.2f} ~ {after_prices.max():.2f}"
+                    f"股票分割調整: {stock_id} 在 {split_date} 進行 1:{int(split_ratio)} 分割，調整了 {num_adjusted} 筆價格數據"
                 )
 
-                # 添加詳細的調試信息
-                if price_before_split is not None:
-                    logger.debug(f"  分割前一天價格: {price_before_split:.2f}")
+                # 驗證調整是否正確：分割當天的調整後價格應該接近分割前一天的價格
                 if (
                     price_on_split_date_before is not None
                     and price_on_split_date_after is not None
+                    and price_before_split is not None
                 ):
-                    logger.debug(
-                        f"  分割當天價格: {price_on_split_date_before:.2f} → {price_on_split_date_after:.2f} "
-                        f"(調整因子: {split_ratio}, 驗證: {price_on_split_date_before:.2f} × {split_ratio} = {price_on_split_date_before * split_ratio:.2f})"
+                    diff_pct = (
+                        abs(price_on_split_date_after - price_before_split)
+                        / price_before_split
+                        * 100
                     )
-                    # 驗證調整是否正確：分割當天的調整後價格應該接近分割前一天的價格
-                    if price_before_split is not None:
-                        diff_pct = (
-                            abs(price_on_split_date_after - price_before_split)
-                            / price_before_split
-                            * 100
+                    if diff_pct > 5:  # 如果差異超過 5%，發出警告
+                        logger.warning(
+                            f"警告：分割當天調整後價格 ({price_on_split_date_after:.2f}) 與分割前一天價格 ({price_before_split:.2f}) 差異較大 ({diff_pct:.2f}%)，"
+                            f"可能表示分割比例配置不正確或數據有問題"
                         )
-                        if diff_pct > 5:  # 如果差異超過 5%，發出警告
-                            logger.warning(
-                                f"  警告：分割當天調整後價格 ({price_on_split_date_after:.2f}) 與分割前一天價格 ({price_before_split:.2f}) 差異較大 ({diff_pct:.2f}%)，"
-                                f"可能表示分割比例配置不正確或數據有問題"
-                            )
             else:
                 logger.warning(
-                    f"股票分割調整 [{i+1}/{len(splits_sorted)}]: {stock_id} 在 {split_date} 的分割事件沒有找到需要調整的價格數據。"
+                    f"股票分割調整: {stock_id} 在 {split_date} 的分割事件沒有找到需要調整的價格數據。"
                     f"可用日期範圍: {adjusted_price.index.min()} ~ {adjusted_price.index.max()}"
                 )
 
