@@ -97,7 +97,7 @@ class StockTickUpdater(BaseDataUpdater):
         self.update_multithreaded(dates)
 
         # Step 2: Load
-        self.loader.add_to_db(remove_file=False)
+        self.loader.add_to_db(remove_files=False)
 
         # 更新後重新取得最新日期並記錄
         if self.table_latest_date:

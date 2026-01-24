@@ -131,7 +131,7 @@ if __name__ == "__main__":
     # 設定測試日期範圍
     # 請根據您的需求修改這些日期
     test_start_date = datetime.date(2024, 5, 11)  # 開始日期
-    test_end_date = datetime.date(2024, 5, 12)    # 結束日期（可選，預設為今天）
+    test_end_date = datetime.date(2024, 5, 15)    # 結束日期（可選，預設為今天）
     
     print("\n" + "="*60)
     print("測試 StockTickUpdater.update() - 不存入資料庫")

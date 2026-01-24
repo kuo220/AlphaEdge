@@ -113,7 +113,7 @@ def main() -> None:
     if DataType.TICK.name.lower() in targets:
         stock_tick_updater = StockTickUpdater()
         stock_tick_updater.update(
-            start_date=time_config["start_date"], end_date=time_config["end_date"]
+            start_date=time_config["start_date"], end_date=datetime.date(2024, 6, 1)
         )
 
     if DataType.CHIP.name.lower() in targets:
