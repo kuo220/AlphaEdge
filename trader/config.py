@@ -18,6 +18,9 @@ DATABASE_DIR_PATH: Path = get_static_resolved_path(
     base_dir=BASE_DIR_PATH, dir_name="database"
 )
 LOGS_DIR_PATH: Path = get_static_resolved_path(base_dir=BASE_DIR_PATH, dir_name="logs")
+DATA_DIR_PATH: Path = get_static_resolved_path(
+    base_dir=BASE_DIR_PATH, dir_name="data"
+)
 
 
 """ === Strategy Directory Path === """
@@ -66,6 +69,25 @@ MONTHLY_REVENUE_REPORT_META_DIR_PATH: Path = get_static_resolved_path(
 )
 TICK_METADATA_PATH: Path = get_static_resolved_path(
     base_dir=DOWNLOADS_METADATA_DIR_PATH, dir_name="tick_metadata.json"
+)
+
+""" === Reference Data Directory Path === """
+# 股票相關參考資料表存放目錄
+STOCK_INFO_DIR_PATH: Path = get_static_resolved_path(
+    base_dir=DATA_DIR_PATH, dir_name="stock_info"
+)
+
+# 股票列表參考資料（上市、上櫃、興櫃的股票、權證名稱、代碼和產業類別）
+STOCK_LIST_JSON_PATH: Path = get_static_resolved_path(
+    base_dir=STOCK_INFO_DIR_PATH, dir_name="taiwan_stock_list.json"
+)
+STOCK_LIST_CSV_PATH: Path = get_static_resolved_path(
+    base_dir=STOCK_INFO_DIR_PATH, dir_name="taiwan_stock_list.csv"
+)
+
+# 證券商資訊參考資料（用於台股分點資料表，使用券商代碼查詢特定券商所有股票進出）
+BROKER_INFO_CSV_PATH: Path = get_static_resolved_path(
+    base_dir=STOCK_INFO_DIR_PATH, dir_name="taiwan_securities_trader_info.csv"
 )
 
 
