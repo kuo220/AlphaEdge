@@ -72,6 +72,19 @@ class StockTickUtils:
     def generate_tick_metadata_backup() -> None:
         """建立 tick_metadata 的備份檔案"""
 
+        # 如果檔案不存在，先創建一個預設的 metadata 檔案
+        if not TICK_METADATA_PATH.exists():
+            # 確保目錄存在
+            TICK_METADATA_PATH.parent.mkdir(parents=True, exist_ok=True)
+            # 創建預設的 metadata 檔案
+            default_metadata = {
+                "earliest_date": "2020-04-01",
+                "latest_date": "2020-04-01"
+            }
+            with open(TICK_METADATA_PATH, "w", encoding="utf-8") as f:
+                import json
+                json.dump(default_metadata, f, ensure_ascii=False, indent=4)
+
         backup_suffix: str = "_backup"
         backup_name: Path = TICK_METADATA_PATH.with_name(
             TICK_METADATA_PATH.stem + backup_suffix + TICK_METADATA_PATH.suffix

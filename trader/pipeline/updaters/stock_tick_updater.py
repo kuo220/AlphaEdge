@@ -244,8 +244,11 @@ class StockTickUpdater(BaseDataUpdater):
             for i in range(n_parts)
         ]
 
-    def get_actual_update_start_date(self) -> datetime.date:
+    def get_actual_update_start_date(self, default_date: datetime.date) -> datetime.date:
         """Get the actual start date for updating (1 day after latest date in table, or default_date)"""
 
         self.table_latest_date = StockTickUtils.get_table_latest_date()
-        return self.table_latest_date + datetime.timedelta(days=1)
+        if self.table_latest_date:
+            return self.table_latest_date + datetime.timedelta(days=1)
+        else:
+            return default_date

@@ -67,8 +67,11 @@ FINANCIAL_STATEMENT_META_DIR_PATH: Path = get_static_resolved_path(
 MONTHLY_REVENUE_REPORT_META_DIR_PATH: Path = get_static_resolved_path(
     base_dir=DOWNLOADS_METADATA_DIR_PATH, dir_name="monthly_revenue_report"
 )
+TICK_METADATA_DIR_PATH: Path = get_static_resolved_path(
+    base_dir=DOWNLOADS_METADATA_DIR_PATH, dir_name="tick"
+)
 TICK_METADATA_PATH: Path = get_static_resolved_path(
-    base_dir=DOWNLOADS_METADATA_DIR_PATH, dir_name="tick_metadata.json"
+    base_dir=TICK_METADATA_DIR_PATH, dir_name="tick_metadata.json"
 )
 
 """ === Reference Data Directory Path === """
