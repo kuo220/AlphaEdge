@@ -86,26 +86,30 @@ class StockTickUpdater(BaseDataUpdater):
     ):
         """Update the Database"""
 
-        # 取得最近更新的日期
-        start_date = self.get_actual_update_start_date(default_date=start_date)
-        logger.info(f"Latest data date in database: {start_date}")
+        try:
+            # 取得最近更新的日期
+            start_date = self.get_actual_update_start_date(default_date=start_date)
+            logger.info(f"Latest data date in database: {start_date}")
 
-        # Set Up Update Period
-        dates: List[datetime.date] = TimeUtils.generate_date_range(start_date, end_date)
+            # Set Up Update Period
+            dates: List[datetime.date] = TimeUtils.generate_date_range(start_date, end_date)
 
-        # Step 1: Crawl + Clean
-        self.update_multithreaded(dates)
+            # Step 1: Crawl + Clean
+            self.update_multithreaded(dates)
 
-        # Step 2: Load
-        self.loader.add_to_db(remove_files=False)
+            # Step 2: Load
+            self.loader.add_to_db(remove_files=False)
 
-        # 更新後重新取得最新日期並記錄
-        if self.table_latest_date:
-            logger.info(
-                f"* Tick data updated. Latest available date: {self.table_latest_date}"
-            )
-        else:
-            logger.warning("* No new stock tick data was updated")
+            # 更新後重新取得最新日期並記錄
+            if self.table_latest_date:
+                logger.info(
+                    f"* Tick data updated. Latest available date: {self.table_latest_date}"
+                )
+            else:
+                logger.warning("* No new stock tick data was updated")
+        finally:
+            # Step 3: Cleanup - 確保登出所有 API 連接（即使發生異常也會執行）
+            self.cleanup()
 
     def update_thread(
         self,
@@ -252,3 +256,23 @@ class StockTickUpdater(BaseDataUpdater):
             return self.table_latest_date + datetime.timedelta(days=1)
         else:
             return default_date
+
+    def cleanup(self) -> None:
+        """清理資源：登出所有 Shioaji API 連接"""
+        from trader.utils import ShioajiAccount
+
+        if not self.api_list:
+            return
+
+        logger.info("Cleaning up API connections...")
+        for api in self.api_list:
+            try:
+                ShioajiAccount.API_logout(api)
+            except (TimeoutError, Exception) as e:
+                # 如果登出失敗（例如連接已關閉或超時），記錄警告但不中斷程序
+                # 這些錯誤通常在程序結束時發生，可以安全忽略
+                logger.debug(f"API logout warning (can be safely ignored): {e}")
+
+        # 清空 API 列表
+        self.api_list.clear()
+        logger.info("All API connections closed")
