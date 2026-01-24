@@ -92,7 +92,9 @@ class StockTickUpdater(BaseDataUpdater):
             logger.info(f"Latest data date in database: {start_date}")
 
             # Set Up Update Period
-            dates: List[datetime.date] = TimeUtils.generate_date_range(start_date, end_date)
+            dates: List[datetime.date] = TimeUtils.generate_date_range(
+                start_date, end_date
+            )
 
             # Step 1: Crawl + Clean
             self.update_multithreaded(dates)
@@ -147,8 +149,10 @@ class StockTickUpdater(BaseDataUpdater):
             logger.info(f"Start crawling stock: {stock_id}")
 
             df_list: List[pd.DataFrame] = []
-            stock_successful_dates: List[datetime.date] = []  # 追蹤當前股票成功爬取的日期
-            
+            stock_successful_dates: List[datetime.date] = (
+                []
+            )  # 追蹤當前股票成功爬取的日期
+
             for date in dates:
                 df: Optional[pd.DataFrame] = self.crawler.crawl_stock_tick(
                     api, date, stock_id
@@ -180,7 +184,11 @@ class StockTickUpdater(BaseDataUpdater):
                     # 更新 latest_date 為成功處理的日期中的最大值
                     if stock_successful_dates:
                         stock_max_date = max(stock_successful_dates)
-                        latest_date = stock_max_date if latest_date is None else max(latest_date, stock_max_date)
+                        latest_date = (
+                            stock_max_date
+                            if latest_date is None
+                            else max(latest_date, stock_max_date)
+                        )
 
             except Exception as e:
                 logger.error(f"Error cleaning tick data for {stock_id}: {e}")
@@ -251,7 +259,9 @@ class StockTickUpdater(BaseDataUpdater):
             for i in range(n_parts)
         ]
 
-    def get_actual_update_start_date(self, default_date: datetime.date) -> datetime.date:
+    def get_actual_update_start_date(
+        self, default_date: datetime.date
+    ) -> datetime.date:
         """Get the actual start date for updating (1 day after latest date in table, or default_date)"""
 
         self.table_latest_date = StockTickUtils.get_table_latest_date()
