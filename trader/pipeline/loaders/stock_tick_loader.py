@@ -155,6 +155,11 @@ class StockTickLoader(BaseDataLoader):
         csv_files: List[str] = [str(csv.as_posix()) for csv in dir_path.glob("*.csv")]
         logger.info(f"* Total csv files: {len(csv_files)}")
 
+        # 如果沒有 CSV 檔案，提前返回
+        if not csv_files:
+            logger.warning(f"No CSV files found in {dir_path}. Skipping database load.")
+            return
+
         script: str = f"""
         db = database("{TICK_DB_PATH}")
         schemaTable = table(

@@ -147,6 +147,8 @@ class StockTickUpdater(BaseDataUpdater):
             logger.info(f"Start crawling stock: {stock_id}")
 
             df_list: List[pd.DataFrame] = []
+            stock_successful_dates: List[datetime.date] = []  # 追蹤當前股票成功爬取的日期
+            
             for date in dates:
                 df: Optional[pd.DataFrame] = self.crawler.crawl_stock_tick(
                     api, date, stock_id
@@ -156,6 +158,7 @@ class StockTickUpdater(BaseDataUpdater):
                     continue
 
                 df_list.append(df)
+                stock_successful_dates.append(date)  # 記錄成功爬取的日期
 
             if not df_list:
                 logger.warning(
@@ -173,21 +176,21 @@ class StockTickUpdater(BaseDataUpdater):
 
                 if cleaned_df is None or cleaned_df.empty:
                     logger.warning(f"Cleaned dataframe empty for {stock_id}")
-
-                # 更新 table 最新日期（thread-safe）
-                if latest_date:
-                    with self.table_latest_date_lock:
-                        self.table_latest_date = max(
-                            self.table_latest_date or latest_date, latest_date
-                        )
+                else:
+                    # 更新 latest_date 為成功處理的日期中的最大值
+                    if stock_successful_dates:
+                        stock_max_date = max(stock_successful_dates)
+                        latest_date = stock_max_date if latest_date is None else max(latest_date, stock_max_date)
 
             except Exception as e:
                 logger.error(f"Error cleaning tick data for {stock_id}: {e}")
 
+        # 更新 table 最新日期（thread-safe）
         if latest_date:
-            self.table_latest_date = max(
-                self.table_latest_date or latest_date, latest_date
-            )
+            with self.table_latest_date_lock:
+                self.table_latest_date = max(
+                    self.table_latest_date or latest_date, latest_date
+                )
 
     def update_multithreaded(self, dates: List[datetime.date]) -> None:
         """使用 Multi-threading 的方式 Update Tick Data"""
