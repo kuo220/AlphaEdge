@@ -38,3 +38,4 @@ dependencies:
       - sentry-sdk
       - fake-useragent
       - nbstripout
+      - FinMind
