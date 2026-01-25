@@ -2,6 +2,7 @@
 Fetch broker location data from FinMind API (sourced directly from TWSE)
 Person 3: Broker Location Data
 """
+
 import os
 from pathlib import Path
 import pandas as pd
@@ -16,6 +17,7 @@ DATA_DIR = PROJECT_ROOT / "Smart-Money-Data" / "raw" / "broker_location"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUT_DIR = DATA_DIR
 OUTPUT_FILE = "taiwan_securities_trader_info.csv"
+
 
 def fetch_broker_location():
     """Fetch broker info from FinMind API as a DataFrame"""
@@ -46,6 +48,7 @@ def save_to_csv(dataframe: pd.DataFrame, output_dir: Path = OUTPUT_DIR) -> Path:
     print(f"file saved to: {file_path}")
     return file_path
 
+
 def validate_csv(file_path: Path):
     """Reload and validate the CSV by printing head and missing value summary."""
     try:
@@ -56,10 +59,12 @@ def validate_csv(file_path: Path):
         print(f"Error: cannot found '{file_path.name}'")
         return
 
+
 def upload_to_hdfs(local_path, hdfs_path):
     """Upload broker location to HDFS"""
     # TODO: Implement HDFS upload
     pass
+
 
 if __name__ == "__main__":
     df = fetch_broker_location()

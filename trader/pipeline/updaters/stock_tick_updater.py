@@ -107,6 +107,12 @@ class StockTickUpdater(BaseDataUpdater):
                 logger.info(
                     f"* Tick data updated. Latest available date: {self.table_latest_date}"
                 )
+                # 如果最新日期小於目標結束日期，記錄警告
+                if self.table_latest_date < end_date:
+                    logger.warning(
+                        f"* Warning: Latest date ({self.table_latest_date}) is before target end_date ({end_date}). "
+                        f"Some dates may have no data (non-trading days or API issues)."
+                    )
             else:
                 logger.warning("* No new stock tick data was updated")
         finally:
@@ -152,6 +158,7 @@ class StockTickUpdater(BaseDataUpdater):
             stock_successful_dates: List[datetime.date] = (
                 []
             )  # 追蹤當前股票成功爬取的日期
+            skipped_dates: List[datetime.date] = []  # 追蹤被跳過的日期
 
             for date in dates:
                 df: Optional[pd.DataFrame] = self.crawler.crawl_stock_tick(
@@ -159,6 +166,10 @@ class StockTickUpdater(BaseDataUpdater):
                 )
 
                 if df is None or df.empty:
+                    skipped_dates.append(date)
+                    logger.debug(
+                        f"No tick data for {stock_id} on {date.isoformat()} (may be non-trading day or no data)"
+                    )
                     continue
 
                 df_list.append(df)
@@ -169,6 +180,13 @@ class StockTickUpdater(BaseDataUpdater):
                     f"No tick data found for stock {stock_id} from {dates[0]} to {dates[-1]}. Skipping."
                 )
                 continue
+
+            # 記錄被跳過的日期範圍（如果有）
+            if skipped_dates:
+                logger.info(
+                    f"Stock {stock_id}: Skipped {len(skipped_dates)} dates (no data): "
+                    f"{min(skipped_dates).isoformat()} ~ {max(skipped_dates).isoformat()}"
+                )
 
             merged_df: pd.DataFrame = pd.concat(df_list, ignore_index=True)
 
@@ -234,7 +252,11 @@ class StockTickUpdater(BaseDataUpdater):
                     logger.error(f"Thread task failed with exception: {e}")
 
         # Update tick table latest date
-        StockTickUtils.update_tick_table_latest_date(self.table_latest_date)
+        if self.table_latest_date is not None:
+            StockTickUtils.update_tick_table_latest_date(self.table_latest_date)
+            logger.info(f"Tick metadata updated. Latest date: {self.table_latest_date}")
+        else:
+            logger.warning("No tick data was processed. Metadata not updated.")
 
         total_time: float = time.time() - start_time
         total_file: int = len(list(TICK_DOWNLOADS_PATH.glob("*.csv")))

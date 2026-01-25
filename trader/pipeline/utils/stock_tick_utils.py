@@ -42,15 +42,23 @@ class StockTickUtils:
     def update_tick_table_latest_date(date: datetime.date) -> None:
         """更新 tick_metadata.json 中的 table 最新時間"""
 
-        # Time range for updating
-        metadata: Dict[str, str] = {
-            "earliest_date": StockTickUtils.get_table_earliest_date().isoformat(),
-            "latest_date": date.isoformat(),
-        }
+        if date is None:
+            raise ValueError("Cannot update tick metadata: date is None")
 
-        # Write in new dates
-        with open(TICK_METADATA_PATH, "w", encoding="utf-8") as data:
-            json.dump(metadata, data, ensure_ascii=False, indent=4)
+        try:
+            # Time range for updating
+            metadata: Dict[str, str] = {
+                "earliest_date": StockTickUtils.get_table_earliest_date().isoformat(),
+                "latest_date": date.isoformat(),
+            }
+
+            # Write in new dates
+            with open(TICK_METADATA_PATH, "w", encoding="utf-8") as data:
+                json.dump(metadata, data, ensure_ascii=False, indent=4)
+        except Exception as e:
+            from loguru import logger
+            logger.error(f"Failed to update tick metadata: {e}")
+            raise
 
     @staticmethod
     def update_tick_table_date_range(
@@ -79,10 +87,11 @@ class StockTickUtils:
             # 創建預設的 metadata 檔案
             default_metadata = {
                 "earliest_date": "2020-04-01",
-                "latest_date": "2020-04-01"
+                "latest_date": "2020-04-01",
             }
             with open(TICK_METADATA_PATH, "w", encoding="utf-8") as f:
                 import json
+
                 json.dump(default_metadata, f, ensure_ascii=False, indent=4)
 
         backup_suffix: str = "_backup"

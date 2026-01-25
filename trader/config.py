@@ -18,9 +18,7 @@ DATABASE_DIR_PATH: Path = get_static_resolved_path(
     base_dir=BASE_DIR_PATH, dir_name="database"
 )
 LOGS_DIR_PATH: Path = get_static_resolved_path(base_dir=BASE_DIR_PATH, dir_name="logs")
-DATA_DIR_PATH: Path = get_static_resolved_path(
-    base_dir=BASE_DIR_PATH, dir_name="data"
-)
+DATA_DIR_PATH: Path = get_static_resolved_path(base_dir=BASE_DIR_PATH, dir_name="data")
 
 
 """ === Strategy Directory Path === """
