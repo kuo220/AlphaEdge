@@ -83,11 +83,11 @@ class Backtester:
 
         self.setup()
 
-    def setup(self):
+    def setup(self) -> None:
         """Set Up the Config of Backtester"""
 
         # 確保每個 strategy 有獨立的結果資料夾
-        self.strategy_result_dir = (
+        self.strategy_result_dir: Path = (
             Path(BACKTEST_RESULT_DIR_PATH) / self.strategy.strategy_name
         )
         self.strategy_result_dir.mkdir(parents=True, exist_ok=True)

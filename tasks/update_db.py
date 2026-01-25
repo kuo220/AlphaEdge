@@ -111,25 +111,25 @@ def main() -> None:
     time_config: Dict[str, datetime.date | int] = get_update_time_config()
 
     if DataType.TICK.name.lower() in targets:
-        stock_tick_updater = StockTickUpdater()
+        stock_tick_updater: StockTickUpdater = StockTickUpdater()
         stock_tick_updater.update(
             start_date=time_config["start_date"], end_date=datetime.date(2024, 5, 15)
         )
 
     if DataType.CHIP.name.lower() in targets:
-        stock_chip_updater = StockChipUpdater()
+        stock_chip_updater: StockChipUpdater = StockChipUpdater()
         stock_chip_updater.update(
             start_date=time_config["start_date"], end_date=time_config["end_date"]
         )
 
     if DataType.PRICE.name.lower() in targets:
-        stock_price_updater = StockPriceUpdater()
+        stock_price_updater: StockPriceUpdater = StockPriceUpdater()
         stock_price_updater.update(
             start_date=time_config["start_date"], end_date=time_config["end_date"]
         )
 
     if DataType.FS.name.lower() in targets:
-        fs_updater = FinancialStatementUpdater()
+        fs_updater: FinancialStatementUpdater = FinancialStatementUpdater()
         fs_updater.update(
             start_year=time_config["start_year"],
             end_year=time_config["end_year"],
@@ -138,7 +138,7 @@ def main() -> None:
         )
 
     if DataType.MRR.name.lower() in targets:
-        mrr_updater = MonthlyRevenueReportUpdater()
+        mrr_updater: MonthlyRevenueReportUpdater = MonthlyRevenueReportUpdater()
         mrr_updater.update(
             start_year=time_config["start_year"],
             end_year=time_config["end_year"],

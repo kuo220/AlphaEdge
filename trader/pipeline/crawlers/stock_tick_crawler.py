@@ -49,14 +49,11 @@ class StockTickCrawler(BaseDataCrawler):
         date: datetime.date,
         code: str,
     ) -> Optional[pd.DataFrame]:
-        """透過 Shioaji 爬取指定個股的 tick data"""
+        """
+        透過 Shioaji 爬取指定個股的 tick data
 
-        # 判斷 api 用量
-        if api.usage().remaining_bytes / 1024**2 < 20:
-            logger.warning(
-                f"API quota low for {api}. Stopped crawling at stock {code} on {date}."
-            )
-            return None
+        注意：API 配額檢查應在調用此方法前進行，以統一管理配額檢查邏輯
+        """
 
         try:
             ticks: Ticks = api.ticks(

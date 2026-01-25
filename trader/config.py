@@ -122,18 +122,18 @@ CERTS_FILE_PATH: Path = get_static_resolved_path(
 
 
 """ === DolphinDB server setting === """
-DDB_PATH: str = os.getenv("DDB_PATH")
-DDB_HOST: str = os.getenv("DDB_HOST")
-DDB_PORT: int = int(os.getenv("DDB_PORT"))
-DDB_USER: str = os.getenv("DDB_USER")
-DDB_PASSWORD: str = os.getenv("DDB_PASSWORD")
+DDB_PATH: str | None = os.getenv("DDB_PATH")
+DDB_HOST: str | None = os.getenv("DDB_HOST")
+DDB_PORT: int = int(os.getenv("DDB_PORT") or "0")
+DDB_USER: str | None = os.getenv("DDB_USER")
+DDB_PASSWORD: str | None = os.getenv("DDB_PASSWORD")
 
 
 """ === Shioaji API === """
-API_KEY: str = os.getenv("API_KEY")
-API_SECRET_KEY: str = os.getenv("API_SECRET_KEY")
+API_KEY: str | None = os.getenv("API_KEY")
+API_SECRET_KEY: str | None = os.getenv("API_SECRET_KEY")
 
 """ === API list for crawling tick data === """
 NUM_API: int = 4
-API_KEYS = [os.getenv(f"API_KEY_{i + 1}") for i in range(NUM_API)]
-API_SECRET_KEYS = [os.getenv(f"API_SECRET_KEY_{i + 1}") for i in range(NUM_API)]
+API_KEYS: list[str | None] = [os.getenv(f"API_KEY_{i + 1}") for i in range(NUM_API)]
+API_SECRET_KEYS: list[str | None] = [os.getenv(f"API_SECRET_KEY_{i + 1}") for i in range(NUM_API)]

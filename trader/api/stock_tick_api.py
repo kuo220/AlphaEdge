@@ -32,11 +32,11 @@ class StockTickAPI(BaseDataAPI):
 
         self.setup()
 
-    def setup(self):
+    def setup(self) -> None:
         """Set Up the Config of Data API"""
 
         # DolphinDB Session Connect
-        self.session = ddb.session()
+        self.session: ddb.session = ddb.session()
         self.session.connect(DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
 
         if self.session.existsDatabase(TICK_DB_PATH):
@@ -65,13 +65,13 @@ class StockTickAPI(BaseDataAPI):
         if start_date > end_date:
             return pd.DataFrame()
 
-        start_date: str = start_date.strftime("%Y.%m.%d")
-        end_date: str = (end_date + datetime.timedelta(days=1)).strftime("%Y.%m.%d")
+        start_date_str: str = start_date.strftime("%Y.%m.%d")
+        end_date_str: str = (end_date + datetime.timedelta(days=1)).strftime("%Y.%m.%d")
         script: str = f"""
         db = database("{TICK_DB_PATH}")
         table = loadTable(db, "{TICK_TABLE_NAME}")
         select * from table
-        where time between nanotimestamp({start_date}):nanotimestamp({end_date})
+        where time between nanotimestamp({start_date_str}):nanotimestamp({end_date_str})
         """
         tick: pd.DataFrame = self.session.run(script)
         return tick
@@ -87,13 +87,13 @@ class StockTickAPI(BaseDataAPI):
         if start_date > end_date:
             return pd.DataFrame()
 
-        start_date: str = start_date.strftime("%Y.%m.%d")
-        end_date: str = (end_date + datetime.timedelta(days=1)).strftime("%Y.%m.%d")
+        start_date_str: str = start_date.strftime("%Y.%m.%d")
+        end_date_str: str = (end_date + datetime.timedelta(days=1)).strftime("%Y.%m.%d")
         script: str = f"""
         db = database("{TICK_DB_PATH}")
         table = loadTable(db, "{TICK_TABLE_NAME}")
         select * from table
-        where time between nanotimestamp({start_date}):nanotimestamp({end_date}) order by time
+        where time between nanotimestamp({start_date_str}):nanotimestamp({end_date_str}) order by time
         """
         tick: pd.DataFrame = self.session.run(script)
         return tick
@@ -109,13 +109,13 @@ class StockTickAPI(BaseDataAPI):
         if start_date > end_date:
             return pd.DataFrame()
 
-        start_date: str = start_date.strftime("%Y.%m.%d")
-        end_date: str = (end_date + datetime.timedelta(days=1)).strftime("%Y.%m.%d")
+        start_date_str: str = start_date.strftime("%Y.%m.%d")
+        end_date_str: str = (end_date + datetime.timedelta(days=1)).strftime("%Y.%m.%d")
         script: str = f"""
         db = database("{TICK_DB_PATH}")
         table = loadTable(db, "{TICK_TABLE_NAME}")
         select * from table
-        where stock_id=`{stock_id} and time between nanotimestamp({start_date}):nanotimestamp({end_date})
+        where stock_id=`{stock_id} and time between nanotimestamp({start_date_str}):nanotimestamp({end_date_str})
         """
         tick: pd.DataFrame = self.session.run(script)
         return tick

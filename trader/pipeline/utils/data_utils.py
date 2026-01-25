@@ -194,8 +194,8 @@ class DataUtils:
         """
 
         # 確保 startswith / contains 一定是 list 型別，避免為 None 時無法迭代
-        startswith: List[str] = startswith or []
-        contains: List[str] = contains or []
+        startswith_list: List[str] = startswith or []
+        contains_list: List[str] = contains or []
 
         # 將欄位轉成 str 型別，並保留原始 index
         columns: pd.Index = df.columns.astype(str)
@@ -205,13 +205,13 @@ class DataUtils:
 
         if case_insensitive:
             columns = columns.str.lower()
-            startswith = [word.lower() for word in startswith]
-            contains = [word.lower() for word in contains]
+            startswith_list = [word.lower() for word in startswith_list]
+            contains_list = [word.lower() for word in contains_list]
 
-        for keyword in startswith:
+        for keyword in startswith_list:
             columns_to_drop |= columns.str.startswith(keyword)
 
-        for keyword in contains:
+        for keyword in contains_list:
             columns_to_drop |= columns.str.contains(keyword)
 
         return df.loc[:, ~columns_to_drop]
@@ -237,20 +237,20 @@ class DataUtils:
             - 過濾後保留的欄位名稱 List[str]
         """
 
-        startswith = startswith or []
-        contains = contains or []
-        items = [str(item) for item in items]
+        startswith_list: List[str] = startswith or []
+        contains_list: List[str] = contains or []
+        items_list: List[str] = [str(item) for item in items]
 
         def normalize(s: str) -> str:
             return s.lower() if case_insensitive else s
 
-        norm_starts = [normalize(s) for s in startswith]
-        norm_contains = [normalize(s) for s in contains]
+        norm_starts: List[str] = [normalize(s) for s in startswith_list]
+        norm_contains: List[str] = [normalize(s) for s in contains_list]
 
         new_items: List[str] = []
 
-        for item in items:
-            norm_item = normalize(item)
+        for item in items_list:
+            norm_item: str = normalize(item)
             if any(norm_item.startswith(s) for s in norm_starts):
                 continue
             if any(c in norm_item for c in norm_contains):

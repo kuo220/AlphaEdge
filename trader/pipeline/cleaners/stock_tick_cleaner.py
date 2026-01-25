@@ -1,5 +1,7 @@
+import tempfile
 from pathlib import Path
-from typing import List, Optional
+from threading import Lock
+from typing import Dict, List, Optional
 
 import pandas as pd
 from loguru import logger
@@ -10,6 +12,10 @@ from trader.pipeline.cleaners.base import BaseDataCleaner
 
 class StockTickCleaner(BaseDataCleaner):
     """Stock Tick Cleaner (Transform)"""
+
+    # 類級別的文件鎖字典，用於保護每個股票的文件寫入操作
+    _file_locks: Dict[str, Lock] = {}
+    _locks_lock: Lock = Lock()  # 保護 _file_locks 字典本身的鎖
 
     def __init__(self):
         super().__init__()
@@ -29,25 +35,91 @@ class StockTickCleaner(BaseDataCleaner):
         df: pd.DataFrame,
         stock_id: str,
     ) -> Optional[pd.DataFrame]:
-        """Clean Stock Tick Data"""
+        """
+        Clean Stock Tick Data
+
+        使用臨時文件和文件鎖定機制來確保線程安全：
+        1. 先寫入臨時文件
+        2. 使用文件鎖保護寫入操作
+        3. 成功後再覆蓋目標文件
+        """
 
         try:
-            df.ts = pd.to_datetime(df.ts)
+            # 時間格式轉換，加強錯誤處理
+            try:
+                df.ts = pd.to_datetime(df.ts, errors="coerce")
+                # 檢查是否有無效的時間值
+                if df.ts.isna().any():
+                    invalid_count: int = df.ts.isna().sum()
+                    logger.warning(
+                        f"Stock {stock_id}: {invalid_count} rows have invalid timestamp, will be dropped"
+                    )
+                    df = df.dropna(subset=["ts"])
+                    if df.empty:
+                        logger.error(
+                            f"Stock {stock_id}: All rows have invalid timestamp"
+                        )
+                        return None
+            except Exception as e:
+                logger.error(f"Stock {stock_id}: Error converting timestamp: {e}")
+                return None
 
             new_df: pd.DataFrame = self.format_tick_data(df, stock_id)
             new_df = self.format_time_to_microsec(new_df)
 
-            # Save df to csv file
-            new_df.to_csv(
-                self.tick_dir / f"{stock_id}.csv",
-                index=False,
-            )
-            logger.info(f"Saved {stock_id}.csv to {TICK_DOWNLOADS_PATH}")
+            if new_df is None or new_df.empty:
+                logger.warning(f"Stock {stock_id}: Cleaned dataframe is empty")
+                return None
+
+            # 獲取或創建該股票的文件鎖
+            with self._locks_lock:
+                if stock_id not in self._file_locks:
+                    self._file_locks[stock_id] = Lock()
+                file_lock = self._file_locks[stock_id]
+
+            # 使用文件鎖保護寫入操作
+            with file_lock:
+                csv_path: Path = self.tick_dir / f"{stock_id}.csv"
+
+                # 使用臨時文件，成功後再覆蓋目標文件
+                temp_fd: int
+                temp_path: str
+                temp_fd, temp_path = tempfile.mkstemp(
+                    suffix=".csv", dir=self.tick_dir, prefix=f"{stock_id}_"
+                )
+                try:
+                    # 寫入臨時文件
+                    temp_file: Path = Path(temp_path)
+                    new_df.to_csv(temp_file, index=False)
+
+                    # 原子性操作：將臨時文件移動到目標位置（覆蓋）
+                    temp_file.replace(csv_path)
+                    logger.info(
+                        f"Successfully saved {stock_id}.csv to {TICK_DOWNLOADS_PATH} "
+                        f"({len(new_df)} rows)"
+                    )
+                except Exception as e:
+                    # 如果寫入失敗，刪除臨時文件
+                    try:
+                        temp_file.unlink()
+                    except:
+                        pass
+                    raise e
+                finally:
+                    # 關閉臨時文件描述符
+                    try:
+                        import os
+
+                        os.close(temp_fd)
+                    except:
+                        pass
+
             return new_df
 
         except Exception as e:
             logger.error(
-                f"Error processing or saving tick data for stock {stock_id} | {e}"
+                f"Error processing or saving tick data for stock {stock_id} | {e}",
+                exc_info=True,
             )
             return None
 
@@ -89,13 +161,51 @@ class StockTickCleaner(BaseDataCleaner):
         return df
 
     def format_time_to_microsec(self, df: pd.DataFrame) -> pd.DataFrame:
-        """將 tick dataframe 時間格式格式化至微秒（才能存進 dolphinDB）"""
+        """
+        將 tick dataframe 時間格式格式化至微秒（才能存進 dolphinDB）
 
-        # 若 time 欄位沒有精確到微秒則格式化
-        if not df["time"].astype(str).str.match(r".*\.\d{6}$").all():
-            # 將 'time' 欄位轉換為 datetime 格式，並補足到微秒，同時加上年月日
-            df["time"] = pd.to_datetime(df["time"], errors="coerce").dt.strftime(
-                "%Y-%m-%d %H:%M:%S.%f"
-            )
+        加強時間格式驗證和錯誤處理
+        """
 
-        return df
+        try:
+            # 檢查 time 欄位是否存在
+            if "time" not in df.columns:
+                logger.error("DataFrame missing 'time' column")
+                return df
+
+            # 轉換為 datetime 格式（如果還不是）
+            if not pd.api.types.is_datetime64_any_dtype(df["time"]):
+                df["time"] = pd.to_datetime(df["time"], errors="coerce")
+                # 檢查是否有無效的時間值
+                if df["time"].isna().any():
+                    invalid_count: int = df["time"].isna().sum()
+                    logger.warning(
+                        f"Found {invalid_count} rows with invalid time format, will be dropped"
+                    )
+                    df = df.dropna(subset=["time"])
+                    if df.empty:
+                        logger.error("All rows have invalid time format")
+                        return df
+
+            # 檢查是否已經精確到微秒
+            time_str: pd.Series = df["time"].astype(str)
+            # 使用更嚴格的檢查：必須包含微秒（6位小數）
+            has_microsec: pd.Series = time_str.str.contains(r"\.\d{6}", regex=True, na=False)
+
+            if not has_microsec.all():
+                # 將 'time' 欄位轉換為 datetime 格式，並補足到微秒
+                df["time"] = pd.to_datetime(df["time"], errors="coerce").dt.strftime(
+                    "%Y-%m-%d %H:%M:%S.%f"
+                )
+                # 再次檢查是否有無效值
+                if df["time"].isna().any():
+                    logger.warning(
+                        "Some time values could not be formatted to microsecond precision"
+                    )
+                    df = df.dropna(subset=["time"])
+
+            return df
+
+        except Exception as e:
+            logger.error(f"Error formatting time to microsecond: {e}", exc_info=True)
+            return df
