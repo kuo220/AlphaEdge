@@ -7,7 +7,8 @@ from typing import List, Optional
 import pandas as pd
 from loguru import logger
 
-from trader.config import DB_PATH, LOGS_DIR_PATH, PRICE_TABLE_NAME
+from trader.config import DB_PATH, PRICE_TABLE_NAME
+from trader.utils.log_manager import LogManager
 from trader.pipeline.cleaners.stock_price_cleaner import StockPriceCleaner
 from trader.pipeline.crawlers.stock_price_crawler import StockPriceCrawler
 from trader.pipeline.loaders.stock_price_loader import StockPriceLoader
@@ -49,7 +50,7 @@ class StockPriceUpdater(BaseDataUpdater):
             self.conn = sqlite3.connect(DB_PATH)
 
         # 設定 log 檔案儲存路徑
-        logger.add(f"{LOGS_DIR_PATH}/update_price.log")
+        LogManager.setup_logger("update_price.log")
 
     def update(
         self,

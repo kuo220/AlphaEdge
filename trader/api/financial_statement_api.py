@@ -4,7 +4,8 @@ import pandas as pd
 from loguru import logger
 
 from trader.api.base import BaseDataAPI
-from trader.config import DB_PATH, LOGS_DIR_PATH
+from trader.config import DB_PATH
+from trader.utils.log_manager import LogManager
 
 
 class FinancialStatementAPI(BaseDataAPI):
@@ -22,7 +23,7 @@ class FinancialStatementAPI(BaseDataAPI):
         self.conn = sqlite3.connect(DB_PATH)
 
         # 設定 log 檔案儲存路徑
-        logger.add(f"{LOGS_DIR_PATH}/financial_statement_api.log")
+        LogManager.setup_logger("financial_statement_api.log")
 
     def get(
         self,

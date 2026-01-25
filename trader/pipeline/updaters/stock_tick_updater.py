@@ -8,7 +8,8 @@ import pandas as pd
 import shioaji as sj
 from loguru import logger
 
-from trader.config import LOGS_DIR_PATH, TICK_DOWNLOADS_PATH
+from trader.config import TICK_DOWNLOADS_PATH
+from trader.utils.log_manager import LogManager
 from trader.pipeline.cleaners.stock_tick_cleaner import StockTickCleaner
 from trader.pipeline.crawlers.stock_info_crawler import StockInfoCrawler
 from trader.pipeline.crawlers.stock_tick_crawler import StockTickCrawler
@@ -87,7 +88,7 @@ class StockTickUpdater(BaseDataUpdater):
         StockTickUtils.generate_tick_metadata_backup()
 
         # 設定 log 檔案儲存路徑
-        logger.add(f"{LOGS_DIR_PATH}/update_tick.log")
+        LogManager.setup_logger("update_tick.log")
 
     def update(
         self,

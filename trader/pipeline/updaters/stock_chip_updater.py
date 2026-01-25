@@ -7,7 +7,8 @@ from typing import List, Optional
 import pandas as pd
 from loguru import logger
 
-from trader.config import CHIP_TABLE_NAME, DB_PATH, LOGS_DIR_PATH
+from trader.config import CHIP_TABLE_NAME, DB_PATH
+from trader.utils.log_manager import LogManager
 from trader.pipeline.cleaners.stock_chip_cleaner import StockChipCleaner
 from trader.pipeline.crawlers.stock_chip_crawler import StockChipCrawler
 from trader.pipeline.loaders.stock_chip_loader import StockChipLoader
@@ -50,7 +51,7 @@ class StockChipUpdater(BaseDataUpdater):
             self.conn = sqlite3.connect(DB_PATH)
 
         # 設定 log 檔案儲存路徑
-        logger.add(f"{LOGS_DIR_PATH}/update_chip.log")
+        LogManager.setup_logger("update_chip.log")
 
     def update(
         self,

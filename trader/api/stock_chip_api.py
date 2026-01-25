@@ -5,7 +5,8 @@ import pandas as pd
 from loguru import logger
 
 from trader.api.base import BaseDataAPI
-from trader.config import CHIP_TABLE_NAME, DB_PATH, LOGS_DIR_PATH
+from trader.config import CHIP_TABLE_NAME, DB_PATH
+from trader.utils.log_manager import LogManager
 
 
 class StockChipAPI(BaseDataAPI):
@@ -23,7 +24,7 @@ class StockChipAPI(BaseDataAPI):
         self.conn = sqlite3.connect(DB_PATH)
 
         # 設定 log 檔案儲存路徑
-        logger.add(f"{LOGS_DIR_PATH}/stock_chip_api.log")
+        LogManager.setup_logger("stock_chip_api.log")
 
     def get(self, date: datetime.date) -> pd.DataFrame:
         """取得所有股票指定日期的三大法人籌碼"""

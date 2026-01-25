@@ -14,10 +14,10 @@ from trader.config import (
     DDB_PASSWORD,
     DDB_PORT,
     DDB_USER,
-    LOGS_DIR_PATH,
     TICK_DB_PATH,
     TICK_TABLE_NAME,
 )
+from trader.utils.log_manager import LogManager
 
 
 class StockTickAPI(BaseDataAPI):
@@ -53,7 +53,7 @@ class StockTickAPI(BaseDataAPI):
             print("* Database doesn't exist!")
 
         # 設定 log 檔案儲存路徑
-        logger.add(f"{LOGS_DIR_PATH}/stock_tick_api.log")
+        LogManager.setup_logger("stock_tick_api.log")
 
     def get(
         self,

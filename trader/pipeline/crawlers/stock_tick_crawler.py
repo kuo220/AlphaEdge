@@ -7,7 +7,8 @@ import shioaji as sj
 from loguru import logger
 from shioaji.data import Ticks
 
-from trader.config import LOGS_DIR_PATH, TICK_DOWNLOADS_PATH
+from trader.config import TICK_DOWNLOADS_PATH
+from trader.utils.log_manager import LogManager
 from trader.pipeline.crawlers.base import BaseDataCrawler
 
 """
@@ -34,7 +35,7 @@ class StockTickCrawler(BaseDataCrawler):
         """Set Up the Config of Crawler"""
 
         # Set logger
-        logger.add(f"{LOGS_DIR_PATH}/crawl_stock_tick.log")
+        LogManager.setup_logger("crawl_stock_tick.log")
 
         # Create the tick downloads directory
         self.tick_dir.mkdir(parents=True, exist_ok=True)
