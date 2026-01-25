@@ -360,7 +360,7 @@ class StockBacktestReporter(BaseBacktestReporter):
         # === 清理 benchmark_price 數據 ===
         # 移除缺失值和 0 值（0 值可能是數據錯誤或停牌），並確保索引唯一且排序
         # 注意：股票收盤價不可能是負數，所以不需要特別檢查負數
-        benchmark_price_clean = self.benchmark_price.copy()
+        benchmark_price_clean: pd.Series = self.benchmark_price.copy()
         benchmark_price_clean = benchmark_price_clean[
             benchmark_price_clean.notna() & (benchmark_price_clean > 0)
         ]
@@ -374,7 +374,7 @@ class StockBacktestReporter(BaseBacktestReporter):
             return
 
         # === 計算調整後價格（處理股票分割） ===
-        benchmark_price_adjusted = self._get_adjusted_price(
+        benchmark_price_adjusted: pd.Series = self._get_adjusted_price(
             benchmark_price_clean, self.benchmark
         )
 

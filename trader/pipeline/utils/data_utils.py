@@ -121,17 +121,17 @@ class DataUtils:
             - 處理後的欄位名稱
         """
 
-        word = str(word)
+        word: str = str(word)
 
         if remove_whitespace:
-            word = re.sub(r"\s+", "", word)  # 清除所有空白（包含 tab, 換行, 全形空白）
+            word: str = re.sub(r"\s+", "", word)  # 清除所有空白（包含 tab, 換行, 全形空白）
 
         for old, new in replace_pairs.items():
-            word = word.replace(old, new)
+            word: str = word.replace(old, new)
         for char in remove_chars:
-            word = word.replace(char, "")
+            word: str = word.replace(char, "")
         for dash in remove_dash:
-            word = word.replace(dash, "")
+            word: str = word.replace(dash, "")
 
         return word
 
@@ -205,8 +205,8 @@ class DataUtils:
 
         if case_insensitive:
             columns = columns.str.lower()
-            startswith_list = [word.lower() for word in startswith_list]
-            contains_list = [word.lower() for word in contains_list]
+            startswith_list: List[str] = [word.lower() for word in startswith_list]
+            contains_list: List[str] = [word.lower() for word in contains_list]
 
         for keyword in startswith_list:
             columns_to_drop |= columns.str.startswith(keyword)

@@ -36,23 +36,6 @@ class StockTickUtils:
     _metadata_lock: Lock = Lock()
 
     @staticmethod
-    def get_table_earliest_date() -> datetime.date:
-        """從 tick_metadata.json 中取得 tick table 的最早日期"""
-
-        with open(TICK_METADATA_PATH, "r", encoding="utf-8") as data:
-            time_data: Dict[str, Any] = json.load(data)
-            # 從所有股票中找出最早的日期
-            earliest_date: Optional[datetime.date] = None
-            for stock_info in time_data.get("stocks", {}).values():
-                if "last_date" in stock_info:
-                    stock_date: datetime.date = datetime.date.fromisoformat(
-                        stock_info["last_date"]
-                    )
-                    if earliest_date is None or stock_date < earliest_date:
-                        earliest_date = stock_date
-            return earliest_date if earliest_date else datetime.date(2020, 4, 1)
-
-    @staticmethod
     def get_table_latest_date() -> datetime.date:
         """從 tick_metadata.json 中取得 tick table 的最新日期"""
 
@@ -66,7 +49,7 @@ class StockTickUtils:
                         stock_info["last_date"]
                     )
                     if latest_date is None or stock_date > latest_date:
-                        latest_date = stock_date
+                        latest_date: datetime.date = stock_date
             return latest_date if latest_date else datetime.date(2020, 4, 1)
 
     @staticmethod
@@ -216,7 +199,7 @@ class StockTickUtils:
                 metadata["stocks"][stock_id] = {"last_date": last_date}
 
             # 寫入更新後的 metadata（使用臨時文件確保原子性）
-            temp_path = TICK_METADATA_PATH.with_suffix(".tmp")
+            temp_path: Path = TICK_METADATA_PATH.with_suffix(".tmp")
             try:
                 with open(temp_path, "w", encoding="utf-8") as f:
                     json.dump(metadata, f, ensure_ascii=False, indent=4)
@@ -245,6 +228,24 @@ class StockTickUtils:
 
         Returns:
             Dict[str, Dict[str, str]]: 股票代號 -> 股票資訊（包含 last_date）
+
+        回傳格式範例：
+        {
+            "1101": {
+                "last_date": "2024-05-15"
+            },
+            "1102": {
+                "last_date": "2024-05-15"
+            },
+            "2330": {
+                "last_date": "2024-01-15"
+            }
+        }
+
+        說明：
+        - 外層 key: 股票代號（字串）
+        - 內層 value: 包含 last_date 的字典，last_date 格式為 YYYY-MM-DD
+        - 如果檔案不存在或讀取失敗，回傳空字典 {}
         """
         with StockTickUtils._metadata_lock:
             if not TICK_METADATA_PATH.exists():

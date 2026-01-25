@@ -5,6 +5,7 @@
 
 import datetime
 from pathlib import Path
+from typing import List, Optional
 
 import pandas as pd
 import shioaji as sj
@@ -32,11 +33,11 @@ def test_crawler_only(stock_id: str, date: datetime.date):
     print(f"日期: {date}")
 
     # 初始化 crawler
-    crawler = StockTickCrawler()
+    crawler: StockTickCrawler = StockTickCrawler()
 
     # 登入 Shioaji API
-    api = sj.Shioaji()
-    api_instance = ShioajiAccount.API_login(api, API_KEY, API_SECRET_KEY)
+    api: sj.Shioaji = sj.Shioaji()
+    api_instance: Optional[sj.Shioaji] = ShioajiAccount.API_login(api, API_KEY, API_SECRET_KEY)
 
     if api_instance is None:
         print("❌ API 登入失敗")
@@ -96,7 +97,7 @@ def test_crawler_and_cleaner(stock_id: str, date: datetime.date):
 
     # 爬取資料
     print(f"\n開始爬取 {stock_id} 在 {date} 的 tick 資料...")
-    df = crawler.crawl_stock_tick(api_instance, date, stock_id)
+    df: Optional[pd.DataFrame] = crawler.crawl_stock_tick(api_instance, date, stock_id)
 
     if df is None or df.empty:
         print(f"❌ 沒有爬取到資料")
@@ -107,7 +108,7 @@ def test_crawler_and_cleaner(stock_id: str, date: datetime.date):
 
     # 清洗資料（會自動保存 CSV）
     print(f"\n開始清洗資料...")
-    cleaned_df = cleaner.clean_stock_tick(df, stock_id)
+    cleaned_df: Optional[pd.DataFrame] = cleaner.clean_stock_tick(df, stock_id)
 
     if cleaned_df is None or cleaned_df.empty:
         print(f"❌ 清洗後的資料為空")
@@ -151,12 +152,12 @@ def test_multiple_dates(stock_id: str, dates: list[datetime.date]):
     print(f"資料保存路徑: {TICK_DOWNLOADS_PATH}")
 
     # 初始化 crawler 和 cleaner
-    crawler = StockTickCrawler()
-    cleaner = StockTickCleaner()
+    crawler: StockTickCrawler = StockTickCrawler()
+    cleaner: StockTickCleaner = StockTickCleaner()
 
     # 登入 Shioaji API
-    api = sj.Shioaji()
-    api_instance = ShioajiAccount.API_login(api, API_KEY, API_SECRET_KEY)
+    api: sj.Shioaji = sj.Shioaji()
+    api_instance: Optional[sj.Shioaji] = ShioajiAccount.API_login(api, API_KEY, API_SECRET_KEY)
 
     if api_instance is None:
         print("❌ API 登入失敗")
@@ -165,10 +166,10 @@ def test_multiple_dates(stock_id: str, dates: list[datetime.date]):
     print("✅ API 登入成功")
 
     # 爬取多個日期的資料
-    df_list = []
+    df_list: List[pd.DataFrame] = []
     for date in dates:
         print(f"\n爬取 {date} 的資料...")
-        df = crawler.crawl_stock_tick(api_instance, date, stock_id)
+        df: Optional[pd.DataFrame] = crawler.crawl_stock_tick(api_instance, date, stock_id)
 
         if df is not None and not df.empty:
             df_list.append(df)
@@ -182,12 +183,12 @@ def test_multiple_dates(stock_id: str, dates: list[datetime.date]):
         return None
 
     # 合併所有日期的資料
-    merged_df = pd.concat(df_list, ignore_index=True)
+    merged_df: pd.DataFrame = pd.concat(df_list, ignore_index=True)
     print(f"\n✅ 合併完成！總共 {len(merged_df)} 筆資料")
 
     # 清洗資料（會自動保存 CSV）
     print(f"\n開始清洗資料...")
-    cleaned_df = cleaner.clean_stock_tick(merged_df, stock_id)
+    cleaned_df: Optional[pd.DataFrame] = cleaner.clean_stock_tick(merged_df, stock_id)
 
     if cleaned_df is None or cleaned_df.empty:
         print(f"❌ 清洗後的資料為空")

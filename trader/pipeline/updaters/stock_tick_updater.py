@@ -2,7 +2,6 @@ import datetime
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
-from threading import Lock
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
@@ -52,9 +51,6 @@ class StockTickUpdater(BaseDataUpdater):
         # 股票清單分組（後續給多線程用）
         self.split_stock_list: List[List[str]] = []
 
-        # 目前 tickDB 最新資料日期
-        self.table_latest_date: Optional[datetime.date] = None
-        self.table_latest_date_lock: Lock = Lock()
         self.tick_dir: Path = TICK_DOWNLOADS_PATH
 
         # 全局統計信息
@@ -114,51 +110,95 @@ class StockTickUpdater(BaseDataUpdater):
         }
 
         try:
-            # 改進 CSV 文件刪除策略：只刪除臨時文件，保留已確認的 CSV
-            # 檢查是否有臨時文件（以股票代號開頭但包含臨時標記的文件）
-            temp_files: List[Path] = [
-                f
-                for f in self.tick_dir.glob("*.csv")
-                if "_" in f.stem and f.stem.split("_")[0].isdigit()
-            ]
-            if temp_files:
-                logger.info(f"Found {len(temp_files)} temporary CSV files, deleting...")
-                for temp_file in temp_files:
-                    try:
-                        temp_file.unlink()
-                        logger.debug(f"Deleted temporary file: {temp_file.name}")
-                    except Exception as e:
-                        logger.warning(
-                            f"Failed to delete temporary file {temp_file.name}: {e}"
-                        )
-
-            # 檢查是否有正常的 CSV 文件（這些應該是已存入資料庫的）
-            normal_csv_files: List[Path] = [
-                f
-                for f in self.tick_dir.glob("*.csv")
-                if f.stem.isdigit() and f not in temp_files
-            ]
-            if normal_csv_files:
+            # 清理已載入資料庫的 CSV 文件，避免重複載入
+            # 讀取 tick_metadata.json 來判斷哪些 CSV 已經載入過
+            stocks_metadata: Dict[str, Dict[str, str]] = (
+                StockTickUtils.load_tick_metadata_stocks()
+            )
+            
+            all_csv_files: List[Path] = list(self.tick_dir.glob("*.csv"))
+            deleted_count: int = 0
+            
+            for csv_file in all_csv_files:
+                stock_id: str = csv_file.stem
+                
+                # 只處理檔名為純數字的 CSV 文件（股票代號）
+                if not stock_id.isdigit():
+                    continue
+                
+                # 檢查該股票是否在 metadata 中
+                if stock_id in stocks_metadata:
+                    stock_info: Dict[str, str] = stocks_metadata[stock_id]
+                    last_date_str: Optional[str] = stock_info.get("last_date")
+                    
+                    if last_date_str:
+                        try:
+                            # 讀取 CSV 文件的最後一筆資料日期
+                            df: pd.DataFrame = pd.read_csv(csv_file, usecols=["time"])
+                            if not df.empty:
+                                last_time_str: str = df["time"].iloc[-1]
+                                csv_last_date: datetime.date = pd.to_datetime(
+                                    last_time_str
+                                ).date()
+                                metadata_last_date: datetime.date = datetime.date.fromisoformat(
+                                    last_date_str
+                                )
+                                
+                                # 如果 CSV 的最後日期 <= metadata 的最後日期，說明已載入，可以刪除
+                                if csv_last_date <= metadata_last_date:
+                                    try:
+                                        csv_file.unlink()
+                                        deleted_count += 1
+                                        logger.debug(
+                                            f"Deleted CSV file {csv_file.name} "
+                                            f"(already in database, last_date: {csv_last_date})"
+                                        )
+                                    except Exception as e:
+                                        logger.warning(
+                                            f"Failed to delete CSV file {csv_file.name}: {e}"
+                                        )
+                        except Exception as e:
+                            logger.warning(
+                                f"Failed to check CSV file {csv_file.name}: {e}. "
+                                f"Skipping deletion."
+                            )
+            
+            if deleted_count > 0:
                 logger.info(
-                    f"Found {len(normal_csv_files)} existing CSV files. "
-                    f"These will be preserved (assuming they are already in database)."
+                    f"Cleaned up {deleted_count} CSV files that were already in database"
+                )
+            
+            remaining_csv_files: List[Path] = list(self.tick_dir.glob("*.csv"))
+            if remaining_csv_files:
+                logger.info(
+                    f"Found {len(remaining_csv_files)} CSV files to be loaded into database"
                 )
 
-            # 取得最近更新的日期（從 tick_metadata.json 讀取）
-            start_date = self.get_actual_update_start_date(default_date=start_date)
-            logger.info(f"Latest data date in database: {start_date}")
+            # 使用傳入的日期區間作為更新範圍
+            logger.info(
+                f"Update date range: {start_date.isoformat()} ~ {end_date.isoformat()}"
+            )
 
             # Set Up Update Period
             dates: List[datetime.date] = TimeUtils.generate_date_range(
                 start_date, end_date
             )
 
-            # Step 1: Crawl + Clean（會使用 tick_metadata.json 來跳過已存在的日期）
-            logger.info("=" * 80)
-            logger.info("Starting multi-threaded update process...")
-            logger.info("=" * 80)
+            # 檢查日期範圍是否有效
+            if not dates:
+                logger.warning(
+                    f"No dates to update. Start date ({start_date}) is after end date ({end_date}). "
+                    f"Database is already up to date or end_date needs to be adjusted."
+                )
+                logger.info("Skipping crawl process. Proceeding to database loading...")
+                # 即使沒有新日期，也嘗試載入現有的 CSV 文件
+            else:
+                # Step 1: Crawl + Clean（會使用 tick_metadata.json 來跳過已存在的日期）
+                logger.info("=" * 80)
+                logger.info("Starting multi-threaded update process...")
+                logger.info("=" * 80)
 
-            self.update_multithreaded(dates)
+                self.update_multithreaded(dates)
 
             # Step 2: Load - 存入資料庫
             logger.info("=" * 80)
@@ -181,15 +221,18 @@ class StockTickUpdater(BaseDataUpdater):
                 logger.error(f"Failed to update tick metadata: {e}", exc_info=True)
                 # 不中斷流程，因為 metadata 更新失敗不影響數據本身
 
-            # 更新後重新取得最新日期並記錄
-            if self.table_latest_date:
+            # 更新後從 tick_metadata.json 取得最新日期並記錄
+            latest_date_from_metadata: Optional[datetime.date] = (
+                StockTickUtils.get_table_latest_date()
+            )
+            if latest_date_from_metadata:
                 logger.info(
-                    f"* Tick data updated. Latest available date: {self.table_latest_date}"
+                    f"* Tick data updated. Latest available date: {latest_date_from_metadata}"
                 )
                 # 如果最新日期小於目標結束日期，記錄警告
-                if self.table_latest_date < end_date:
+                if latest_date_from_metadata < end_date:
                     logger.warning(
-                        f"* Warning: Latest date ({self.table_latest_date}) is before target end_date ({end_date}). "
+                        f"* Warning: Latest date ({latest_date_from_metadata}) is before target end_date ({end_date}). "
                         f"Some dates may have no data (non-trading days or API issues)."
                     )
             else:
@@ -227,7 +270,6 @@ class StockTickUpdater(BaseDataUpdater):
             - 每個 df 是一檔股票日期區間內的所有 tick
         """
 
-        latest_date: Optional[datetime.date] = None
         # 統計信息
         stats: Dict[str, Any] = {
             "total_stocks": len(stock_list),
@@ -315,8 +357,14 @@ class StockTickUpdater(BaseDataUpdater):
                     )
                     stats["skipped_stocks"] += 1
                 else:
+                    # 安全地訪問 dates 列表，避免 index out of range
+                    date_range_str: str = (
+                        f"{dates[0]} to {dates[-1]}"
+                        if dates
+                        else "no dates available"
+                    )
                     logger.warning(
-                        f"No tick data found for stock {stock_id} from {dates[0]} to {dates[-1]}. "
+                        f"No tick data found for stock {stock_id} from {date_range_str}. "
                         f"Failed dates: {len(failed_dates)}"
                     )
                     stats["failed_stocks"] += 1
@@ -364,14 +412,6 @@ class StockTickUpdater(BaseDataUpdater):
                     )
                     stats["failed_stocks"] += 1
                 else:
-                    # 更新 latest_date 為成功處理的日期中的最大值
-                    if stock_successful_dates:
-                        stock_max_date: datetime.date = max(stock_successful_dates)
-                        latest_date = (
-                            stock_max_date
-                            if latest_date is None
-                            else max(latest_date, stock_max_date)
-                        )
                     stats["successful_stocks"] += 1
                     logger.info(
                         f"Stock {stock_id}: Successfully processed and saved "
@@ -393,13 +433,6 @@ class StockTickUpdater(BaseDataUpdater):
 
         # 返回統計信息供匯總
         return stats
-
-        # 更新 table 最新日期（thread-safe）
-        if latest_date:
-            with self.table_latest_date_lock:
-                self.table_latest_date = max(
-                    self.table_latest_date or latest_date, latest_date
-                )
 
     def update_multithreaded(self, dates: List[datetime.date]) -> None:
         """使用 Multi-threading 的方式 Update Tick Data"""
@@ -489,17 +522,6 @@ class StockTickUpdater(BaseDataUpdater):
             ]
             for i in range(n_parts)
         ]
-
-    def get_actual_update_start_date(
-        self, default_date: datetime.date
-    ) -> datetime.date:
-        """Get the actual start date for updating (1 day after latest date in table, or default_date)"""
-
-        self.table_latest_date = StockTickUtils.get_table_latest_date()
-        if self.table_latest_date:
-            return self.table_latest_date + datetime.timedelta(days=1)
-        else:
-            return default_date
 
     def cleanup(self) -> None:
         """清理資源：登出所有 Shioaji API 連接"""

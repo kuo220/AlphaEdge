@@ -31,7 +31,7 @@ def fetch_broker_location() -> pd.DataFrame:
     resp: requests.Response = requests.get(URL, headers=headers, params=params, timeout=30)
     resp.raise_for_status()
 
-    payload: dict = resp.json()
+    payload: dict[str, any] = resp.json()
     if "data" not in payload:
         raise ValueError("Unexpected API response: missing 'data' field.")
 
@@ -60,7 +60,7 @@ def validate_csv(file_path: Path) -> None:
         return
 
 
-def upload_to_hdfs(local_path, hdfs_path):
+def upload_to_hdfs(local_path: Path, hdfs_path: str) -> None:
     """Upload broker location to HDFS"""
     # TODO: Implement HDFS upload
     pass
