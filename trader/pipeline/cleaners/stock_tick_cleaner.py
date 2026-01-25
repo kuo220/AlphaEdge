@@ -91,30 +91,30 @@ class StockTickCleaner(BaseDataCleaner):
                     suffix=".csv", dir=self.tick_dir, prefix=f"{stock_id}_"
                 )
                 temp_file: Path = Path(temp_path)
-                
+
                 try:
                     # 先關閉臨時文件描述符，讓 pandas 可以正常寫入
                     os.close(temp_fd)
                     temp_fd = None
-                    
+
                     # 寫入臨時文件
                     new_df.to_csv(temp_file, index=False)
-                    
+
                     # 確保檔案已完全寫入並關閉
                     # 在 Windows 上，需要確保檔案句柄已釋放
-                    if os.name == 'nt':  # Windows
+                    if os.name == "nt":  # Windows
                         # 等待一下確保檔案已完全關閉
                         time.sleep(0.01)
-                    
+
                     # 在 Windows 上，如果目標檔案存在且被鎖定，先嘗試刪除
                     max_retries = 3
                     retry_delay = 0.1
-                    
+
                     for attempt in range(max_retries):
                         try:
                             # 在 Windows 上，如果目標檔案存在，先刪除再移動
                             # 在 Unix 系統上，可以直接使用 replace（原子操作）
-                            if os.name == 'nt':  # Windows
+                            if os.name == "nt":  # Windows
                                 if csv_path.exists():
                                     csv_path.unlink()
                                 # 使用 shutil.move 移動檔案
@@ -122,13 +122,13 @@ class StockTickCleaner(BaseDataCleaner):
                             else:  # Unix/Linux/Mac
                                 # 使用 replace 進行原子性操作
                                 temp_file.replace(csv_path)
-                            
+
                             logger.info(
                                 f"Successfully saved {stock_id}.csv to {TICK_DOWNLOADS_PATH} "
                                 f"({len(new_df)} rows)"
                             )
                             break  # 成功，跳出重試循環
-                            
+
                         except (PermissionError, OSError) as e:
                             if attempt < max_retries - 1:
                                 logger.warning(
@@ -140,7 +140,7 @@ class StockTickCleaner(BaseDataCleaner):
                             else:
                                 # 最後一次嘗試失敗
                                 raise e
-                                
+
                 except Exception as e:
                     # 如果寫入失敗，刪除臨時文件
                     try:
