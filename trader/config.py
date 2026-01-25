@@ -18,6 +18,7 @@ DATABASE_DIR_PATH: Path = get_static_resolved_path(
     base_dir=BASE_DIR_PATH, dir_name="database"
 )
 LOGS_DIR_PATH: Path = get_static_resolved_path(base_dir=BASE_DIR_PATH, dir_name="logs")
+LOGS_DIR_PATH.mkdir(parents=True, exist_ok=True)  # 確保 logs 目錄存在
 DATA_DIR_PATH: Path = get_static_resolved_path(base_dir=BASE_DIR_PATH, dir_name="data")
 
 
