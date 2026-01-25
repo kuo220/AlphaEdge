@@ -124,7 +124,9 @@ class DataUtils:
         word: str = str(word)
 
         if remove_whitespace:
-            word: str = re.sub(r"\s+", "", word)  # 清除所有空白（包含 tab, 換行, 全形空白）
+            word: str = re.sub(
+                r"\s+", "", word
+            )  # 清除所有空白（包含 tab, 換行, 全形空白）
 
         for old, new in replace_pairs.items():
             word: str = word.replace(old, new)

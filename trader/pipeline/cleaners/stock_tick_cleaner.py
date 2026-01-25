@@ -190,7 +190,9 @@ class StockTickCleaner(BaseDataCleaner):
             # 檢查是否已經精確到微秒
             time_str: pd.Series = df["time"].astype(str)
             # 使用更嚴格的檢查：必須包含微秒（6位小數）
-            has_microsec: pd.Series = time_str.str.contains(r"\.\d{6}", regex=True, na=False)
+            has_microsec: pd.Series = time_str.str.contains(
+                r"\.\d{6}", regex=True, na=False
+            )
 
             if not has_microsec.all():
                 # 將 'time' 欄位轉換為 datetime 格式，並補足到微秒

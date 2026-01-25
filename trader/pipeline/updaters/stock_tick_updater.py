@@ -115,22 +115,22 @@ class StockTickUpdater(BaseDataUpdater):
             stocks_metadata: Dict[str, Dict[str, str]] = (
                 StockTickUtils.load_tick_metadata_stocks()
             )
-            
+
             all_csv_files: List[Path] = list(self.tick_dir.glob("*.csv"))
             deleted_count: int = 0
-            
+
             for csv_file in all_csv_files:
                 stock_id: str = csv_file.stem
-                
+
                 # 只處理檔名為純數字的 CSV 文件（股票代號）
                 if not stock_id.isdigit():
                     continue
-                
+
                 # 檢查該股票是否在 metadata 中
                 if stock_id in stocks_metadata:
                     stock_info: Dict[str, str] = stocks_metadata[stock_id]
                     last_date_str: Optional[str] = stock_info.get("last_date")
-                    
+
                     if last_date_str:
                         try:
                             # 讀取 CSV 文件的最後一筆資料日期
@@ -140,10 +140,10 @@ class StockTickUpdater(BaseDataUpdater):
                                 csv_last_date: datetime.date = pd.to_datetime(
                                     last_time_str
                                 ).date()
-                                metadata_last_date: datetime.date = datetime.date.fromisoformat(
-                                    last_date_str
+                                metadata_last_date: datetime.date = (
+                                    datetime.date.fromisoformat(last_date_str)
                                 )
-                                
+
                                 # 如果 CSV 的最後日期 <= metadata 的最後日期，說明已載入，可以刪除
                                 if csv_last_date <= metadata_last_date:
                                     try:
@@ -162,12 +162,12 @@ class StockTickUpdater(BaseDataUpdater):
                                 f"Failed to check CSV file {csv_file.name}: {e}. "
                                 f"Skipping deletion."
                             )
-            
+
             if deleted_count > 0:
                 logger.info(
                     f"Cleaned up {deleted_count} CSV files that were already in database"
                 )
-            
+
             remaining_csv_files: List[Path] = list(self.tick_dir.glob("*.csv"))
             if remaining_csv_files:
                 logger.info(
@@ -359,9 +359,7 @@ class StockTickUpdater(BaseDataUpdater):
                 else:
                     # 安全地訪問 dates 列表，避免 index out of range
                     date_range_str: str = (
-                        f"{dates[0]} to {dates[-1]}"
-                        if dates
-                        else "no dates available"
+                        f"{dates[0]} to {dates[-1]}" if dates else "no dates available"
                     )
                     logger.warning(
                         f"No tick data found for stock {stock_id} from {date_range_str}. "

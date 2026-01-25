@@ -415,7 +415,9 @@ class StockBacktestReporter(BaseBacktestReporter):
         all_dates: pd.Index = benchmark_net_worth.index.sort_values()
 
         # 將策略數據重新索引到 benchmark 的日期上，使用前向填充處理沒有交易的日期
-        cumulative_balance_aligned: pd.Series = cumulative_balance.reindex(all_dates).ffill()
+        cumulative_balance_aligned: pd.Series = cumulative_balance.reindex(
+            all_dates
+        ).ffill()
         # 如果仍有 NaN（例如在第一次交易之前的日期），用初始資金填充
         if cumulative_balance_aligned.isna().any():
             cumulative_balance_aligned = cumulative_balance_aligned.fillna(
@@ -538,7 +540,9 @@ class StockBacktestReporter(BaseBacktestReporter):
         all_dates: pd.Index = mdd_benchmark.index.sort_values()
 
         # 將策略數據重新索引到 benchmark 的日期上，使用前向填充處理沒有交易的日期
-        cumulative_balance_aligned: pd.Series = cumulative_balance.reindex(all_dates).ffill()
+        cumulative_balance_aligned: pd.Series = cumulative_balance.reindex(
+            all_dates
+        ).ffill()
         # 如果仍有 NaN（例如在第一次交易之前的日期），用初始資金填充
         if cumulative_balance_aligned.isna().any():
             cumulative_balance_aligned = cumulative_balance_aligned.fillna(

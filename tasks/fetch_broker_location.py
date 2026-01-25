@@ -28,7 +28,9 @@ def fetch_broker_location() -> pd.DataFrame:
 
     headers: dict[str, str] = {"Authorization": f"Bearer {token}"}
     params: dict[str, str] = {"dataset": DATASET}
-    resp: requests.Response = requests.get(URL, headers=headers, params=params, timeout=30)
+    resp: requests.Response = requests.get(
+        URL, headers=headers, params=params, timeout=30
+    )
     resp.raise_for_status()
 
     payload: dict[str, any] = resp.json()

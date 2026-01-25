@@ -136,4 +136,6 @@ API_SECRET_KEY: str | None = os.getenv("API_SECRET_KEY")
 """ === API list for crawling tick data === """
 NUM_API: int = 4
 API_KEYS: list[str | None] = [os.getenv(f"API_KEY_{i + 1}") for i in range(NUM_API)]
-API_SECRET_KEYS: list[str | None] = [os.getenv(f"API_SECRET_KEY_{i + 1}") for i in range(NUM_API)]
+API_SECRET_KEYS: list[str | None] = [
+    os.getenv(f"API_SECRET_KEY_{i + 1}") for i in range(NUM_API)
+]

@@ -197,9 +197,7 @@ class SimpleLongStrategy(BaseStockStrategy):
 
             if available_position_cnt > 0:
                 # 平均分配資金到每個部位
-                per_position_size: float = (
-                    self.account.balance / available_position_cnt
-                )
+                per_position_size: float = self.account.balance / available_position_cnt
 
                 for stock_quote in stock_quotes:
                     if available_position_cnt == 0:

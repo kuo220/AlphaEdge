@@ -37,7 +37,9 @@ def test_crawler_only(stock_id: str, date: datetime.date):
 
     # 登入 Shioaji API
     api: sj.Shioaji = sj.Shioaji()
-    api_instance: Optional[sj.Shioaji] = ShioajiAccount.API_login(api, API_KEY, API_SECRET_KEY)
+    api_instance: Optional[sj.Shioaji] = ShioajiAccount.API_login(
+        api, API_KEY, API_SECRET_KEY
+    )
 
     if api_instance is None:
         print("❌ API 登入失敗")
@@ -157,7 +159,9 @@ def test_multiple_dates(stock_id: str, dates: list[datetime.date]):
 
     # 登入 Shioaji API
     api: sj.Shioaji = sj.Shioaji()
-    api_instance: Optional[sj.Shioaji] = ShioajiAccount.API_login(api, API_KEY, API_SECRET_KEY)
+    api_instance: Optional[sj.Shioaji] = ShioajiAccount.API_login(
+        api, API_KEY, API_SECRET_KEY
+    )
 
     if api_instance is None:
         print("❌ API 登入失敗")
@@ -169,7 +173,9 @@ def test_multiple_dates(stock_id: str, dates: list[datetime.date]):
     df_list: List[pd.DataFrame] = []
     for date in dates:
         print(f"\n爬取 {date} 的資料...")
-        df: Optional[pd.DataFrame] = crawler.crawl_stock_tick(api_instance, date, stock_id)
+        df: Optional[pd.DataFrame] = crawler.crawl_stock_tick(
+            api_instance, date, stock_id
+        )
 
         if df is not None and not df.empty:
             df_list.append(df)

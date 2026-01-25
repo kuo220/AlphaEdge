@@ -87,7 +87,9 @@ def delete_price_data_by_date(date_str: str) -> None:
 
 
 def main() -> None:
-    parser: argparse.ArgumentParser = argparse.ArgumentParser(description="刪除 price table 中指定日期的資料")
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(
+        description="刪除 price table 中指定日期的資料"
+    )
     parser.add_argument(
         "--date",
         type=str,
