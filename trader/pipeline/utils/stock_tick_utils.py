@@ -4,12 +4,21 @@ import shutil
 from pathlib import Path
 from typing import Dict, List
 
+import pandas as pd
+from loguru import logger
+
 try:
     import dolphindb as ddb
 except ModuleNotFoundError:
     print("Warning: dolphindb module is not installed")
 
-from trader.config import API_KEYS, API_SECRET_KEYS, TICK_METADATA_PATH
+from trader.config import (
+    API_KEYS,
+    API_SECRET_KEYS,
+    TICK_DOWNLOADS_PATH,
+    TICK_METADATA_DIR_PATH,
+    TICK_METADATA_PATH,
+)
 from trader.utils import ShioajiAPI
 
 
@@ -57,6 +66,7 @@ class StockTickUtils:
                 json.dump(metadata, data, ensure_ascii=False, indent=4)
         except Exception as e:
             from loguru import logger
+
             logger.error(f"Failed to update tick metadata: {e}")
             raise
 
@@ -108,3 +118,98 @@ class StockTickUtils:
             api: ShioajiAPI = ShioajiAPI(key, secret)
             api_list.append(api)
         return api_list
+
+    @staticmethod
+    def scan_tick_downloads_folder() -> Dict[str, str]:
+        """
+        掃描 tick 下載資料夾，記錄每個已下載檔案的股票代號和最後一筆資料的日期
+
+        Returns:
+            Dict[str, str]: 股票代號 -> 最後一筆資料日期 (YYYY-MM-DD 格式)
+        """
+        stock_last_dates: Dict[str, str] = {}
+
+        # 確保資料夾存在
+        if not TICK_DOWNLOADS_PATH.exists():
+            logger.warning(
+                f"Tick downloads folder does not exist: {TICK_DOWNLOADS_PATH}"
+            )
+            return stock_last_dates
+
+        # 掃描所有 CSV 檔案
+        csv_files = list(TICK_DOWNLOADS_PATH.glob("*.csv"))
+        logger.info(f"Scanning {len(csv_files)} CSV files in tick downloads folder...")
+
+        for csv_file in csv_files:
+            stock_id = csv_file.stem  # 取得檔名（不含副檔名）作為股票代號
+
+            try:
+                # 讀取 CSV 檔案（只讀取 time 欄位以提升效能）
+                df = pd.read_csv(csv_file, usecols=["time"])
+
+                if df.empty:
+                    logger.warning(f"File {csv_file.name} is empty. Skipping.")
+                    continue
+
+                # 取得最後一筆資料的時間
+                last_time_str = df["time"].iloc[-1]
+
+                # 解析時間字串（格式：YYYY-MM-DD HH:MM:SS.ffffff）
+                try:
+                    last_time = pd.to_datetime(last_time_str)
+                    last_date = last_time.date()
+                    stock_last_dates[stock_id] = last_date.isoformat()
+                    logger.debug(
+                        f"Stock {stock_id}: last date = {last_date.isoformat()}"
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to parse time '{last_time_str}' in {csv_file.name}: {e}"
+                    )
+                    continue
+
+            except Exception as e:
+                logger.error(f"Error reading file {csv_file.name}: {e}")
+                continue
+
+        logger.info(f"Scanned {len(stock_last_dates)} stock files successfully")
+        return stock_last_dates
+
+    @staticmethod
+    def update_tick_downloads_metadata() -> None:
+        """
+        掃描 tick 下載資料夾並更新 tick_downloads_metadata.json 中的股票資訊
+        記錄每個已下載檔案的股票代號和最後一筆資料的日期
+        此功能不影響原本的 tick_metadata.json
+        """
+        # 定義新的 metadata 檔案路徑
+        downloads_metadata_path = (
+            TICK_METADATA_DIR_PATH / "tick_downloads_metadata.json"
+        )
+
+        # 確保目錄存在
+        downloads_metadata_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # 讀取現有的 metadata（如果存在）
+        if downloads_metadata_path.exists():
+            with open(downloads_metadata_path, "r", encoding="utf-8") as f:
+                metadata: Dict = json.load(f)
+        else:
+            metadata: Dict = {"stocks": {}}
+
+        # 掃描資料夾
+        stock_last_dates = StockTickUtils.scan_tick_downloads_folder()
+
+        # 更新或新增每個股票的資訊
+        for stock_id, last_date in stock_last_dates.items():
+            if stock_id not in metadata["stocks"]:
+                metadata["stocks"][stock_id] = {}
+            metadata["stocks"][stock_id]["last_date"] = last_date
+
+        # 寫入更新後的 metadata
+        with open(downloads_metadata_path, "w", encoding="utf-8") as f:
+            json.dump(metadata, f, ensure_ascii=False, indent=4)
+
+        logger.info(
+            f"Updated tick downloads metadata with {len(stock_last_dates)} stocks"
+        )

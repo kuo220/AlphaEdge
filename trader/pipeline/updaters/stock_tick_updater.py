@@ -87,6 +87,9 @@ class StockTickUpdater(BaseDataUpdater):
         """Update the Database"""
 
         try:
+            # 掃描並記錄已下載的 tick 檔案資訊（不影響原本的 tick_metadata.json）
+            StockTickUtils.update_tick_downloads_metadata()
+
             # 取得最近更新的日期
             start_date = self.get_actual_update_start_date(default_date=start_date)
             logger.info(f"Latest data date in database: {start_date}")
