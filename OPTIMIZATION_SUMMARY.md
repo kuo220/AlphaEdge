@@ -79,7 +79,7 @@ except Exception as e:
 - 添加類級別的 `_metadata_lock` 來保護 metadata 文件的讀寫操作
 - `update_tick_metadata_from_csv()` 和 `load_tick_metadata_stocks()` 都使用鎖保護
 - 使用臨時文件確保 metadata 更新的原子性
-- `should_skip_crawl()` 現在是線程安全的
+- `check_date_crawled()` 現在是線程安全的
 
 **關鍵改進**:
 ```python

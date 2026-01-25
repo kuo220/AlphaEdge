@@ -262,9 +262,9 @@ class StockTickUtils:
                 return {}
 
     @staticmethod
-    def should_skip_crawl(stock_id: str, date: datetime.date) -> bool:
+    def check_date_crawled(stock_id: str, date: datetime.date) -> bool:
         """
-        檢查某個股票的某個日期是否需要跳過爬取（因為已經存在於資料庫中）
+        檢查某個股票的某個日期是否已經爬取過（已存在於資料庫中）
         此函數會從 tick_metadata.json 讀取每檔股票在資料庫中的最新日期（線程安全）
 
         Parameters:
@@ -274,7 +274,7 @@ class StockTickUtils:
                 要檢查的日期
 
         Returns:
-            bool: True 表示應該跳過（資料已存在於資料庫），False 表示需要爬取
+            bool: True 表示日期已爬取（資料已存在於資料庫），False 表示需要爬取
         """
         # 讀取 metadata（線程安全）
         stocks_metadata: Dict[str, Dict[str, str]] = (

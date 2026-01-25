@@ -303,7 +303,7 @@ class StockTickUpdater(BaseDataUpdater):
 
             for date in dates:
                 # 檢查是否已經存在該日期的資料，如果存在則跳過
-                if StockTickUtils.should_skip_crawl(stock_id, date):
+                if StockTickUtils.check_date_crawled(stock_id, date):
                     skipped_dates.append(date)
                     logger.debug(
                         f"Skipping {stock_id} on {date.isoformat()} (data already exists in CSV)"
