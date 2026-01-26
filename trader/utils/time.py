@@ -23,7 +23,7 @@ class TimeUtils:
         """將西元年轉換成民國年"""
 
         try:
-            year_int = int(year)
+            year_int: int = int(year)
             if year_int < 1912:
                 raise ValueError("民國元年從 1912 年開始，請輸入有效的西元年份")
             return str(year_int - 1911)

@@ -9,11 +9,11 @@ from loguru import logger
 from trader.api.base import BaseDataAPI
 from trader.config import (
     DB_PATH,
-    LOGS_DIR_PATH,
     MONTHLY_REVENUE_REPORT_DOWNLOADS_PATH,
     MONTHLY_REVENUE_REPORT_META_DIR_PATH,
     MONTHLY_REVENUE_TABLE_NAME,
 )
+from trader.utils.log_manager import LogManager
 from trader.pipeline.utils import DataType
 from trader.pipeline.utils.data_utils import DataUtils
 from trader.pipeline.utils.sqlite_utils import SQLiteUtils
@@ -34,7 +34,7 @@ class MonthlyRevenueReportAPI(BaseDataAPI):
         self.conn = sqlite3.connect(DB_PATH)
 
         # 設定 log 檔案儲存路徑
-        logger.add(f"{LOGS_DIR_PATH}/monthly_revenue_report_api.log")
+        LogManager.setup_logger("monthly_revenue_report_api.log")
 
     def get(
         self,

@@ -9,10 +9,10 @@ from loguru import logger
 
 from trader.config import (
     DB_PATH,
-    LOGS_DIR_PATH,
     MONTHLY_REVENUE_REPORT_DOWNLOADS_PATH,
     MONTHLY_REVENUE_TABLE_NAME,
 )
+from trader.utils.log_manager import LogManager
 from trader.pipeline.cleaners.monthly_revenue_report_cleaner import (
     MonthlyRevenueReportCleaner,
 )
@@ -60,7 +60,7 @@ class MonthlyRevenueReportUpdater(BaseDataUpdater):
             self.conn = sqlite3.connect(DB_PATH)
 
         # 設定 log 檔案儲存路徑
-        logger.add(f"{LOGS_DIR_PATH}/update_monthly_revenue_report.log")
+        LogManager.setup_logger("update_monthly_revenue_report.log")
 
     def update(
         self,

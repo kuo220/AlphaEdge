@@ -14,8 +14,8 @@ from trader.config import (
     DB_PATH,
     EQUITY_CHANGE_TABLE_NAME,
     FINANCIAL_STATEMENT_DOWNLOADS_PATH,
-    LOGS_DIR_PATH,
 )
+from trader.utils.log_manager import LogManager
 from trader.pipeline.cleaners.financial_statement_cleaner import (
     FinancialStatementCleaner,
 )
@@ -124,7 +124,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
             self.conn = sqlite3.connect(DB_PATH)
 
         # 設定 log 檔案儲存路徑
-        logger.add(f"{LOGS_DIR_PATH}/update_financial_statement.log")
+        LogManager.setup_logger("update_financial_statement.log")
 
     def update(
         self,

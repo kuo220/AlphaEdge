@@ -74,7 +74,7 @@ class StockBacktestReporter(BaseBacktestReporter):
             start_date=self.start_date,
             end_date=self.end_date,
         )
-        self.benchmark_price = self.price_df["收盤價"]
+        self.benchmark_price: pd.Series = self.price_df["收盤價"]
         self.benchmark_price.index = pd.to_datetime(self.price_df["date"]).dt.date
 
     def _get_adjusted_price(self, price_series: pd.Series, stock_id: str) -> pd.Series:
@@ -137,7 +137,7 @@ class StockBacktestReporter(BaseBacktestReporter):
             ]
             adjusted_price.index = pd.Index(index_dates)
 
-        adjusted_price = adjusted_price.sort_index()
+        adjusted_price: pd.Series = adjusted_price.sort_index()
 
         # 按日期排序（從舊到新）
         splits_sorted: List[Tuple[datetime.date, float]] = sorted(
@@ -147,6 +147,7 @@ class StockBacktestReporter(BaseBacktestReporter):
         # 標準化分割日期為 date 類型
         splits_normalized: List[Tuple[datetime.date, float]] = []
         for split_date, split_ratio in splits_sorted:
+            split_date_normalized: datetime.date
             if isinstance(split_date, datetime.datetime):
                 split_date_normalized = split_date.date()
             elif isinstance(split_date, str):
@@ -290,7 +291,7 @@ class StockBacktestReporter(BaseBacktestReporter):
             cumulative_pnl += record.realized_pnl
             cumulative_balance += record.realized_pnl
 
-            row = {
+            row: Dict[str, Any] = {
                 "Stock ID": record.stock_id,
                 "Position Type": record.position_type.value,
                 "Buy Date": record.buy_date,
@@ -331,7 +332,7 @@ class StockBacktestReporter(BaseBacktestReporter):
         )
 
         # Concatenate initial row
-        df = pd.concat([init_row, df], ignore_index=True)
+        df: pd.DataFrame = pd.concat([init_row, df], ignore_index=True)
 
         # Plot Balance Curve
         fig_title: str = "Balance Curve"
@@ -359,7 +360,7 @@ class StockBacktestReporter(BaseBacktestReporter):
         # === 清理 benchmark_price 數據 ===
         # 移除缺失值和 0 值（0 值可能是數據錯誤或停牌），並確保索引唯一且排序
         # 注意：股票收盤價不可能是負數，所以不需要特別檢查負數
-        benchmark_price_clean = self.benchmark_price.copy()
+        benchmark_price_clean: pd.Series = self.benchmark_price.copy()
         benchmark_price_clean = benchmark_price_clean[
             benchmark_price_clean.notna() & (benchmark_price_clean > 0)
         ]
@@ -373,7 +374,7 @@ class StockBacktestReporter(BaseBacktestReporter):
             return
 
         # === 計算調整後價格（處理股票分割） ===
-        benchmark_price_adjusted = self._get_adjusted_price(
+        benchmark_price_adjusted: pd.Series = self._get_adjusted_price(
             benchmark_price_clean, self.benchmark
         )
 
@@ -411,10 +412,12 @@ class StockBacktestReporter(BaseBacktestReporter):
         # === 整理 DataFrame 用來繪圖 ===
         # 使用 benchmark 的所有交易日作為基準日期（確保日期對齊正確）
         # benchmark 的日期通常是完整的交易日曆，所以用它作為基準更合理
-        all_dates = benchmark_net_worth.index.sort_values()
+        all_dates: pd.Index = benchmark_net_worth.index.sort_values()
 
         # 將策略數據重新索引到 benchmark 的日期上，使用前向填充處理沒有交易的日期
-        cumulative_balance_aligned = cumulative_balance.reindex(all_dates).ffill()
+        cumulative_balance_aligned: pd.Series = cumulative_balance.reindex(
+            all_dates
+        ).ffill()
         # 如果仍有 NaN（例如在第一次交易之前的日期），用初始資金填充
         if cumulative_balance_aligned.isna().any():
             cumulative_balance_aligned = cumulative_balance_aligned.fillna(
@@ -422,7 +425,7 @@ class StockBacktestReporter(BaseBacktestReporter):
             )
 
         # benchmark_net_worth 已經在 all_dates 上（因為 all_dates 就是從它的 index 來的），直接使用即可
-        benchmark_net_worth_aligned = benchmark_net_worth
+        benchmark_net_worth_aligned: pd.Series = benchmark_net_worth
 
         networth_df: pd.DataFrame = pd.DataFrame(
             {
@@ -484,7 +487,7 @@ class StockBacktestReporter(BaseBacktestReporter):
         # === 清理 benchmark_price 數據 ===
         # 移除缺失值和 0 值（0 值可能是數據錯誤或停牌），並確保索引唯一且排序
         # 注意：股票收盤價不可能是負數，所以不需要特別檢查負數
-        benchmark_price_clean = self.benchmark_price.copy()
+        benchmark_price_clean: pd.Series = self.benchmark_price.copy()
         benchmark_price_clean = benchmark_price_clean[
             benchmark_price_clean.notna() & (benchmark_price_clean > 0)
         ]
@@ -498,7 +501,7 @@ class StockBacktestReporter(BaseBacktestReporter):
             return
 
         # === 計算調整後價格（處理股票分割） ===
-        benchmark_price_adjusted = self._get_adjusted_price(
+        benchmark_price_adjusted: pd.Series = self._get_adjusted_price(
             benchmark_price_clean, self.benchmark
         )
 
@@ -534,10 +537,12 @@ class StockBacktestReporter(BaseBacktestReporter):
         # === 整理 DataFrame 用來繪圖 ===
         # 使用 benchmark 的所有交易日作為基準日期（確保日期對齊正確）
         # benchmark 的日期通常是完整的交易日曆，所以用它作為基準更合理
-        all_dates = mdd_benchmark.index.sort_values()
+        all_dates: pd.Index = mdd_benchmark.index.sort_values()
 
         # 將策略數據重新索引到 benchmark 的日期上，使用前向填充處理沒有交易的日期
-        cumulative_balance_aligned = cumulative_balance.reindex(all_dates).ffill()
+        cumulative_balance_aligned: pd.Series = cumulative_balance.reindex(
+            all_dates
+        ).ffill()
         # 如果仍有 NaN（例如在第一次交易之前的日期），用初始資金填充
         if cumulative_balance_aligned.isna().any():
             cumulative_balance_aligned = cumulative_balance_aligned.fillna(
@@ -545,12 +550,12 @@ class StockBacktestReporter(BaseBacktestReporter):
             )
 
         # 在對齊後的日期上計算策略的 MDD
-        mdd_balance = (
+        mdd_balance: pd.Series = (
             cumulative_balance_aligned / cumulative_balance_aligned.cummax() - 1
         ) * 100
 
         # mdd_benchmark 已經在 all_dates 上（因為 all_dates 就是從它的 index 來的），直接使用即可
-        mdd_benchmark_aligned = mdd_benchmark
+        mdd_benchmark_aligned: pd.Series = mdd_benchmark
 
         mdd_df: pd.DataFrame = pd.DataFrame(
             {

@@ -14,7 +14,8 @@ from trader.api.stock_price_api import StockPriceAPI
 from trader.api.stock_tick_api import StockTickAPI
 from trader.backtest.analysis.analyzer import StockBacktestAnalyzer
 from trader.backtest.report.reporter import StockBacktestReporter
-from trader.config import BACKTEST_LOGS_DIR_PATH, BACKTEST_RESULT_DIR_PATH
+from trader.config import BACKTEST_RESULT_DIR_PATH
+from trader.utils.log_manager import LogManager
 from trader.managers.stock.position.position_manager import StockPositionManager
 from trader.models import (
     StockAccount,
@@ -83,18 +84,17 @@ class Backtester:
 
         self.setup()
 
-    def setup(self):
+    def setup(self) -> None:
         """Set Up the Config of Backtester"""
 
         # 確保每個 strategy 有獨立的結果資料夾
-        self.strategy_result_dir = (
+        self.strategy_result_dir: Path = (
             Path(BACKTEST_RESULT_DIR_PATH) / self.strategy.strategy_name
         )
         self.strategy_result_dir.mkdir(parents=True, exist_ok=True)
 
         # Set Log File Path
-        BACKTEST_LOGS_DIR_PATH.mkdir(parents=True, exist_ok=True)
-        logger.add(f"{BACKTEST_LOGS_DIR_PATH}/{self.strategy.strategy_name}.log")
+        LogManager.setup_backtest_logger(self.strategy.strategy_name)
 
         # load backtest dataset
         self.load_datasets()

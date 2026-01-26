@@ -73,7 +73,7 @@ def main() -> None:
 
     # Backtest or Live Trading
     if args.mode == "backtest":
-        backtester = Backtester(strategy)
+        backtester: Backtester = Backtester(strategy)
         backtester.run()
     elif args.mode == "live":
         pass

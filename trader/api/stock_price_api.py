@@ -5,7 +5,8 @@ import pandas as pd
 from loguru import logger
 
 from trader.api.base import BaseDataAPI
-from trader.config import DB_PATH, LOGS_DIR_PATH, PRICE_TABLE_NAME
+from trader.config import DB_PATH, PRICE_TABLE_NAME
+from trader.utils.log_manager import LogManager
 
 
 class StockPriceAPI(BaseDataAPI):
@@ -16,19 +17,19 @@ class StockPriceAPI(BaseDataAPI):
 
         self.setup()
 
-    def setup(self):
+    def setup(self) -> None:
         """Set Up the Config of Data API"""
 
         # Set Up Connection
-        self.conn = sqlite3.connect(DB_PATH)
+        self.conn: sqlite3.Connection = sqlite3.connect(DB_PATH)
 
         # 設定 log 檔案儲存路徑
-        logger.add(f"{LOGS_DIR_PATH}/stock_price_api.log")
+        LogManager.setup_logger("stock_price_api.log")
 
     def get(self, date: datetime.date) -> pd.DataFrame:
         """取得所有股票指定日期的 Price"""
 
-        query = f"""
+        query: str = f"""
         SELECT * FROM {PRICE_TABLE_NAME}
         WHERE date = ?
         """

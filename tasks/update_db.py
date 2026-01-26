@@ -86,17 +86,58 @@ def parse_arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def get_update_time_config() -> Dict[str, datetime.date | int]:
-    return {
-        "start_date": datetime.date(2013, 1, 1),
-        "end_date": datetime.date.today(),
-        "start_year": 2013,
-        "end_year": 2025,
-        "start_month": 1,
-        "end_month": 12,
-        "start_season": 1,
-        "end_season": 4,
-    }
+def get_update_time_config(
+    data_type: DataType | None = None,
+) -> Dict[str, datetime.date | int]:
+    """
+    根據不同的資料類型返回對應的時間區間設定
+
+    Args:
+        data_type: 資料類型，如果為 None 則返回通用設定
+
+    Returns:
+        包含時間區間設定的字典
+    """
+    if data_type == DataType.TICK:
+        # TICK 資料：從 2020/03/02 開始
+        return {
+            "start_date": datetime.date(2024, 5, 10),
+            "end_date": datetime.date.today(),
+        }
+    elif data_type == DataType.CHIP or data_type == DataType.PRICE:
+        # CHIP 和 PRICE 資料：從 2013/1/1 開始
+        return {
+            "start_date": datetime.date(2013, 1, 1),
+            "end_date": datetime.date.today(),
+        }
+    elif data_type == DataType.FS:
+        # 財報資料：使用年份和季度
+        return {
+            "start_year": 2013,
+            "end_year": datetime.date.today().year,
+            "start_season": 1,
+            "end_season": 4,
+        }
+    elif data_type == DataType.MRR:
+        # 月營收報表：使用年份和月份
+        return {
+            "start_year": 2013,
+            "end_year": datetime.date.today().year,
+            "start_month": 1,
+            "end_month": 12,
+        }
+    else:
+        # 預設通用設定（向後兼容）
+        return {
+            "start_date": datetime.date(2013, 1, 1),
+            "end_date": datetime.date.today(),
+            "start_year": 2013,
+            "end_year": datetime.date.today().year,
+            "start_month": 1,
+            "end_month": 12,
+            "start_season": 1,
+            "end_season": 4,
+        }
 
 
 def main() -> None:
@@ -107,29 +148,38 @@ def main() -> None:
     if "no_tick" in targets:
         targets.update(dt.name.lower() for dt in DataType if dt != DataType.TICK)
 
-    # Time Config
-    time_config: Dict[str, datetime.date | int] = get_update_time_config()
-
     if DataType.TICK.name.lower() in targets:
-        stock_tick_updater = StockTickUpdater()
+        time_config: Dict[str, datetime.date | int] = get_update_time_config(
+            DataType.TICK
+        )
+        stock_tick_updater: StockTickUpdater = StockTickUpdater()
         stock_tick_updater.update(
             start_date=time_config["start_date"], end_date=time_config["end_date"]
         )
 
     if DataType.CHIP.name.lower() in targets:
-        stock_chip_updater = StockChipUpdater()
+        time_config: Dict[str, datetime.date | int] = get_update_time_config(
+            DataType.CHIP
+        )
+        stock_chip_updater: StockChipUpdater = StockChipUpdater()
         stock_chip_updater.update(
             start_date=time_config["start_date"], end_date=time_config["end_date"]
         )
 
     if DataType.PRICE.name.lower() in targets:
-        stock_price_updater = StockPriceUpdater()
+        time_config: Dict[str, datetime.date | int] = get_update_time_config(
+            DataType.PRICE
+        )
+        stock_price_updater: StockPriceUpdater = StockPriceUpdater()
         stock_price_updater.update(
             start_date=time_config["start_date"], end_date=time_config["end_date"]
         )
 
     if DataType.FS.name.lower() in targets:
-        fs_updater = FinancialStatementUpdater()
+        time_config: Dict[str, datetime.date | int] = get_update_time_config(
+            DataType.FS
+        )
+        fs_updater: FinancialStatementUpdater = FinancialStatementUpdater()
         fs_updater.update(
             start_year=time_config["start_year"],
             end_year=time_config["end_year"],
@@ -138,7 +188,10 @@ def main() -> None:
         )
 
     if DataType.MRR.name.lower() in targets:
-        mrr_updater = MonthlyRevenueReportUpdater()
+        time_config: Dict[str, datetime.date | int] = get_update_time_config(
+            DataType.MRR
+        )
+        mrr_updater: MonthlyRevenueReportUpdater = MonthlyRevenueReportUpdater()
         mrr_updater.update(
             start_year=time_config["start_year"],
             end_year=time_config["end_year"],

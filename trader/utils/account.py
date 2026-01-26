@@ -120,9 +120,11 @@ class ShioajiAccount:
         for trade in trade_list:
             if trade.status.status == Status.Filled:
                 # 計算平均成交價
+                total_value: float = sum(
+                    deal.price * deal.quantity for deal in trade.status.deals
+                )
                 ave_deal_price: float = round(
-                    sum(deal.price * deal.quantity for deal in trade.status.deals)
-                    / trade.order.quantity,
+                    total_value / trade.order.quantity,
                     2,
                 )
 

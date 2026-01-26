@@ -15,6 +15,7 @@ from .constant import (
     Units,
 )
 from .decorators import log_thread
+from .log_manager import LogManager
 from .notify import Notification
 from .order import OrderUtils
 from .time import TimeUtils

@@ -1,4 +1,5 @@
 import shutil
+import time
 from pathlib import Path
 from typing import List
 
@@ -57,11 +58,33 @@ class StockTickLoader(BaseDataLoader):
             logger.info("Database doesn't exist!")
             self.create_db()
 
-    def connect(self) -> None:
-        """Connect to the Database"""
+    def connect(self, max_retries: int = 3, retry_delay: float = 1.0) -> None:
+        """
+        Connect to the Database with retry mechanism
 
-        self.session = ddb.session()
-        self.session.connect(DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
+        Parameters:
+            max_retries: Maximum number of connection retry attempts
+            retry_delay: Delay in seconds between retry attempts
+        """
+
+        for attempt in range(1, max_retries + 1):
+            try:
+                self.session = ddb.session()
+                self.session.connect(DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
+                logger.info("Successfully connected to DolphinDB")
+                return
+            except Exception as e:
+                if attempt < max_retries:
+                    logger.warning(
+                        f"Connection attempt {attempt}/{max_retries} failed: {e}. "
+                        f"Retrying in {retry_delay} seconds..."
+                    )
+                    time.sleep(retry_delay)
+                else:
+                    logger.error(
+                        f"Failed to connect to DolphinDB after {max_retries} attempts: {e}"
+                    )
+                    raise
 
     def disconnect(self) -> None:
         """Disconnect the Database"""
