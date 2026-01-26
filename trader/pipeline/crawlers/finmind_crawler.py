@@ -1,6 +1,6 @@
 import datetime
 import os
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 import pandas as pd
 from FinMind.data import DataLoader
@@ -111,8 +111,8 @@ class FinMindCrawler(BaseDataCrawler):
         self,
         stock_id: Optional[str] = None,
         securities_trader_id: Optional[str] = None,
-        start_date: Optional[datetime.date] = None,
-        end_date: Optional[datetime.date] = None,
+        start_date: Optional[Union[datetime.date, str]] = None,
+        end_date: Optional[Union[datetime.date, str]] = None,
     ) -> Optional[pd.DataFrame]:
         """
         爬取「當日券商分點統計表」（TaiwanStockTradingDailyReportSecIdAgg）
@@ -120,8 +120,8 @@ class FinMindCrawler(BaseDataCrawler):
         參數：
             - stock_id: Optional[str]                # 股票代碼（可選，不提供則返回所有股票）
             - securities_trader_id: Optional[str]    # 券商代碼（可選，不提供則返回所有券商）
-            - start_date: Optional[datetime.date]    # 起始日期
-            - end_date: Optional[datetime.date]      # 結束日期
+            - start_date: Optional[datetime.date | str]    # 起始日期（可以是 datetime.date 或 "YYYY-MM-DD" 格式的字符串）
+            - end_date: Optional[datetime.date | str]      # 結束日期（可以是 datetime.date 或 "YYYY-MM-DD" 格式的字符串）
 
         API 調用方式：
             使用 self.api.taiwan_stock_trading_daily_report_secid_agg() 方法，
@@ -147,8 +147,25 @@ class FinMindCrawler(BaseDataCrawler):
         )
 
         try:
-            start_date_str: str = start_date.strftime("%Y-%m-%d")
-            end_date_str: str = end_date.strftime("%Y-%m-%d")
+            # 處理 start_date：如果是字符串則直接使用，如果是 datetime.date 則轉換為字符串
+            if isinstance(start_date, str):
+                start_date_str: str = start_date
+            elif isinstance(start_date, datetime.date):
+                start_date_str: str = start_date.strftime("%Y-%m-%d")
+            else:
+                raise ValueError(
+                    f"start_date must be str or datetime.date, got {type(start_date)}"
+                )
+
+            # 處理 end_date：如果是字符串則直接使用，如果是 datetime.date 則轉換為字符串
+            if isinstance(end_date, str):
+                end_date_str: str = end_date
+            elif isinstance(end_date, datetime.date):
+                end_date_str: str = end_date.strftime("%Y-%m-%d")
+            else:
+                raise ValueError(
+                    f"end_date must be str or datetime.date, got {type(end_date)}"
+                )
 
             # 直接使用 API 方法，傳遞所有參數
             df: pd.DataFrame = self.api.taiwan_stock_trading_daily_report_secid_agg(

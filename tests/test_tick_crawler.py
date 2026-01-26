@@ -49,7 +49,7 @@ def test_crawler_only(stock_id: str, date: datetime.date):
 
     # 爬取資料
     print(f"\n開始爬取 {stock_id} 在 {date} 的 tick 資料...")
-    df = crawler.crawl_stock_tick(api_instance, date, stock_id)
+    df: Optional[pd.DataFrame] = crawler.crawl_stock_tick(api_instance, date, stock_id)
 
     if df is None or df.empty:
         print(f"❌ 沒有爬取到資料")
@@ -84,12 +84,12 @@ def test_crawler_and_cleaner(stock_id: str, date: datetime.date):
     print(f"資料保存路徑: {TICK_DOWNLOADS_PATH}")
 
     # 初始化 crawler 和 cleaner
-    crawler = StockTickCrawler()
-    cleaner = StockTickCleaner()
+    crawler: StockTickCrawler = StockTickCrawler()
+    cleaner: StockTickCleaner = StockTickCleaner()
 
     # 登入 Shioaji API
-    api = sj.Shioaji()
-    api_instance = ShioajiAccount.API_login(api, API_KEY, API_SECRET_KEY)
+    api: sj.Shioaji = sj.Shioaji()
+    api_instance: Optional[sj.Shioaji] = ShioajiAccount.API_login(api, API_KEY, API_SECRET_KEY)
 
     if api_instance is None:
         print("❌ API 登入失敗")

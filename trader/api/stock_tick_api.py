@@ -1,4 +1,5 @@
 import datetime
+from typing import Optional
 
 import pandas as pd
 from loguru import logger
@@ -28,7 +29,7 @@ class StockTickAPI(BaseDataAPI):
         self.query_start_date: str = "2024.05.10"
         self.query_end_date: str = "2024.05.10"
 
-        self.session: ddb.session = None
+        self.session: Optional[ddb.session] = None
 
         self.setup()
 

@@ -92,7 +92,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
         super().__init__()
 
         # SQLite Connection
-        self.conn: sqlite3.Connection = None
+        self.conn: Optional[sqlite3.Connection] = None
 
         # ETL
         self.crawler: FinancialStatementCrawler = FinancialStatementCrawler()
@@ -160,6 +160,8 @@ class FinancialStatementUpdater(BaseDataUpdater):
 
         # Step 1: Crawl
         # 取得要開始更新的年度、季度
+        start_year: int
+        start_season: int
         start_year, start_season = self.get_actual_update_start_year_season(
             table_name=BALANCE_SHEET_TABLE_NAME,
             default_year=start_year,
@@ -198,7 +200,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
                     file_cnt = 0
                     time.sleep(30)
                 else:
-                    delay = random.randint(1, 5)
+                    delay: int = random.randint(1, 5)
                     time.sleep(delay)
 
         # Step 3: Load
@@ -209,6 +211,8 @@ class FinancialStatementUpdater(BaseDataUpdater):
         )
 
         # 重新取得更新後的最新年度跟季度
+        latest_year: Optional[int]
+        latest_season: Optional[int]
         latest_year, latest_season = SQLiteUtils.get_max_secondary_value_by_primary(
             conn=self.conn,
             table_name=BALANCE_SHEET_TABLE_NAME,
@@ -234,6 +238,8 @@ class FinancialStatementUpdater(BaseDataUpdater):
 
         # Step 1: Crawl
         # 取得要開始更新的年度、季度
+        start_year: int
+        start_season: int
         start_year, start_season = self.get_actual_update_start_year_season(
             table_name=COMPREHENSIVE_INCOME_TABLE_NAME,
             default_year=start_year,
@@ -272,7 +278,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
                     file_cnt = 0
                     time.sleep(30)
                 else:
-                    delay = random.randint(1, 5)
+                    delay: int = random.randint(1, 5)
                     time.sleep(delay)
 
         # Step 3: Load
@@ -283,6 +289,8 @@ class FinancialStatementUpdater(BaseDataUpdater):
         )
 
         # 重新取得更新後的最新年度跟季度
+        latest_year: Optional[int]
+        latest_season: Optional[int]
         latest_year, latest_season = SQLiteUtils.get_max_secondary_value_by_primary(
             conn=self.conn,
             table_name=COMPREHENSIVE_INCOME_TABLE_NAME,
@@ -308,6 +316,8 @@ class FinancialStatementUpdater(BaseDataUpdater):
 
         # Step 1: Crawl
         # 取得要開始更新的年度、季度
+        start_year: int
+        start_season: int
         start_year, start_season = self.get_actual_update_start_year_season(
             table_name=CASH_FLOW_TABLE_NAME,
             default_year=start_year,
@@ -346,7 +356,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
                     file_cnt = 0
                     time.sleep(30)
                 else:
-                    delay = random.randint(1, 5)
+                    delay: int = random.randint(1, 5)
                     time.sleep(delay)
 
         # Step 3: Load
@@ -357,6 +367,8 @@ class FinancialStatementUpdater(BaseDataUpdater):
         )
 
         # 重新取得更新後的最新年度跟季度
+        latest_year: Optional[int]
+        latest_season: Optional[int]
         latest_year, latest_season = SQLiteUtils.get_max_secondary_value_by_primary(
             conn=self.conn,
             table_name=CASH_FLOW_TABLE_NAME,
@@ -421,7 +433,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
                     file_cnt = 0
                     time.sleep(30)
                 else:
-                    delay = random.randint(1, 5)
+                    delay: int = random.randint(1, 5)
                     time.sleep(delay)
 
         # Step 3: Load
@@ -432,6 +444,8 @@ class FinancialStatementUpdater(BaseDataUpdater):
         )
 
         # 重新取得更新後的最新年度跟季度
+        latest_year: Optional[int]
+        latest_season: Optional[int]
         latest_year, latest_season = SQLiteUtils.get_max_secondary_value_by_primary(
             conn=self.conn,
             table_name=EQUITY_CHANGE_TABLE_NAME,
@@ -454,6 +468,8 @@ class FinancialStatementUpdater(BaseDataUpdater):
 
         # Step 1: 先取得最新 year
         try:
+            latest_year: Optional[int]
+            latest_season: Optional[int]
             latest_year, latest_season = SQLiteUtils.get_max_secondary_value_by_primary(
                 conn=self.conn,
                 table_name=table_name,

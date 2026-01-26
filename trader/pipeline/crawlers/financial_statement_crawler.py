@@ -30,7 +30,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         self.fs_dir: Path = FINANCIAL_STATEMENT_DOWNLOADS_PATH
 
         # Payload For HTTP Requests
-        self.payload: Payload = None
+        self.payload: Optional[Payload] = None
         self.market_types: List[MarketType] = [MarketType.SII, MarketType.OTC]
 
         self.setup()
@@ -62,9 +62,9 @@ class FinancialStatementCrawler(BaseDataCrawler):
         }
         """
 
-        stock_id: str = kwargs.get("stock_id")
-        year: int = kwargs.get("year")
-        season: int = kwargs.get("season")
+        stock_id: Optional[str] = kwargs.get("stock_id")
+        year: Optional[int] = kwargs.get("year")
+        season: Optional[int] = kwargs.get("season")
 
         if year is None or season is None:
             raise ValueError("Missing required parameters: 'date', or 'season'")

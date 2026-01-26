@@ -167,7 +167,7 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
 
         # Step 1: 欄位排序
         tail_columns: List[str] = [col for col in raw_cols if col not in front_cols]
-        cleaned_cols = front_cols + tail_columns
+        cleaned_cols: List[str] = front_cols + tail_columns
 
         # Step 2: 移除不必要欄位
         cleaned_cols = DataUtils.remove_items_by_keywords(
@@ -184,7 +184,7 @@ class MonthlyRevenueReportCleaner(BaseDataCleaner):
         ]
 
         # Step 4: 去除重複欄位（保留順序）
-        cleaned_cols = list(dict.fromkeys(cleaned_cols))
+        cleaned_cols: List[str] = list(dict.fromkeys(cleaned_cols))
 
         # Step 5: 儲存清洗結果
         DataUtils.save_json(

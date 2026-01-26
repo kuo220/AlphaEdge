@@ -6,6 +6,7 @@
 import datetime
 import sys
 from pathlib import Path
+from typing import List, Optional
 from unittest.mock import MagicMock
 
 from loguru import logger
@@ -55,7 +56,7 @@ def test_update_without_db(start_date: datetime.date, end_date: datetime.date = 
 
     # 初始化 updater
     print("\n初始化 StockTickUpdater...")
-    updater = StockTickUpdater()
+    updater: StockTickUpdater = StockTickUpdater()
 
     # 將 loader.add_to_db 替換為空函數，避免存入資料庫
     def dummy_add_to_db(remove_file=False):
@@ -65,13 +66,13 @@ def test_update_without_db(start_date: datetime.date, end_date: datetime.date = 
 
     # 替換 loader 的 add_to_db 方法
     original_add_to_db = updater.loader.add_to_db
-    updater.loader.add_to_db = dummy_add_to_db
+    updater.loader.add_to_db = dummy_add_to_db  # type: ignore
 
     print("✅ StockTickUpdater 初始化完成")
     print("✅ 已設定為測試模式（不會存入資料庫）")
 
     # 檢查資料夾中現有的 CSV 檔案數量
-    existing_files = list(TICK_DOWNLOADS_PATH.glob("*.csv"))
+    existing_files: List[Path] = list(TICK_DOWNLOADS_PATH.glob("*.csv"))
     print(f"\n📁 開始測試前，資料夾中現有 CSV 檔案數量: {len(existing_files)}")
 
     try:
@@ -88,7 +89,7 @@ def test_update_without_db(start_date: datetime.date, end_date: datetime.date = 
         print(f"\n✅ update() 執行完成！")
 
         # 檢查資料夾中新增的 CSV 檔案
-        new_files = list(TICK_DOWNLOADS_PATH.glob("*.csv"))
+        new_files: List[Path] = list(TICK_DOWNLOADS_PATH.glob("*.csv"))
         print(f"\n📁 測試完成後，資料夾中 CSV 檔案數量: {len(new_files)}")
         print(f"📁 新增的 CSV 檔案數量: {len(new_files) - len(existing_files)}")
 
@@ -96,7 +97,7 @@ def test_update_without_db(start_date: datetime.date, end_date: datetime.date = 
             print(f"\n✅ 成功生成 CSV 檔案！")
             print(f"檔案列表（前 10 個）:")
             for i, csv_file in enumerate(new_files[:10], 1):
-                file_size = csv_file.stat().st_size
+                file_size: int = csv_file.stat().st_size
                 print(f"  {i}. {csv_file.name} ({file_size:,} bytes)")
             if len(new_files) > 10:
                 print(f"  ... 還有 {len(new_files) - 10} 個檔案")

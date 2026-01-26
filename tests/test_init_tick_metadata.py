@@ -9,7 +9,7 @@
 import datetime
 import json
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict, List
 
 import pandas as pd
 from loguru import logger
@@ -36,7 +36,7 @@ def init_tick_metadata_with_default_date(default_date: str = "2024-5-10") -> Non
     # 1. 爬取所有上市櫃公司代號
     print(f"\n步驟 1: 爬取所有上市櫃公司代號...")
     try:
-        stock_list: list[str] = StockInfoCrawler.crawl_stock_list()
+        stock_list: List[str] = StockInfoCrawler.crawl_stock_list()
         print(f"✅ 成功爬取 {len(stock_list)} 檔股票")
     except Exception as e:
         logger.error(f"❌ 爬取股票列表失敗: {e}")
@@ -45,8 +45,8 @@ def init_tick_metadata_with_default_date(default_date: str = "2024-5-10") -> Non
     # 2. 解析預設日期
     try:
         # 將 "2024-5-10" 轉換為標準格式 "2024-05-10"
-        default_date_obj = datetime.datetime.strptime(default_date, "%Y-%m-%d").date()
-        default_date_str = default_date_obj.isoformat()  # "YYYY-MM-DD"
+        default_date_obj: datetime.date = datetime.datetime.strptime(default_date, "%Y-%m-%d").date()
+        default_date_str: str = default_date_obj.isoformat()  # "YYYY-MM-DD"
         print(f"\n步驟 2: 設定預設日期為 {default_date_str}")
     except ValueError as e:
         logger.error(
@@ -73,10 +73,10 @@ def init_tick_metadata_with_default_date(default_date: str = "2024-5-10") -> Non
         logger.info("將使用預設日期建立 metadata")
     else:
         # 掃描所有 CSV 檔案
-        csv_files: list[Path] = list(TICK_DOWNLOADS_PATH.glob("*.csv"))
+        csv_files: List[Path] = list(TICK_DOWNLOADS_PATH.glob("*.csv"))
         print(f"找到 {len(csv_files)} 個 CSV 檔案")
 
-        updated_count = 0
+        updated_count: int = 0
         for csv_file in csv_files:
             stock_id: str = csv_file.stem  # 取得檔名（不含副檔名）作為股票代號
 

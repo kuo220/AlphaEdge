@@ -353,7 +353,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
 
         # Step 1: 欄位排序
         tail_columns: List[str] = [col for col in raw_cols if col not in front_cols]
-        cleaned_cols = front_cols + tail_columns
+        cleaned_cols: List[str] = front_cols + tail_columns
 
         # Step 2: 移除不必要欄位
         cleaned_cols = DataUtils.remove_items_by_keywords(
@@ -361,7 +361,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
         )
 
         # Step 3: 清洗欄位並做名稱對應
-        cleaned_cols: List[str] = [
+        cleaned_cols = [
             DataUtils.map_column_name(
                 DataUtils.standardize_column_name(word=col), col_map
             )

@@ -1,6 +1,6 @@
 import datetime
 from pathlib import Path
-from typing import List
+from typing import Dict, List, Optional
 
 import pandas as pd
 
@@ -17,7 +17,7 @@ class StockChipCleaner(BaseDataCleaner):
         super().__init__()
 
         # Chip DataFrame Cleaned Columns
-        self.chip_cleaned_cols: List[str] = None
+        self.chip_cleaned_cols: Optional[List[str]] = None
 
         # The date that TWSE chip data format was reformed
         self.twse_first_reform_date: datetime.date = datetime.date(2014, 12, 1)
@@ -155,7 +155,7 @@ class StockChipCleaner(BaseDataCleaner):
                 "自營商賣出股數",
                 "自營商買賣超股數",
             ]
-            rename_map = dict(zip(old_col_name, new_col_name))
+            rename_map: Dict[str, str] = dict(zip(old_col_name, new_col_name))
             df = df.rename(columns=rename_map)
             df.insert(0, "date", date)
             df["三大法人買賣超股數"] = (
@@ -186,7 +186,7 @@ class StockChipCleaner(BaseDataCleaner):
                 "自營商買賣超股數(避險)",
                 "三大法人買賣超股數",
             ]
-            rename_map = dict(zip(old_col_name, new_col_name))
+            rename_map: Dict[str, str] = dict(zip(old_col_name, new_col_name))
             df = df.rename(columns=rename_map)
             df.insert(0, "date", date)
 
@@ -197,7 +197,7 @@ class StockChipCleaner(BaseDataCleaner):
                 f"{col1}{col2}" if col1 != col2 else col1 for col1, col2 in df.columns
             ]
             df.columns = [DataUtils.standardize_column_name(col) for col in df.columns]
-            drop_cols = [
+            drop_cols: List[str] = [
                 "外資及陸資(不含外資自營商)買進股數",
                 "外資及陸資(不含外資自營商)賣出股數",
                 "外資及陸資(不含外資自營商)買賣超股數",
@@ -211,7 +211,7 @@ class StockChipCleaner(BaseDataCleaner):
             # Rename df.columns
             old_col_name: List[str] = list(df.columns)
             new_col_name: List[str] = self.chip_cleaned_cols
-            rename_map = dict(zip(old_col_name, new_col_name))
+            rename_map: Dict[str, str] = dict(zip(old_col_name, new_col_name))
             df = df.rename(columns=rename_map)
 
         aligned_df: pd.DataFrame = df.reindex(

@@ -1,6 +1,7 @@
 import shutil
 import sqlite3
 from pathlib import Path
+from typing import Optional
 
 import pandas as pd
 from loguru import logger
@@ -17,7 +18,7 @@ class StockChipLoader(BaseDataLoader):
         super().__init__()
 
         # SQLite Connection
-        self.conn: sqlite3.Connection = None
+        self.conn: Optional[sqlite3.Connection] = None
 
         # Downloads directory Path
         self.chip_dir: Path = CHIP_DOWNLOADS_PATH
@@ -88,6 +89,14 @@ class StockChipLoader(BaseDataLoader):
 
         self.conn.commit()
 
+    def create_missing_tables(self) -> None:
+        """確保三大法人盤後籌碼資料表存在"""
+
+        if not SQLiteUtils.check_table_exist(
+            conn=self.conn, table_name=CHIP_TABLE_NAME
+        ):
+            self.create_db()
+
     def add_to_db(self, remove_files: bool = False) -> None:
         """將資料夾中的所有 CSV 檔存入指定 SQLite 資料庫中的指定資料表。"""
 
@@ -116,11 +125,3 @@ class StockChipLoader(BaseDataLoader):
         if remove_files:
             shutil.rmtree(CHIP_DOWNLOADS_PATH)
         logger.info(f"Total file processed: {file_cnt}")
-
-    def create_missing_tables(self) -> None:
-        """確保三大法人盤後籌碼資料表存在"""
-
-        if not SQLiteUtils.check_table_exist(
-            conn=self.conn, table_name=CHIP_TABLE_NAME
-        ):
-            self.create_db()

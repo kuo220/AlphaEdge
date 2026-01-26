@@ -6,7 +6,7 @@ It ensures consistent logging configuration across the entire application.
 """
 
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Set
 
 from loguru import logger
 
@@ -22,7 +22,7 @@ class LogManager:
     logging behavior across all modules.
     """
 
-    _configured_logs: set[str] = set()
+    _configured_logs: Set[str] = set()
     """Track which log files have been configured to prevent duplicates."""
 
     @staticmethod

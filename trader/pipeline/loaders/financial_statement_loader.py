@@ -1,7 +1,7 @@
 import shutil
 import sqlite3
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import pandas as pd
 from loguru import logger
@@ -24,7 +24,7 @@ class FinancialStatementLoader(BaseDataLoader):
         super().__init__()
 
         # SQLite Connection
-        self.conn: sqlite3.Connection = None
+        self.conn: Optional[sqlite3.Connection] = None
 
         # Specify column data types
         self.text_not_null_cols: List[str] = ["date", "stock_id", "公司名稱"]
@@ -150,6 +150,21 @@ class FinancialStatementLoader(BaseDataLoader):
 
         self.conn.commit()
 
+    def create_missing_tables(self) -> None:
+        """確保所有財報類型的資料表存在（除了尚未實作的）"""
+
+        for fs_type in FinancialStatementType:
+            if fs_type == FinancialStatementType.EQUITY_CHANGE:
+                continue  # TODO: 實作後移除
+
+            table_name: str = fs_type.lower()
+            cleaned_cols_path: Path = self.cleaned_cols_paths[fs_type]
+
+            if not SQLiteUtils.check_table_exist(conn=self.conn, table_name=table_name):
+                self.create_db(
+                    table_name=table_name, cleaned_cols_path=cleaned_cols_path
+                )
+
     def add_to_db(
         self,
         dir_path: Path,
@@ -183,17 +198,3 @@ class FinancialStatementLoader(BaseDataLoader):
         if remove_files:
             shutil.rmtree(dir_path)
         logger.info(f"Total file processed: {file_cnt}")
-
-    def create_missing_tables(self) -> None:
-        """確保所有財報類型的資料表存在（除了尚未實作的）"""
-        for fs_type in FinancialStatementType:
-            if fs_type == FinancialStatementType.EQUITY_CHANGE:
-                continue  # TODO: 實作後移除
-
-            table_name: str = fs_type.lower()
-            cleaned_cols_path: Path = self.cleaned_cols_paths[fs_type]
-
-            if not SQLiteUtils.check_table_exist(conn=self.conn, table_name=table_name):
-                self.create_db(
-                    table_name=table_name, cleaned_cols_path=cleaned_cols_path
-                )

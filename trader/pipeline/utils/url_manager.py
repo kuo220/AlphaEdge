@@ -56,5 +56,5 @@ class URLManager:
         if url_name not in cls.URLS:
             raise ValueError(f"URL key '{url_name}' not found in URLManager")
 
-        url = cls.URLS[url_name]
+        url: str = cls.URLS[url_name]
         return url.format(**kwargs) if kwargs else url

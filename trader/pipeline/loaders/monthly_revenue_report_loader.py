@@ -1,7 +1,7 @@
 import shutil
 import sqlite3
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import pandas as pd
 from loguru import logger
@@ -25,7 +25,7 @@ class MonthlyRevenueReportLoader(BaseDataLoader):
         super().__init__()
 
         # SQLite Connection
-        self.conn: sqlite3.Connection = None
+        self.conn: Optional[sqlite3.Connection] = None
 
         # Specify column data types
         self.text_not_null_cols: List[str] = ["stock_id", "公司名稱"]
@@ -111,6 +111,14 @@ class MonthlyRevenueReportLoader(BaseDataLoader):
 
         self.conn.commit()
 
+    def create_missing_tables(self) -> None:
+        """確保月營收資料表存在"""
+
+        if not SQLiteUtils.check_table_exist(
+            conn=self.conn, table_name=MONTHLY_REVENUE_TABLE_NAME
+        ):
+            self.create_db()
+
     def add_to_db(self, remove_files: bool = False) -> None:
         """Add Data into Database"""
 
@@ -193,11 +201,3 @@ class MonthlyRevenueReportLoader(BaseDataLoader):
         if remove_files:
             shutil.rmtree(self.mrr_dir)
         logger.info(f"Total file processed: {file_cnt}")
-
-    def create_missing_tables(self) -> None:
-        """確保月營收資料表存在"""
-
-        if not SQLiteUtils.check_table_exist(
-            conn=self.conn, table_name=MONTHLY_REVENUE_TABLE_NAME
-        ):
-            self.create_db()

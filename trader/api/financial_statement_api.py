@@ -1,4 +1,5 @@
 import sqlite3
+from typing import Optional
 
 import pandas as pd
 from loguru import logger
@@ -12,7 +13,7 @@ class FinancialStatementAPI(BaseDataAPI):
     """Financial Statement Data API"""
 
     def __init__(self):
-        self.conn: sqlite3.Connection = None
+        self.conn: Optional[sqlite3.Connection] = None
 
         self.setup()
 
