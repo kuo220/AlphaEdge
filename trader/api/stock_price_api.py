@@ -1,5 +1,6 @@
 import datetime
 import sqlite3
+from typing import Optional
 
 import pandas as pd
 from loguru import logger
@@ -13,7 +14,7 @@ class StockPriceAPI(BaseDataAPI):
     """Stock Price API"""
 
     def __init__(self):
-        self.conn: sqlite3.Connection = None
+        self.conn: Optional[sqlite3.Connection] = None
 
         self.setup()
 

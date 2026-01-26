@@ -51,7 +51,10 @@ class StockChipCrawler(BaseDataCrawler):
         date_str: str = TimeUtils.format_date(date, sep="")
         twse_url: str = URLManager.get_url("TWSE_CHIP_URL", date=date_str)
 
-        twse_response: requests.Response = RequestUtils.requests_get(twse_url)
+        twse_response: Optional[requests.Response] = RequestUtils.requests_get(twse_url)
+
+        if twse_response is None:
+            return None
 
         # 檢查是否為假日 or 單純網站還未更新
         try:
@@ -77,7 +80,10 @@ class StockChipCrawler(BaseDataCrawler):
         elif date >= self.tpex_url_change_date:
             tpex_url: str = URLManager.get_url("TPEX_CHIP_URL_2", date=date_str)
 
-        tpex_response: requests.Response = RequestUtils.requests_get(tpex_url)
+        tpex_response: Optional[requests.Response] = RequestUtils.requests_get(tpex_url)
+
+        if tpex_response is None:
+            return None
 
         try:
             tpex_df: pd.DataFrame = pd.read_html(StringIO(tpex_response.text))[0]

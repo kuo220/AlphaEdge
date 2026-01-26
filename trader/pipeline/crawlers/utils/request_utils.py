@@ -34,8 +34,8 @@ class RequestUtils:
         for i in range(10):
             try:
                 logger.info(f"獲取新的Session 第 {i} 回合")
-                headers = cls.generate_random_header()
-                ses = requests.Session()
+                headers: Dict[str, str] = cls.generate_random_header()
+                ses: requests.Session = requests.Session()
                 ses.get(url, headers=headers, timeout=10)
                 ses.headers.update(headers)
                 logger.info("成功！")

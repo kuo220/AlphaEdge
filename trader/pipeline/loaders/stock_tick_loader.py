@@ -1,7 +1,7 @@
 import shutil
 import time
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from loguru import logger
 
@@ -31,7 +31,7 @@ class StockTickLoader(BaseDataLoader):
         super().__init__()
 
         # DolphinDB Session
-        self.session: ddb.session = None
+        self.session: Optional[ddb.session] = None
         self.setup()
 
     def setup(self) -> None:
@@ -129,6 +129,13 @@ class StockTickLoader(BaseDataLoader):
             except Exception as e:
                 logger.warning(f"Tick dolphinDB create unsuccessfully!\n{e}")
 
+    def create_missing_tables(self) -> None:
+        """確保 Tick DB 存在，否則建立"""
+
+        if not self.session.existsDatabase(TICK_DB_PATH):
+            logger.info("Tick DB not found. Creating...")
+            self.create_db()
+
     def add_to_db(self, remove_files: bool = False) -> None:
         """將資料夾中的所有 CSV 檔存入 tick 的 DolphinDB 中"""
 
@@ -208,12 +215,6 @@ class StockTickLoader(BaseDataLoader):
 
         except Exception as e:
             logger.info(f"All csv files fail to save into database and table!\n{e}")
-
-    def create_missing_tables(self) -> None:
-        """確保 Tick DB 存在，否則建立"""
-        if not self.session.existsDatabase(TICK_DB_PATH):
-            logger.info("Tick DB not found. Creating...")
-            self.create_db()
 
     def clear_all_cache(self) -> None:
         """清除 Cache Data"""

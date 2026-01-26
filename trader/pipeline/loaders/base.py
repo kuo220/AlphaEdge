@@ -33,6 +33,11 @@ class BaseDataLoader(ABC):
         pass
 
     @abstractmethod
+    def create_missing_tables(self) -> None:
+        """Ensure Database Tables Exist"""
+        pass
+
+    @abstractmethod
     def add_to_db(self, *args, **kwargs) -> None:
         """Add Data into Database"""
         pass

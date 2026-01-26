@@ -1,6 +1,6 @@
 import argparse
 import datetime
-from typing import Dict
+from typing import Dict, Set
 
 from loguru import logger
 
@@ -142,7 +142,7 @@ def get_update_time_config(
 
 def main() -> None:
     args: argparse.Namespace = parse_arguments()
-    targets: set[str] = set(args.target)
+    targets: Set[str] = set(args.target)
 
     # no_tick = 所有資料類型 - tick
     if "no_tick" in targets:

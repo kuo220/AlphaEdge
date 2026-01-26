@@ -40,7 +40,7 @@ class MonthlyRevenueReportUpdater(BaseDataUpdater):
         super().__init__()
 
         # SQLite Connection
-        self.conn: sqlite3.Connection = None
+        self.conn: Optional[sqlite3.Connection] = None
 
         # ETL
         self.crawler: MonthlyRevenueReportCrawler = MonthlyRevenueReportCrawler()
@@ -75,6 +75,8 @@ class MonthlyRevenueReportUpdater(BaseDataUpdater):
 
         # Step 1: Crawl
         # 取得要開始更新的年份、月份
+        start_year: int
+        start_month: int
         start_year, start_month = self.get_actual_update_start_year_month(
             default_year=start_year,
             default_month=start_month,
@@ -111,13 +113,15 @@ class MonthlyRevenueReportUpdater(BaseDataUpdater):
                     file_cnt = 0
                     time.sleep(30)
                 else:
-                    delay = random.randint(1, 5)
+                    delay: int = random.randint(1, 5)
                     time.sleep(delay)
 
         # Step 3: Load
         self.loader.add_to_db(remove_files=False)
 
         # 更新後重新取得最新年月
+        latest_year: Optional[int]
+        latest_month: Optional[int]
         latest_year, latest_month = SQLiteUtils.get_max_secondary_value_by_primary(
             conn=self.conn,
             table_name=MONTHLY_REVENUE_TABLE_NAME,
@@ -143,6 +147,8 @@ class MonthlyRevenueReportUpdater(BaseDataUpdater):
 
         # Step 1: 先取得資料表中最新的 year
         try:
+            latest_year: Optional[int]
+            latest_month: Optional[int]
             latest_year, latest_month = SQLiteUtils.get_max_secondary_value_by_primary(
                 conn=self.conn,
                 table_name=MONTHLY_REVENUE_TABLE_NAME,

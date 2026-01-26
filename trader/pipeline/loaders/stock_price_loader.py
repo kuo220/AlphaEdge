@@ -1,6 +1,7 @@
 import shutil
 import sqlite3
 from pathlib import Path
+from typing import List, Optional, Set, Tuple
 
 import pandas as pd
 from loguru import logger
@@ -17,7 +18,7 @@ class StockPriceLoader(BaseDataLoader):
         super().__init__()
 
         # SQLite Connection
-        self.conn: sqlite3.Connection = None
+        self.conn: Optional[sqlite3.Connection] = None
 
         # Downloads directory Path
         self.price_dir: Path = PRICE_DOWNLOADS_PATH
@@ -84,6 +85,14 @@ class StockPriceLoader(BaseDataLoader):
 
         self.conn.commit()
 
+    def create_missing_tables(self) -> None:
+        """確保股票價格資料表存在"""
+
+        if not SQLiteUtils.check_table_exist(
+            conn=self.conn, table_name=PRICE_TABLE_NAME
+        ):
+            self.create_db()
+
     def add_to_db(self, remove_files: bool = False) -> None:
         """Add Data into Database"""
 
@@ -94,8 +103,8 @@ class StockPriceLoader(BaseDataLoader):
         self.create_missing_tables()
 
         # 取得所有 CSV 檔案並排序，確保處理順序一致
-        csv_files = sorted([f for f in self.price_dir.iterdir() if f.suffix == ".csv"])
-        total_files = len(csv_files)
+        csv_files: List[Path] = sorted([f for f in self.price_dir.iterdir() if f.suffix == ".csv"])
+        total_files: int = len(csv_files)
 
         if total_files == 0:
             logger.info("No CSV files found in price directory")
@@ -106,14 +115,14 @@ class StockPriceLoader(BaseDataLoader):
         # 查詢資料庫中已存在的資料（根據主鍵）
         # 使用更有效率的查詢方式，只查詢需要的欄位
         logger.info("Loading existing data from database...")
-        existing_query = f"""
+        existing_query: str = f"""
         SELECT date, stock_id, "證券名稱"
         FROM {PRICE_TABLE_NAME}
         """
-        existing_df = pd.read_sql_query(existing_query, self.conn)
+        existing_df: pd.DataFrame = pd.read_sql_query(existing_query, self.conn)
 
         # 如果有已存在的資料，建立一個 set 來快速查找
-        existing_keys = set()
+        existing_keys: Set[Tuple[str, str, str]] = set()
         if not existing_df.empty:
             existing_keys = set(
                 zip(
@@ -143,7 +152,7 @@ class StockPriceLoader(BaseDataLoader):
                     continue
 
                 # 記錄原始資料筆數
-                original_count = len(df)
+                original_count: int = len(df)
 
                 # 建立當前資料的 key tuple（用於過濾和去重）
                 df["_key"] = list(
@@ -164,12 +173,12 @@ class StockPriceLoader(BaseDataLoader):
                 # 過濾掉資料庫中已存在的資料
                 if not existing_keys:
                     # 如果資料庫是空的，直接插入所有資料
-                    new_df = df.drop(columns=["_key"])
-                    new_keys = set(df["_key"])
+                    new_df: pd.DataFrame = df.drop(columns=["_key"])
+                    new_keys: Set[Tuple[str, str, str]] = set(df["_key"])
                 else:
                     # 過濾出新資料（不在 existing_keys 中的）
-                    mask = ~df["_key"].isin(existing_keys)
-                    new_df = df[mask].drop(columns=["_key"])
+                    mask: pd.Series = ~df["_key"].isin(existing_keys)
+                    new_df: pd.DataFrame = df[mask].drop(columns=["_key"])
 
                     if new_df.empty:
                         logger.info(
@@ -179,7 +188,7 @@ class StockPriceLoader(BaseDataLoader):
                         continue
 
                     # 取得要插入的新資料的 key（用於後續更新 existing_keys）
-                    new_keys = set(df.loc[mask, "_key"])
+                    new_keys: Set[Tuple[str, str, str]] = set(df.loc[mask, "_key"])
 
                 # 插入新資料（只有在插入成功後才更新 existing_keys）
                 new_df.to_sql(
@@ -188,7 +197,7 @@ class StockPriceLoader(BaseDataLoader):
 
                 # 插入成功後，更新 existing_keys 避免後續檔案的重複資料
                 existing_keys.update(new_keys)
-                skipped_rows = original_count - len(new_df)
+                skipped_rows: int = original_count - len(new_df)
                 if skipped_rows > 0:
                     logger.info(
                         f"Saved {file_path.name} into database ({len(new_df)} new rows, {skipped_rows} skipped)"
@@ -210,11 +219,3 @@ class StockPriceLoader(BaseDataLoader):
         logger.info(
             f"Total files processed: {file_cnt} new, {skipped_cnt} skipped, {error_cnt} errors"
         )
-
-    def create_missing_tables(self) -> None:
-        """確保股票價格資料表存在"""
-
-        if not SQLiteUtils.check_table_exist(
-            conn=self.conn, table_name=PRICE_TABLE_NAME
-        ):
-            self.create_db()

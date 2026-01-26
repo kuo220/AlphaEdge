@@ -78,7 +78,7 @@ class StockTickCleaner(BaseDataCleaner):
             with self._locks_lock:
                 if stock_id not in self._file_locks:
                     self._file_locks[stock_id] = Lock()
-                file_lock = self._file_locks[stock_id]
+                file_lock: Lock = self._file_locks[stock_id]
 
             # 使用文件鎖保護寫入操作
             with file_lock:
@@ -95,7 +95,7 @@ class StockTickCleaner(BaseDataCleaner):
                 try:
                     # 先關閉臨時文件描述符，讓 pandas 可以正常寫入
                     os.close(temp_fd)
-                    temp_fd = None
+                    temp_fd = None  # type: ignore
 
                     # 寫入臨時文件
                     new_df.to_csv(temp_file, index=False)
@@ -107,8 +107,8 @@ class StockTickCleaner(BaseDataCleaner):
                         time.sleep(0.01)
 
                     # 在 Windows 上，如果目標檔案存在且被鎖定，先嘗試刪除
-                    max_retries = 3
-                    retry_delay = 0.1
+                    max_retries: int = 3
+                    retry_delay: float = 0.1
 
                     for attempt in range(max_retries):
                         try:

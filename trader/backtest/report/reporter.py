@@ -54,11 +54,11 @@ class StockBacktestReporter(BaseBacktestReporter):
         self.benchmark: str = "0050"  # Benchmark stock
 
         # Price data
-        self.price: StockPriceAPI = None  # Price data
-        self.benchmark_price: pd.Series = None  # Benchmark price
+        self.price: Optional[StockPriceAPI] = None  # Price data
+        self.benchmark_price: Optional[pd.Series] = None  # Benchmark price
 
         # Trading report
-        self.trading_report: pd.DataFrame = None  # Trading report
+        self.trading_report: Optional[pd.DataFrame] = None  # Trading report
 
         self.setup()
 
@@ -155,7 +155,7 @@ class StockBacktestReporter(BaseBacktestReporter):
                     split_date, "%Y-%m-%d"
                 ).date()
             else:
-                split_date_normalized = split_date
+                split_date_normalized = split_date  # type: ignore
             splits_normalized.append((split_date_normalized, split_ratio))
 
         # 方法：為每個日期計算其累積調整因子

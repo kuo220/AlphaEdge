@@ -68,7 +68,7 @@ class MomentumTickStrategy(BaseStockStrategy):
             return []
 
         # 取得昨日收盤價（仍用日 K 價）
-        base_date = stock_quotes[0].date
+        base_date: datetime.date = stock_quotes[0].date
         yesterday: datetime.date = MarketCalendar.get_last_trading_date(
             api=self.price, date=base_date
         )
@@ -82,7 +82,7 @@ class MomentumTickStrategy(BaseStockStrategy):
             tick = stock_quote.tick_quote
 
             # Condition 1: 當前漲幅 > 9%
-            mask = yesterday_prices["stock_id"] == tick.stock_id
+            mask: pd.Series = yesterday_prices["stock_id"] == tick.stock_id
             if yesterday_prices.loc[mask, "收盤價"].empty:
                 logger.warning(f"股票 {tick.stock_id} {yesterday} 收盤價為空")
                 continue
@@ -168,7 +168,7 @@ class MomentumTickStrategy(BaseStockStrategy):
                     if stock_quote.tick_quote is None:
                         continue
 
-                    price = stock_quote.tick_quote.close
+                    price: float = stock_quote.tick_quote.close
                     if price <= 0:
                         continue
 
@@ -200,7 +200,7 @@ class MomentumTickStrategy(BaseStockStrategy):
                     continue
 
                 # 出場價格：若有 tick_quote 就用 tick 價，否則退回 0（理論上 tick 回測都會有）
-                price = (
+                price: float = (
                     stock_quote.tick_quote.close
                     if stock_quote.tick_quote is not None
                     else 0.0

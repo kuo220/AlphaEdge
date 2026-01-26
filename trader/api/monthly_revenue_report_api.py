@@ -1,7 +1,7 @@
 import shutil
 import sqlite3
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import pandas as pd
 from loguru import logger
@@ -23,7 +23,7 @@ class MonthlyRevenueReportAPI(BaseDataAPI):
     """Monthly Revenue Report Data API"""
 
     def __init__(self):
-        self.conn: sqlite3.Connection = None
+        self.conn: Optional[sqlite3.Connection] = None
 
         self.setup()
 

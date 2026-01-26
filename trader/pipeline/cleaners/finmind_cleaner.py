@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 import pandas as pd
 from loguru import logger
@@ -43,8 +43,8 @@ class FinMindCleaner(BaseDataCleaner):
             return None
 
         # 基本驗證：檢查必要欄位
-        required_columns = ["stock_id", "stock_name"]
-        missing_columns = [col for col in required_columns if col not in df.columns]
+        required_columns: List[str] = ["stock_id", "stock_name"]
+        missing_columns: List[str] = [col for col in required_columns if col not in df.columns]
         if missing_columns:
             logger.error(
                 f"Missing required columns in stock info data: {missing_columns}"
@@ -55,7 +55,7 @@ class FinMindCleaner(BaseDataCleaner):
         df = df.drop_duplicates(subset=["stock_id"], keep="first")
 
         # 存入 CSV 檔案
-        csv_path = self.finmind_dir / "taiwan_stock_info_with_warrant.csv"
+        csv_path: Path = self.finmind_dir / "taiwan_stock_info_with_warrant.csv"
         df.to_csv(csv_path, index=False, encoding="utf-8-sig")
         logger.info(
             f"Saved stock info with warrant data to {csv_path} ({len(df)} rows)"
@@ -78,8 +78,8 @@ class FinMindCleaner(BaseDataCleaner):
             return None
 
         # 基本驗證：檢查必要欄位
-        required_columns = ["securities_trader_id", "securities_trader"]
-        missing_columns = [col for col in required_columns if col not in df.columns]
+        required_columns: List[str] = ["securities_trader_id", "securities_trader"]
+        missing_columns: List[str] = [col for col in required_columns if col not in df.columns]
         if missing_columns:
             logger.error(
                 f"Missing required columns in broker info data: {missing_columns}"
@@ -90,7 +90,7 @@ class FinMindCleaner(BaseDataCleaner):
         df = df.drop_duplicates(subset=["securities_trader_id"], keep="first")
 
         # 存入 CSV 檔案
-        csv_path = self.finmind_dir / "taiwan_securities_trader_info.csv"
+        csv_path: Path = self.finmind_dir / "taiwan_securities_trader_info.csv"
         df.to_csv(csv_path, index=False, encoding="utf-8-sig")
         logger.info(f"Saved broker info data to {csv_path} ({len(df)} rows)")
 
@@ -113,14 +113,14 @@ class FinMindCleaner(BaseDataCleaner):
             return None
 
         # 基本驗證：檢查必要欄位
-        required_columns = [
+        required_columns: List[str] = [
             "stock_id",
             "date",
             "securities_trader_id",
             "buy_volume",
             "sell_volume",
         ]
-        missing_columns = [col for col in required_columns if col not in df.columns]
+        missing_columns: List[str] = [col for col in required_columns if col not in df.columns]
         if missing_columns:
             logger.error(
                 f"Missing required columns in broker trading daily report data: {missing_columns}"
@@ -134,7 +134,7 @@ class FinMindCleaner(BaseDataCleaner):
 
         # 存入 CSV 檔案（可以根據日期範圍命名，這裡先使用固定檔名）
         # 如果需要按日期分檔，可以在 updater 中處理
-        csv_path = self.finmind_dir / "taiwan_stock_trading_daily_report_secid_agg.csv"
+        csv_path: Path = self.finmind_dir / "taiwan_stock_trading_daily_report_secid_agg.csv"
         df.to_csv(csv_path, index=False, encoding="utf-8-sig")
         logger.info(
             f"Saved broker trading daily report data to {csv_path} ({len(df)} rows)"
