@@ -55,6 +55,9 @@ CHIP_DOWNLOADS_PATH: Path = get_static_resolved_path(
 TICK_DOWNLOADS_PATH: Path = get_static_resolved_path(
     base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="tick"
 )
+FINMIND_DOWNLOADS_PATH: Path = get_static_resolved_path(
+    base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="finmind"
+)
 
 """ === Crawler Downloads Metadata Directory Path === """
 DOWNLOADS_METADATA_DIR_PATH: Path = get_static_resolved_path(
