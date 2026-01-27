@@ -12,7 +12,7 @@ from trader.utils.log_manager import LogManager
 """
 FinMind 資料爬蟲
 負責爬取以下資料：
-1. 當日卷商分點統計表 (TaiwanStockTradingDailyReportSecIdAgg)
+1. 當日卷商分點統計表 (TaiwanStockTradingDailyReportSecIdAgg) - 資料起始日期：2021/6/30
 2. 台股總覽(含權證) (TaiwanStockInfoWithWarrant)
 3. 證券商資訊表 (TaiwanSecuritiesTraderInfo)
 """

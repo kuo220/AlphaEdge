@@ -6,7 +6,7 @@ from loguru import logger
 
 from trader.config import FINMIND_DOWNLOADS_PATH
 from trader.pipeline.cleaners.base import BaseDataCleaner
-from trader.pipeline.utils import FileEncoding
+from trader.pipeline.utils import FileEncoding, FinMindDataType
 
 
 class FinMindCleaner(BaseDataCleaner):
@@ -57,8 +57,12 @@ class FinMindCleaner(BaseDataCleaner):
         # 移除重複資料
         df = df.drop_duplicates(subset=["stock_id"], keep="first")
 
-        # 存入 CSV 檔案
-        csv_path: Path = self.finmind_dir / "taiwan_stock_info_with_warrant.csv"
+        # 存入 CSV 檔案到各自的資料夾
+        data_type_dir: Path = (
+            self.finmind_dir / FinMindDataType.STOCK_INFO.value.lower()
+        )
+        data_type_dir.mkdir(parents=True, exist_ok=True)
+        csv_path: Path = data_type_dir / "taiwan_stock_info_with_warrant.csv"
         df.to_csv(csv_path, index=False, encoding=FileEncoding.UTF8_SIG.value)
         logger.info(
             f"Saved stock info with warrant data to {csv_path} ({len(df)} rows)"
@@ -94,8 +98,12 @@ class FinMindCleaner(BaseDataCleaner):
         # 移除重複資料
         df = df.drop_duplicates(subset=["securities_trader_id"], keep="first")
 
-        # 存入 CSV 檔案
-        csv_path: Path = self.finmind_dir / "taiwan_securities_trader_info.csv"
+        # 存入 CSV 檔案到各自的資料夾
+        data_type_dir: Path = (
+            self.finmind_dir / FinMindDataType.BROKER_INFO.value.lower()
+        )
+        data_type_dir.mkdir(parents=True, exist_ok=True)
+        csv_path: Path = data_type_dir / "taiwan_securities_trader_info.csv"
         df.to_csv(csv_path, index=False, encoding=FileEncoding.UTF8_SIG.value)
         logger.info(f"Saved broker info data to {csv_path} ({len(df)} rows)")
 
@@ -139,10 +147,14 @@ class FinMindCleaner(BaseDataCleaner):
             subset=["stock_id", "date", "securities_trader_id"], keep="first"
         )
 
-        # 存入 CSV 檔案（可以根據日期範圍命名，這裡先使用固定檔名）
+        # 存入 CSV 檔案到各自的資料夾（可以根據日期範圍命名，這裡先使用固定檔名）
         # 如果需要按日期分檔，可以在 updater 中處理
+        data_type_dir: Path = (
+            self.finmind_dir / FinMindDataType.BROKER_TRADING.value.lower()
+        )
+        data_type_dir.mkdir(parents=True, exist_ok=True)
         csv_path: Path = (
-            self.finmind_dir / "taiwan_stock_trading_daily_report_secid_agg.csv"
+            data_type_dir / "taiwan_stock_trading_daily_report_secid_agg.csv"
         )
         df.to_csv(csv_path, index=False, encoding=FileEncoding.UTF8_SIG.value)
         logger.info(

@@ -5,5 +5,6 @@ from .constant import (
     FinancialStatementType,
     InstrumentType,
     MarketType,
+    UpdateStatus,
 )
 from .url_manager import URLManager

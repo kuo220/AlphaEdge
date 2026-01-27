@@ -4,10 +4,28 @@ from typing import List, Optional
 
 from dotenv import load_dotenv
 
-from trader.utils.path import get_static_resolved_path
-
 # Load environment variables from .env file
 load_dotenv()
+
+
+# 將固定資料夾名稱解析為 base_dir 下的絕對路徑
+def get_static_resolved_path(base_dir: Path, dir_name: str) -> Path:
+    """
+    將固定資料夾名稱解析為 base_dir 下的絕對路徑。
+
+    Args:
+        base_dir: 基礎目錄路徑
+        dir_name: 資料夾名稱或相對路徑字串（可包含子目錄，如 "logs/app"）
+
+    Returns:
+        解析後的絕對路徑
+
+    Example:
+        >>> base = Path('/home/user/project')
+        >>> path = get_static_resolved_path(base, 'logs')
+        >>> # 結果: PosixPath('/home/user/project/logs')
+    """
+    return (base_dir / dir_name).resolve()
 
 
 """ Root Directory (trader/) Path """
