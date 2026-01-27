@@ -218,6 +218,14 @@ class FinMindLoader(BaseDataLoader):
             """
             existing_df: pd.DataFrame = pd.read_sql_query(existing_query, self.conn)
 
+            # 先處理同一個檔案內的重複資料
+            original_count: int = len(df)
+            if df["stock_id"].duplicated().any():
+                df = df.drop_duplicates(subset=["stock_id"], keep="first")
+                logger.debug(
+                    f"Removed {original_count - len(df)} duplicate rows within {csv_path.name}"
+                )
+
             # 建立已存在的 stock_id set
             existing_stock_ids: Set[str] = set()
             if not existing_df.empty:
@@ -256,7 +264,13 @@ class FinMindLoader(BaseDataLoader):
                 index=False,
             )
 
-            logger.info(f"Saved {csv_path.name} into database ({len(new_df)} new rows)")
+            skipped_rows: int = original_count - len(new_df)
+            if skipped_rows > 0:
+                logger.info(
+                    f"Saved {csv_path.name} into database ({len(new_df)} new rows, {skipped_rows} skipped)"
+                )
+            else:
+                logger.info(f"Saved {csv_path.name} into database ({len(new_df)} rows)")
 
         except Exception as e:
             logger.error(f"Error loading {csv_path.name}: {e}", exc_info=True)
@@ -284,6 +298,14 @@ class FinMindLoader(BaseDataLoader):
             FROM {SECURITIES_TRADER_INFO_TABLE_NAME}
             """
             existing_df: pd.DataFrame = pd.read_sql_query(existing_query, self.conn)
+
+            # 先處理同一個檔案內的重複資料
+            original_count: int = len(df)
+            if df["securities_trader_id"].duplicated().any():
+                df = df.drop_duplicates(subset=["securities_trader_id"], keep="first")
+                logger.debug(
+                    f"Removed {original_count - len(df)} duplicate rows within {csv_path.name}"
+                )
 
             # 建立已存在的 broker_id set
             existing_broker_ids: Set[str] = set()
@@ -327,7 +349,13 @@ class FinMindLoader(BaseDataLoader):
                 index=False,
             )
 
-            logger.info(f"Saved {csv_path.name} into database ({len(new_df)} new rows)")
+            skipped_rows: int = original_count - len(new_df)
+            if skipped_rows > 0:
+                logger.info(
+                    f"Saved {csv_path.name} into database ({len(new_df)} new rows, {skipped_rows} skipped)"
+                )
+            else:
+                logger.info(f"Saved {csv_path.name} into database ({len(new_df)} rows)")
 
         except Exception as e:
             logger.error(f"Error loading {csv_path.name}: {e}", exc_info=True)

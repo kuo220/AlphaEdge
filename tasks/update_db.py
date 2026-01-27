@@ -151,9 +151,9 @@ def get_update_time_config(
             "start_date": datetime.date(2021, 6, 30),
             "end_date": datetime.date.today(),
         }
-    elif (
-        data_type == FinMindDataType.BROKER_TRADING
-        or (isinstance(data_type, str) and data_type.lower() == FinMindDataType.BROKER_TRADING.value.lower())
+    elif data_type == FinMindDataType.BROKER_TRADING or (
+        isinstance(data_type, str)
+        and data_type.lower() == FinMindDataType.BROKER_TRADING.value.lower()
     ):
         # FinMind 券商分點統計：從 2021/6/30 開始
         return {

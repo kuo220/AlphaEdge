@@ -31,9 +31,7 @@ from loguru import logger
 # 直接使用字符串常數，避免導入 config 時的循環導入問題
 STOCK_INFO_WITH_WARRANT_TABLE_NAME = "taiwan_stock_info_with_warrant"
 SECURITIES_TRADER_INFO_TABLE_NAME = "taiwan_securities_trader_info"
-STOCK_TRADING_DAILY_REPORT_TABLE_NAME = (
-    "taiwan_stock_trading_daily_report_secid_agg"
-)
+STOCK_TRADING_DAILY_REPORT_TABLE_NAME = "taiwan_stock_trading_daily_report_secid_agg"
 
 
 def test_finmind_updater():
@@ -87,12 +85,8 @@ def test_finmind_updater():
     temp_config.FINMIND_DOWNLOADS_PATH = (
         project_root / "trader" / "pipeline" / "downloads" / "finmind"
     )
-    temp_config.STOCK_INFO_WITH_WARRANT_TABLE_NAME = (
-        STOCK_INFO_WITH_WARRANT_TABLE_NAME
-    )
-    temp_config.SECURITIES_TRADER_INFO_TABLE_NAME = (
-        SECURITIES_TRADER_INFO_TABLE_NAME
-    )
+    temp_config.STOCK_INFO_WITH_WARRANT_TABLE_NAME = STOCK_INFO_WITH_WARRANT_TABLE_NAME
+    temp_config.SECURITIES_TRADER_INFO_TABLE_NAME = SECURITIES_TRADER_INFO_TABLE_NAME
     temp_config.STOCK_TRADING_DAILY_REPORT_TABLE_NAME = (
         STOCK_TRADING_DAILY_REPORT_TABLE_NAME
     )
@@ -135,9 +129,7 @@ def test_finmind_updater():
         # 使用 mock 替換 DB_PATH
         with patch("trader.config.DB_PATH", temp_db_path), patch(
             "trader.pipeline.updaters.finmind_updater.DB_PATH", temp_db_path
-        ), patch(
-            "trader.pipeline.loaders.finmind_loader.DB_PATH", temp_db_path
-        ):
+        ), patch("trader.pipeline.loaders.finmind_loader.DB_PATH", temp_db_path):
             # ===== 測試 1: update_stock_info_with_warrant =====
             print(f"\n{'='*60}")
             print("測試 1: update_stock_info_with_warrant()")
@@ -154,9 +146,7 @@ def test_finmind_updater():
             conn: sqlite3.Connection = sqlite3.connect(temp_db_path)
             cursor: sqlite3.Cursor = conn.cursor()
 
-            cursor.execute(
-                f"SELECT COUNT(*) FROM {STOCK_INFO_WITH_WARRANT_TABLE_NAME}"
-            )
+            cursor.execute(f"SELECT COUNT(*) FROM {STOCK_INFO_WITH_WARRANT_TABLE_NAME}")
             count: int = cursor.fetchone()[0]
 
             if count > 0:
@@ -185,9 +175,7 @@ def test_finmind_updater():
             conn = sqlite3.connect(temp_db_path)
             cursor = conn.cursor()
 
-            cursor.execute(
-                f"SELECT COUNT(*) FROM {SECURITIES_TRADER_INFO_TABLE_NAME}"
-            )
+            cursor.execute(f"SELECT COUNT(*) FROM {SECURITIES_TRADER_INFO_TABLE_NAME}")
             count = cursor.fetchone()[0]
 
             if count > 0:
@@ -264,9 +252,7 @@ def test_finmind_updater():
 
             conn = sqlite3.connect(temp_db_path)
             cursor = conn.cursor()
-            cursor.execute(
-                f"SELECT COUNT(*) FROM {STOCK_INFO_WITH_WARRANT_TABLE_NAME}"
-            )
+            cursor.execute(f"SELECT COUNT(*) FROM {STOCK_INFO_WITH_WARRANT_TABLE_NAME}")
             count = cursor.fetchone()[0]
             print(f"✅ STOCK_INFO 更新完成，資料庫中有 {count} 筆資料")
             conn.close()
@@ -276,16 +262,12 @@ def test_finmind_updater():
 
             conn = sqlite3.connect(temp_db_path)
             cursor = conn.cursor()
-            cursor.execute(
-                f"SELECT COUNT(*) FROM {SECURITIES_TRADER_INFO_TABLE_NAME}"
-            )
+            cursor.execute(f"SELECT COUNT(*) FROM {SECURITIES_TRADER_INFO_TABLE_NAME}")
             count = cursor.fetchone()[0]
             print(f"✅ BROKER_INFO 更新完成，資料庫中有 {count} 筆資料")
             conn.close()
 
-            print(
-                "\n🔄 測試 update(data_type=FinMindDataType.BROKER_TRADING)..."
-            )
+            print("\n🔄 測試 update(data_type=FinMindDataType.BROKER_TRADING)...")
             updater.update(
                 data_type=FinMindDataType.BROKER_TRADING,
                 start_date=start_date,
@@ -298,9 +280,7 @@ def test_finmind_updater():
                 f"SELECT COUNT(*) FROM {STOCK_TRADING_DAILY_REPORT_TABLE_NAME}"
             )
             count = cursor.fetchone()[0]
-            print(
-                f"✅ BROKER_TRADING 更新完成，資料庫中有 {count} 筆資料"
-            )
+            print(f"✅ BROKER_TRADING 更新完成，資料庫中有 {count} 筆資料")
             conn.close()
 
             # ===== 測試 5: update() 方法 - 使用字串 =====
@@ -313,9 +293,7 @@ def test_finmind_updater():
 
             conn = sqlite3.connect(temp_db_path)
             cursor = conn.cursor()
-            cursor.execute(
-                f"SELECT COUNT(*) FROM {STOCK_INFO_WITH_WARRANT_TABLE_NAME}"
-            )
+            cursor.execute(f"SELECT COUNT(*) FROM {STOCK_INFO_WITH_WARRANT_TABLE_NAME}")
             count = cursor.fetchone()[0]
             print(f"✅ 'stock_info' 更新完成，資料庫中有 {count} 筆資料")
             conn.close()
@@ -325,9 +303,7 @@ def test_finmind_updater():
 
             conn = sqlite3.connect(temp_db_path)
             cursor = conn.cursor()
-            cursor.execute(
-                f"SELECT COUNT(*) FROM {SECURITIES_TRADER_INFO_TABLE_NAME}"
-            )
+            cursor.execute(f"SELECT COUNT(*) FROM {SECURITIES_TRADER_INFO_TABLE_NAME}")
             count = cursor.fetchone()[0]
             print(f"✅ 'BROKER_INFO' 更新完成，資料庫中有 {count} 筆資料")
             conn.close()

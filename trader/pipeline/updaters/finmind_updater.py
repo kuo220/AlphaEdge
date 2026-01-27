@@ -86,7 +86,9 @@ class FinMindUpdater(BaseDataUpdater):
             securities_trader_id: 券商代碼（可選，僅用於 BROKER_TRADING）
         """
         # 處理 "all" 或 None 的情況
-        if data_type is None or (isinstance(data_type, str) and data_type.lower() == "all"):
+        if data_type is None or (
+            isinstance(data_type, str) and data_type.lower() == "all"
+        ):
             self.update_all(
                 start_date=start_date,
                 end_date=end_date,
@@ -147,7 +149,9 @@ class FinMindUpdater(BaseDataUpdater):
             return
 
         # Step 2: Clean
-        cleaned_df: Optional[pd.DataFrame] = self.cleaner.clean_stock_info_with_warrant(df)
+        cleaned_df: Optional[pd.DataFrame] = self.cleaner.clean_stock_info_with_warrant(
+            df
+        )
         if cleaned_df is None or cleaned_df.empty:
             logger.warning("Cleaned stock info with warrant data is empty")
             return
@@ -211,7 +215,9 @@ class FinMindUpdater(BaseDataUpdater):
         )
 
         # 取得要開始更新的日期（從資料庫最新日期+1天開始，或使用提供的 start_date）
-        actual_start_date: Union[datetime.date, str] = self.get_actual_update_start_date(default_date=start_date)
+        actual_start_date: Union[datetime.date, str] = (
+            self.get_actual_update_start_date(default_date=start_date)
+        )
 
         # 如果實際開始日期已經超過結束日期，則不需要更新
         if isinstance(actual_start_date, datetime.date) and isinstance(
@@ -245,7 +251,9 @@ class FinMindUpdater(BaseDataUpdater):
             return
 
         # Step 2: Clean
-        cleaned_df: Optional[pd.DataFrame] = self.cleaner.clean_broker_trading_daily_report(df)
+        cleaned_df: Optional[pd.DataFrame] = (
+            self.cleaner.clean_broker_trading_daily_report(df)
+        )
         if cleaned_df is None or cleaned_df.empty:
             logger.warning("Cleaned broker trading daily report data is empty")
             return
