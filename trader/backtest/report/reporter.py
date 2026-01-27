@@ -9,6 +9,7 @@ from loguru import logger
 from trader.api.stock_price_api import StockPriceAPI
 from trader.backtest.report.base import BaseBacktestReporter
 from trader.models.stock.record import StockTradeRecord
+from trader.pipeline.utils import FileEncoding
 from trader.strategies.stock import BaseStockStrategy
 from trader.utils.time import TimeUtils
 
@@ -701,7 +702,7 @@ class StockBacktestReporter(BaseBacktestReporter):
         save_path.parent.mkdir(parents=True, exist_ok=True)
 
         # 輸出 CSV 檔案
-        df.to_csv(save_path, index=False, encoding="utf-8-sig")
+        df.to_csv(save_path, index=False, encoding=FileEncoding.UTF8_SIG.value)
         logger.info(f"* Report saved to: {save_path}")
 
     def save_figure(self, fig: go.Figure, file_name: str = "") -> None:

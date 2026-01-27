@@ -1,0 +1,96 @@
+site_name: AlphaEdge API Documentation
+site_description: AlphaEdge 交易框架 API 文檔
+site_author: AlphaEdge Team
+site_url: https://your-domain.com/docs
+
+repo_name: AlphaEdge
+repo_url: https://github.com/your-username/AlphaEdge
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.annotate
+    - content.code.copy
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - admonition
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - 首頁: index.md
+  - 快速開始: getting-started.md
+  - API 參考:
+    - API 概述: api/overview.md
+    - 資料 API:
+      - BaseDataAPI: api/data/base.md
+      - StockPriceAPI: api/data/stock_price_api.md
+      - StockTickAPI: api/data/stock_tick_api.md
+      - StockChipAPI: api/data/stock_chip_api.md
+      - MonthlyRevenueReportAPI: api/data/monthly_revenue_report_api.md
+      - FinancialStatementAPI: api/data/financial_statement_api.md
+    - 策略 API:
+      - BaseStockStrategy: api/strategy/base_stock_strategy.md
+  - 使用範例:
+    - 基本使用: examples/basic.md
+    - 策略開發: examples/strategy.md
+    - 資料查詢: examples/data_query.md
+  - 最佳實踐: best-practices.md
+  - 常見問題: faq.md
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [trader]
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            show_root_toc_entry: true
+            show_root_full_path: false
+            show_object_full_path: false
+            show_category_heading: true
+            show_if_no_docstring: false
+            show_signature_annotations: true
+            separate_signature: true
+            line_length: 80
+            merge_init_into_class: true

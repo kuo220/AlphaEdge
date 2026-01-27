@@ -101,7 +101,7 @@ def test_finmind_pipeline():
     # 在專案目錄下的 tests/temp 資料夾中創建，方便查找和管理
     temp_dir: Path = project_root / "tests" / "temp"
     temp_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # 使用時間戳記創建唯一的檔案名
     timestamp: str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     temp_db_path: str = str(temp_dir / f"test_finmind_{timestamp}.db")
@@ -129,7 +129,9 @@ def test_finmind_pipeline():
 
             # Crawler: 爬取資料
             print("\n📥 步驟 1: 爬取資料...")
-            stock_info_df: Optional[pd.DataFrame] = crawler.crawl_stock_info_with_warrant()
+            stock_info_df: Optional[pd.DataFrame] = (
+                crawler.crawl_stock_info_with_warrant()
+            )
 
             if stock_info_df is None or stock_info_df.empty:
                 print("❌ 爬取失敗：沒有取得資料")
@@ -142,7 +144,9 @@ def test_finmind_pipeline():
 
             # Cleaner: 清洗資料
             print("\n🧹 步驟 2: 清洗資料...")
-            cleaned_stock_info_df: Optional[pd.DataFrame] = cleaner.clean_stock_info_with_warrant(stock_info_df)
+            cleaned_stock_info_df: Optional[pd.DataFrame] = (
+                cleaner.clean_stock_info_with_warrant(stock_info_df)
+            )
 
             if cleaned_stock_info_df is None or cleaned_stock_info_df.empty:
                 print("❌ 清洗失敗：清洗後的資料為空")
@@ -197,7 +201,9 @@ def test_finmind_pipeline():
 
             # Cleaner: 清洗資料
             print("\n🧹 步驟 2: 清洗資料...")
-            cleaned_broker_info_df: Optional[pd.DataFrame] = cleaner.clean_broker_info(broker_info_df)
+            cleaned_broker_info_df: Optional[pd.DataFrame] = cleaner.clean_broker_info(
+                broker_info_df
+            )
 
             if cleaned_broker_info_df is None or cleaned_broker_info_df.empty:
                 print("❌ 清洗失敗：清洗後的資料為空")
@@ -251,11 +257,13 @@ def test_finmind_pipeline():
             # Crawler: 爬取資料
             print("\n📥 步驟 1: 爬取資料...")
 
-            trading_report_df: Optional[pd.DataFrame] = crawler.crawl_broker_trading_daily_report(
-                stock_id=test_stock_id,
-                securities_trader_id=test_broker_id,
-                start_date=start_date,
-                end_date=end_date,
+            trading_report_df: Optional[pd.DataFrame] = (
+                crawler.crawl_broker_trading_daily_report(
+                    stock_id=test_stock_id,
+                    securities_trader_id=test_broker_id,
+                    start_date=start_date,
+                    end_date=end_date,
+                )
             )
 
             if trading_report_df is None or trading_report_df.empty:
@@ -270,8 +278,8 @@ def test_finmind_pipeline():
 
                 # Cleaner: 清洗資料
                 print("\n🧹 步驟 2: 清洗資料...")
-                cleaned_trading_report_df: Optional[pd.DataFrame] = cleaner.clean_broker_trading_daily_report(
-                    trading_report_df
+                cleaned_trading_report_df: Optional[pd.DataFrame] = (
+                    cleaner.clean_broker_trading_daily_report(trading_report_df)
                 )
 
                 if cleaned_trading_report_df is None or cleaned_trading_report_df.empty:

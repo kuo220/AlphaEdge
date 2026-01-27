@@ -17,3 +17,7 @@ shioaji.log
 
 # Downloads Content
 Downloads/*
+
+# MkDocs
+site/
+.cache/

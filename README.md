@@ -2,6 +2,21 @@
 
 **AlphaEdge** is a *trading framework* designed for backtesting trading strategies, generating backtest reports, and enabling *live trading* through the [Shioaji API](https://sinotrade.github.io/zh_TW/). It supports backtesting and trading for **stocks, futures, and options** (though currently, only stock trading has been implemented).
 
+## 📚 文檔
+
+- **[完整 API 文檔](docs/README.md)** - 使用 MkDocs 建立的完整 API 參考文檔（包含使用說明、文檔結構、特色功能）
+- **[架構分析](ARCHITECTURE_REVIEW.md)** - 系統架構詳細分析
+- **[策略開發指南](trader/strategies/README.md)** - 策略開發完整說明
+
+**快速預覽文檔：**
+```bash
+# 安裝依賴
+pip install -r docs/requirements.txt
+
+# 啟動本地文檔伺服器
+mkdocs serve
+```
+
 To get started, users should follow the instructions in [Strategy Instruction](trader/strategies/README.md) and complete the following steps:
 
 1. Familiarize themselves with the backtest Data API.
@@ -20,6 +35,7 @@ To get started, users should follow the instructions in [Strategy Instruction](t
   - [必須實作的方法](#必須實作的方法)
   - [策略設定參數](#策略設定參數)
   - [資料 API 使用](#資料-api-使用)
+  - [FinMind 資料](#finmind-資料)
   - [範例策略](#範例策略)
 - [資料庫更新](#資料庫更新)
   - [更新指令](#更新指令)
@@ -57,24 +73,30 @@ python run.py --mode live --strategy Momentum
 
 ### 回測級別
 
-AlphaEdge 支援三種回測級別（KBar 級別）：
+AlphaEdge 支援四種回測級別（KBar 級別）：
 
 1. **TICK**: 逐筆成交資料回測
    - 使用 `StockTickAPI` 取得逐筆成交資料
    - 適合需要精確價格和時間的策略
+   - 可參考 `trader/strategies/stock/momentum_tick_strategy.py` 範例
 
 2. **DAY**: 日線資料回測
    - 使用 `StockPriceAPI` 取得日線收盤價資料
    - 適合基於日線技術指標的策略
+   - 可參考 `trader/strategies/stock/momentum_strategy.py` 或 `trader/strategies/stock/simple_long_strategy.py` 範例
 
 3. **MIX**: 混合級別回測
    - 同時使用 TICK 和 DAY 資料
    - 目前尚未完全實作
 
+4. **ALL**: 使用所有可用資料
+   - 同時載入 TICK 和 DAY 資料 API
+   - 適合需要同時使用多種資料來源的策略
+
 在策略中設定回測級別：
 
 ```python
-self.scale: str = Scale.DAY  # 或 Scale.TICK, Scale.MIX
+self.scale: str = Scale.DAY  # 或 Scale.TICK, Scale.MIX, Scale.ALL
 ```
 
 ### 回測結果
@@ -131,10 +153,10 @@ def setup_apis(self):
     self.mrr = MonthlyRevenueReportAPI()  # 月營收資料
     self.fs = FinancialStatementAPI()  # 財報資料
     
-    if self.scale in (Scale.TICK, Scale.MIX):
+    if self.scale in (Scale.TICK, Scale.MIX, Scale.ALL):
         self.tick = StockTickAPI()  # 逐筆資料
     
-    if self.scale in (Scale.DAY, Scale.MIX):
+    if self.scale in (Scale.DAY, Scale.MIX, Scale.ALL):
         self.price = StockPriceAPI()  # 日線資料
 ```
 
@@ -331,9 +353,30 @@ mrr = self.mrr.get(year=2024, month=1)
 fs = self.fs.get(year=2024, season=1)
 ```
 
+### FinMind 資料
+
+AlphaEdge 支援透過 FinMind API 取得以下資料：
+
+1. **台股總覽(含權證)** (`stock_info`): 包含所有上市、上櫃、興櫃股票及權證的基本資訊
+2. **證券商資訊** (`broker_info`): 包含所有證券商的代碼、名稱、地址、電話等資訊
+3. **券商分點統計** (`broker_trading`): 每日各券商分點對各股票的買賣統計資料
+
+這些資料已儲存在 SQLite 資料庫中，可透過 SQL 查詢使用。目前尚未提供專用的 API 類別，建議直接在策略中使用 SQL 查詢或 pandas 讀取資料庫。
+
+**資料表名稱：**
+- `taiwan_stock_info_with_warrant`: 台股總覽(含權證)
+- `taiwan_securities_trader_info`: 證券商資訊
+- `taiwan_stock_trading_daily_report_secid_agg`: 券商分點統計
+
 ### 範例策略
 
-參考 `trader/strategies/stock/momentum_strategy.py` 查看完整的策略實作範例。
+AlphaEdge 提供了多個策略範例供參考：
+
+- **MomentumStrategy** (`trader/strategies/stock/momentum_strategy.py`): 日線級別的動能策略
+- **MomentumTickStrategy** (`trader/strategies/stock/momentum_tick_strategy.py`): TICK 級別的動能策略
+- **SimpleLongStrategy** (`trader/strategies/stock/simple_long_strategy.py`): 簡易做多策略範例
+
+詳細的策略撰寫指南請參考 [Strategy Instruction](trader/strategies/README.md)。
 
 ## 資料庫更新
 
@@ -352,7 +395,11 @@ python -m tasks.update_db --target <data_type>
 - `price`: 收盤價資料
 - `fs`: 財報資料
 - `mrr`: 月營收報表
-- `all`: 更新所有資料（包含 tick）
+- `finmind`: 更新所有 FinMind 資料（台股總覽、證券商資訊、券商分點統計）
+- `stock_info`: 僅更新 FinMind 台股總覽(含權證)
+- `broker_info`: 僅更新 FinMind 證券商資訊
+- `broker_trading`: 僅更新 FinMind 券商分點統計
+- `all`: 更新所有資料（包含 tick 和 finmind）
 - `no_tick`: 更新所有資料（不包含 tick，預設值）
 
 ### 更新流程
@@ -374,12 +421,24 @@ python -m tasks.update_db --target tick
 # 更新三大法人與收盤價
 python -m tasks.update_db --target chip price
 
+# 更新所有 FinMind 資料
+python -m tasks.update_db --target finmind
+
+# 僅更新 FinMind 台股總覽
+python -m tasks.update_db --target stock_info
+
+# 僅更新 FinMind 券商分點統計
+python -m tasks.update_db --target broker_trading
+
+# 同時更新多個資料類型
+python -m tasks.update_db --target chip price finmind
+
 # 更新所有資料（不含 tick，預設）
 python -m tasks.update_db --target no_tick
 # 或
 python -m tasks.update_db
 
-# 更新所有資料（含 tick）
+# 更新所有資料（含 tick 和 finmind）
 python -m tasks.update_db --target all
 ```
 
@@ -387,6 +446,10 @@ python -m tasks.update_db --target all
 
 - **一般資料**（price, chip, mrr, fs）: 從 2013/1/1 開始
 - **Tick 資料**: 從 2020/3/2 開始（Shioaji API 提供）
+- **FinMind 資料**:
+  - 台股總覽(含權證) (`stock_info`): 一次性更新全部資料
+  - 證券商資訊 (`broker_info`): 一次性更新全部資料
+  - 券商分點統計 (`broker_trading`): 從 2021/6/30 開始
 
 **注意事項：**
 

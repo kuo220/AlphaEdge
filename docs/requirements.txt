@@ -1,0 +1,4 @@
+# MkDocs 文檔生成所需的依賴
+mkdocs>=1.5.0
+mkdocs-material>=9.0.0
+mkdocstrings[python]>=0.23.0

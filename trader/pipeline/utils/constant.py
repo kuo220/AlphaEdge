@@ -17,6 +17,7 @@ class DataType(str, Enum):
     TICK = "Tick"
     MRR = "MONTHLY_REVENUE_REPORT"
     FS = "FINANCIAL_STATEMENT"
+    FINMIND = "FINMIND"
 
 
 class MarketType(str, Enum):
@@ -42,8 +43,17 @@ class FinancialStatementType(str, Enum):
     EQUITY_CHANGE = "EQUITY_CHANGE"
 
 
+class FinMindDataType(str, Enum):
+    """FinMind 資料子類型"""
+
+    STOCK_INFO = "STOCK_INFO"
+    BROKER_INFO = "BROKER_INFO"
+    BROKER_TRADING = "BROKER_TRADING"
+
+
 class FileEncoding(str, Enum):
     """檔案編碼類型"""
 
     UTF8 = "utf-8"
+    UTF8_SIG = "utf-8-sig"  # UTF-8 with BOM，用於 Excel 等軟體正確識別中文
     BIG5 = "big5"

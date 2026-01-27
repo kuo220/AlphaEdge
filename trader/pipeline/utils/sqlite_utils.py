@@ -142,7 +142,9 @@ class SQLiteUtils:
         try:
             cursor: sqlite3.Cursor = conn.execute(query, (latest_primary,))
             result: Optional[Tuple[Any, ...]] = cursor.fetchone()
-            latest_secondary: Optional[Any] = result[0] if result and result[0] is not None else None
+            latest_secondary: Optional[Any] = (
+                result[0] if result and result[0] is not None else None
+            )
         except Exception as e:
             logger.error(
                 f"Failed to query {secondary_col} for {primary_col}={latest_primary} in table '{table_name}': {e}"
