@@ -13,6 +13,7 @@ from trader.config import (
     STOCK_TRADING_DAILY_REPORT_TABLE_NAME,
 )
 from trader.pipeline.loaders.base import BaseDataLoader
+from trader.pipeline.utils import FinMindDataType
 from trader.pipeline.utils.sqlite_utils import SQLiteUtils
 
 
@@ -197,7 +198,10 @@ class FinMindLoader(BaseDataLoader):
     def _load_stock_info_with_warrant(self) -> None:
         """載入台股總覽(含權證)資料到資料庫"""
 
-        csv_path: Path = self.finmind_dir / "taiwan_stock_info_with_warrant.csv"
+        data_type_dir: Path = (
+            self.finmind_dir / FinMindDataType.STOCK_INFO.value.lower()
+        )
+        csv_path: Path = data_type_dir / "taiwan_stock_info_with_warrant.csv"
 
         if not csv_path.exists():
             logger.warning(f"CSV file not found: {csv_path}")
@@ -278,7 +282,10 @@ class FinMindLoader(BaseDataLoader):
     def _load_broker_info(self) -> None:
         """載入證券商資訊表資料到資料庫"""
 
-        csv_path: Path = self.finmind_dir / "taiwan_securities_trader_info.csv"
+        data_type_dir: Path = (
+            self.finmind_dir / FinMindDataType.BROKER_INFO.value.lower()
+        )
+        csv_path: Path = data_type_dir / "taiwan_securities_trader_info.csv"
 
         if not csv_path.exists():
             logger.warning(f"CSV file not found: {csv_path}")
@@ -363,8 +370,11 @@ class FinMindLoader(BaseDataLoader):
     def _load_broker_trading_daily_report(self) -> None:
         """載入當日券商分點統計表資料到資料庫"""
 
+        data_type_dir: Path = (
+            self.finmind_dir / FinMindDataType.BROKER_TRADING.value.lower()
+        )
         csv_path: Path = (
-            self.finmind_dir / "taiwan_stock_trading_daily_report_secid_agg.csv"
+            data_type_dir / "taiwan_stock_trading_daily_report_secid_agg.csv"
         )
 
         if not csv_path.exists():

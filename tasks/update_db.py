@@ -261,8 +261,7 @@ def main() -> None:
             FinMindDataType.BROKER_TRADING.value.lower()
         )
         finmind_updater: FinMindUpdater = FinMindUpdater()
-        finmind_updater.update(
-            data_type=FinMindDataType.BROKER_TRADING,
+        finmind_updater.update_broker_trading_daily_report_batch(
             start_date=time_config["start_date"],
             end_date=time_config["end_date"],
         )

@@ -57,3 +57,12 @@ class FileEncoding(str, Enum):
     UTF8 = "utf-8"
     UTF8_SIG = "utf-8-sig"  # UTF-8 with BOM，用於 Excel 等軟體正確識別中文
     BIG5 = "big5"
+
+
+class UpdateStatus(str, Enum):
+    """資料更新狀態"""
+
+    SUCCESS = "success"  # 成功更新
+    NO_DATA = "no_data"  # 沒有資料（API 返回空結果）
+    ALREADY_UP_TO_DATE = "already_up_to_date"  # 資料庫已是最新
+    ERROR = "error"  # 發生錯誤
