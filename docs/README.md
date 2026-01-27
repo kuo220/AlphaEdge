@@ -88,7 +88,7 @@ docs/
 - ✅ `docs/requirements.txt` - 文檔依賴清單
 
 #### 3. 輔助工具
-- ✅ `scripts/generate_docs.py` - 自動生成文檔的輔助腳本（可選）
+- ✅ `dev/scripts/generate_docs.py` - 自動生成文檔的輔助腳本（可選）
 - ✅ `.gitignore` - 已加入 MkDocs 生成檔案的排除規則（`site/`, `.cache/`）
 
 ### 文檔特色
@@ -111,7 +111,7 @@ docs/
 
 ### 自動生成（進階）
 
-可以使用 `scripts/generate_docs.py` 腳本從 Python 原始碼中提取 docstring，但建議手動維護文檔以確保品質。
+可以使用 `dev/scripts/generate_docs.py` 腳本從 Python 原始碼中提取 docstring，但建議手動維護文檔以確保品質。
 
 ## 配置說明
 
