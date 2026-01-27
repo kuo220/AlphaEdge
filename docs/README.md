@@ -1,6 +1,15 @@
 # API 文檔使用說明
 
-本目錄包含 AlphaEdge 的完整 API 文檔，使用 MkDocs 生成。
+本目錄包含 AlphaEdge 的完整 API 文檔，使用 **MkDocs** 和 **Material for MkDocs** 主題生成。
+
+## 概述
+
+AlphaEdge 已建立完整的 API 文檔系統，提供：
+- ✅ 完整的 API 參考文檔（資料 API、策略 API）
+- ✅ 豐富的使用範例和最佳實踐指南
+- ✅ 現代化的 UI 介面（支援深色模式）
+- ✅ 內建全文搜尋功能
+- ✅ 自動從 Python docstring 生成文檔
 
 ## 快速開始
 
@@ -47,28 +56,50 @@ mkdocs gh-deploy
 
 ## 文檔結構
 
+### 已建立的內容
+
+#### 1. 文檔檔案
 ```
 docs/
 ├── index.md                    # 首頁
 ├── getting-started.md          # 快速開始指南
 ├── api/                        # API 參考文檔
-│   ├── overview.md
+│   ├── overview.md             # API 概述
 │   ├── data/                   # 資料 API
-│   │   ├── base.md
-│   │   ├── stock_price_api.md
-│   │   ├── stock_tick_api.md
-│   │   ├── stock_chip_api.md
-│   │   ├── monthly_revenue_report_api.md
-│   │   └── financial_statement_api.md
+│   │   ├── base.md             # BaseDataAPI
+│   │   ├── stock_price_api.md  # 價格資料 API
+│   │   ├── stock_tick_api.md   # Tick 資料 API
+│   │   ├── stock_chip_api.md   # 籌碼資料 API
+│   │   ├── monthly_revenue_report_api.md  # 月營收 API
+│   │   └── financial_statement_api.md     # 財報 API
 │   └── strategy/               # 策略 API
-│       └── base_stock_strategy.md
+│       └── base_stock_strategy.md  # 策略基礎類別
 ├── examples/                   # 使用範例
-│   ├── basic.md
-│   ├── strategy.md
-│   └── data_query.md
-├── best-practices.md           # 最佳實踐
-└── faq.md                      # 常見問題
+│   ├── basic.md                # 基本使用範例
+│   ├── strategy.md             # 策略開發範例
+│   └── data_query.md          # 資料查詢範例
+├── best-practices.md           # 最佳實踐指南
+├── faq.md                      # 常見問題
+└── README.md                   # 文檔使用說明（本檔案）
 ```
+
+#### 2. 配置檔案
+- ✅ `mkdocs.yml` - MkDocs 配置檔案（位於專案根目錄）
+- ✅ `docs/requirements.txt` - 文檔依賴清單
+
+#### 3. 輔助工具
+- ✅ `scripts/generate_docs.py` - 自動生成文檔的輔助腳本（可選）
+- ✅ `.gitignore` - 已加入 MkDocs 生成檔案的排除規則（`site/`, `.cache/`）
+
+### 文檔特色
+
+1. **完整的 API 參考**: 所有資料 API 和策略 API 都有詳細文檔
+2. **豐富的使用範例**: 包含基本使用、策略開發、資料查詢等多種範例
+3. **最佳實踐指南**: 提供 API 使用和策略開發的最佳實踐
+4. **常見問題**: 收錄常見問題和解決方案
+5. **現代化 UI**: 使用 Material for MkDocs 主題，支援深色模式
+6. **搜尋功能**: 內建全文搜尋功能
+7. **自動生成**: 使用 `mkdocstrings` 從 Python docstring 自動生成部分文檔
 
 ## 更新文檔
 
@@ -124,11 +155,29 @@ theme:
 
 ## 最佳實踐
 
-1. **保持文檔更新**: 當 API 變更時，記得更新對應的文檔
-2. **提供範例**: 每個 API 都應該有使用範例
+1. **保持文檔更新**: 當 API 變更時，記得同步更新文檔
+2. **提供範例**: 每個 API 都應該有使用範例，並確保範例程式碼可以正常執行
 3. **說明參數**: 清楚說明每個參數的類型和用途
 4. **錯誤處理**: 說明可能的錯誤情況和處理方式
-5. **版本控制**: 如果 API 有版本變更，在文檔中標註
+5. **版本對應**: 文檔應該對應當前版本的 API，如果 API 有版本變更，在文檔中標註
+
+## 注意事項
+
+1. **文檔維護**: 當 API 變更時，記得同步更新文檔
+2. **範例測試**: 確保文檔中的範例程式碼可以正常執行
+3. **版本對應**: 文檔應該對應當前版本的 API
+
+## 未來改進
+
+1. **補充文檔內容**: 根據實際使用情況補充更多範例和說明
+2. **自動生成**: 持續使用 `mkdocstrings` 從 Python docstring 自動生成部分文檔
+3. **CI/CD 整合**: 可以設定 GitHub Actions 自動部署文檔
+4. **版本控制**: 如果 API 有版本變更，可以在文檔中標註版本資訊
+
+## 相關檔案
+
+- `mkdocs.yml` - MkDocs 配置（位於專案根目錄）
+- `ARCHITECTURE_REVIEW.md` - 架構分析報告（已更新文檔系統說明）
 
 ## 相關資源
 

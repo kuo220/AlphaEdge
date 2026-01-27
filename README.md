@@ -2,6 +2,21 @@
 
 **AlphaEdge** is a *trading framework* designed for backtesting trading strategies, generating backtest reports, and enabling *live trading* through the [Shioaji API](https://sinotrade.github.io/zh_TW/). It supports backtesting and trading for **stocks, futures, and options** (though currently, only stock trading has been implemented).
 
+## 📚 文檔
+
+- **[完整 API 文檔](docs/README.md)** - 使用 MkDocs 建立的完整 API 參考文檔（包含使用說明、文檔結構、特色功能）
+- **[架構分析](ARCHITECTURE_REVIEW.md)** - 系統架構詳細分析
+- **[策略開發指南](trader/strategies/README.md)** - 策略開發完整說明
+
+**快速預覽文檔：**
+```bash
+# 安裝依賴
+pip install -r docs/requirements.txt
+
+# 啟動本地文檔伺服器
+mkdocs serve
+```
+
 To get started, users should follow the instructions in [Strategy Instruction](trader/strategies/README.md) and complete the following steps:
 
 1. Familiarize themselves with the backtest Data API.
