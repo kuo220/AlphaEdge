@@ -103,7 +103,9 @@ class StockPriceLoader(BaseDataLoader):
         self.create_missing_tables()
 
         # 取得所有 CSV 檔案並排序，確保處理順序一致
-        csv_files: List[Path] = sorted([f for f in self.price_dir.iterdir() if f.suffix == ".csv"])
+        csv_files: List[Path] = sorted(
+            [f for f in self.price_dir.iterdir() if f.suffix == ".csv"]
+        )
         total_files: int = len(csv_files)
 
         if total_files == 0:

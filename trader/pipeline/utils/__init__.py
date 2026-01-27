@@ -1,6 +1,7 @@
 from .constant import (
     DataType,
     FileEncoding,
+    FinMindDataType,
     FinancialStatementType,
     InstrumentType,
     MarketType,

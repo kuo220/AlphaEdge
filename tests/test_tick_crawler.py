@@ -89,7 +89,9 @@ def test_crawler_and_cleaner(stock_id: str, date: datetime.date):
 
     # 登入 Shioaji API
     api: sj.Shioaji = sj.Shioaji()
-    api_instance: Optional[sj.Shioaji] = ShioajiAccount.API_login(api, API_KEY, API_SECRET_KEY)
+    api_instance: Optional[sj.Shioaji] = ShioajiAccount.API_login(
+        api, API_KEY, API_SECRET_KEY
+    )
 
     if api_instance is None:
         print("❌ API 登入失敗")

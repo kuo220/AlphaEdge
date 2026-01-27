@@ -123,6 +123,9 @@ class FinMindCrawler(BaseDataCrawler):
             - start_date: Optional[datetime.date | str]    # 起始日期（可以是 datetime.date 或 "YYYY-MM-DD" 格式的字符串）
             - end_date: Optional[datetime.date | str]      # 結束日期（可以是 datetime.date 或 "YYYY-MM-DD" 格式的字符串）
 
+        資料日期範圍：
+            FinMind 資料的起始日期是 2021/6/30 ~ now
+
         API 調用方式：
             使用 self.api.taiwan_stock_trading_daily_report_secid_agg() 方法，
             直接傳遞參數：stock_id, securities_trader_id, start_date, end_date

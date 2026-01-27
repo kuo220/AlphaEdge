@@ -64,7 +64,9 @@ class StockChipUpdater(BaseDataUpdater):
 
         # Step 1: Crawl
         # 取得要開始更新的日期
-        start_date: datetime.date = self.get_actual_update_start_date(default_date=start_date)
+        start_date: datetime.date = self.get_actual_update_start_date(
+            default_date=start_date
+        )
         logger.info(f"Latest data date in database: {start_date}")
         # Set Up Update Period
         dates: List[datetime.date] = TimeUtils.generate_date_range(start_date, end_date)

@@ -45,7 +45,9 @@ def init_tick_metadata_with_default_date(default_date: str = "2024-5-10") -> Non
     # 2. 解析預設日期
     try:
         # 將 "2024-5-10" 轉換為標準格式 "2024-05-10"
-        default_date_obj: datetime.date = datetime.datetime.strptime(default_date, "%Y-%m-%d").date()
+        default_date_obj: datetime.date = datetime.datetime.strptime(
+            default_date, "%Y-%m-%d"
+        ).date()
         default_date_str: str = default_date_obj.isoformat()  # "YYYY-MM-DD"
         print(f"\n步驟 2: 設定預設日期為 {default_date_str}")
     except ValueError as e:
