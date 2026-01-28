@@ -368,105 +368,172 @@ class FinMindLoader(BaseDataLoader):
             logger.error(f"Error loading {csv_path.name}: {e}", exc_info=True)
 
     def _load_broker_trading_daily_report(self) -> None:
-        """載入當日券商分點統計表資料到資料庫"""
+        """載入當日券商分點統計表資料到資料庫
+
+        新的檔案結構：broker_trading/{broker_id}/{stock_id}.csv
+        會遍歷所有 broker_id 資料夾，讀取每個 stock_id 的 CSV 檔案
+        """
 
         data_type_dir: Path = (
             self.finmind_dir / FinMindDataType.BROKER_TRADING.value.lower()
         )
-        csv_path: Path = (
-            data_type_dir / "taiwan_stock_trading_daily_report_secid_agg.csv"
-        )
 
-        if not csv_path.exists():
-            logger.warning(f"CSV file not found: {csv_path}")
+        if not data_type_dir.exists():
+            logger.warning(f"Directory not found: {data_type_dir}")
             return
 
-        try:
-            logger.info(f"Loading stock trading daily report from {csv_path.name}...")
-            df: pd.DataFrame = pd.read_csv(csv_path)
+        # 查詢資料庫中已存在的資料（根據複合主鍵）
+        existing_query: str = f"""
+        SELECT stock_id, date, securities_trader_id
+        FROM {STOCK_TRADING_DAILY_REPORT_TABLE_NAME}
+        """
+        existing_df: pd.DataFrame = pd.read_sql_query(existing_query, self.conn)
 
-            if df.empty:
-                logger.warning(f"Skipped {csv_path.name} (file is empty)")
-                return
-
-            # 查詢資料庫中已存在的資料（根據複合主鍵）
-            existing_query: str = f"""
-            SELECT stock_id, date, securities_trader_id
-            FROM {STOCK_TRADING_DAILY_REPORT_TABLE_NAME}
-            """
-            existing_df: pd.DataFrame = pd.read_sql_query(existing_query, self.conn)
-
-            # 建立已存在的 key set
-            existing_keys: Set[Tuple[str, str, str]] = set()
-            if not existing_df.empty:
-                existing_keys = set(
-                    zip(
-                        existing_df["stock_id"].astype(str),
-                        existing_df["date"].astype(str),
-                        existing_df["securities_trader_id"].astype(str),
-                    )
-                )  # type: ignore
-                logger.info(
-                    f"Loaded {len(existing_keys)} existing records from database"
-                )
-
-            # 建立當前資料的 key tuple
-            df["_key"] = list(
+        # 建立已存在的 key set
+        existing_keys: Set[Tuple[str, str, str]] = set()
+        if not existing_df.empty:
+            existing_keys = set(
                 zip(
-                    df["stock_id"].astype(str),
-                    df["date"].astype(str),
-                    df["securities_trader_id"].astype(str),
+                    existing_df["stock_id"].astype(str),
+                    existing_df["date"].astype(str),
+                    existing_df["securities_trader_id"].astype(str),
                 )
-            )
+            )  # type: ignore
+            logger.info(f"Loaded {len(existing_keys)} existing records from database")
 
-            # 先處理同一個檔案內的重複資料
-            original_count: int = len(df)
-            if df["_key"].duplicated().any():
-                df = df.drop_duplicates(subset=["_key"], keep="first")
-                logger.debug(
-                    f"Removed {original_count - len(df)} duplicate rows within {csv_path.name}"
-                )
+        # 遍歷所有 broker_id 資料夾
+        broker_dirs: List[Path] = [d for d in data_type_dir.iterdir() if d.is_dir()]
 
-            # 過濾出新資料
-            if existing_keys:
-                mask: pd.Series = ~df["_key"].isin(existing_keys)
-                new_df: pd.DataFrame = df[mask].drop(columns=["_key"])
+        if not broker_dirs:
+            logger.warning(f"No broker directories found in {data_type_dir}")
+            return
 
-                if new_df.empty:
-                    logger.info(f"Skipped {csv_path.name} (all data already exists)")
-                    return
-            else:
-                new_df: pd.DataFrame = df.drop(columns=["_key"])
+        logger.info(f"Found {len(broker_dirs)} broker directories to process")
 
-            # 確保欄位順序與 crawler schema 註解一致
-            # 順序：securities_trader, securities_trader_id, stock_id, date, buy_volume, sell_volume, buy_price, sell_price
-            column_order: List[str] = [
-                "securities_trader",
-                "securities_trader_id",
-                "stock_id",
-                "date",
-                "buy_volume",
-                "sell_volume",
-                "buy_price",
-                "sell_price",
-            ]
-            new_df = new_df[column_order]
+        total_new_rows: int = 0
+        total_skipped_rows: int = 0
+        processed_files: int = 0
+        skipped_files: int = 0
 
-            # 插入新資料
-            new_df.to_sql(
-                STOCK_TRADING_DAILY_REPORT_TABLE_NAME,
-                self.conn,
-                if_exists="append",
-                index=False,
-            )
+        # 遍歷每個 broker_id 資料夾
+        for broker_dir in broker_dirs:
+            broker_id: str = broker_dir.name
+            # 取得該 broker 資料夾下的所有 CSV 檔案
+            csv_files: List[Path] = list(broker_dir.glob("*.csv"))
 
-            skipped_rows: int = original_count - len(new_df)
-            if skipped_rows > 0:
-                logger.info(
-                    f"Saved {csv_path.name} into database ({len(new_df)} new rows, {skipped_rows} skipped)"
-                )
-            else:
-                logger.info(f"Saved {csv_path.name} into database ({len(new_df)} rows)")
+            for csv_path in csv_files:
+                stock_id: str = csv_path.stem  # 檔名（不含副檔名）就是 stock_id
+                processed_files += 1
 
-        except Exception as e:
-            logger.error(f"Error loading {csv_path.name}: {e}", exc_info=True)
+                try:
+                    logger.debug(
+                        f"Loading broker trading daily report from "
+                        f"broker_id={broker_id}, stock_id={stock_id}..."
+                    )
+                    df: pd.DataFrame = pd.read_csv(csv_path, encoding="utf-8-sig")
+
+                    if df.empty:
+                        logger.debug(
+                            f"Skipped {broker_id}/{stock_id}.csv (file is empty)"
+                        )
+                        skipped_files += 1
+                        continue
+
+                    # 建立當前資料的 key tuple
+                    df["_key"] = list(
+                        zip(
+                            df["stock_id"].astype(str),
+                            df["date"].astype(str),
+                            df["securities_trader_id"].astype(str),
+                        )
+                    )
+
+                    # 先處理同一個檔案內的重複資料
+                    original_count: int = len(df)
+                    if df["_key"].duplicated().any():
+                        df = df.drop_duplicates(subset=["_key"], keep="first")
+                        logger.debug(
+                            f"Removed {original_count - len(df)} duplicate rows "
+                            f"within {broker_id}/{stock_id}.csv"
+                        )
+
+                    # 過濾出新資料
+                    if existing_keys:
+                        mask: pd.Series = ~df["_key"].isin(existing_keys)
+                        new_df: pd.DataFrame = df[mask].drop(columns=["_key"])
+
+                        if new_df.empty:
+                            logger.debug(
+                                f"Skipped {broker_id}/{stock_id}.csv "
+                                f"(all data already exists)"
+                            )
+                            skipped_files += 1
+                            continue
+                    else:
+                        new_df: pd.DataFrame = df.drop(columns=["_key"])
+
+                    # 確保欄位順序與 crawler schema 註解一致
+                    # 順序：securities_trader, securities_trader_id, stock_id, date, buy_volume, sell_volume, buy_price, sell_price
+                    column_order: List[str] = [
+                        "securities_trader",
+                        "securities_trader_id",
+                        "stock_id",
+                        "date",
+                        "buy_volume",
+                        "sell_volume",
+                        "buy_price",
+                        "sell_price",
+                    ]
+                    # 只選擇存在的欄位
+                    available_columns: List[str] = [
+                        col for col in column_order if col in new_df.columns
+                    ]
+                    new_df = new_df[available_columns]
+
+                    # 插入新資料
+                    new_df.to_sql(
+                        STOCK_TRADING_DAILY_REPORT_TABLE_NAME,
+                        self.conn,
+                        if_exists="append",
+                        index=False,
+                    )
+
+                    skipped_rows: int = original_count - len(new_df)
+                    total_new_rows += len(new_df)
+                    total_skipped_rows += skipped_rows
+
+                    if skipped_rows > 0:
+                        logger.debug(
+                            f"Saved {broker_id}/{stock_id}.csv into database "
+                            f"({len(new_df)} new rows, {skipped_rows} skipped)"
+                        )
+                    else:
+                        logger.debug(
+                            f"Saved {broker_id}/{stock_id}.csv into database "
+                            f"({len(new_df)} rows)"
+                        )
+
+                    # 更新 existing_keys，避免後續檔案重複處理相同資料
+                    new_keys: Set[Tuple[str, str, str]] = set(
+                        zip(
+                            new_df["stock_id"].astype(str),
+                            new_df["date"].astype(str),
+                            new_df["securities_trader_id"].astype(str),
+                        )
+                    )
+                    existing_keys.update(new_keys)
+
+                except Exception as e:
+                    logger.error(
+                        f"Error loading {broker_id}/{stock_id}.csv: {e}",
+                        exc_info=True,
+                    )
+                    skipped_files += 1
+                    continue
+
+        # 輸出總結
+        logger.info(
+            f"✅ Broker trading daily report loading completed. "
+            f"Processed {processed_files} files, skipped {skipped_files} files. "
+            f"Total: {total_new_rows} new rows, {total_skipped_rows} skipped rows"
+        )

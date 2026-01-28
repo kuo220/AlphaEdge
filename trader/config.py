@@ -94,6 +94,12 @@ TICK_METADATA_DIR_PATH: Path = get_static_resolved_path(
 TICK_METADATA_PATH: Path = get_static_resolved_path(
     base_dir=TICK_METADATA_DIR_PATH, dir_name="tick_metadata.json"
 )
+BROKER_TRADING_METADATA_DIR_PATH: Path = get_static_resolved_path(
+    base_dir=DOWNLOADS_METADATA_DIR_PATH, dir_name="broker_trading"
+)
+BROKER_TRADING_METADATA_PATH: Path = get_static_resolved_path(
+    base_dir=BROKER_TRADING_METADATA_DIR_PATH, dir_name="broker_trading_metadata.json"
+)
 
 """ === Reference Data Directory Path === """
 # 股票相關參考資料表存放目錄
