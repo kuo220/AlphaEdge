@@ -323,9 +323,9 @@ def test_broker_trading_updater():
 
             conn.close()
 
-            # ===== 測試 2: 測試批量更新 (update_broker_trading_daily_report_batch) =====
+            # ===== 測試 2: 測試批量更新 (update_broker_trading_daily_report) =====
             print(f"\n{'='*60}")
-            print("測試 2: update_broker_trading_daily_report_batch() - 批量更新")
+            print("測試 2: update_broker_trading_daily_report() - 批量更新")
             print(f"{'='*60}")
 
             # 測試 2 使用相同的資料庫和目錄（清空資料庫重新開始）
@@ -366,7 +366,7 @@ def test_broker_trading_updater():
 
                 # 執行批量更新
                 print(f"\n🔄 執行批量更新...")
-                updater2.update_broker_trading_daily_report_batch(
+                updater2.update_broker_trading_daily_report(
                     start_date=start_date, end_date=end_date
                 )
 
@@ -491,7 +491,7 @@ def test_broker_trading_updater():
 
                 # 執行批量更新（應該會在處理 2 個組合後停止）
                 print(f"\n🔄 執行批量更新（預期處理 2 個組合後耗盡 quota）...")
-                updater2.update_broker_trading_daily_report_batch(
+                updater2.update_broker_trading_daily_report(
                     start_date=start_date, end_date=end_date
                 )
 
