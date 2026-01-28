@@ -50,7 +50,8 @@ from trader.pipeline.utils import DataType, FinMindDataType
             - fs: 僅更新財報資料
             - mrr: 僅更新月營收報表
             - finmind: 更新所有 FinMind 資料（台股總覽、證券商資訊、券商分點統計）
-            - stock_info: 僅更新 FinMind 台股總覽(含權證)
+            - stock_info: 僅更新 FinMind 台股總覽（不含權證）
+            - stock_info_with_warrant: 僅更新 FinMind 台股總覽（含權證）
             - broker_info: 僅更新 FinMind 證券商資訊
             - broker_trading: 僅更新 FinMind 券商分點統計
             - all: 更新所有資料（包含 tick）
@@ -69,8 +70,11 @@ from trader.pipeline.utils import DataType, FinMindDataType
     - 更新所有 FinMind 資料：
         python -m tasks.update_db --target finmind
 
-    - 僅更新 FinMind 台股總覽：
+    - 僅更新 FinMind 台股總覽（不含權證）：
         python -m tasks.update_db --target stock_info
+
+    - 僅更新 FinMind 台股總覽（含權證）：
+        python -m tasks.update_db --target stock_info_with_warrant
 
     - 僅更新 FinMind 券商分點統計：
         python -m tasks.update_db --target broker_trading
@@ -251,6 +255,10 @@ def main() -> None:
     if FinMindDataType.STOCK_INFO.value.lower() in targets:
         finmind_updater: FinMindUpdater = FinMindUpdater()
         finmind_updater.update(data_type=FinMindDataType.STOCK_INFO)
+
+    if FinMindDataType.STOCK_INFO_WITH_WARRANT.value.lower() in targets:
+        finmind_updater: FinMindUpdater = FinMindUpdater()
+        finmind_updater.update(data_type=FinMindDataType.STOCK_INFO_WITH_WARRANT)
 
     if FinMindDataType.BROKER_INFO.value.lower() in targets:
         finmind_updater: FinMindUpdater = FinMindUpdater()

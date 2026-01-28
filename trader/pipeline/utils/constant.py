@@ -47,6 +47,7 @@ class FinMindDataType(str, Enum):
     """FinMind 資料子類型"""
 
     STOCK_INFO = "STOCK_INFO"
+    STOCK_INFO_WITH_WARRANT = "STOCK_INFO_WITH_WARRANT"
     BROKER_INFO = "BROKER_INFO"
     BROKER_TRADING = "BROKER_TRADING"
 

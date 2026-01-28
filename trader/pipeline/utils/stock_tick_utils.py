@@ -1,5 +1,4 @@
 import datetime
-import json
 import shutil
 from pathlib import Path
 from threading import Lock
@@ -26,6 +25,7 @@ from trader.config import (
     TICK_METADATA_PATH,
     TICK_TABLE_NAME,
 )
+from trader.pipeline.utils.data_utils import DataUtils
 from trader.utils import ShioajiAPI
 
 
@@ -39,18 +39,19 @@ class StockTickUtils:
     def get_table_latest_date() -> datetime.date:
         """從 tick_metadata.json 中取得 tick table 的最新日期"""
 
-        with open(TICK_METADATA_PATH, "r", encoding="utf-8") as data:
-            time_data: Dict[str, Any] = json.load(data)
-            # 從所有股票中找出最新的日期
-            latest_date: Optional[datetime.date] = None
-            for stock_info in time_data.get("stocks", {}).values():
-                if "last_date" in stock_info:
-                    stock_date: datetime.date = datetime.date.fromisoformat(
-                        stock_info["last_date"]
-                    )
-                    if latest_date is None or stock_date > latest_date:
-                        latest_date: datetime.date = stock_date
-            return latest_date if latest_date else datetime.date(2020, 4, 1)
+        time_data: Dict[str, Any] = DataUtils.load_json(TICK_METADATA_PATH)
+        if time_data is None:
+            return datetime.date(2020, 4, 1)
+        # 從所有股票中找出最新的日期
+        latest_date: Optional[datetime.date] = None
+        for stock_info in time_data.get("stocks", {}).values():
+            if "last_date" in stock_info:
+                stock_date: datetime.date = datetime.date.fromisoformat(
+                    stock_info["last_date"]
+                )
+                if latest_date is None or stock_date > latest_date:
+                    latest_date: datetime.date = stock_date
+        return latest_date if latest_date else datetime.date(2020, 4, 1)
 
     @staticmethod
     def generate_tick_metadata_backup() -> None:
@@ -62,10 +63,9 @@ class StockTickUtils:
             TICK_METADATA_PATH.parent.mkdir(parents=True, exist_ok=True)
             # 創建預設的 metadata 檔案（新格式）
             default_metadata: Dict[str, Dict[str, Any]] = {"stocks": {}}
-            with open(TICK_METADATA_PATH, "w", encoding="utf-8") as f:
-                import json
-
-                json.dump(default_metadata, f, ensure_ascii=False, indent=4)
+            DataUtils.save_json(
+                default_metadata, TICK_METADATA_PATH, ensure_ascii=False, indent=4
+            )
 
         backup_suffix: str = "_backup"
         backup_name: Path = TICK_METADATA_PATH.with_name(
@@ -201,8 +201,9 @@ class StockTickUtils:
             # 寫入更新後的 metadata（使用臨時文件確保原子性）
             temp_path: Path = TICK_METADATA_PATH.with_suffix(".tmp")
             try:
-                with open(temp_path, "w", encoding="utf-8") as f:
-                    json.dump(metadata, f, ensure_ascii=False, indent=4)
+                DataUtils.save_json(
+                    metadata, temp_path, ensure_ascii=False, indent=4
+                )
                 # 原子性操作：將臨時文件移動到目標位置
                 temp_path.replace(TICK_METADATA_PATH)
                 logger.info("Successfully updated tick_metadata.json")
@@ -252,9 +253,10 @@ class StockTickUtils:
                 return {}
 
             try:
-                with open(TICK_METADATA_PATH, "r", encoding="utf-8") as f:
-                    metadata: Dict[str, Any] = json.load(f)
-                    return metadata.get("stocks", {})
+                metadata: Dict[str, Any] = DataUtils.load_json(TICK_METADATA_PATH)
+                if metadata is None:
+                    return {}
+                return metadata.get("stocks", {})
             except Exception as e:
                 logger.warning(
                     f"Failed to load tick downloads metadata: {e}. Returning empty dict."

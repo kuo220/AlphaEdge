@@ -13,8 +13,9 @@ from trader.utils.log_manager import LogManager
 FinMind 資料爬蟲
 負責爬取以下資料：
 1. 當日卷商分點統計表 (TaiwanStockTradingDailyReportSecIdAgg) - 資料起始日期：2021/6/30
-2. 台股總覽(含權證) (TaiwanStockInfoWithWarrant)
-3. 證券商資訊表 (TaiwanSecuritiesTraderInfo)
+2. 台股總覽 (TaiwanStockInfo)
+3. 台股總覽(含權證) (TaiwanStockInfoWithWarrant)
+4. 證券商資訊表 (TaiwanSecuritiesTraderInfo)
 """
 
 
@@ -45,6 +46,36 @@ class FinMindCrawler(BaseDataCrawler):
 
     def crawl(self, *args, **kwargs):
         pass
+
+    def crawl_stock_info(self) -> Optional[pd.DataFrame]:
+        """爬取台股總覽 (TaiwanStockInfo)
+        資料欄位說明：
+            - industry_category: str         # 產業別
+            - stock_id: str                  # 股票代碼
+            - stock_name: str                # 股票名稱
+            - type: str                      # 市場別
+            - date: str                      # 更新日期
+
+        回傳值：
+            pd.DataFrame 或 None
+        """
+
+        logger.info("* Start crawling Taiwan Stock Info")
+
+        try:
+            # 直接使用 API 專用方法
+            df: pd.DataFrame = self.api.taiwan_stock_info()
+
+            if df is None or df.empty:
+                logger.warning("No data available for Taiwan Stock Info")
+                return None
+
+            logger.info(f"Successfully crawled {len(df)} records")
+            return df
+
+        except Exception as e:
+            logger.error(f"Error crawling Taiwan Stock Info: {e}")
+            return None
 
     def crawl_stock_info_with_warrant(self) -> Optional[pd.DataFrame]:
         """爬取台股總覽(含權證) (TaiwanStockInfoWithWarrant)

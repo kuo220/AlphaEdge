@@ -29,6 +29,47 @@ class FinMindCleaner(BaseDataCleaner):
         # Generate downloads directory
         self.finmind_dir.mkdir(parents=True, exist_ok=True)
 
+    def clean_stock_info(self, df: pd.DataFrame) -> Optional[pd.DataFrame]:
+        """
+        清洗台股總覽資料 (TaiwanStockInfo)
+
+        參數:
+            df: pd.DataFrame - 從 crawler 取得的原始資料
+
+        回傳值:
+            pd.DataFrame 或 None（如果資料為空或驗證失敗）
+        """
+        if df is None or df.empty:
+            logger.warning("Stock info data is empty")
+            return None
+
+        # 基本驗證：檢查必要欄位
+        required_columns: List[str] = ["stock_id", "stock_name"]
+        missing_columns: List[str] = [
+            col for col in required_columns if col not in df.columns
+        ]
+        if missing_columns:
+            logger.error(
+                f"Missing required columns in stock info data: {missing_columns}"
+            )
+            return None
+
+        # 移除重複資料
+        df = df.drop_duplicates(subset=["stock_id"], keep="first")
+
+        # 存入 CSV 檔案到各自的資料夾
+        data_type_dir: Path = (
+            self.finmind_dir / FinMindDataType.STOCK_INFO.value.lower()
+        )
+        data_type_dir.mkdir(parents=True, exist_ok=True)
+        csv_path: Path = data_type_dir / "taiwan_stock_info.csv"
+        df.to_csv(csv_path, index=False, encoding=FileEncoding.UTF8_SIG.value)
+        logger.info(
+            f"Saved stock info data to {csv_path} ({len(df)} rows)"
+        )
+
+        return df
+
     def clean_stock_info_with_warrant(self, df: pd.DataFrame) -> Optional[pd.DataFrame]:
         """
         清洗台股總覽(含權證)資料 (TaiwanStockInfoWithWarrant)
@@ -59,7 +100,7 @@ class FinMindCleaner(BaseDataCleaner):
 
         # 存入 CSV 檔案到各自的資料夾
         data_type_dir: Path = (
-            self.finmind_dir / FinMindDataType.STOCK_INFO.value.lower()
+            self.finmind_dir / FinMindDataType.STOCK_INFO_WITH_WARRANT.value.lower()
         )
         data_type_dir.mkdir(parents=True, exist_ok=True)
         csv_path: Path = data_type_dir / "taiwan_stock_info_with_warrant.csv"
@@ -155,7 +196,7 @@ class FinMindCleaner(BaseDataCleaner):
         data_type_dir.mkdir(parents=True, exist_ok=True)
 
         # 按照 securities_trader_id 和 stock_id 分組，為每個組合創建一個 CSV 檔案
-        saved_files = []
+        saved_files: List[str] = []
         for (securities_trader_id, stock_id), group_df in df.groupby(
             ["securities_trader_id", "stock_id"]
         ):
@@ -177,11 +218,11 @@ class FinMindCleaner(BaseDataCleaner):
                         [existing_df, group_df], ignore_index=True
                     )
                     # 再次去重（以 stock_id, date, securities_trader_id 為唯一鍵）
-                    combined_df = combined_df.drop_duplicates(
+                    combined_df: pd.DataFrame = combined_df.drop_duplicates(
                         subset=["stock_id", "date", "securities_trader_id"],
                         keep="first",
                     )
-                    group_df = combined_df
+                    group_df: pd.DataFrame = combined_df
                     logger.debug(
                         f"Merged existing data for broker_id={securities_trader_id}, "
                         f"stock_id={stock_id}. Total rows: {len(group_df)} "

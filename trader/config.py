@@ -139,6 +139,7 @@ COMPREHENSIVE_INCOME_TABLE_NAME: str = "comprehensive_income"
 CASH_FLOW_TABLE_NAME: str = "cash_flow"
 EQUITY_CHANGE_TABLE_NAME: str = "equity_change"
 TICK_METADATA_TABLE_NAME: str = "TICK_METADATA_TABLE_NAME"
+STOCK_INFO_TABLE_NAME: str = "taiwan_stock_info"
 STOCK_INFO_WITH_WARRANT_TABLE_NAME: str = "taiwan_stock_info_with_warrant"
 SECURITIES_TRADER_INFO_TABLE_NAME: str = "taiwan_securities_trader_info"
 STOCK_TRADING_DAILY_REPORT_TABLE_NAME: str = (

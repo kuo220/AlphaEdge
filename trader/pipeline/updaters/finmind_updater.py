@@ -1,11 +1,11 @@
 import datetime
-import json
 import sqlite3
 import time
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple, Union
 
 import pandas as pd
+from FinMind.data import DataLoader
 from loguru import logger
 
 from trader.config import (
@@ -13,6 +13,7 @@ from trader.config import (
     DB_PATH,
     FINMIND_DOWNLOADS_PATH,
     SECURITIES_TRADER_INFO_TABLE_NAME,
+    STOCK_INFO_TABLE_NAME,
     STOCK_INFO_WITH_WARRANT_TABLE_NAME,
     STOCK_TRADING_DAILY_REPORT_TABLE_NAME,
 )
@@ -21,9 +22,11 @@ from trader.pipeline.crawlers.finmind_crawler import FinMindCrawler
 from trader.pipeline.loaders.finmind_loader import FinMindLoader
 from trader.pipeline.updaters.base import BaseDataUpdater
 from trader.pipeline.utils import FinMindDataType, UpdateStatus
+from trader.pipeline.utils.data_utils import DataUtils
 from trader.pipeline.utils.sqlite_utils import SQLiteUtils
-from trader.utils.log_manager import LogManager
 from trader.utils import TimeUtils
+from trader.utils.instrument import StockUtils
+from trader.utils.log_manager import LogManager
 
 """
 FinMind 資料更新器
@@ -107,7 +110,8 @@ class FinMindUpdater(BaseDataUpdater):
 
         Args:
             data_type: 資料類型，可選值：
-                - FinMindDataType.STOCK_INFO 或 "stock_info": 更新台股總覽
+                - FinMindDataType.STOCK_INFO 或 "stock_info": 更新台股總覽（不含權證）
+                - FinMindDataType.STOCK_INFO_WITH_WARRANT 或 "stock_info_with_warrant": 更新台股總覽（含權證）
                 - FinMindDataType.BROKER_INFO 或 "broker_info": 更新證券商資訊
                 - FinMindDataType.BROKER_TRADING 或 "broker_trading": 更新券商分點統計
                 - "all" 或 None: 更新所有資料
@@ -148,6 +152,8 @@ class FinMindUpdater(BaseDataUpdater):
                     )
 
         if data_type == FinMindDataType.STOCK_INFO:
+            self.update_stock_info()
+        elif data_type == FinMindDataType.STOCK_INFO_WITH_WARRANT:
             self.update_stock_info_with_warrant()
         elif data_type == FinMindDataType.BROKER_INFO:
             self.update_broker_info()
@@ -167,6 +173,33 @@ class FinMindUpdater(BaseDataUpdater):
                 f"Unknown data_type: {data_type}. "
                 f"Supported types: {[dt.name for dt in FinMindDataType]}, 'all'"
             )
+
+    def update_stock_info(self) -> None:
+        """更新台股總覽資料（不含權證）"""
+
+        logger.info("* Start Updating Taiwan Stock Info...")
+
+        # Step 1: Crawl
+        df: Optional[pd.DataFrame] = self.crawler.crawl_stock_info()
+        if df is None or df.empty:
+            logger.warning("No stock info data to update")
+            return
+
+        # Step 2: Clean
+        cleaned_df: Optional[pd.DataFrame] = self.cleaner.clean_stock_info(df)
+        if cleaned_df is None or cleaned_df.empty:
+            logger.warning("Cleaned stock info data is empty")
+            return
+
+        # Step 3: Load
+        # 確保 loader 有連接
+        if self.loader.conn is None:
+            self.loader.connect()
+        self.loader._load_stock_info()
+        if self.loader.conn:
+            self.loader.conn.commit()
+
+        logger.info("✅ Taiwan Stock Info updated successfully")
 
     def update_stock_info_with_warrant(self) -> None:
         """更新台股總覽(含權證)資料"""
@@ -520,7 +553,7 @@ class FinMindUpdater(BaseDataUpdater):
             default_date=start_date_obj
         )
         if isinstance(actual_start_date, str):
-            actual_start_date = datetime.datetime.strptime(
+            actual_start_date: datetime.date = datetime.datetime.strptime(
                 actual_start_date, "%Y-%m-%d"
             ).date()
 
@@ -538,6 +571,18 @@ class FinMindUpdater(BaseDataUpdater):
         if not stock_list:
             logger.warning(
                 "No stocks found in database. Please update stock info first."
+            )
+            return
+
+        # 過濾出一般股票（排除 ETF、權證等）
+        stock_list: List[str] = StockUtils.filter_common_stocks(stock_list)
+        logger.info(
+            f"Filtered to {len(stock_list)} common stocks (excluding ETFs, warrants, etc.)"
+        )
+
+        if not stock_list:
+            logger.warning(
+                "No common stocks found after filtering. Please check stock info data."
             )
             return
 
@@ -619,7 +664,7 @@ class FinMindUpdater(BaseDataUpdater):
                     )
 
                     if not quota_restored:
-                        quota_exhausted = True
+                        quota_exhausted: bool = True
                         logger.error(
                             f"❌ Failed to restore API quota within maximum wait time. "
                             f"Please check API status and restart manually."
@@ -727,7 +772,10 @@ class FinMindUpdater(BaseDataUpdater):
 
         logger.info("* Start Updating All FinMind Data...")
 
-        # 更新台股總覽
+        # 更新台股總覽（不含權證）
+        self.update_stock_info()
+
+        # 更新台股總覽（含權證）
         self.update_stock_info_with_warrant()
 
         # 更新證券商資訊
@@ -736,9 +784,9 @@ class FinMindUpdater(BaseDataUpdater):
         # 更新券商分點統計（需要日期範圍）
         if start_date is None:
             # 預設從 2021/6/30 開始
-            start_date = datetime.date(2021, 6, 30)
+            start_date: Union[datetime.date, str] = datetime.date(2021, 6, 30)
         if end_date is None:
-            end_date = datetime.date.today()
+            end_date: Union[datetime.date, str] = datetime.date.today()
 
         # 如果指定了 stock_id 或 securities_trader_id，使用單一更新方法
         # 否則使用批量更新方法（會 loop 所有股票和券商）
@@ -773,7 +821,7 @@ class FinMindUpdater(BaseDataUpdater):
                 f"API quota reset. Previous hour used {self.api_call_count}/{self.api_quota_limit} calls"
             )
             self.api_call_count = 0
-            self.quota_reset_time = current_time + 3600  # 重置為下一個小時
+            self.quota_reset_time: float = current_time + 3600  # 重置為下一個小時
 
         # 檢查是否接近或超過 quota 限制（保留 50 次作為緩衝）
         remaining_quota: int = self.api_quota_limit - self.api_call_count
@@ -792,7 +840,7 @@ class FinMindUpdater(BaseDataUpdater):
 
         # 每 1000 次調用記錄一次狀態
         if self.api_call_count % 1000 == 0:
-            remaining_quota = self.api_quota_limit - self.api_call_count
+            remaining_quota: int = self.api_quota_limit - self.api_call_count
             logger.info(
                 f"API quota status: {self.api_call_count}/{self.api_quota_limit} calls used, "
                 f"{remaining_quota} remaining"
@@ -811,11 +859,11 @@ class FinMindUpdater(BaseDataUpdater):
             if not self.crawler.api:
                 return None
 
-            api = self.crawler.api
+            api: DataLoader = self.crawler.api
 
             # FinMind API: api.api_usage_limit 回傳剩餘次數
             if hasattr(api, "api_usage_limit"):
-                remaining = api.api_usage_limit
+                remaining: int = api.api_usage_limit
                 if isinstance(remaining, int) and remaining >= 0:
                     return remaining
 
@@ -872,7 +920,7 @@ class FinMindUpdater(BaseDataUpdater):
                 if remaining > 50:  # 有足夠的 quota（保留 50 次緩衝）
                     # 重置本地計數器
                     self.api_call_count = 0
-                    self.quota_reset_time = time.time() + 3600
+                    self.quota_reset_time: float = time.time() + 3600
                     logger.info(
                         f"✅ API quota has been reset! Resuming update. "
                         f"Remaining quota: {remaining} calls."
@@ -884,7 +932,7 @@ class FinMindUpdater(BaseDataUpdater):
                 if current_time >= self.quota_reset_time:
                     # 已經超過重置時間，重置計數器
                     self.api_call_count = 0
-                    self.quota_reset_time = current_time + 3600
+                    self.quota_reset_time: float = current_time + 3600
                     logger.info(f"✅ API quota reset time reached. Resuming update.")
                     return True
 
@@ -939,14 +987,14 @@ class FinMindUpdater(BaseDataUpdater):
 
     def _get_stock_list(self) -> List[str]:
         """
-        從資料庫取得所有股票代碼列表
+        從資料庫取得所有股票代碼列表（使用 stock_info，不含權證）
 
         Returns:
             List[str]: 股票代碼列表
         """
         try:
             query: str = (
-                f"SELECT DISTINCT stock_id FROM {STOCK_INFO_WITH_WARRANT_TABLE_NAME} ORDER BY stock_id"
+                f"SELECT DISTINCT stock_id FROM {STOCK_INFO_TABLE_NAME} ORDER BY stock_id"
             )
             df: pd.DataFrame = pd.read_sql_query(query, self.conn)
             stock_list: List[str] = df["stock_id"].astype(str).tolist()
@@ -996,9 +1044,10 @@ class FinMindUpdater(BaseDataUpdater):
             return {}
 
         try:
-            with open(self.broker_trading_metadata_path, "r", encoding="utf-8") as f:
-                metadata: Dict[str, Dict[str, Dict[str, str]]] = json.load(f)
-                return metadata
+            metadata: Dict[str, Dict[str, Dict[str, str]]] = DataUtils.load_json(
+                self.broker_trading_metadata_path
+            )
+            return metadata if metadata is not None else {}
         except Exception as e:
             logger.warning(f"Error reading broker trading metadata: {e}")
             return {}
@@ -1163,9 +1212,12 @@ class FinMindUpdater(BaseDataUpdater):
             )
 
         # 保存 metadata
-        self.broker_trading_metadata_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.broker_trading_metadata_path, "w", encoding="utf-8") as f:
-            json.dump(metadata, f, indent=2, ensure_ascii=False)
+        DataUtils.save_json(
+            metadata,
+            self.broker_trading_metadata_path,
+            indent=2,
+            ensure_ascii=False,
+        )
 
     def _check_date_exists_in_metadata(
         self,
@@ -1188,7 +1240,7 @@ class FinMindUpdater(BaseDataUpdater):
         if isinstance(date, datetime.date):
             date_obj: datetime.date = date
         else:
-            date_obj = datetime.datetime.strptime(str(date), "%Y-%m-%d").date()
+            date_obj: datetime.date = datetime.datetime.strptime(str(date), "%Y-%m-%d").date()
 
         # 從 metadata 讀取日期範圍
         metadata: Dict[str, Dict[str, Dict[str, str]]] = (
