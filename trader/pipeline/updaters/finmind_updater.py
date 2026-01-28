@@ -1240,7 +1240,9 @@ class FinMindUpdater(BaseDataUpdater):
         if isinstance(date, datetime.date):
             date_obj: datetime.date = date
         else:
-            date_obj: datetime.date = datetime.datetime.strptime(str(date), "%Y-%m-%d").date()
+            date_obj: datetime.date = datetime.datetime.strptime(
+                str(date), "%Y-%m-%d"
+            ).date()
 
         # 從 metadata 讀取日期範圍
         metadata: Dict[str, Dict[str, Dict[str, str]]] = (

@@ -64,9 +64,7 @@ class FinMindCleaner(BaseDataCleaner):
         data_type_dir.mkdir(parents=True, exist_ok=True)
         csv_path: Path = data_type_dir / "taiwan_stock_info.csv"
         df.to_csv(csv_path, index=False, encoding=FileEncoding.UTF8_SIG.value)
-        logger.info(
-            f"Saved stock info data to {csv_path} ({len(df)} rows)"
-        )
+        logger.info(f"Saved stock info data to {csv_path} ({len(df)} rows)")
 
         return df
 

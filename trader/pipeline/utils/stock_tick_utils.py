@@ -201,9 +201,7 @@ class StockTickUtils:
             # 寫入更新後的 metadata（使用臨時文件確保原子性）
             temp_path: Path = TICK_METADATA_PATH.with_suffix(".tmp")
             try:
-                DataUtils.save_json(
-                    metadata, temp_path, ensure_ascii=False, indent=4
-                )
+                DataUtils.save_json(metadata, temp_path, ensure_ascii=False, indent=4)
                 # 原子性操作：將臨時文件移動到目標位置
                 temp_path.replace(TICK_METADATA_PATH)
                 logger.info("Successfully updated tick_metadata.json")

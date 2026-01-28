@@ -83,13 +83,9 @@ class FinMindLoader(BaseDataLoader):
         # 檢查是否成功建立 table
         cursor.execute(f"PRAGMA table_info('{STOCK_INFO_TABLE_NAME}')")
         if cursor.fetchall():
-            logger.info(
-                f"Table {STOCK_INFO_TABLE_NAME} create successfully!"
-            )
+            logger.info(f"Table {STOCK_INFO_TABLE_NAME} create successfully!")
         else:
-            logger.warning(
-                f"Table {STOCK_INFO_TABLE_NAME} create unsuccessfully!"
-            )
+            logger.warning(f"Table {STOCK_INFO_TABLE_NAME} create unsuccessfully!")
 
         self.conn.commit()
 

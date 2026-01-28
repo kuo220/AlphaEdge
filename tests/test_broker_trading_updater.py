@@ -564,12 +564,8 @@ def test_broker_trading_updater():
             print(f"  - 所有測試資料已保存在: {test_root}")
             print(f"  - CSV 檔案已保留，可以手動檢查")
             print(f"  - 測試資料庫位置: tests/database/test.db")
-            print(
-                f"  - 下載資料位置: {test_root}/finmind/broker_trading/"
-            )
-            print(
-                f"  - Metadata 位置: {test_root}/meta/broker_trading/"
-            )
+            print(f"  - 下載資料位置: {test_root}/finmind/broker_trading/")
+            print(f"  - Metadata 位置: {test_root}/meta/broker_trading/")
 
             return True
 
