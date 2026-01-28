@@ -284,11 +284,11 @@ class FinMindUpdater(BaseDataUpdater):
 
         # 取得股票列表和券商列表
         stock_list: List[str] = self._get_stock_list()
-        trader_list: List[str] = self._get_securities_trader_list()
+        securities_trader_list: List[str] = self._get_securities_trader_list()
 
         logger.info(
             f"Retrieved stock list: {len(stock_list)} stocks, "
-            f"securities trader list: {len(trader_list)} traders"
+            f"securities trader list: {len(securities_trader_list)} traders"
         )
 
         if not stock_list:
@@ -309,7 +309,7 @@ class FinMindUpdater(BaseDataUpdater):
             )
             return
 
-        if not trader_list:
+        if not securities_trader_list:
             logger.warning(
                 "No securities traders found in database. Please update broker info first."
             )
@@ -319,9 +319,9 @@ class FinMindUpdater(BaseDataUpdater):
         logger.info("Initializing broker trading metadata from database...")
         self._update_broker_trading_metadata_from_database()
 
-        total_combinations: int = len(trader_list) * len(stock_list)
+        total_combinations: int = len(securities_trader_list) * len(stock_list)
         logger.info(
-            f"Total update combinations: {len(trader_list)} traders × {len(stock_list)} stocks = {total_combinations}"
+            f"Total update combinations: {len(securities_trader_list)} traders × {len(stock_list)} stocks = {total_combinations}"
         )
         logger.info(
             f"Requested date range: {start_date_obj.strftime('%Y-%m-%d')} to {end_date_obj.strftime('%Y-%m-%d')} "
@@ -343,7 +343,7 @@ class FinMindUpdater(BaseDataUpdater):
         # 定期更新 metadata 的頻率（每處理 N 個項目後更新一次）
         update_metadata_interval: int = 100
 
-        for securities_trader_id in trader_list:
+        for securities_trader_id in securities_trader_list:
             for stock_id in stock_list:
                 # 記錄正在處理的券商和股票
                 logger.info(
@@ -488,7 +488,6 @@ class FinMindUpdater(BaseDataUpdater):
 
                 try:
                     # 對單一券商、單一股票，一次性查詢整個日期範圍
-                    # batch 方法已經做過完整的檢查，這裡直接調用核心方法
                     status: UpdateStatus = self._crawl_and_save_broker_trading_daily_report(
                         stock_id=stock_id,
                         securities_trader_id=securities_trader_id,
@@ -899,11 +898,11 @@ class FinMindUpdater(BaseDataUpdater):
                 f"SELECT DISTINCT securities_trader_id FROM {SECURITIES_TRADER_INFO_TABLE_NAME} ORDER BY securities_trader_id"
             )
             df: pd.DataFrame = pd.read_sql_query(query, self.conn)
-            trader_list: List[str] = df["securities_trader_id"].astype(str).tolist()
+            securities_trader_list: List[str] = df["securities_trader_id"].astype(str).tolist()
             logger.info(
-                f"Retrieved {len(trader_list)} securities traders from database"
+                f"Retrieved {len(securities_trader_list)} securities traders from database"
             )
-            return trader_list
+            return securities_trader_list
         except Exception as e:
             logger.error(f"Error retrieving securities trader list: {e}")
             return []
