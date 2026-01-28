@@ -258,15 +258,9 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="查詢 broker_trading 資料庫資料")
-    parser.add_argument(
-        "--stock-id", type=str, help="股票代碼（可選）", default=None
-    )
-    parser.add_argument(
-        "--trader-id", type=str, help="券商代碼（可選）", default=None
-    )
-    parser.add_argument(
-        "--limit", type=int, help="限制查詢筆數", default=10
-    )
+    parser.add_argument("--stock-id", type=str, help="股票代碼（可選）", default=None)
+    parser.add_argument("--trader-id", type=str, help="券商代碼（可選）", default=None)
+    parser.add_argument("--limit", type=int, help="限制查詢筆數", default=10)
 
     args = parser.parse_args()
 

@@ -520,9 +520,7 @@ class FinMindLoader(BaseDataLoader):
             self._load_broker_trading_daily_report_from_files()
             return None
 
-    def _load_broker_trading_daily_report_from_dataframe(
-        self, df: pd.DataFrame
-    ) -> int:
+    def _load_broker_trading_daily_report_from_dataframe(self, df: pd.DataFrame) -> int:
         """從 DataFrame 載入當日券商分點統計表資料到資料庫
 
         Args:

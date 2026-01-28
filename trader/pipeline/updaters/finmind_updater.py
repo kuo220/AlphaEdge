@@ -364,7 +364,7 @@ class FinMindUpdater(BaseDataUpdater):
             for stock_id in stock_list:
                 # 每個組合開始處理時就增加計數（無論是否跳過都會被計入）
                 combination_count += 1
-                
+
                 # 記錄正在處理的券商和股票
                 logger.info(
                     f"Processing: trader_id={securities_trader_id}, stock_id={stock_id}"
@@ -503,11 +503,13 @@ class FinMindUpdater(BaseDataUpdater):
 
                 try:
                     # 對單一券商、單一股票，一次性查詢整個日期範圍
-                    status: UpdateStatus = self._crawl_and_save_broker_trading_daily_report(
-                        stock_id=stock_id,
-                        securities_trader_id=securities_trader_id,
-                        start_date=combination_start_date,
-                        end_date=end_date_obj,
+                    status: UpdateStatus = (
+                        self._crawl_and_save_broker_trading_daily_report(
+                            stock_id=stock_id,
+                            securities_trader_id=securities_trader_id,
+                            start_date=combination_start_date,
+                            end_date=end_date_obj,
+                        )
                     )
 
                     if status == UpdateStatus.NO_DATA:
@@ -831,48 +833,6 @@ class FinMindUpdater(BaseDataUpdater):
             time.sleep(check_interval_seconds)
 
     # ============================================================================
-    # Private Methods - Date Utilities
-    # ============================================================================
-
-    def get_actual_update_start_date(
-        self,
-        default_date: Union[datetime.date, str],
-    ) -> Union[datetime.date, str]:
-        """
-        取得實際的更新起始日期（資料庫最新日期+1天，或使用 default_date）
-
-        Args:
-            default_date: 預設起始日期（同時用於決定返回值的類型）
-
-        Returns:
-            實際的起始日期，類型與 default_date 相同
-        """
-
-        latest_date: Optional[str] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn,
-            table_name=STOCK_TRADING_DAILY_REPORT_TABLE_NAME,
-            col_name="date",
-        )
-
-        if latest_date is not None:
-            # 將資料庫中的日期字串轉換為 datetime.date
-            table_latest_date: datetime.date = datetime.datetime.strptime(
-                latest_date, "%Y-%m-%d"
-            ).date()
-
-            # 加一天作為新的起始日期
-            next_date: datetime.date = table_latest_date + datetime.timedelta(days=1)
-
-            # 根據 default_date 的類型決定返回格式
-            if isinstance(default_date, str):
-                return next_date.strftime("%Y-%m-%d")
-            else:
-                return next_date
-        else:
-            # 如果資料庫中沒有資料，使用 default_date
-            return default_date
-
-    # ============================================================================
     # Private Methods - Data Retrieval
     # ============================================================================
 
@@ -907,7 +867,9 @@ class FinMindUpdater(BaseDataUpdater):
                 f"SELECT DISTINCT securities_trader_id FROM {SECURITIES_TRADER_INFO_TABLE_NAME} ORDER BY securities_trader_id"
             )
             df: pd.DataFrame = pd.read_sql_query(query, self.conn)
-            securities_trader_list: List[str] = df["securities_trader_id"].astype(str).tolist()
+            securities_trader_list: List[str] = (
+                df["securities_trader_id"].astype(str).tolist()
+            )
             logger.info(
                 f"Retrieved {len(securities_trader_list)} securities traders from database"
             )
