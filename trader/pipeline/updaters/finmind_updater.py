@@ -735,17 +735,26 @@ class FinMindUpdater(BaseDataUpdater):
 
         # 更新券商分點統計（需要日期範圍）
         if start_date is None:
-            # 預設從 2013/1/1 開始
+            # 預設從 2021/6/30 開始
             start_date = datetime.date(2021, 6, 30)
         if end_date is None:
             end_date = datetime.date.today()
 
-        self.update_broker_trading_daily_report(
-            start_date=start_date,
-            end_date=end_date,
-            stock_id=stock_id,
-            securities_trader_id=securities_trader_id,
-        )
+        # 如果指定了 stock_id 或 securities_trader_id，使用單一更新方法
+        # 否則使用批量更新方法（會 loop 所有股票和券商）
+        if stock_id or securities_trader_id:
+            self.update_broker_trading_daily_report(
+                start_date=start_date,
+                end_date=end_date,
+                stock_id=stock_id,
+                securities_trader_id=securities_trader_id,
+            )
+        else:
+            # 使用批量更新方法，會自動 loop 所有股票和券商
+            self.update_broker_trading_daily_report_batch(
+                start_date=start_date,
+                end_date=end_date,
+            )
 
         logger.info("✅ All FinMind Data updated successfully")
 

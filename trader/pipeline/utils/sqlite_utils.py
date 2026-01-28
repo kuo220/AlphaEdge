@@ -47,8 +47,9 @@ class SQLiteUtils:
             result: Optional[tuple[Any, ...]] = cursor.fetchone()
 
             if result is None or result[0] is None:
-                logger.warning(
-                    f"No value found for column '{col_name}' in table: '{table_name}'"
+                logger.debug(
+                    f"No value found for column '{col_name}' in table: '{table_name}'. "
+                    f"Table is empty or column has no data. This is normal for first-time updates."
                 )
                 return None
 
@@ -88,8 +89,9 @@ class SQLiteUtils:
             result: Optional[Tuple[Any, ...]] = cursor.fetchone()
 
             if result is None or result[0] is None:
-                logger.warning(
-                    f"No value found for column '{col_name}' in table: '{table_name}'"
+                logger.debug(
+                    f"No value found for column '{col_name}' in table: '{table_name}'. "
+                    f"Table is empty or column has no data. This is normal for first-time updates."
                 )
                 return None
             return result[0]

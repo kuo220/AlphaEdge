@@ -167,18 +167,16 @@ def test_broker_trading_updater():
     test_root.mkdir(parents=True, exist_ok=True)
 
     # 資料庫路徑（所有測試共用同一個資料庫）
-    database_dir = test_root / "database"
+    database_dir = project_root / "tests" / "database"
     database_dir.mkdir(parents=True, exist_ok=True)
     temp_db_path = str(database_dir / "test.db")
 
-    # 下載目錄（按照實際結構：pipeline/downloads/finmind）
-    temp_downloads_path = test_root / "pipeline" / "downloads" / "finmind"
+    # 下載目錄（簡化結構：downloads/finmind）
+    temp_downloads_path = test_root / "finmind"
     temp_downloads_path.mkdir(parents=True, exist_ok=True)
 
-    # metadata 目錄（按照實際結構：pipeline/downloads/meta/broker_trading）
-    temp_metadata_path = (
-        test_root / "pipeline" / "downloads" / "meta" / "broker_trading"
-    )
+    # metadata 目錄（簡化結構：downloads/meta/broker_trading）
+    temp_metadata_path = test_root / "meta" / "broker_trading"
     temp_metadata_path.mkdir(parents=True, exist_ok=True)
     temp_metadata_file = temp_metadata_path / "broker_trading_metadata.json"
 
@@ -565,12 +563,12 @@ def test_broker_trading_updater():
             print(f"\n💡 提示:")
             print(f"  - 所有測試資料已保存在: {test_root}")
             print(f"  - CSV 檔案已保留，可以手動檢查")
-            print(f"  - 測試資料庫位置: {test_root}/database/test.db")
+            print(f"  - 測試資料庫位置: tests/database/test.db")
             print(
-                f"  - 下載資料位置: {test_root}/pipeline/downloads/finmind/broker_trading/"
+                f"  - 下載資料位置: {test_root}/finmind/broker_trading/"
             )
             print(
-                f"  - Metadata 位置: {test_root}/pipeline/downloads/meta/broker_trading/"
+                f"  - Metadata 位置: {test_root}/meta/broker_trading/"
             )
 
             return True
