@@ -548,21 +548,9 @@ class FinMindUpdater(BaseDataUpdater):
         else:
             end_date_obj: datetime.date = end_date
 
-        # 取得要開始更新的日期（從資料庫最新日期+1天開始，或使用提供的 start_date）
-        actual_start_date: datetime.date = self.get_actual_update_start_date(
-            default_date=start_date_obj
-        )
-        if isinstance(actual_start_date, str):
-            actual_start_date: datetime.date = datetime.datetime.strptime(
-                actual_start_date, "%Y-%m-%d"
-            ).date()
-
-        # 如果實際開始日期已經超過結束日期，則不需要更新
-        if actual_start_date > end_date_obj:
-            logger.info(
-                f"No new data to update. Latest date in database is already up to date."
-            )
-            return
+        # 注意：不使用 get_actual_update_start_date，因為它會從整個表取得最新日期
+        # 這會導致某些 (券商, 股票) 組合的資料被跳過
+        # 改為對每個組合分別決定起始日期（在循環內部處理）
 
         # 取得股票列表和券商列表
         stock_list: List[str] = self._get_stock_list()
@@ -606,7 +594,8 @@ class FinMindUpdater(BaseDataUpdater):
             f"Total update combinations: {len(trader_list)} traders × {len(stock_list)} stocks = {total_combinations}"
         )
         logger.info(
-            f"Date range: {actual_start_date.strftime('%Y-%m-%d')} to {end_date_obj.strftime('%Y-%m-%d')}"
+            f"Requested date range: {start_date_obj.strftime('%Y-%m-%d')} to {end_date_obj.strftime('%Y-%m-%d')} "
+            f"(each combination will use its own start date based on metadata)"
         )
 
         # Loop: 券商 -> 股票
@@ -631,6 +620,42 @@ class FinMindUpdater(BaseDataUpdater):
                     f"Processing: trader_id={securities_trader_id}, stock_id={stock_id}"
                 )
 
+                # 為每個組合決定起始日期（基於該組合的 metadata，而非整個表）
+                # 從 metadata 取得該組合的最新日期
+                metadata: Dict[str, Dict[str, Dict[str, str]]] = (
+                    self._load_broker_trading_metadata()
+                )
+                combination_start_date: datetime.date = start_date_obj
+
+                if (
+                    securities_trader_id in metadata
+                    and stock_id in metadata[securities_trader_id]
+                    and "latest_date" in metadata[securities_trader_id][stock_id]
+                ):
+                    try:
+                        # 如果 metadata 中有該組合的資料，從最新日期+1開始
+                        latest_date_str: str = metadata[securities_trader_id][stock_id][
+                            "latest_date"
+                        ]
+                        latest_date: datetime.date = datetime.datetime.strptime(
+                            latest_date_str, "%Y-%m-%d"
+                        ).date()
+                        combination_start_date = latest_date + datetime.timedelta(
+                            days=1
+                        )
+                    except (ValueError, KeyError) as e:
+                        logger.debug(
+                            f"Error parsing latest_date from metadata for {securities_trader_id}/{stock_id}: {e}"
+                        )
+                        combination_start_date = start_date_obj
+
+                # 確保起始日期不早於 start_date_obj，不晚於 end_date_obj
+                combination_start_date = max(combination_start_date, start_date_obj)
+                if combination_start_date > end_date_obj:
+                    # 該組合已經是最新的，跳過
+                    stats[UpdateStatus.ALREADY_UP_TO_DATE.value] += 1
+                    continue
+
                 # 檢查是否需要更新（檢查 metadata 中是否已包含所有日期）
                 existing_dates: Set[str] = self._get_existing_dates_from_metadata(
                     securities_trader_id=securities_trader_id,
@@ -639,7 +664,7 @@ class FinMindUpdater(BaseDataUpdater):
 
                 # 產生目標日期範圍的所有日期
                 target_dates: List[datetime.date] = TimeUtils.generate_date_range(
-                    actual_start_date, end_date_obj
+                    combination_start_date, end_date_obj
                 )
                 target_date_strs: Set[str] = {
                     d.strftime("%Y-%m-%d") for d in target_dates
@@ -702,7 +727,7 @@ class FinMindUpdater(BaseDataUpdater):
                     status: UpdateStatus = self.update_broker_trading_daily_report(
                         stock_id=stock_id,
                         securities_trader_id=securities_trader_id,
-                        start_date=actual_start_date,
+                        start_date=combination_start_date,
                         end_date=end_date_obj,
                         skip_processed_check=True,  # 避免重複檢查
                     )
@@ -710,7 +735,7 @@ class FinMindUpdater(BaseDataUpdater):
                     if status == UpdateStatus.NO_DATA:
                         logger.debug(
                             f"No data for trader={securities_trader_id}, stock={stock_id} "
-                            f"(date range: {actual_start_date} to {end_date_obj})"
+                            f"(date range: {combination_start_date} to {end_date_obj})"
                         )
 
                     # 統計狀態
