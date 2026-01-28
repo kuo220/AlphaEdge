@@ -1,6 +1,28 @@
 """
 測試 StockTickCrawler 的爬取功能
 只測試爬取和清洗，不存入資料庫
+
+使用方法（從專案根目錄執行）：
+    # 執行所有測試範例
+    python -m tests.test_tick_crawler
+
+測試範例：
+    1. test_crawler_only() - 只測試爬取功能（不保存檔案）
+    2. test_crawler_and_cleaner() - 測試爬取和清洗功能（會保存 CSV 檔案）
+    3. test_multiple_dates() - 測試爬取多個日期的資料並合併
+
+注意事項：
+    - 需要設置 Shioaji API 的 API_KEY 和 API_SECRET_KEY（在 .env 檔案中）
+    - 測試會真正呼叫 Shioaji API，請確保帳號有足夠權限
+    - CSV 檔案會保存在 trader.config.TICK_DOWNLOADS_PATH 指定的目錄
+    - 檔案名稱格式：{stock_id}.csv（例如：2330.csv）
+    - 預設測試股票：2330（台積電）
+    - 預設測試日期：2024-01-15（可在檔案中修改）
+
+修改測試參數：
+    - 修改第 235 行的 test_date 變數來改變測試日期
+    - 修改第 236 行的 test_stock 變數來改變測試股票代號
+    - 修改第 249-250 行的日期範圍來測試多個日期
 """
 
 import datetime

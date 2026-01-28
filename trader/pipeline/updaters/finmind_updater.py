@@ -11,7 +11,6 @@ from loguru import logger
 from trader.config import (
     BROKER_TRADING_METADATA_PATH,
     DB_PATH,
-    FINMIND_DOWNLOADS_PATH,
     SECURITIES_TRADER_INFO_TABLE_NAME,
     STOCK_INFO_TABLE_NAME,
     STOCK_INFO_WITH_WARRANT_TABLE_NAME,
@@ -39,8 +38,7 @@ FinMind 資料更新器
 更新方法：
 - update_stock_info_with_warrant() - 更新台股總覽
 - update_broker_info() - 更新證券商資訊
-- update_broker_trading_daily_report(start_date, end_date, stock_id, securities_trader_id) - 更新券商分點統計
-- update_broker_trading_daily_report_batch(start_date, end_date) - 批量更新券商分點統計（loop 券商、股票，一次性查詢整個日期範圍）
+- update_broker_trading_daily_report(start_date, end_date) - 批量更新券商分點統計（loop 券商、股票，使用 metadata 判斷每個組合的日期範圍）
 - update_all() - 更新所有 FinMind 資料
 - update(data_type, **kwargs) - 通用更新方法，可指定資料類型
 """
@@ -101,8 +99,6 @@ class FinMindUpdater(BaseDataUpdater):
         data_type: Optional[Union[str, FinMindDataType]] = None,
         start_date: Optional[Union[datetime.date, str]] = None,
         end_date: Optional[Union[datetime.date, str]] = None,
-        stock_id: Optional[str] = None,
-        securities_trader_id: Optional[str] = None,
         **kwargs,
     ) -> None:
         """
@@ -117,8 +113,6 @@ class FinMindUpdater(BaseDataUpdater):
                 - "all" 或 None: 更新所有資料
             start_date: 起始日期（僅用於 BROKER_TRADING）
             end_date: 結束日期（僅用於 BROKER_TRADING）
-            stock_id: 股票代碼（可選，僅用於 BROKER_TRADING）
-            securities_trader_id: 券商代碼（可選，僅用於 BROKER_TRADING）
         """
         # 處理 "all" 或 None 的情況
         if data_type is None or (
@@ -127,8 +121,6 @@ class FinMindUpdater(BaseDataUpdater):
             self.update_all(
                 start_date=start_date,
                 end_date=end_date,
-                stock_id=stock_id,
-                securities_trader_id=securities_trader_id,
             )
             return
 
@@ -165,8 +157,6 @@ class FinMindUpdater(BaseDataUpdater):
             self.update_broker_trading_daily_report(
                 start_date=start_date,
                 end_date=end_date,
-                stock_id=stock_id,
-                securities_trader_id=securities_trader_id,
             )
         else:
             raise ValueError(
@@ -195,7 +185,7 @@ class FinMindUpdater(BaseDataUpdater):
         # 確保 loader 有連接
         if self.loader.conn is None:
             self.loader.connect()
-        self.loader._load_stock_info()
+        self.loader.load_stock_info()
         if self.loader.conn:
             self.loader.conn.commit()
 
@@ -224,7 +214,7 @@ class FinMindUpdater(BaseDataUpdater):
         # 確保 loader 有連接
         if self.loader.conn is None:
             self.loader.connect()
-        self.loader._load_stock_info_with_warrant()
+        self.loader.load_stock_info_with_warrant()
         if self.loader.conn:
             self.loader.conn.commit()
 
@@ -251,7 +241,7 @@ class FinMindUpdater(BaseDataUpdater):
         # 確保 loader 有連接
         if self.loader.conn is None:
             self.loader.connect()
-        self.loader._load_broker_info()
+        self.loader.load_broker_info()
         if self.loader.conn:
             self.loader.conn.commit()
 
@@ -259,278 +249,22 @@ class FinMindUpdater(BaseDataUpdater):
 
     def update_broker_trading_daily_report(
         self,
-        stock_id: Optional[str] = None,
-        securities_trader_id: Optional[str] = None,
-        start_date: Union[datetime.date, str] = None,
-        end_date: Union[datetime.date, str] = None,
-        skip_processed_check: bool = False,
-    ) -> UpdateStatus:
-        """
-        更新當日券商分點統計表資料
-
-        Args:
-            start_date: 起始日期
-            end_date: 結束日期
-            stock_id: 股票代碼（可選，不提供則返回所有股票）
-            securities_trader_id: 券商代碼（可選，不提供則返回所有券商）
-            skip_processed_check: 是否跳過已處理項目的檢查（預設 False）
-                                當從 batch 方法調用時應設為 True，避免重複檢查
-
-        Returns:
-            UpdateStatus: 更新狀態
-                - UpdateStatus.SUCCESS: 成功更新
-                - UpdateStatus.NO_DATA: 沒有資料（API 返回空結果）
-                - UpdateStatus.ALREADY_UP_TO_DATE: 資料庫已是最新
-                - UpdateStatus.ERROR: 發生錯誤
-        """
-
-        logger.info(
-            f"* Start Updating Broker Trading Daily Report: {start_date} to {end_date}"
-        )
-
-        # 如果沒有跳過檢查，且提供了 stock_id 和 securities_trader_id，檢查是否已處理過
-        # 特別處理單個日期的情況（start_date == end_date）
-        if (
-            not skip_processed_check
-            and stock_id
-            and securities_trader_id
-            and start_date
-            and end_date
-        ):
-            # 標準化日期格式以便比較
-            if isinstance(start_date, str):
-                start_date_obj: datetime.date = datetime.datetime.strptime(
-                    start_date, "%Y-%m-%d"
-                ).date()
-            else:
-                start_date_obj: datetime.date = start_date
-
-            if isinstance(end_date, str):
-                end_date_obj: datetime.date = datetime.datetime.strptime(
-                    end_date, "%Y-%m-%d"
-                ).date()
-            else:
-                end_date_obj: datetime.date = end_date
-
-            # 如果是單個日期，檢查是否已處理（從 metadata 檢查）
-            if start_date_obj == end_date_obj:
-                date_str: str = start_date_obj.strftime("%Y-%m-%d")
-
-                # 從 metadata 檢查日期是否在範圍內
-                if self._check_date_exists_in_metadata(
-                    securities_trader_id=securities_trader_id,
-                    stock_id=stock_id,
-                    date=start_date_obj,
-                ):
-                    logger.info(
-                        f"Date {date_str} for trader={securities_trader_id}, stock={stock_id} "
-                        f"already exists in metadata. Skipping."
-                    )
-                    return UpdateStatus.ALREADY_UP_TO_DATE
-
-        # 取得要開始更新的日期（從資料庫最新日期+1天開始，或使用提供的 start_date）
-        actual_start_date: Union[datetime.date, str] = (
-            self.get_actual_update_start_date(default_date=start_date)
-        )
-
-        # 如果實際開始日期已經超過結束日期，則不需要更新
-        # 統一轉換為 datetime.date 進行比較
-        if isinstance(actual_start_date, str):
-            actual_start_date_obj: datetime.date = datetime.datetime.strptime(
-                actual_start_date, "%Y-%m-%d"
-            ).date()
-        else:
-            actual_start_date_obj: datetime.date = actual_start_date
-
-        if isinstance(end_date, str):
-            end_date_obj: datetime.date = datetime.datetime.strptime(
-                end_date, "%Y-%m-%d"
-            ).date()
-        else:
-            end_date_obj: datetime.date = end_date
-
-        if actual_start_date_obj > end_date_obj:
-            logger.info(
-                f"No new data to update. Latest date in database is already up to date."
-            )
-            return UpdateStatus.ALREADY_UP_TO_DATE
-
-        logger.info(f"Updating from {actual_start_date} to {end_date}")
-
-        try:
-            # Step 1: Crawl
-            df: Optional[pd.DataFrame] = self.crawler.crawl_broker_trading_daily_report(
-                stock_id=stock_id,
-                securities_trader_id=securities_trader_id,
-                start_date=actual_start_date,
-                end_date=end_date,
-            )
-            if df is None or df.empty:
-                # 記錄更詳細的資訊，包含 stock_id 和 securities_trader_id
-                if stock_id and securities_trader_id:
-                    logger.debug(
-                        f"No broker trading daily report data for stock_id={stock_id}, "
-                        f"securities_trader_id={securities_trader_id}, "
-                        f"date={actual_start_date} to {end_date}"
-                    )
-                else:
-                    logger.warning(
-                        f"No broker trading daily report data to update from {actual_start_date} to {end_date}"
-                    )
-                return UpdateStatus.NO_DATA
-
-            # Step 2: Clean
-            cleaned_df: Optional[pd.DataFrame] = (
-                self.cleaner.clean_broker_trading_daily_report(df)
-            )
-            if cleaned_df is None or cleaned_df.empty:
-                logger.warning("Cleaned broker trading daily report data is empty")
-                return UpdateStatus.NO_DATA
-
-            # Step 3: Load - 將資料保存到資料庫
-            # 確保 loader 有連接
-            if self.loader.conn is None:
-                self.loader.connect()
-
-            # 確保資料表存在
-            self.loader.create_missing_tables()
-
-            # 將清理後的資料保存到資料庫
-            # 注意：cleaned_df 已經按 (securities_trader_id, stock_id) 分組並保存到 CSV
-            # 現在需要將這些資料也寫入資料庫
-            # 檢查資料庫中已存在的資料，避免重複插入
-            existing_query: str = f"""
-            SELECT DISTINCT stock_id, date, securities_trader_id
-            FROM {STOCK_TRADING_DAILY_REPORT_TABLE_NAME}
-            """
-            try:
-                existing_df: pd.DataFrame = pd.read_sql_query(existing_query, self.conn)
-
-                if not existing_df.empty:
-                    # 建立已存在的鍵集合
-                    existing_keys: Set[Tuple[str, str, str]] = set(
-                        zip(
-                            existing_df["stock_id"].astype(str),
-                            existing_df["date"].astype(str),
-                            existing_df["securities_trader_id"].astype(str),
-                        )
-                    )
-
-                    # 過濾出新資料
-                    cleaned_df["_key"] = list(
-                        zip(
-                            cleaned_df["stock_id"].astype(str),
-                            cleaned_df["date"].astype(str),
-                            cleaned_df["securities_trader_id"].astype(str),
-                        )
-                    )
-                    mask: pd.Series = ~cleaned_df["_key"].isin(existing_keys)
-                    new_df: pd.DataFrame = cleaned_df[mask].drop(columns=["_key"])
-                else:
-                    new_df: pd.DataFrame = cleaned_df
-
-                # 只插入新資料
-                if not new_df.empty:
-                    # 確保欄位順序正確
-                    column_order: List[str] = [
-                        "securities_trader",
-                        "securities_trader_id",
-                        "stock_id",
-                        "date",
-                        "buy_volume",
-                        "sell_volume",
-                        "buy_price",
-                        "sell_price",
-                    ]
-                    available_columns: List[str] = [
-                        col for col in column_order if col in new_df.columns
-                    ]
-                    new_df = new_df[available_columns]
-
-                    new_df.to_sql(
-                        STOCK_TRADING_DAILY_REPORT_TABLE_NAME,
-                        self.conn,
-                        if_exists="append",
-                        index=False,
-                    )
-                    self.conn.commit()
-                    logger.info(
-                        f"✅ Saved {len(new_df)} new records to database "
-                        f"({len(cleaned_df) - len(new_df)} duplicates skipped)"
-                    )
-                else:
-                    logger.debug("All data already exists in database, skipping insert")
-
-            except Exception as e:
-                logger.warning(
-                    f"Error checking existing data: {e}. Will insert all data."
-                )
-                # 如果檢查失敗，嘗試直接插入（可能會因為重複鍵而失敗，但至少嘗試）
-                column_order: List[str] = [
-                    "securities_trader",
-                    "securities_trader_id",
-                    "stock_id",
-                    "date",
-                    "buy_volume",
-                    "sell_volume",
-                    "buy_price",
-                    "sell_price",
-                ]
-                available_columns: List[str] = [
-                    col for col in column_order if col in cleaned_df.columns
-                ]
-                try:
-                    cleaned_df[available_columns].to_sql(
-                        STOCK_TRADING_DAILY_REPORT_TABLE_NAME,
-                        self.conn,
-                        if_exists="append",
-                        index=False,
-                    )
-                    self.conn.commit()
-                    logger.info(f"✅ Saved {len(cleaned_df)} records to database")
-                except Exception as insert_error:
-                    logger.error(f"Error inserting data to database: {insert_error}")
-
-            # 更新後重新取得 Table 最新的日期
-            table_latest_date: str = SQLiteUtils.get_table_latest_value(
-                conn=self.conn,
-                table_name=STOCK_TRADING_DAILY_REPORT_TABLE_NAME,
-                col_name="date",
-            )
-            if table_latest_date:
-                logger.info(
-                    f"✅ Broker trading daily report updated successfully. Latest available date: {table_latest_date}"
-                )
-            else:
-                logger.warning("No new broker trading daily report data was updated")
-            return UpdateStatus.SUCCESS
-
-        except Exception as e:
-            logger.error(
-                f"Error updating broker trading daily report: {e}",
-                exc_info=True,
-            )
-            return UpdateStatus.ERROR
-
-    def update_broker_trading_daily_report_batch(
-        self,
         start_date: Union[datetime.date, str],
         end_date: Union[datetime.date, str],
     ) -> None:
         """
-        批量更新當日券商分點統計表資料（loop 券商、股票）
+        批量更新當日券商分點統計表資料
 
         此方法會：
-        1. Loop 所有券商 ID
-        2. Loop 所有股票 ID
-        3. 對每個 (券商, 股票) 組合，一次性查詢整個日期範圍
+        1. Loop 所有券商 ID 和股票 ID，批量更新所有組合
+        2. 對每個 (券商, 股票) 組合，使用 metadata 判斷需要更新的日期範圍
 
         Args:
             start_date: 起始日期
             end_date: 結束日期
         """
         logger.info(
-            f"* Start Batch Updating Broker Trading Daily Report: {start_date} to {end_date}"
+            f"* Start Updating Broker Trading Daily Report: {start_date} to {end_date}"
         )
 
         # 轉換日期格式
@@ -547,10 +281,6 @@ class FinMindUpdater(BaseDataUpdater):
             ).date()
         else:
             end_date_obj: datetime.date = end_date
-
-        # 注意：不使用 get_actual_update_start_date，因為它會從整個表取得最新日期
-        # 這會導致某些 (券商, 股票) 組合的資料被跳過
-        # 改為對每個組合分別決定起始日期（在循環內部處理）
 
         # 取得股票列表和券商列表
         stock_list: List[str] = self._get_stock_list()
@@ -625,13 +355,17 @@ class FinMindUpdater(BaseDataUpdater):
                 metadata: Dict[str, Dict[str, Dict[str, str]]] = (
                     self._load_broker_trading_metadata()
                 )
-                combination_start_date: datetime.date = start_date_obj
 
-                if (
+                # 檢查該組合是否在 metadata 中
+                combination_in_metadata: bool = (
                     securities_trader_id in metadata
                     and stock_id in metadata[securities_trader_id]
                     and "latest_date" in metadata[securities_trader_id][stock_id]
-                ):
+                )
+
+                combination_start_date: datetime.date = start_date_obj
+
+                if combination_in_metadata:
                     try:
                         # 如果 metadata 中有該組合的資料，從最新日期+1開始
                         latest_date_str: str = metadata[securities_trader_id][stock_id][
@@ -651,8 +385,23 @@ class FinMindUpdater(BaseDataUpdater):
 
                 # 確保起始日期不早於 start_date_obj，不晚於 end_date_obj
                 combination_start_date = max(combination_start_date, start_date_obj)
-                if combination_start_date > end_date_obj:
+
+                # 如果該組合不在 metadata 中，且起始日期在有效範圍內，應該要更新
+                # 只有在 metadata 中存在且起始日期超過結束日期時才跳過
+                if combination_in_metadata and combination_start_date > end_date_obj:
                     # 該組合已經是最新的，跳過
+                    stats[UpdateStatus.ALREADY_UP_TO_DATE.value] += 1
+                    continue
+
+                # 如果該組合不在 metadata 中，但起始日期超過結束日期，這表示日期範圍無效
+                if (
+                    not combination_in_metadata
+                    and combination_start_date > end_date_obj
+                ):
+                    logger.warning(
+                        f"Invalid date range for new combination {securities_trader_id}/{stock_id}: "
+                        f"start_date={combination_start_date} > end_date={end_date_obj}. Skipping."
+                    )
                     stats[UpdateStatus.ALREADY_UP_TO_DATE.value] += 1
                     continue
 
@@ -666,6 +415,16 @@ class FinMindUpdater(BaseDataUpdater):
                 target_dates: List[datetime.date] = TimeUtils.generate_date_range(
                     combination_start_date, end_date_obj
                 )
+
+                # 如果日期範圍為空（例如 start_date > end_date），跳過
+                if not target_dates:
+                    logger.warning(
+                        f"Empty date range for {securities_trader_id}/{stock_id}: "
+                        f"start_date={combination_start_date}, end_date={end_date_obj}. Skipping."
+                    )
+                    stats[UpdateStatus.ALREADY_UP_TO_DATE.value] += 1
+                    continue
+
                 target_date_strs: Set[str] = {
                     d.strftime("%Y-%m-%d") for d in target_dates
                 }
@@ -675,6 +434,12 @@ class FinMindUpdater(BaseDataUpdater):
 
                 if not missing_dates:
                     # 所有日期都已存在，跳過此組合
+                    # 但如果是新組合（不在 metadata 中），這不應該發生，記錄警告
+                    if not combination_in_metadata:
+                        logger.warning(
+                            f"Unexpected: combination {securities_trader_id}/{stock_id} not in metadata "
+                            f"but all dates {target_date_strs} appear to exist. This may indicate a logic error."
+                        )
                     stats[UpdateStatus.ALREADY_UP_TO_DATE.value] += 1
                     continue
 
@@ -723,13 +488,12 @@ class FinMindUpdater(BaseDataUpdater):
 
                 try:
                     # 對單一券商、單一股票，一次性查詢整個日期範圍
-                    # 設置 skip_processed_check=True，因為 batch 方法已經檢查過了
-                    status: UpdateStatus = self.update_broker_trading_daily_report(
+                    # batch 方法已經做過完整的檢查，這裡直接調用核心方法
+                    status: UpdateStatus = self._crawl_and_save_broker_trading_daily_report(
                         stock_id=stock_id,
                         securities_trader_id=securities_trader_id,
                         start_date=combination_start_date,
                         end_date=end_date_obj,
-                        skip_processed_check=True,  # 避免重複檢查
                     )
 
                     if status == UpdateStatus.NO_DATA:
@@ -792,8 +556,6 @@ class FinMindUpdater(BaseDataUpdater):
         self,
         start_date: Optional[Union[datetime.date, str]] = None,
         end_date: Optional[Union[datetime.date, str]] = None,
-        stock_id: Optional[str] = None,
-        securities_trader_id: Optional[str] = None,
     ) -> None:
         """
         更新所有 FinMind 資料
@@ -801,8 +563,6 @@ class FinMindUpdater(BaseDataUpdater):
         Args:
             start_date: 起始日期（僅用於 broker_trading_daily_report）
             end_date: 結束日期（僅用於 broker_trading_daily_report）
-            stock_id: 股票代碼（可選，僅用於 broker_trading_daily_report）
-            securities_trader_id: 券商代碼（可選，僅用於 broker_trading_daily_report）
         """
 
         logger.info("* Start Updating All FinMind Data...")
@@ -823,23 +583,103 @@ class FinMindUpdater(BaseDataUpdater):
         if end_date is None:
             end_date: Union[datetime.date, str] = datetime.date.today()
 
-        # 如果指定了 stock_id 或 securities_trader_id，使用單一更新方法
-        # 否則使用批量更新方法（會 loop 所有股票和券商）
-        if stock_id or securities_trader_id:
-            self.update_broker_trading_daily_report(
-                start_date=start_date,
-                end_date=end_date,
-                stock_id=stock_id,
-                securities_trader_id=securities_trader_id,
-            )
-        else:
-            # 使用批量更新方法，會自動 loop 所有股票和券商
-            self.update_broker_trading_daily_report_batch(
-                start_date=start_date,
-                end_date=end_date,
-            )
+        # 批量更新所有券商和股票組合
+        self.update_broker_trading_daily_report(
+            start_date=start_date,
+            end_date=end_date,
+        )
 
         logger.info("✅ All FinMind Data updated successfully")
+
+    # ============================================================================
+    # Private Methods - Core Update Methods
+    # ============================================================================
+
+    def _crawl_and_save_broker_trading_daily_report(
+        self,
+        stock_id: str,
+        securities_trader_id: str,
+        start_date: Union[datetime.date, str],
+        end_date: Union[datetime.date, str],
+    ) -> UpdateStatus:
+        """
+        核心方法：爬取並保存券商分點統計表資料（不包含時間判斷邏輯）
+
+        Args:
+            stock_id: 股票代碼
+            securities_trader_id: 券商代碼
+            start_date: 起始日期
+            end_date: 結束日期
+
+        Returns:
+            UpdateStatus: 更新狀態
+                - UpdateStatus.SUCCESS: 成功更新
+                - UpdateStatus.NO_DATA: 沒有資料（API 返回空結果）
+                - UpdateStatus.ERROR: 發生錯誤
+        """
+        logger.info(
+            f"Crawling and saving broker trading daily report: "
+            f"trader={securities_trader_id}, stock={stock_id}, "
+            f"date={start_date} to {end_date}"
+        )
+
+        try:
+            # Step 1: Crawl
+            df: Optional[pd.DataFrame] = self.crawler.crawl_broker_trading_daily_report(
+                stock_id=stock_id,
+                securities_trader_id=securities_trader_id,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            if df is None or df.empty:
+                logger.debug(
+                    f"No broker trading daily report data for stock_id={stock_id}, "
+                    f"securities_trader_id={securities_trader_id}, "
+                    f"date={start_date} to {end_date}"
+                )
+                return UpdateStatus.NO_DATA
+
+            # Step 2: Clean
+            cleaned_df: Optional[pd.DataFrame] = (
+                self.cleaner.clean_broker_trading_daily_report(df)
+            )
+            if cleaned_df is None or cleaned_df.empty:
+                logger.warning("Cleaned broker trading daily report data is empty")
+                return UpdateStatus.NO_DATA
+
+            # Step 3: Load - 將資料保存到資料庫
+            # 使用 loader 的方法來載入資料
+            saved_count: int = self.loader.load_broker_trading_daily_report(
+                df=cleaned_df
+            )
+
+            if saved_count == 0:
+                logger.debug("No new data was saved to database")
+
+            # 更新後重新取得 Table 最新的日期
+            table_latest_date: str = SQLiteUtils.get_table_latest_value(
+                conn=self.loader.conn,
+                table_name=STOCK_TRADING_DAILY_REPORT_TABLE_NAME,
+                col_name="date",
+            )
+            if table_latest_date:
+                logger.info(
+                    f"✅ Broker trading daily report updated successfully. Latest available date: {table_latest_date}"
+                )
+            else:
+                logger.warning("No new broker trading daily report data was updated")
+            return UpdateStatus.SUCCESS
+
+        except Exception as e:
+            logger.error(
+                f"Error updating broker trading daily report: {e}",
+                exc_info=True,
+            )
+            return UpdateStatus.ERROR
+
+    # ============================================================================
+    # Private Methods - API Quota Management
+    # ============================================================================
 
     def _check_and_update_api_quota(self) -> bool:
         """
@@ -982,6 +822,10 @@ class FinMindUpdater(BaseDataUpdater):
             # 等待指定時間
             time.sleep(check_interval_seconds)
 
+    # ============================================================================
+    # Private Methods - Date Utilities
+    # ============================================================================
+
     def get_actual_update_start_date(
         self,
         default_date: Union[datetime.date, str],
@@ -1019,6 +863,10 @@ class FinMindUpdater(BaseDataUpdater):
         else:
             # 如果資料庫中沒有資料，使用 default_date
             return default_date
+
+    # ============================================================================
+    # Private Methods - Data Retrieval
+    # ============================================================================
 
     def _get_stock_list(self) -> List[str]:
         """
@@ -1059,6 +907,10 @@ class FinMindUpdater(BaseDataUpdater):
         except Exception as e:
             logger.error(f"Error retrieving securities trader list: {e}")
             return []
+
+    # ============================================================================
+    # Private Methods - Metadata Management
+    # ============================================================================
 
     def _load_broker_trading_metadata(self) -> Dict[str, Dict[str, Dict[str, str]]]:
         """

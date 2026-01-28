@@ -4,6 +4,24 @@
 2. 創建預設的 tick_metadata.json，每個公司的預設 "last_date" 都是 "2024-5-10"
 3. 掃描 trader/pipeline/downloads/tick 資料夾底下的所有 CSV 檔案
 4. 根據每個檔案的最後一筆資料的時間，更新到 tick_metadata.json
+
+使用方法（從專案根目錄執行）：
+    # 使用預設日期（2024-5-10）初始化
+    python -m tests.test_init_tick_metadata
+
+    # 如需修改預設日期，請編輯檔案中的 default_date 變數（第 155 行）
+
+功能說明：
+    - 會爬取所有上市櫃股票代號
+    - 為每個股票設定預設的 last_date（預設為 2024-5-10）
+    - 掃描 tick 下載資料夾中的 CSV 檔案
+    - 根據 CSV 檔案的最後一筆資料時間，更新對應股票的 last_date
+    - 將結果寫入 tick_metadata.json
+
+注意事項：
+    - Metadata 檔案位置由 trader.config.TICK_METADATA_PATH 決定
+    - 如果 CSV 檔案不存在，所有股票都會使用預設日期
+    - 此腳本會覆蓋現有的 tick_metadata.json 檔案
 """
 
 import datetime

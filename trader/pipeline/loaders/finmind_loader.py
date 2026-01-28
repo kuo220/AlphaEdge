@@ -215,10 +215,10 @@ class FinMindLoader(BaseDataLoader):
         self.create_missing_tables()
 
         # 處理四個 CSV 檔案
-        self._load_stock_info()
-        self._load_stock_info_with_warrant()
-        self._load_broker_info()
-        self._load_broker_trading_daily_report()
+        self.load_stock_info()
+        self.load_stock_info_with_warrant()
+        self.load_broker_info()
+        self.load_broker_trading_daily_report()  # 不傳入 df，從 CSV 檔案載入
 
         self.conn.commit()
         self.disconnect()
@@ -229,7 +229,7 @@ class FinMindLoader(BaseDataLoader):
             shutil.rmtree(self.finmind_dir)
             logger.info(f"Removed directory: {self.finmind_dir}")
 
-    def _load_stock_info(self) -> None:
+    def load_stock_info(self) -> None:
         """載入台股總覽資料到資料庫"""
 
         data_type_dir: Path = (
@@ -313,7 +313,7 @@ class FinMindLoader(BaseDataLoader):
         except Exception as e:
             logger.error(f"Error loading {csv_path.name}: {e}", exc_info=True)
 
-    def _load_stock_info_with_warrant(self) -> None:
+    def load_stock_info_with_warrant(self) -> None:
         """載入台股總覽(含權證)資料到資料庫"""
 
         data_type_dir: Path = (
@@ -397,7 +397,7 @@ class FinMindLoader(BaseDataLoader):
         except Exception as e:
             logger.error(f"Error loading {csv_path.name}: {e}", exc_info=True)
 
-    def _load_broker_info(self) -> None:
+    def load_broker_info(self) -> None:
         """載入證券商資訊表資料到資料庫"""
 
         data_type_dir: Path = (
@@ -485,7 +485,176 @@ class FinMindLoader(BaseDataLoader):
         except Exception as e:
             logger.error(f"Error loading {csv_path.name}: {e}", exc_info=True)
 
-    def _load_broker_trading_daily_report(self) -> None:
+    def load_broker_trading_daily_report(
+        self, df: Optional[pd.DataFrame] = None
+    ) -> Optional[int]:
+        """載入當日券商分點統計表資料到資料庫
+
+        如果傳入 df 參數，則直接從 DataFrame 載入；否則從 CSV 檔案載入。
+
+        Args:
+            df: 可選的 DataFrame，如果提供則直接載入此 DataFrame。
+                必須包含以下欄位：
+                - stock_id
+                - date
+                - securities_trader_id
+                - buy_volume, sell_volume, buy_price, sell_price (可選)
+                - securities_trader (可選)
+                如果為 None，則從 CSV 檔案載入（檔案結構：broker_trading/{broker_id}/{stock_id}.csv）
+
+        Returns:
+            int: 如果從 DataFrame 載入，返回成功插入的資料筆數
+            None: 如果從 CSV 檔案載入，不返回值
+        """
+        if self.conn is None:
+            self.connect()
+
+        # 確保資料表存在
+        self.create_missing_tables()
+
+        # 如果提供了 DataFrame，直接載入
+        if df is not None:
+            return self._load_broker_trading_daily_report_from_dataframe(df)
+        else:
+            # 從 CSV 檔案載入
+            self._load_broker_trading_daily_report_from_files()
+            return None
+
+    def _load_broker_trading_daily_report_from_dataframe(
+        self, df: pd.DataFrame
+    ) -> int:
+        """從 DataFrame 載入當日券商分點統計表資料到資料庫
+
+        Args:
+            df: 要載入的 DataFrame
+
+        Returns:
+            int: 成功插入的資料筆數
+        """
+        if df is None or df.empty:
+            logger.warning("DataFrame is empty, skipping load")
+            return 0
+
+        # 查詢資料庫中已存在的資料（根據複合主鍵）
+        existing_query: str = f"""
+        SELECT DISTINCT stock_id, date, securities_trader_id
+        FROM {STOCK_TRADING_DAILY_REPORT_TABLE_NAME}
+        """
+        try:
+            existing_df: pd.DataFrame = pd.read_sql_query(existing_query, self.conn)
+
+            if not existing_df.empty:
+                # 建立已存在的鍵集合
+                existing_keys: Set[Tuple[str, str, str]] = set(
+                    zip(
+                        existing_df["stock_id"].astype(str),
+                        existing_df["date"].astype(str),
+                        existing_df["securities_trader_id"].astype(str),
+                    )
+                )
+            else:
+                existing_keys: Set[Tuple[str, str, str]] = set()
+
+            # 建立當前資料的 key tuple
+            df["_key"] = list(
+                zip(
+                    df["stock_id"].astype(str),
+                    df["date"].astype(str),
+                    df["securities_trader_id"].astype(str),
+                )
+            )
+
+            # 先處理同一個 DataFrame 內的重複資料
+            original_count: int = len(df)
+            if df["_key"].duplicated().any():
+                df = df.drop_duplicates(subset=["_key"], keep="first")
+                logger.debug(
+                    f"Removed {original_count - len(df)} duplicate rows within DataFrame"
+                )
+
+            # 過濾出新資料
+            if existing_keys:
+                mask: pd.Series = ~df["_key"].isin(existing_keys)
+                new_df: pd.DataFrame = df[mask].drop(columns=["_key"])
+
+                if new_df.empty:
+                    logger.debug("All data already exists in database, skipping insert")
+                    return 0
+            else:
+                new_df: pd.DataFrame = df.drop(columns=["_key"])
+
+            # 確保欄位順序與 crawler schema 註解一致
+            # 順序：securities_trader, securities_trader_id, stock_id, date, buy_volume, sell_volume, buy_price, sell_price
+            column_order: List[str] = [
+                "securities_trader",
+                "securities_trader_id",
+                "stock_id",
+                "date",
+                "buy_volume",
+                "sell_volume",
+                "buy_price",
+                "sell_price",
+            ]
+            # 只選擇存在的欄位
+            available_columns: List[str] = [
+                col for col in column_order if col in new_df.columns
+            ]
+            new_df = new_df[available_columns]
+
+            # 插入新資料
+            new_df.to_sql(
+                STOCK_TRADING_DAILY_REPORT_TABLE_NAME,
+                self.conn,
+                if_exists="append",
+                index=False,
+            )
+            self.conn.commit()
+
+            skipped_rows: int = original_count - len(new_df)
+            if skipped_rows > 0:
+                logger.info(
+                    f"✅ Saved {len(new_df)} new records to database "
+                    f"({skipped_rows} duplicates skipped)"
+                )
+            else:
+                logger.info(f"✅ Saved {len(new_df)} records to database")
+
+            return len(new_df)
+
+        except Exception as e:
+            logger.error(
+                f"Error loading broker trading daily report from DataFrame: {e}",
+                exc_info=True,
+            )
+            # 如果檢查失敗，嘗試直接插入（可能會因為重複鍵而失敗，但至少嘗試）
+            try:
+                column_order: List[str] = [
+                    "securities_trader",
+                    "securities_trader_id",
+                    "stock_id",
+                    "date",
+                    "buy_volume",
+                    "sell_volume",
+                    "buy_price",
+                    "sell_price",
+                ]
+                available_columns: List[str] = [
+                    col for col in column_order if col in df.columns
+                ]
+                df[available_columns].to_sql(
+                    STOCK_TRADING_DAILY_REPORT_TABLE_NAME,
+                    self.conn,
+                    if_exists="append",
+                    index=False,
+                )
+                self.conn.commit()
+                logger.info(f"✅ Saved {len(df)} records to database (fallback mode)")
+                return len(df)
+            except Exception as insert_error:
+                logger.error(f"Error inserting data to database: {insert_error}")
+                return 0
+
+    def _load_broker_trading_daily_report_from_files(self) -> None:
         """載入當日券商分點統計表資料到資料庫
 
         新的檔案結構：broker_trading/{broker_id}/{stock_id}.csv

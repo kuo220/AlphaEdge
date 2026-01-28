@@ -1,6 +1,44 @@
 """
 測試 StockTickUpdater 的 update 函數
 只測試爬取和清洗，不存入資料庫
+
+使用方法（從專案根目錄執行）：
+    # 互動式選單（執行時會顯示選單）
+    python -m tests.test_tick_updater
+
+    # 直接執行特定測試（1-5）
+    python -m tests.test_tick_updater 1
+
+測試選項：
+    1. 測試 StockTickUpdater.update() - 不存入資料庫
+       - 會爬取所有上市櫃股票在指定日期範圍的 tick 資料
+       - 會保存 CSV 檔案到 TICK_DOWNLOADS_PATH
+       - 不會存入資料庫（測試模式）
+       - 預設日期範圍：2024-05-14 到 2024-05-15（可在檔案中修改）
+
+    2. 測試 scan_tick_downloads_folder() - 掃描下載資料夾
+       - 掃描 tick 下載資料夾中的所有 CSV 檔案
+       - 返回每個股票的最後一筆資料日期
+
+    3. 測試 update_tick_downloads_metadata() - 更新 metadata
+       - 根據下載資料夾中的 CSV 檔案更新 tick_downloads_metadata.json
+       - Metadata 檔案位置：TICK_METADATA_DIR_PATH/tick_downloads_metadata.json
+
+    4. 測試兩個函數的組合使用
+       - 先執行掃描，再更新 metadata，最後驗證一致性
+
+    5. 執行所有測試
+       - 依序執行選項 1、2、3、4
+
+注意事項：
+    - 需要設置 Shioaji API 的 API_KEY 和 API_SECRET_KEY（在 .env 檔案中）
+    - 測試會真正呼叫 Shioaji API，請確保帳號有足夠權限
+    - 選項 1 會爬取所有上市櫃股票，如果日期範圍很大，可能需要很長時間
+    - CSV 檔案會保存在 trader.config.TICK_DOWNLOADS_PATH 指定的目錄
+    - 如果 dolphindb 模組未安裝，會使用 mock 模組（測試模式）
+
+修改測試日期範圍：
+    - 修改第 323-324 行的 test_start_date 和 test_end_date 變數
 """
 
 import datetime

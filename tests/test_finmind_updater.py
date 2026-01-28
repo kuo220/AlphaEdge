@@ -1,6 +1,26 @@
 """
 測試 FinMindUpdater 的更新功能
 使用臨時資料庫進行測試，不會影響 data.db
+
+使用方法（從專案根目錄執行）：
+    # 執行所有更新功能測試
+    python -m tests.test_finmind_updater
+
+測試內容：
+    1. update_stock_info_with_warrant() - 更新台股總覽(含權證)
+    2. update_broker_info() - 更新證券商資訊
+    3. update_broker_trading_daily_report() - 更新單一組合的券商交易報表
+    4. update() 方法 - 使用 FinMindDataType Enum
+    5. update() 方法 - 使用字串參數
+    6. update_all() - 更新所有資料類型
+    7. get_actual_update_start_date() - 取得實際更新起始日期
+
+注意事項：
+    - 需要設置 FINMIND_API_TOKEN 環境變數（在 .env 檔案中）
+    - 測試使用臨時資料庫，位置：tests/temp/test_finmind_updater_{timestamp}.db
+    - 測試完成後可以手動刪除臨時資料庫檔案
+    - 此測試會真正呼叫 FinMind API，請確保有足夠的 API quota
+    - 測試 3 使用固定日期範圍（2024-07-01 到 2024-07-15）和股票代碼（2330）、券商代碼（1020）
 """
 
 import datetime
