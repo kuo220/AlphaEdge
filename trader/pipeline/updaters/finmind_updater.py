@@ -343,8 +343,28 @@ class FinMindUpdater(BaseDataUpdater):
         # 定期更新 metadata 的頻率（每處理 N 個項目後更新一次）
         update_metadata_interval: int = 100
 
+        # 輔助函數：記錄進度並定期更新 metadata
+        def log_progress_and_update_metadata():
+            """記錄處理進度並在需要時更新 metadata（避免程式意外中斷時遺失進度）"""
+            if combination_count % 50 == 0:
+                logger.info(
+                    f"Progress: {combination_count}/{total_combinations} combinations processed "
+                    f"(API calls: {self.api_call_count}/{self.api_quota_limit}) | "
+                    f"Stats: success={stats[UpdateStatus.SUCCESS.value]}, no_data={stats[UpdateStatus.NO_DATA.value]}, "
+                    f"error={stats[UpdateStatus.ERROR.value]}, already_up_to_date={stats[UpdateStatus.ALREADY_UP_TO_DATE.value]}"
+                )
+            # 定期更新 metadata（避免程式意外中斷時遺失進度）
+            if combination_count % update_metadata_interval == 0:
+                logger.debug(
+                    f"Periodically updating metadata at {combination_count} combinations..."
+                )
+                self._update_broker_trading_metadata_from_database()
+
         for securities_trader_id in securities_trader_list:
             for stock_id in stock_list:
+                # 每個組合開始處理時就增加計數（無論是否跳過都會被計入）
+                combination_count += 1
+                
                 # 記錄正在處理的券商和股票
                 logger.info(
                     f"Processing: trader_id={securities_trader_id}, stock_id={stock_id}"
@@ -391,6 +411,7 @@ class FinMindUpdater(BaseDataUpdater):
                 if combination_in_metadata and combination_start_date > end_date_obj:
                     # 該組合已經是最新的，跳過
                     stats[UpdateStatus.ALREADY_UP_TO_DATE.value] += 1
+                    log_progress_and_update_metadata()
                     continue
 
                 # 如果該組合不在 metadata 中，但起始日期超過結束日期，這表示日期範圍無效
@@ -403,6 +424,7 @@ class FinMindUpdater(BaseDataUpdater):
                         f"start_date={combination_start_date} > end_date={end_date_obj}. Skipping."
                     )
                     stats[UpdateStatus.ALREADY_UP_TO_DATE.value] += 1
+                    log_progress_and_update_metadata()
                     continue
 
                 # 檢查是否需要更新（檢查 metadata 中是否已包含所有日期）
@@ -423,6 +445,7 @@ class FinMindUpdater(BaseDataUpdater):
                         f"start_date={combination_start_date}, end_date={end_date_obj}. Skipping."
                     )
                     stats[UpdateStatus.ALREADY_UP_TO_DATE.value] += 1
+                    log_progress_and_update_metadata()
                     continue
 
                 target_date_strs: Set[str] = {
@@ -441,6 +464,7 @@ class FinMindUpdater(BaseDataUpdater):
                             f"but all dates {target_date_strs} appear to exist. This may indicate a logic error."
                         )
                     stats[UpdateStatus.ALREADY_UP_TO_DATE.value] += 1
+                    log_progress_and_update_metadata()
                     continue
 
                 # 在每次 API 調用前檢查 quota
@@ -477,15 +501,6 @@ class FinMindUpdater(BaseDataUpdater):
                         )
                         # 不 break，繼續當前循環
 
-                combination_count += 1
-                if combination_count % 50 == 0:
-                    logger.info(
-                        f"Progress: {combination_count}/{total_combinations} combinations processed "
-                        f"(API calls: {self.api_call_count}/{self.api_quota_limit}) | "
-                        f"Stats: success={stats[UpdateStatus.SUCCESS.value]}, no_data={stats[UpdateStatus.NO_DATA.value]}, "
-                        f"error={stats[UpdateStatus.ERROR.value]}, already_up_to_date={stats[UpdateStatus.ALREADY_UP_TO_DATE.value]}"
-                    )
-
                 try:
                     # 對單一券商、單一股票，一次性查詢整個日期範圍
                     status: UpdateStatus = self._crawl_and_save_broker_trading_daily_report(
@@ -507,21 +522,15 @@ class FinMindUpdater(BaseDataUpdater):
                     else:
                         logger.warning(f"Unknown status returned: {status}")
                         stats[UpdateStatus.ERROR.value] += 1
-
-                    # 定期更新 metadata（避免程式意外中斷時遺失進度）
-                    if combination_count % update_metadata_interval == 0:
-                        logger.debug(
-                            f"Periodically updating metadata at {combination_count} combinations..."
-                        )
-                        self._update_broker_trading_metadata_from_database()
                 except Exception as e:
                     stats[UpdateStatus.ERROR.value] += 1
                     logger.error(
                         f"Error updating broker trading daily report for trader={securities_trader_id}, stock={stock_id}: {e}",
                         exc_info=True,
                     )
-                    # 繼續處理下一個組合
-                    continue
+
+                # 處理完成後檢查是否需要打印進度
+                log_progress_and_update_metadata()
 
             if quota_exhausted:
                 break
