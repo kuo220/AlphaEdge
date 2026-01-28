@@ -153,7 +153,7 @@ def get_update_time_config(
         # FinMind 所有資料：券商分點統計從 2021/6/30 開始
         return {
             "start_date": datetime.date(2021, 6, 30),
-            "end_date": datetime.date.today(),
+            "end_date": datetime.date(2026, 1, 23),
         }
     elif data_type == FinMindDataType.BROKER_TRADING or (
         isinstance(data_type, str)

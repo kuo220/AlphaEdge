@@ -568,6 +568,11 @@ class FinMindUpdater(BaseDataUpdater):
         stock_list: List[str] = self._get_stock_list()
         trader_list: List[str] = self._get_securities_trader_list()
 
+        logger.info(
+            f"Retrieved stock list: {len(stock_list)} stocks, "
+            f"securities trader list: {len(trader_list)} traders"
+        )
+
         if not stock_list:
             logger.warning(
                 "No stocks found in database. Please update stock info first."
@@ -621,6 +626,11 @@ class FinMindUpdater(BaseDataUpdater):
 
         for securities_trader_id in trader_list:
             for stock_id in stock_list:
+                # 記錄正在處理的券商和股票
+                logger.info(
+                    f"Processing: trader_id={securities_trader_id}, stock_id={stock_id}"
+                )
+
                 # 檢查是否需要更新（檢查 metadata 中是否已包含所有日期）
                 existing_dates: Set[str] = self._get_existing_dates_from_metadata(
                     securities_trader_id=securities_trader_id,
