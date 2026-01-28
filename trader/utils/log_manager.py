@@ -6,7 +6,7 @@ It ensures consistent logging configuration across the entire application.
 """
 
 from pathlib import Path
-from typing import Optional, Set
+from typing import Any, Optional, Set
 
 from loguru import logger
 
@@ -51,16 +51,16 @@ class LogManager:
         """
         # Use default log directory if not specified
         if log_dir is None:
-            log_dir = LOGS_DIR_PATH
+            log_dir: Path = LOGS_DIR_PATH
 
         # Ensure log directory exists
         log_dir.mkdir(parents=True, exist_ok=True)
 
         # Create full log file path
-        log_path = log_dir / log_file
+        log_path: Path = log_dir / log_file
 
         # Check if this log file has already been configured
-        log_path_str = str(log_path)
+        log_path_str: str = str(log_path)
         if log_path_str in LogManager._configured_logs:
             # Logger already configured, skip to avoid duplicates
             return
@@ -97,7 +97,7 @@ class LogManager:
         Example:
             LogManager.setup_backtest_logger("momentum_strategy")
         """
-        log_file = f"{strategy_name}.log"
+        log_file: str = f"{strategy_name}.log"
         LogManager.setup_logger(
             log_file=log_file,
             log_dir=BACKTEST_LOGS_DIR_PATH,
@@ -144,7 +144,7 @@ class LogManager:
             The loguru logger instance
 
         Example:
-            logger = LogManager.get_logger()
+            logger: Any = LogManager.get_logger()
             logger.info("This is a log message")
         """
         return logger

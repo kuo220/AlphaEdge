@@ -130,7 +130,7 @@ class StockBacktestReporter(BaseBacktestReporter):
         if len(adjusted_price) > 0:
             # 轉換索引為 date 類型（如果還不是）
             if not isinstance(adjusted_price.index[0], datetime.date):
-                adjusted_price.index = pd.to_datetime(adjusted_price.index).date
+                adjusted_price.index = pd.to_datetime(adjusted_price.index).date  # type: ignore
             # 確保索引是 date 類型的列表
             index_dates: List[datetime.date] = [
                 d if isinstance(d, datetime.date) else pd.to_datetime(d).date()

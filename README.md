@@ -396,7 +396,8 @@ python -m tasks.update_db --target <data_type>
 - `fs`: 財報資料
 - `mrr`: 月營收報表
 - `finmind`: 更新所有 FinMind 資料（台股總覽、證券商資訊、券商分點統計）
-- `stock_info`: 僅更新 FinMind 台股總覽(含權證)
+- `stock_info`: 僅更新 FinMind 台股總覽（不含權證）
+- `stock_info_with_warrant`: 僅更新 FinMind 台股總覽（含權證）
 - `broker_info`: 僅更新 FinMind 證券商資訊
 - `broker_trading`: 僅更新 FinMind 券商分點統計
 - `all`: 更新所有資料（包含 tick 和 finmind）
@@ -451,11 +452,20 @@ python -m tasks.update_db --target all
   - 證券商資訊 (`broker_info`): 一次性更新全部資料
   - 券商分點統計 (`broker_trading`): 從 2021/6/30 開始
 
+**更新狀態說明：**
+
+資料更新會返回以下狀態：
+- `UpdateStatus.SUCCESS`: 成功更新
+- `UpdateStatus.NO_DATA`: 沒有資料（API 返回空結果）
+- `UpdateStatus.ALREADY_UP_TO_DATE`: 資料庫已是最新
+- `UpdateStatus.ERROR`: 發生錯誤
+
 **注意事項：**
 
 - 更新程式會自動從資料庫中最新日期開始更新，無需手動指定起始日期
 - 更新過程中會自動處理延遲和錯誤重試
 - 更新日誌會儲存在 `trader/logs/` 目錄
+- FinMind 券商分點統計更新支援自動 API Quota 管理和 Metadata 追蹤，詳細流程請參考 [券商分點統計更新流程](docs/broker_trading_update_flow.md)
 
 **財報申報期限提醒：**
 

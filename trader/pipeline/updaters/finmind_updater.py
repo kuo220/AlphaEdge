@@ -73,7 +73,7 @@ class FinMindUpdater(BaseDataUpdater):
 
         # DB Connect
         if self.conn is None:
-            self.conn = sqlite3.connect(DB_PATH)
+            self.conn: sqlite3.Connection = sqlite3.connect(DB_PATH)
 
         # 設定 log 檔案儲存路徑
         LogManager.setup_logger("update_finmind.log")
@@ -81,7 +81,7 @@ class FinMindUpdater(BaseDataUpdater):
         # 動態獲取 API quota 限制
         try:
             if self.crawler.api and hasattr(self.crawler.api, "api_usage_limit"):
-                self.api_quota_limit = self.crawler.api.api_usage_limit
+                self.api_quota_limit: int = self.crawler.api.api_usage_limit
                 logger.info(
                     f"FinMind API quota limit retrieved: {self.api_quota_limit} calls per hour"
                 )
@@ -705,7 +705,7 @@ class FinMindUpdater(BaseDataUpdater):
             logger.info(
                 f"API quota reset. Previous hour used {self.api_call_count}/{self.api_quota_limit} calls"
             )
-            self.api_call_count = 0
+            self.api_call_count: int = 0
             self.quota_reset_time: float = current_time + 3600  # 重置為下一個小時
 
         # 檢查是否接近或超過 quota 限制（保留 50 次作為緩衝）
@@ -804,7 +804,7 @@ class FinMindUpdater(BaseDataUpdater):
 
                 if remaining > 50:  # 有足夠的 quota（保留 50 次緩衝）
                     # 重置本地計數器
-                    self.api_call_count = 0
+                    self.api_call_count: int = 0
                     self.quota_reset_time: float = time.time() + 3600
                     logger.info(
                         f"✅ API quota has been reset! Resuming update. "
@@ -816,7 +816,7 @@ class FinMindUpdater(BaseDataUpdater):
                 current_time: float = time.time()
                 if current_time >= self.quota_reset_time:
                     # 已經超過重置時間，重置計數器
-                    self.api_call_count = 0
+                    self.api_call_count: int = 0
                     self.quota_reset_time: float = current_time + 3600
                     logger.info(f"✅ API quota reset time reached. Resuming update.")
                     return True

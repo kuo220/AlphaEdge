@@ -124,7 +124,7 @@ class SQLiteUtils:
         - Returns:
             Tuple[int, int]: (主欄位最大值, 對應的次欄位最大值)，若查詢失敗則回傳預設值
         """
-        latest_primary: Any = SQLiteUtils.get_table_latest_value(
+        latest_primary: Optional[Any] = SQLiteUtils.get_table_latest_value(
             conn=conn,
             table_name=table_name,
             col_name=primary_col,

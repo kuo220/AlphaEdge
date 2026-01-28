@@ -50,7 +50,7 @@ class StockTickUtils:
                     stock_info["last_date"]
                 )
                 if latest_date is None or stock_date > latest_date:
-                    latest_date: datetime.date = stock_date
+                    latest_date = stock_date
         return latest_date if latest_date else datetime.date(2020, 4, 1)
 
     @staticmethod

@@ -44,6 +44,12 @@
 
 遇到問題了嗎？查看[常見問題](faq.md)頁面，或參考 [README](../README.md) 獲取更多資訊。
 
+### 📊 資料更新
+
+了解資料更新流程和狀態：
+- [券商分點統計更新流程](broker_trading_update_flow.md) - 詳細的 FinMind 券商分點統計更新流程說明
+- [資料庫更新](../README.md#資料庫更新) - 所有資料類型的更新說明
+
 ## 相關資源
 
 - [專案 README](../README.md)

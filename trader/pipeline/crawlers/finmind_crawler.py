@@ -40,7 +40,7 @@ class FinMindCrawler(BaseDataCrawler):
             )
 
         # 初始化 FinMind DataLoader
-        self.api = DataLoader()
+        self.api: DataLoader = DataLoader()
         self.api.login_by_token(api_token=api_token)
         logger.info("FinMind API initialized successfully")
 

@@ -39,8 +39,8 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
         ]
 
         # Statistics
-        self.benchmark: str = None  # Benchmark stock
-        self.risk_free_rate: float = None  # 無風險利率（暫定0.02）
+        self.benchmark: Optional[str] = None  # Benchmark stock
+        self.risk_free_rate: Optional[float] = None  # 無風險利率（暫定0.02）
 
     def setup(self) -> None:
         """Set Up the Config of Analyzer"""

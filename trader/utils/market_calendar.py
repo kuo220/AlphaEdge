@@ -50,7 +50,7 @@ class MarketCalendar:
 
             while tick is None or len(tick.close) == 0:
                 last_trading_date = last_trading_date - datetime.timedelta(days=1)
-                tick = api.ticks(
+                tick: Ticks = api.ticks(
                     contract=api.Contracts.Stocks[stock_test],
                     date=last_trading_date.strftime("%Y-%m-%d"),
                     query_type=sj.constant.TicksQueryType.LastCount,
@@ -63,7 +63,7 @@ class MarketCalendar:
 
             while price_df is None or price_df.empty:
                 last_trading_date = last_trading_date - datetime.timedelta(days=1)
-                price_df = api.get(last_trading_date)
+                price_df: pd.DataFrame = api.get(last_trading_date)
             return last_trading_date
 
         else:

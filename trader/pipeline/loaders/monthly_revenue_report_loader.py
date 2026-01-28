@@ -58,14 +58,14 @@ class MonthlyRevenueReportLoader(BaseDataLoader):
         """Connect to the Database"""
 
         if self.conn is None:
-            self.conn = sqlite3.connect(DB_PATH)
+            self.conn: sqlite3.Connection = sqlite3.connect(DB_PATH)
 
     def disconnect(self) -> None:
         """Disconnect the Database"""
 
         if self.conn:
             self.conn.close()
-            self.conn = None
+            self.conn: Optional[sqlite3.Connection] = None
 
     def create_db(self) -> None:
         """Create New Database"""

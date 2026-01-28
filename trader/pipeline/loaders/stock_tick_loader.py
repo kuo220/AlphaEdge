@@ -69,7 +69,7 @@ class StockTickLoader(BaseDataLoader):
 
         for attempt in range(1, max_retries + 1):
             try:
-                self.session = ddb.session()
+                self.session: ddb.session = ddb.session()
                 self.session.connect(DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
                 logger.info("Successfully connected to DolphinDB")
                 return
