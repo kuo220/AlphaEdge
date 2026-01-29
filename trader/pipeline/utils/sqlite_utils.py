@@ -4,10 +4,8 @@ from typing import Any, Optional, Tuple, Union
 
 from loguru import logger
 
-"""
-Utility class for common SQLite operations: table check, date retrieval, query execution.
-Shared across crawlers for reusability and clean separation of logic.
-"""
+
+"""Utility class for common SQLite operations: table check, date retrieval, query execution"""
 
 
 class SQLiteUtils:
@@ -25,18 +23,7 @@ class SQLiteUtils:
         table_name: str,
         col_name: str,
     ) -> Optional[datetime.date]:
-        """
-        - Description: Retrieve the earliest value in the table.
-        - Parameters:
-            - conn: sqlite3.Connection
-                SQLite database connection object.
-            - table_name: str
-                Name of the table to query.
-            - col_name: str
-                Name of the value column to search.
-        - Return: Optional[Any]
-            - The earliest value in the column, or None if not found.
-        """
+        """Retrieve the earliest value in the table for the column; None if not found"""
 
         query: str = (
             f"SELECT {col_name} FROM {table_name} ORDER BY {col_name} ASC LIMIT 1"

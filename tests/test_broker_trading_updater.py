@@ -1,22 +1,3 @@
-"""
-測試 FinMindUpdater 的 broker trading daily report 更新功能
-測試項目：
-1. CSV 檔案是否按照資料夾分類存放
-2. 模擬 API 耗盡的情況，檢查 JSON 檔案是否有詳細記錄
-3. 使用模擬資料庫存放資料，然後取出確認有真的存入
-
-使用方法（從專案根目錄執行）：
-    # 執行完整測試（包含單一組合更新、批量更新、API 耗盡模擬）
-    python -m tests.test_broker_trading_updater
-
-注意事項：
-    - 此測試使用模擬資料，不會真正呼叫 FinMind API
-    - 測試資料會保存在 tests/downloads/ 目錄下
-    - 測試資料庫位置：tests/database/test.db
-    - CSV 檔案結構：tests/downloads/finmind/broker_trading/{trader_id}/{stock_id}.csv
-    - Metadata 位置：tests/downloads/meta/broker_trading/broker_trading_metadata.json
-"""
-
 import datetime
 import json
 import os
@@ -47,6 +28,9 @@ from loguru import logger
 STOCK_INFO_WITH_WARRANT_TABLE_NAME = "taiwan_stock_info_with_warrant"
 SECURITIES_TRADER_INFO_TABLE_NAME = "taiwan_securities_trader_info"
 STOCK_TRADING_DAILY_REPORT_TABLE_NAME = "taiwan_stock_trading_daily_report_secid_agg"
+
+
+"""測試 FinMindUpdater broker trading 更新：CSV 分類、API 耗盡模擬、模擬 DB 寫入"""
 
 
 def create_mock_broker_trading_data(

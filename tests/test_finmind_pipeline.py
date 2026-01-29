@@ -1,23 +1,3 @@
-"""
-測試 FinMind 完整流程：crawler -> cleaner -> loader
-使用臨時資料庫進行測試，不會影響 data.db
-
-使用方法（從專案根目錄執行）：
-    # 執行完整流程測試
-    python -m tests.test_finmind_pipeline
-
-測試內容：
-    1. 台股總覽(含權證) - TaiwanStockInfoWithWarrant
-    2. 證券商資訊 - TaiwanSecuritiesTraderInfo
-    3. 當日券商分點統計表 - TaiwanStockTradingDailyReportSecIdAgg
-
-注意事項：
-    - 需要設置 FINMIND_API_TOKEN 環境變數（在 .env 檔案中）
-    - 測試使用臨時資料庫，位置：tests/temp/test_finmind_{timestamp}.db
-    - 測試完成後可以手動刪除臨時資料庫檔案
-    - 此測試會真正呼叫 FinMind API，請確保有足夠的 API quota
-"""
-
 import datetime
 import os
 import sqlite3
@@ -35,11 +15,11 @@ import pandas as pd
 from loguru import logger
 
 
+"""測試 FinMind 完整流程（crawler -> cleaner -> loader），使用臨時資料庫"""
+
+
 def test_finmind_pipeline():
-    """
-    測試 FinMind 完整流程：crawler -> cleaner -> loader
-    使用臨時資料庫進行測試
-    """
+    """測試 FinMind 完整流程，使用臨時資料庫"""
     # 直接使用字符串常數，避免導入 config 時的循環導入問題
     # 這些常數值與 trader.config 中定義的一致
     STOCK_INFO_WITH_WARRANT_TABLE_NAME = "taiwan_stock_info_with_warrant"

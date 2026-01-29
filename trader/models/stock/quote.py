@@ -5,10 +5,8 @@ import pandas as pd
 
 from trader.utils import Commission, PositionType, Scale
 
-"""
-This module defines data structures for representing stock quotes during backtesting,
-including tick-level and daily-level pricing information.
-"""
+
+"""Quote structures: tick-level and daily-level pricing in backtesting"""
 
 
 class TickQuote:

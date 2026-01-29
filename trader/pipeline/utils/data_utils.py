@@ -73,16 +73,16 @@ class DataUtils:
     ) -> bool:
         """
         - Description:
-            檢查 DataFrame 是否包含必要欄位，可設定為必須全數存在或至少存在一個。
-            常用於清洗資料前驗證欄位完整性。
+            檢查 DataFrame 是否包含必要欄位，可設定為必須全數存在或至少存在一個
+            常用於清洗資料前驗證欄位完整性
 
         - Parameters:
             - df: pd.DataFrame
-                欲檢查的 DataFrame。
+                欲檢查的 DataFrame
             - required_cols: List[str]
-                欲確認是否存在的欄位名稱列表。
+                欲確認是否存在的欄位名稱列表
             - require_all: bool
-                預設為 True，表示所有欄位皆需存在；若為 False，表示只要存在任一欄位即可通過。
+                預設為 True，表示所有欄位皆需存在；若為 False，表示只要存在任一欄位即可通過
 
         - Return: bool
             - 是否符合條件（True: 符合，False: 不符合）
@@ -124,7 +124,9 @@ class DataUtils:
         word: str = str(word)
 
         if remove_whitespace:
-            word: str = re.sub(r"\s+", "", word)  # 清除所有空白（包含 tab, 換行, 全形空白）
+            word: str = re.sub(
+                r"\s+", "", word
+            )  # 清除所有空白（包含 tab, 換行, 全形空白）
 
         for old, new in replace_pairs.items():
             word: str = word.replace(old, new)
@@ -267,7 +269,7 @@ class DataUtils:
     ) -> Optional[pd.DataFrame]:
         """
         - Description:
-            根據指定欄位去除重複的資料列，並重設 index。
+            根據指定欄位去除重複的資料列，並重設 index
 
         - Parameters:
             - df: pd.DataFrame
@@ -323,7 +325,7 @@ class DataUtils:
     def load_json(file_path: Path, encoding: str = FileEncoding.UTF8.value) -> Any:
         """
         - Description:
-            從指定 JSON 檔案讀取資料。
+            從指定 JSON 檔案讀取資料
 
         - Parameters:
             - file_path: Path

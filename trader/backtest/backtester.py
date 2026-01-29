@@ -30,40 +30,27 @@ from trader.utils import Action, PositionType, Scale, TimeUtils
 from trader.utils.instrument import StockUtils
 from trader.utils.market_calendar import MarketCalendar
 
-"""
-Backtesting engine that simulates trading based on strategy signals.
 
-Includes:
-- Tick/day backtest flow
-- Position and account management
-- Order execution logic
-- Strategy integration for various financial instruments
-"""
+"""Backtesting engine that simulates trading based on strategy signals"""
 
 
 class Backtester:
-    """
-    Backtest Framework
-    - Time Interval：
-        1. Ticks
-        2. Daily price
-    """
+    """Backtest Framework: Tick and Daily price intervals"""
 
     # === Init & Data Loading ===
     def __init__(self, strategy: BaseStockStrategy):
-        """=== Strategy & Account Information ==="""
         self.strategy: BaseStockStrategy = strategy  # 要回測的策略
         self.account: StockAccount = StockAccount(
             self.strategy.init_capital
         )  # 虛擬帳戶資訊
         self.strategy.setup_account(self.account)  # 設置虛擬帳戶資訊
 
-        """ === Position Manager === """
+        # 倉位管理器
         self.position_manager: StockPositionManager = StockPositionManager(
             self.account
         )  # 設置倉位管理器
 
-        """ === Datasets === """
+        # 資料集
         self.tick: Optional[StockTickAPI] = None  # Ticks data
         self.chip: Optional[StockChipAPI] = None  # Chips data
         self.price: Optional[StockPriceAPI] = None  # Price data
@@ -72,14 +59,14 @@ class Backtester:
         )
         self.fs: Optional[FinancialStatementAPI] = None  # Financial Statement data
 
-        """ === Backtest Parameters === """
+        # 回測參數
         self.scale: str = self.strategy.scale  # 回測 KBar 級別
         self.max_holdings: Optional[int] = self.strategy.max_holdings  # 最大持倉檔數
         self.start_date: datetime.date = self.strategy.start_date  # 回測起始日
         self.cur_date: datetime.date = self.strategy.start_date  # 回測當前日
         self.end_date: datetime.date = self.strategy.end_date  # 回測結束日
 
-        """ === Backtest Result Directory === """
+        # 回測結果輸出目錄
         self.strategy_result_dir: Optional[Path] = None  # 策略回測結果資料夾
 
         self.setup()
@@ -112,7 +99,7 @@ class Backtester:
 
     # === Main Backtest Loop ===
     def run(self) -> None:
-        """執行 Backtest"""
+        """Execute Backtest"""
 
         logger.info("========== Backtest Start ==========")
         logger.info(f"* Strategy Name: {self.strategy.strategy_name}")
@@ -172,7 +159,7 @@ class Backtester:
         self.execute_open_signal(stock_quotes)
 
     def run_day_backtest(self, date: datetime.date) -> None:
-        """Day 級別的回測架構"""
+        """日 K 級別的回測架構"""
 
         # Stock Quotes
         stock_quotes: List[StockQuote] = StockQuoteAdapter.convert_to_day_quotes(
@@ -186,7 +173,7 @@ class Backtester:
         self.execute_open_signal(stock_quotes)
 
     def run_mix_backtest(self, date: datetime.date) -> None:
-        """Tick & Day 級別的回測架構"""
+        """Tick 與日 K 級別的回測架構"""
         pass
 
     # === Signal Execution ===
@@ -257,7 +244,7 @@ class Backtester:
 
     # === Report ===
     def generate_backtest_report(self) -> None:
-        """生產回測報告"""
+        """Generate backtest report"""
 
         # Generate Backtest Report (Chart)
         reporter: StockBacktestReporter = StockBacktestReporter(

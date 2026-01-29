@@ -29,7 +29,7 @@ class FinMindCrawler(BaseDataCrawler):
 
     def setup(self, *args, **kwargs) -> None:
         """Set Up the Config of Crawler"""
-        # Set logger
+
         LogManager.setup_logger("crawl_finmind.log")
 
         # 從環境變數取得 FinMind API Token
@@ -39,7 +39,6 @@ class FinMindCrawler(BaseDataCrawler):
                 "FINMIND_API_TOKEN is missing. Please set it in your .env file."
             )
 
-        # 初始化 FinMind DataLoader
         self.api: DataLoader = DataLoader()
         self.api.login_by_token(api_token=api_token)
         logger.info("FinMind API initialized successfully")

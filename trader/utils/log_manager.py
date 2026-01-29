@@ -1,9 +1,4 @@
-"""
-Log Manager for unified logging configuration.
-
-This module provides a centralized logging management system using loguru.
-It ensures consistent logging configuration across the entire application.
-"""
+"""Log Manager for unified logging configuration using loguru"""
 
 from pathlib import Path
 from typing import Any, Optional, Set
@@ -14,16 +9,10 @@ from trader.config import BACKTEST_LOGS_DIR_PATH, LOGS_DIR_PATH
 
 
 class LogManager:
-    """
-    Unified Log Manager for the application.
-
-    This class provides centralized logging configuration and management.
-    It prevents duplicate logger configurations and ensures consistent
-    logging behavior across all modules.
-    """
+    """Unified Log Manager for the application"""
 
     _configured_logs: Set[str] = set()
-    """Track which log files have been configured to prevent duplicates."""
+    """Track which log files have been configured to prevent duplicates"""
 
     @staticmethod
     def setup_logger(
@@ -108,10 +97,7 @@ class LogManager:
 
     @staticmethod
     def remove_default_handler() -> None:
-        """
-        Remove the default loguru handler (console output).
-        Useful for testing or when you only want file logging.
-        """
+        """Remove the default loguru handler (console output)"""
         logger.remove()
 
     @staticmethod
@@ -137,14 +123,5 @@ class LogManager:
 
     @staticmethod
     def get_logger():
-        """
-        Get the loguru logger instance.
-
-        Returns:
-            The loguru logger instance
-
-        Example:
-            logger: Any = LogManager.get_logger()
-            logger.info("This is a log message")
-        """
+        """Get the loguru logger instance"""
         return logger

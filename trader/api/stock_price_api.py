@@ -10,6 +10,9 @@ from trader.config import DB_PATH, PRICE_TABLE_NAME
 from trader.utils.log_manager import LogManager
 
 
+"""Stock Price API: query SQLite price table"""
+
+
 class StockPriceAPI(BaseDataAPI):
     """Stock Price API"""
 
@@ -21,10 +24,7 @@ class StockPriceAPI(BaseDataAPI):
     def setup(self) -> None:
         """Set Up the Config of Data API"""
 
-        # Set Up Connection
         self.conn: sqlite3.Connection = sqlite3.connect(DB_PATH)
-
-        # 設定 log 檔案儲存路徑
         LogManager.setup_logger("stock_price_api.log")
 
     def get(self, date: datetime.date) -> pd.DataFrame:

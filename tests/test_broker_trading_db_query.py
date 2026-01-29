@@ -1,40 +1,3 @@
-"""
-測試腳本：查詢 data.db 資料庫中的 broker_trading 資料
-用於確認資料是否真的有存進資料庫
-
-使用方法（從專案根目錄執行）：
-    # 基本查詢（顯示所有統計資訊）
-    python -m tests.test_broker_trading_db_query
-
-    # 查詢特定股票
-    python -m tests.test_broker_trading_db_query --stock-id 2330
-
-    # 查詢特定券商
-    python -m tests.test_broker_trading_db_query --trader-id 1020
-
-    # 查詢特定股票和券商組合
-    python -m tests.test_broker_trading_db_query --stock-id 2330 --trader-id 1020
-
-    # 調整顯示筆數
-    python -m tests.test_broker_trading_db_query --limit 20
-
-    # 組合使用多個參數
-    python -m tests.test_broker_trading_db_query --stock-id 2330 --trader-id 1020 --limit 50
-
-功能說明：
-    - 顯示資料庫基本資訊（總筆數、日期範圍、不重複股票數、不重複券商數）
-    - 顯示前 N 筆資料（預設 10 筆）
-    - 如果指定股票或券商，會顯示符合條件的資料
-    - 顯示各股票資料筆數統計（前 10 名）
-    - 顯示各券商資料筆數統計（前 10 名）
-
-注意事項：
-    - 資料庫路徑由 trader.config.DB_PATH 決定
-    - 資料表名稱由 trader.config.STOCK_TRADING_DAILY_REPORT_TABLE_NAME 決定
-    - 如果資料庫或資料表不存在，會顯示錯誤訊息
-    - 此腳本只讀取資料，不會修改資料庫
-"""
-
 import sqlite3
 import sys
 from pathlib import Path
@@ -49,19 +12,15 @@ sys.path.insert(0, str(project_root))
 from trader.config import DB_PATH, STOCK_TRADING_DAILY_REPORT_TABLE_NAME
 
 
+"""查詢 data.db 中 broker_trading 資料，確認是否已寫入"""
+
+
 def test_broker_trading_db_query(
     stock_id: Optional[str] = None,
     securities_trader_id: Optional[str] = None,
     limit: int = 10,
 ) -> None:
-    """
-    查詢資料庫中的 broker_trading 資料
-
-    Args:
-        stock_id: 股票代碼（可選）
-        securities_trader_id: 券商代碼（可選）
-        limit: 限制查詢筆數
-    """
+    """查詢資料庫中的 broker_trading 資料"""
     print(f"\n{'='*60}")
     print(f"查詢 Broker Trading 資料庫資料")
     print(f"{'='*60}")

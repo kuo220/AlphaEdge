@@ -17,9 +17,6 @@ from trader.pipeline.updaters.stock_tick_updater import StockTickUpdater
 from trader.pipeline.utils import DataType, FinMindDataType
 
 """
-* 所有資料爬蟲起始日（除了 Tick）
-- From: 2013 (ROC: 102)/1/1 ~ present
-
 * 財報申報期限
 一般行業：
 - Q1：5月15日

@@ -822,7 +822,7 @@ def generate_trading_report(apiLoginList: list, test=True):
     Net Worth: $9,066,233.
 
     Summary
-    Today's trading reflected a challenging market environment with significant losses in several stocks. Although some gains were noted, the overall financial performance resulted in a negative ROI for both the algorithm and the overall funds. Moving forward, a reassessment of the current investment strategy and risk management practices might be necessary to mitigate further losses and enhance returns.
+    Today's trading reflected a challenging market environment with significant losses in several stocks. Although some gains were noted, the overall financial performance resulted in a negative ROI for both the algorithm and the overall funds. Moving forward, a reassessment of the current investment strategy and risk management practices might be necessary to mitigate further losses and enhance returns
     """
 
     prompt = f"Here is the template {template}, Please generate today's trading report for the investor on the data: {message}"

@@ -27,21 +27,8 @@ from trader.utils import TimeUtils
 from trader.utils.instrument import StockUtils
 from trader.utils.log_manager import LogManager
 
-"""
-FinMind 資料更新器
 
-支援更新以下三種資料：
-1. 台股總覽(含權證) (TaiwanStockInfoWithWarrant) - 一次性更新全部資料
-2. 證券商資訊表 (TaiwanSecuritiesTraderInfo) - 一次性更新全部資料
-3. 當日券商分點統計表 (TaiwanStockTradingDailyReportSecIdAgg) - 需要指定日期範圍
-
-更新方法：
-- update_stock_info_with_warrant() - 更新台股總覽
-- update_broker_info() - 更新證券商資訊
-- update_broker_trading_daily_report(start_date, end_date) - 批量更新券商分點統計（loop 券商、股票，使用 metadata 判斷每個組合的日期範圍）
-- update_all() - 更新所有 FinMind 資料
-- update(data_type, **kwargs) - 通用更新方法，可指定資料類型
-"""
+"""FinMind data updater: stock info with warrant, broker info, broker trading daily report"""
 
 
 class FinMindUpdater(BaseDataUpdater):
@@ -71,11 +58,8 @@ class FinMindUpdater(BaseDataUpdater):
     def setup(self, *args, **kwargs) -> None:
         """Set Up the Config of Updater"""
 
-        # DB Connect
         if self.conn is None:
             self.conn: sqlite3.Connection = sqlite3.connect(DB_PATH)
-
-        # 設定 log 檔案儲存路徑
         LogManager.setup_logger("update_finmind.log")
 
         # 動態獲取 API quota 限制

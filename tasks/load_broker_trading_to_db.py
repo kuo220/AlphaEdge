@@ -1,24 +1,4 @@
-"""
-將 broker_trading 中的資料存入 data.db
-
-使用方法（從專案根目錄執行）：
-    python -m tasks.load_broker_trading_to_db
-
-說明：
-    此腳本會讀取 pipeline/downloads/finmind/broker_trading/ 目錄下的所有 CSV 檔案，
-    並將資料存入 data.db 資料庫中的 taiwan_stock_trading_daily_report_secid_agg 資料表。
-
-    檔案結構應為：
-        broker_trading/
-            {broker_id}/
-                {stock_id}.csv
-
-    此腳本會自動：
-    - 檢查資料庫連線
-    - 確保資料表存在
-    - 過濾重複資料（根據 stock_id, date, securities_trader_id 複合主鍵）
-    - 只插入新資料
-"""
+"""將 broker_trading CSV 寫入 data.db 之 taiwan_stock_trading_daily_report_secid_agg 表"""
 
 from loguru import logger
 

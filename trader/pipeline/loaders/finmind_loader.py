@@ -490,10 +490,10 @@ class FinMindLoader(BaseDataLoader):
     ) -> Optional[int]:
         """載入當日券商分點統計表資料到資料庫
 
-        如果傳入 df 參數，則直接從 DataFrame 載入；否則從 CSV 檔案載入。
+        如果傳入 df 參數，則直接從 DataFrame 載入；否則從 CSV 檔案載入
 
         Args:
-            df: 可選的 DataFrame，如果提供則直接載入此 DataFrame。
+            df: 可選的 DataFrame，如果提供則直接載入此 DataFrame
                 必須包含以下欄位：
                 - stock_id
                 - date

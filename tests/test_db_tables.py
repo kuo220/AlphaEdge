@@ -1,28 +1,3 @@
-"""
-測試 data.db 中是否存在指定的資料表
-
-使用方法（從專案根目錄執行）：
-    python -m tests.test_db_tables
-
-測試內容：
-    檢查 data.db 中是否存在以下資料表：
-    1. stock_info (taiwan_stock_info)
-    2. stock_info_with_warrant (taiwan_stock_info_with_warrant)
-    3. broker_info (taiwan_securities_trader_info)
-
-測試 broker_trading 資料：
-    測試 broker_trading 資料表並顯示幾筆資料：
-
-    只檢查資料表存在性（預設行為）：
-        python -m tests.test_db_tables
-
-    另外顯示 broker_trading 的幾筆資料（預設 5 筆）：
-        python -m tests.test_db_tables --broker-trading
-
-    顯示 broker_trading 的幾筆資料並指定筆數（例如 10 筆）：
-        python -m tests.test_db_tables --broker-trading --limit 10
-"""
-
 import argparse
 import sqlite3
 import sys
@@ -59,17 +34,11 @@ except (ImportError, ModuleNotFoundError):
     DB_PATH = project_root / "trader" / "database" / "data.db"
 
 
+"""測試 data.db 中是否存在指定資料表"""
+
+
 def check_table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
-    """
-    檢查資料表中是否存在於資料庫中
-
-    Args:
-        conn: SQLite 資料庫連接
-        table_name: 資料表名稱
-
-    Returns:
-        如果資料表存在則返回 True，否則返回 False
-    """
+    """檢查資料表是否存在於資料庫中"""
     cursor: sqlite3.Cursor = conn.cursor()
     cursor.execute(
         """
@@ -83,16 +52,7 @@ def check_table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
 
 
 def get_table_row_count(conn: sqlite3.Connection, table_name: str) -> int:
-    """
-    取得資料表的資料筆數
-
-    Args:
-        conn: SQLite 資料庫連接
-        table_name: 資料表名稱
-
-    Returns:
-        資料表的資料筆數
-    """
+    """取得資料表的資料筆數"""
     cursor: sqlite3.Cursor = conn.cursor()
     try:
         cursor.execute(f"SELECT COUNT(*) FROM {table_name}")

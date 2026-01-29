@@ -9,6 +9,9 @@ from trader.config import DB_PATH
 from trader.utils.log_manager import LogManager
 
 
+"""Financial Statement Data API: query SQLite financial statement tables"""
+
+
 class FinancialStatementAPI(BaseDataAPI):
     """Financial Statement Data API"""
 
@@ -20,10 +23,7 @@ class FinancialStatementAPI(BaseDataAPI):
     def setup(self):
         """Set Up the Config of Data API"""
 
-        # Set Up Connection
         self.conn: sqlite3.Connection = sqlite3.connect(DB_PATH)
-
-        # 設定 log 檔案儲存路徑
         LogManager.setup_logger("financial_statement_api.log")
 
     def get(

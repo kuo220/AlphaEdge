@@ -10,13 +10,7 @@ from trader.pipeline.utils import FileEncoding, FinMindDataType
 
 
 class FinMindCleaner(BaseDataCleaner):
-    """FinMind Cleaner (Transform)
-
-    由於 FinMind API 回傳的資料已經是結構化的，此 Cleaner 主要負責：
-    1. 基本資料驗證（檢查空值、必要欄位等）
-    2. 將清洗後的資料存入 CSV 檔案
-    3. 返回清洗後的 DataFrame
-    """
+    """FinMind Cleaner (Transform): validate data, write CSV, return DataFrame"""
 
     def __init__(self):
         super().__init__()

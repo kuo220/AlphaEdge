@@ -21,6 +21,9 @@ from trader.config import (
 from trader.utils.log_manager import LogManager
 
 
+"""Tick data API: query DolphinDB tick data"""
+
+
 class StockTickAPI(BaseDataAPI):
     """Tick data API"""
 
@@ -36,14 +39,13 @@ class StockTickAPI(BaseDataAPI):
     def setup(self) -> None:
         """Set Up the Config of Data API"""
 
-        # DolphinDB Session Connect
         self.session: ddb.session = ddb.session()
         self.session.connect(DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
 
         if self.session.existsDatabase(TICK_DB_PATH):
             logger.info("* Database exists!")
 
-            # set TSDBCacheEngineSize to 5GB (must < 8(maxMemSize) * 0.75 GB)
+            # TSDBCacheEngineSize 設為 2GB（須小於 maxMemSize * 0.75）
             script: str = """
             memSize = 2
             setTSDBCacheEngineSize(memSize)
@@ -53,7 +55,6 @@ class StockTickAPI(BaseDataAPI):
         else:
             print("* Database doesn't exist!")
 
-        # 設定 log 檔案儲存路徑
         LogManager.setup_logger("stock_tick_api.log")
 
     def get(
@@ -82,8 +83,7 @@ class StockTickAPI(BaseDataAPI):
         start_date: datetime.date,
         end_date: datetime.date,
     ) -> pd.DataFrame:
-        """取得排序好的 tick 資料（所有個股混在一起以時間排序）"""
-        """ 模擬市場盤中情形 """
+        """取得排序好的 tick 資料（所有個股混在一起以時間排序，模擬市場盤中情形）"""
 
         if start_date > end_date:
             return pd.DataFrame()

@@ -1,9 +1,7 @@
 from abc import ABC, abstractmethod
 
-"""
-Abstract base class for all data loaders that write processed data to a storage system.
-Subclasses should implement the `load(df)` method.
-"""
+
+"""Abstract base class for all data loaders that write processed data to a storage system"""
 
 
 class BaseDataLoader(ABC):

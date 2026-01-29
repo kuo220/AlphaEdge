@@ -8,10 +8,8 @@ from trader.utils import Commission, PositionType, Scale
 from .position import StockPosition
 from .record import StockTradeRecord
 
-"""
-This module defines the StockAccount class, which manages account-level state in backtesting,
-including positions, balances, realized PnL, and transaction costs.
-"""
+
+"""StockAccount: manages account-level state in backtesting (positions, balance, realized PnL, costs)"""
 
 
 class StockAccount:

@@ -5,39 +5,18 @@ from trader.backtest import Backtester
 from trader.strategies import StrategyLoader
 from trader.strategies.stock import BaseStockStrategy
 
-"""
-run.py
 
-This is the main entry point of the trading system.
-It is responsible for executing either backtesting or live trading based on the selected mode.
-
-Modules and strategy logic are imported from the internal package structure.
-Make sure to run this file from the project root to ensure all relative imports work correctly.
-"""
+"""Main entry point of the trading system: run backtest or live trading from project root"""
 
 
-"""
-* run.py 使用方式說明 *
-
-- Description:
-    本檔案為交易系統的主程式入口，用於執行指定策略的回測或實盤操作。
-
-- Parameters:
-    - --mode: str
-        執行模式，可選 "backtest" 或 "live"，預設為 "backtest"
-    - --strategy: str
-        指定要使用的策略類別名稱（必填）
-
-- Usage Example:
-    - 執行回測模式，使用名為 "MeanReversion" 的策略：
-        python run.py --strategy MeanReversion
-
-    - 執行實盤模式，使用名為 "Momentum" 的策略：
-        python run.py --mode live --strategy Momentum
-
-    - Notes:
-        Strategy Name 是 Class 的名稱
-"""
+# -----------------------------------------------------------------------
+# run.py 使用方式說明
+# -----------------------------------------------------------------------
+# Description: 本檔案為交易系統主程式入口，用於執行指定策略的回測或實盤
+# Parameters: --mode (backtest | live), --strategy (策略類別名稱，必填)
+# Example: python run.py --strategy MeanReversion
+# Notes: Strategy Name 為 Class 名稱
+#
 
 
 def parse_arguments() -> argparse.Namespace:

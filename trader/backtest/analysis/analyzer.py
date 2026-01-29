@@ -6,28 +6,12 @@ from trader.backtest.analysis.base import BaseBacktestAnalyzer
 from trader.models import StockTradeRecord
 from trader.strategies.stock import BaseStockStrategy
 
-"""
-analyzer.py
 
-Provides analytical tools for evaluating trading strategy performance during backtesting.
-
-This module includes methods for calculating key performance metrics such as:
-- Equity curve
-- Maximum drawdown (MDD)
-- Cumulative return
-- Sharpe ratio
-
-Designed to work with backtest results stored in StockAccount and StockTradeRecord objects.
-
-Intended for use in strategy evaluation, portfolio optimization, and performance monitoring.
-"""
+"""Provides analytical tools for evaluating trading strategy performance during backtesting"""
 
 
 class StockBacktestAnalyzer(BaseBacktestAnalyzer):
-    """
-    Analyzes backtest results to compute key metrics like
-    equity curve, MDD, and ROI
-    """
+    """Analyzes backtest results to compute key metrics like equity curve, MDD, and ROI"""
 
     def __init__(self, strategy: BaseStockStrategy):
         # Account
@@ -53,7 +37,7 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
         return np.std([record.roi for record in self.trade_records])
 
     def compute_sharpe_ratio(self) -> Optional[float]:
-        """計算 Sharpe Ratio"""
+        """Compute Sharpe Ratio"""
 
         std_dev: float = self.compute_volatility()
         roi_mean: float = np.mean([record.roi for record in self.trade_records])
@@ -63,7 +47,7 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
         return None
 
     def compute_sortino_ratio(self) -> Optional[float]:
-        """計算 Sortino Ratio"""
+        """Compute Sortino Ratio"""
 
         downside_dev: float = np.std(
             [
