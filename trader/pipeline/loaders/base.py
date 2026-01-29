@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 
-
 """Abstract base class for all data loaders that write processed data to a storage system"""
 
 

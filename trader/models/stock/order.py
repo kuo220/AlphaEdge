@@ -2,7 +2,6 @@ import datetime
 
 from trader.utils import Action, PositionType
 
-
 """StockOrder: structure for stock orders in backtesting (direction, quantity, price)"""
 
 

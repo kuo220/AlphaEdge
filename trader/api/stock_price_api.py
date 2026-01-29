@@ -9,7 +9,6 @@ from trader.api.base import BaseDataAPI
 from trader.config import DB_PATH, PRICE_TABLE_NAME
 from trader.utils.log_manager import LogManager
 
-
 """Stock Price API: query SQLite price table"""
 
 

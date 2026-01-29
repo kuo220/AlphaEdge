@@ -30,7 +30,6 @@ from trader.utils import Action, PositionType, Scale, TimeUtils
 from trader.utils.instrument import StockUtils
 from trader.utils.market_calendar import MarketCalendar
 
-
 """Backtesting engine that simulates trading based on strategy signals"""
 
 
@@ -132,14 +131,12 @@ class Backtester:
 
         self.account.update_account_status()
 
-        logger.info(
-            f"""
+        logger.info(f"""
             1. Initial Capital: {int(self.account.init_capital)}
             2. Balance: {int(self.account.balance)}
             3. Total realized pnl: {int(self.account.realized_pnl)}
             4. ROI: {round(self.account.roi, 2)}%
-            """
-        )
+            """)
 
         # Generate Backtest Report
         self.generate_backtest_report()

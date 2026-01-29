@@ -18,7 +18,6 @@ from trader.pipeline.utils import DataType
 from trader.pipeline.utils.data_utils import DataUtils
 from trader.pipeline.utils.sqlite_utils import SQLiteUtils
 
-
 """Monthly Revenue Report Data API: query SQLite monthly revenue table"""
 
 

@@ -8,7 +8,6 @@ from trader.api.base import BaseDataAPI
 from trader.config import DB_PATH
 from trader.utils.log_manager import LogManager
 
-
 """Financial Statement Data API: query SQLite financial statement tables"""
 
 

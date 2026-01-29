@@ -4,7 +4,6 @@ from typing import Any, Optional, Tuple, Union
 
 from loguru import logger
 
-
 """Utility class for common SQLite operations: table check, date retrieval, query execution"""
 
 

@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 
-
 """Abstract base class for all data updaters that coordinate the full ETL process"""
 
 

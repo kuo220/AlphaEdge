@@ -8,7 +8,6 @@ from trader.utils import Commission, PositionType, Scale
 from .position import StockPosition
 from .record import StockTradeRecord
 
-
 """StockAccount: manages account-level state in backtesting (positions, balance, realized PnL, costs)"""
 
 

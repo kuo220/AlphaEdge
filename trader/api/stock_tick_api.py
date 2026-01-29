@@ -20,7 +20,6 @@ from trader.config import (
 )
 from trader.utils.log_manager import LogManager
 
-
 """Tick data API: query DolphinDB tick data"""
 
 

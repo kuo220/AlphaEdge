@@ -8,14 +8,29 @@
 - **[架構分析](ARCHITECTURE_REVIEW.md)** - 系統架構詳細分析
 - **[策略開發指南](trader/strategies/README.md)** - 策略開發完整說明
 
-**快速預覽文檔：**
-```bash
-# 安裝依賴
-pip install -r docs/requirements.txt
+### 開啟 MkDocs 文檔網站查看說明
 
-# 啟動本地文檔伺服器
-mkdocs serve
-```
+若要本地預覽 API 文檔網站（含搜尋、導航、程式碼範例），請依下列步驟操作：
+
+1. **安裝 MkDocs 與文檔依賴**（在專案根目錄執行）：
+   ```bash
+   pip install -r docs/requirements.txt
+   ```
+
+2. **啟動文檔伺服器**：
+   ```bash
+   mkdocs serve
+   ```
+
+3. **在瀏覽器開啟文檔**：
+   - 預設網址：**http://127.0.0.1:8000**
+   - 若 8000 埠被佔用，終端會顯示實際使用的埠號（例如 `http://127.0.0.1:8001`），請以終端顯示的網址為準。
+
+4. **（選用）建置靜態網站**：僅建置、不啟動伺服器時可使用：
+   ```bash
+   mkdocs build
+   ```
+   產出會放在專案根目錄的 `site/` 資料夾，可自行部署到任意靜態網站主機。
 
 To get started, users should follow the instructions in [Strategy Instruction](trader/strategies/README.md) and complete the following steps:
 
@@ -26,6 +41,8 @@ To get started, users should follow the instructions in [Strategy Instruction](t
 ## 目錄
 
 - [AlphaEdge](#alphaedge)
+- [文檔](#-文檔)
+  - [開啟 MkDocs 文檔網站查看說明](#開啟-mkdocs-文檔網站查看說明)
 - [回測方式](#回測方式)
   - [執行回測](#執行回測)
   - [回測級別](#回測級別)

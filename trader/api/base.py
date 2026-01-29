@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 
-
 """Abstract base class for data access APIs. Provides a common interface for querying data from the database"""
 
 

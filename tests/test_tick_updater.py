@@ -30,7 +30,6 @@ from trader.config import TICK_DOWNLOADS_PATH, TICK_METADATA_DIR_PATH
 from trader.pipeline.updaters.stock_tick_updater import StockTickUpdater
 from trader.pipeline.utils.stock_tick_utils import StockTickUtils
 
-
 """測試 StockTickUpdater.update：僅爬取與清洗，不寫入資料庫"""
 
 

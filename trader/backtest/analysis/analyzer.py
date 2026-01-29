@@ -6,7 +6,6 @@ from trader.backtest.analysis.base import BaseBacktestAnalyzer
 from trader.models import StockTradeRecord
 from trader.strategies.stock import BaseStockStrategy
 
-
 """Provides analytical tools for evaluating trading strategy performance during backtesting"""
 
 

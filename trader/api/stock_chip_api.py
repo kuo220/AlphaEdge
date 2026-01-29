@@ -9,7 +9,6 @@ from trader.api.base import BaseDataAPI
 from trader.config import CHIP_TABLE_NAME, DB_PATH
 from trader.utils.log_manager import LogManager
 
-
 """Institutional investors chip API: query SQLite chip table"""
 
 

@@ -2,7 +2,6 @@ import datetime
 
 from trader.utils import PositionType
 
-
 """StockTradeRecord: single stock trade event in backtesting (transaction and performance details)"""
 
 

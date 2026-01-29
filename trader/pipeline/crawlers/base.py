@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 
-
 """Abstract base class for all crawlers that fetch data for a specific date"""
 
 

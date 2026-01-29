@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 
-
 """Abstract base class for all data cleaners that transform raw data into a standardized format"""
 
 

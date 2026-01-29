@@ -27,7 +27,6 @@ from trader.utils import TimeUtils
 from trader.utils.instrument import StockUtils
 from trader.utils.log_manager import LogManager
 
-
 """FinMind data updater: stock info with warrant, broker info, broker trading daily report"""
 
 

@@ -13,7 +13,6 @@ from trader.pipeline.utils import FileEncoding
 from trader.strategies.stock import BaseStockStrategy
 from trader.utils.time import TimeUtils
 
-
 """Generates performance reports based on backtest results"""
 
 

@@ -12,7 +12,6 @@ from trader.pipeline.crawlers.stock_tick_crawler import StockTickCrawler
 from trader.utils import ShioajiAccount, ShioajiAPI, TimeUtils
 from trader.config import API_KEY, API_SECRET_KEY
 
-
 """測試 StockTickCrawler：爬取與清洗，不寫入資料庫"""
 
 

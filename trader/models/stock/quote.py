@@ -5,7 +5,6 @@ import pandas as pd
 
 from trader.utils import Commission, PositionType, Scale
 
-
 """Quote structures: tick-level and daily-level pricing in backtesting"""
 
 

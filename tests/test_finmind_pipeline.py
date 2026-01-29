@@ -14,7 +14,6 @@ sys.path.insert(0, str(project_root))
 import pandas as pd
 from loguru import logger
 
-
 """測試 FinMind 完整流程（crawler -> cleaner -> loader），使用臨時資料庫"""
 
 

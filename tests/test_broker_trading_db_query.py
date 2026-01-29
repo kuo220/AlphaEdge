@@ -11,7 +11,6 @@ sys.path.insert(0, str(project_root))
 
 from trader.config import DB_PATH, STOCK_TRADING_DAILY_REPORT_TABLE_NAME
 
-
 """查詢 data.db 中 broker_trading 資料，確認是否已寫入"""
 
 

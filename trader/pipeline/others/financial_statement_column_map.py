@@ -1,6 +1,5 @@
 from typing import Dict, List
 
-
 """財報欄位對照表：key 為標準化欄位名，value 為原始欄位名列表，清洗時將 value 轉為 key"""
 
 

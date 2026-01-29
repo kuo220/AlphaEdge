@@ -5,7 +5,6 @@ from trader.backtest import Backtester
 from trader.strategies import StrategyLoader
 from trader.strategies.stock import BaseStockStrategy
 
-
 """Main entry point of the trading system: run backtest or live trading from project root"""
 
 
