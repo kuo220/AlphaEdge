@@ -1,8 +1,3 @@
-"""
-backtest package
-
-Contains the core components for running and analyzing backtests, including:
-- Backtester: Main backtesting engine
-"""
+"""backtest package: Backtester and analysis components"""
 
 from .backtester import Backtester

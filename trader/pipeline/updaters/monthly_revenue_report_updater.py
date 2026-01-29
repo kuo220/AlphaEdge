@@ -55,9 +55,8 @@ class MonthlyRevenueReportUpdater(BaseDataUpdater):
     def setup(self) -> None:
         """Set Up the Config of Updater"""
 
-        # DB Connect
         if self.conn is None:
-            self.conn = sqlite3.connect(DB_PATH)
+            self.conn: sqlite3.Connection = sqlite3.connect(DB_PATH)
 
         # 設定 log 檔案儲存路徑
         LogManager.setup_logger("update_monthly_revenue_report.log")

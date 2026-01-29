@@ -1,8 +1,3 @@
-"""
-測試 FinMind 完整流程：crawler -> cleaner -> loader
-使用臨時資料庫進行測試，不會影響 data.db
-"""
-
 import datetime
 import os
 import sqlite3
@@ -19,12 +14,11 @@ sys.path.insert(0, str(project_root))
 import pandas as pd
 from loguru import logger
 
+"""測試 FinMind 完整流程（crawler -> cleaner -> loader），使用臨時資料庫"""
+
 
 def test_finmind_pipeline():
-    """
-    測試 FinMind 完整流程：crawler -> cleaner -> loader
-    使用臨時資料庫進行測試
-    """
+    """測試 FinMind 完整流程，使用臨時資料庫"""
     # 直接使用字符串常數，避免導入 config 時的循環導入問題
     # 這些常數值與 trader.config 中定義的一致
     STOCK_INFO_WITH_WARRANT_TABLE_NAME = "taiwan_stock_info_with_warrant"

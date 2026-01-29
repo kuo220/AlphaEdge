@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 """
-Abstract base class for all position managers.
+Abstract base class for all position managers
 """
 
 

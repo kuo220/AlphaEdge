@@ -17,7 +17,7 @@ Features:
 - Calculate commission, tax, net profit, and ROI
 - Check if the market was open on a given date
 
-Designed for use in backtesting and trading performance analysis.
+Designed for use in backtesting and trading performance analysis
 """
 
 
@@ -30,7 +30,7 @@ class StockUtils:
         stock_id: str,
         date: datetime.date,
     ) -> float:
-        """Shioaji: 取得指定股票在特定日期的收盤價"""
+        """Shioaji: get close price for stock on date"""
 
         tick: sj.Shioaji.ticks = api.ticks(
             contract=api.Contracts.Stocks[stock_id],
@@ -47,7 +47,7 @@ class StockUtils:
         stock_id: str,
         date: datetime.date,
     ) -> float:
-        """Shioaji: 取得指定股票在指定日期的漲跌幅"""
+        """Shioaji: get price change rate for stock on date"""
 
         # 取得前一個交易日的日期
         last_trading_date: datetime.date = MarketCalendar.get_last_trading_date(

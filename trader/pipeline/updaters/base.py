@@ -1,9 +1,6 @@
 from abc import ABC, abstractmethod
 
-"""
-Abstract base class for all data updaters that coordinate the full ETL process.
-Subclasses must implement `setup()` for initialization and `update()` to perform the update logic.
-"""
+"""Abstract base class for all data updaters that coordinate the full ETL process"""
 
 
 class BaseDataUpdater(ABC):

@@ -1,10 +1,4 @@
-"""
-刪除 price table 中指定日期的資料
-
-Usage:
-    python -m tasks.delete_price_data --date 2025-07-13
-    python -m tasks.delete_price_data --date 2025/7/13
-"""
+"""刪除 price 表中指定日期的資料"""
 
 import argparse
 import datetime
@@ -17,7 +11,7 @@ from trader.config import DB_PATH, PRICE_TABLE_NAME
 
 
 def parse_date(date_str: str) -> str:
-    """解析日期字串，返回標準格式 YYYY-MM-DD"""
+    """解析日期字串，回傳標準格式 YYYY-MM-DD"""
     # 嘗試多種日期格式
     formats: List[str] = [
         "%Y-%m-%d",  # 2025-07-13
@@ -36,7 +30,7 @@ def parse_date(date_str: str) -> str:
 
 
 def delete_price_data_by_date(date_str: str) -> None:
-    """刪除 price table 中指定日期的所有資料"""
+    """刪除 price 表中指定日期的所有資料"""
 
     # 解析日期
     try:

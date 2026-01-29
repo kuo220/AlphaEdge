@@ -1,11 +1,3 @@
-"""
-測試初始化 tick_metadata.json
-1. 使用 StockInfoCrawler.crawl_stock_list() 爬取所有上市櫃公司代號
-2. 創建預設的 tick_metadata.json，每個公司的預設 "last_date" 都是 "2024-5-10"
-3. 掃描 trader/pipeline/downloads/tick 資料夾底下的所有 CSV 檔案
-4. 根據每個檔案的最後一筆資料的時間，更新到 tick_metadata.json
-"""
-
 import datetime
 import json
 from pathlib import Path
@@ -18,14 +10,11 @@ from trader.config import TICK_DOWNLOADS_PATH, TICK_METADATA_PATH
 from trader.pipeline.crawlers.stock_info_crawler import StockInfoCrawler
 from trader.pipeline.utils.stock_tick_utils import StockTickUtils
 
+"""測試初始化 tick_metadata.json：爬取股票代號、建立預設 last_date、掃描 CSV 並更新 metadata"""
+
 
 def init_tick_metadata_with_default_date(default_date: str = "2024-5-10") -> None:
-    """
-    初始化 tick_metadata.json，使用預設日期
-
-    Args:
-        default_date: 預設日期字串，格式為 "YYYY-M-D" 或 "YYYY-MM-DD"
-    """
+    """初始化 tick_metadata.json，使用預設日期（格式 YYYY-M-D 或 YYYY-MM-DD）"""
     print(f"\n{'='*60}")
     print(f"初始化 tick_metadata.json")
     print(f"{'='*60}")

@@ -39,14 +39,14 @@ class StockChipLoader(BaseDataLoader):
         """Connect to the Database"""
 
         if self.conn is None:
-            self.conn = sqlite3.connect(DB_PATH)
+            self.conn: sqlite3.Connection = sqlite3.connect(DB_PATH)
 
     def disconnect(self) -> None:
         """Disconnect the Database"""
 
         if self.conn:
             self.conn.close()
-            self.conn = None
+            self.conn: Optional[sqlite3.Connection] = None
 
     def create_db(self) -> None:
         """創建三大法人盤後籌碼db"""
@@ -98,7 +98,7 @@ class StockChipLoader(BaseDataLoader):
             self.create_db()
 
     def add_to_db(self, remove_files: bool = False) -> None:
-        """將資料夾中的所有 CSV 檔存入指定 SQLite 資料庫中的指定資料表。"""
+        """將資料夾中的所有 CSV 檔存入指定 SQLite 資料庫中的指定資料表"""
 
         if self.conn is None:
             self.connect()

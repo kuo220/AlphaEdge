@@ -4,10 +4,7 @@ from typing import Any, Optional, Tuple, Union
 
 from loguru import logger
 
-"""
-Utility class for common SQLite operations: table check, date retrieval, query execution.
-Shared across crawlers for reusability and clean separation of logic.
-"""
+"""Utility class for common SQLite operations: table check, date retrieval, query execution"""
 
 
 class SQLiteUtils:
@@ -25,18 +22,7 @@ class SQLiteUtils:
         table_name: str,
         col_name: str,
     ) -> Optional[datetime.date]:
-        """
-        - Description: Retrieve the earliest value in the table.
-        - Parameters:
-            - conn: sqlite3.Connection
-                SQLite database connection object.
-            - table_name: str
-                Name of the table to query.
-            - col_name: str
-                Name of the value column to search.
-        - Return: Optional[Any]
-            - The earliest value in the column, or None if not found.
-        """
+        """Retrieve the earliest value in the table for the column; None if not found"""
 
         query: str = (
             f"SELECT {col_name} FROM {table_name} ORDER BY {col_name} ASC LIMIT 1"
@@ -47,8 +33,9 @@ class SQLiteUtils:
             result: Optional[tuple[Any, ...]] = cursor.fetchone()
 
             if result is None or result[0] is None:
-                logger.warning(
-                    f"No value found for column '{col_name}' in table: '{table_name}'"
+                logger.debug(
+                    f"No value found for column '{col_name}' in table: '{table_name}'. "
+                    f"Table is empty or column has no data. This is normal for first-time updates."
                 )
                 return None
 
@@ -88,8 +75,9 @@ class SQLiteUtils:
             result: Optional[Tuple[Any, ...]] = cursor.fetchone()
 
             if result is None or result[0] is None:
-                logger.warning(
-                    f"No value found for column '{col_name}' in table: '{table_name}'"
+                logger.debug(
+                    f"No value found for column '{col_name}' in table: '{table_name}'. "
+                    f"Table is empty or column has no data. This is normal for first-time updates."
                 )
                 return None
             return result[0]
@@ -122,7 +110,7 @@ class SQLiteUtils:
         - Returns:
             Tuple[int, int]: (主欄位最大值, 對應的次欄位最大值)，若查詢失敗則回傳預設值
         """
-        latest_primary: Any = SQLiteUtils.get_table_latest_value(
+        latest_primary: Optional[Any] = SQLiteUtils.get_table_latest_value(
             conn=conn,
             table_name=table_name,
             col_name=primary_col,
