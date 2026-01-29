@@ -4,35 +4,26 @@ from typing import List, Optional
 
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
+# 從 .env 載入環境變數
 load_dotenv()
 
 
-# 將固定資料夾名稱解析為 base_dir 下的絕對路徑
 def get_static_resolved_path(base_dir: Path, dir_name: str) -> Path:
-    """
-    將固定資料夾名稱解析為 base_dir 下的絕對路徑。
-
-    Args:
-        base_dir: 基礎目錄路徑
-        dir_name: 資料夾名稱或相對路徑字串（可包含子目錄，如 "logs/app"）
-
-    Returns:
-        解析後的絕對路徑
-
-    Example:
-        >>> base = Path('/home/user/project')
-        >>> path = get_static_resolved_path(base, 'logs')
-        >>> # 結果: PosixPath('/home/user/project/logs')
-    """
+    """Resolve dir_name under base_dir to an absolute path"""
     return (base_dir / dir_name).resolve()
 
 
-""" Root Directory (trader/) Path """
+# -----------------------------------------------------------------------
+# Root Directory (trader/) Path
+# -----------------------------------------------------------------------
+#
 BASE_DIR_PATH: Path = Path(__file__).resolve().parent
 
 
-""" === General Directory Path === """
+# -----------------------------------------------------------------------
+# === General Directory Path ===
+# -----------------------------------------------------------------------
+#
 DATABASE_DIR_PATH: Path = get_static_resolved_path(
     base_dir=BASE_DIR_PATH, dir_name="database"
 )
@@ -41,13 +32,19 @@ LOGS_DIR_PATH.mkdir(parents=True, exist_ok=True)  # 確保 logs 目錄存在
 DATA_DIR_PATH: Path = get_static_resolved_path(base_dir=BASE_DIR_PATH, dir_name="data")
 
 
-""" === Strategy Directory Path === """
+# -----------------------------------------------------------------------
+# === Strategy Directory Path ===
+# -----------------------------------------------------------------------
+#
 STOCK_STRATEGY_DIR_PATH: Path = get_static_resolved_path(
     base_dir=BASE_DIR_PATH, dir_name="strategies/stock"
 )
 
 
-""" === Backtest Result Directory Path === """
+# -----------------------------------------------------------------------
+# === Backtest Result Directory Path ===
+# -----------------------------------------------------------------------
+#
 BACKTEST_RESULT_DIR_PATH: Path = get_static_resolved_path(
     base_dir=BASE_DIR_PATH, dir_name="backtest/results"
 )
@@ -55,7 +52,10 @@ BACKTEST_LOGS_DIR_PATH: Path = get_static_resolved_path(
     base_dir=BASE_DIR_PATH, dir_name="backtest/results/logs"
 )
 
-""" === Crawl Data Downloads Path === """
+# -----------------------------------------------------------------------
+# === Crawl Data Downloads Path ===
+# -----------------------------------------------------------------------
+#
 PIPELINE_DOWNLOADS_PATH: Path = get_static_resolved_path(
     base_dir=BASE_DIR_PATH, dir_name="pipeline/downloads"
 )
@@ -78,7 +78,10 @@ FINMIND_DOWNLOADS_PATH: Path = get_static_resolved_path(
     base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="finmind"
 )
 
-""" === Crawler Downloads Metadata Directory Path === """
+# -----------------------------------------------------------------------
+# === Crawler Downloads Metadata Directory Path ===
+# -----------------------------------------------------------------------
+#
 DOWNLOADS_METADATA_DIR_PATH: Path = get_static_resolved_path(
     base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="meta"
 )
@@ -94,8 +97,16 @@ TICK_METADATA_DIR_PATH: Path = get_static_resolved_path(
 TICK_METADATA_PATH: Path = get_static_resolved_path(
     base_dir=TICK_METADATA_DIR_PATH, dir_name="tick_metadata.json"
 )
+BROKER_TRADING_METADATA_DIR_PATH: Path = get_static_resolved_path(
+    base_dir=DOWNLOADS_METADATA_DIR_PATH, dir_name="broker_trading"
+)
+BROKER_TRADING_METADATA_PATH: Path = get_static_resolved_path(
+    base_dir=BROKER_TRADING_METADATA_DIR_PATH, dir_name="broker_trading_metadata.json"
+)
 
-""" === Reference Data Directory Path === """
+# -----------------------------------------------------------------------
+# === Reference Data Directory Path ===
+# -----------------------------------------------------------------------
 # 股票相關參考資料表存放目錄
 STOCK_INFO_DIR_PATH: Path = get_static_resolved_path(
     base_dir=DATA_DIR_PATH, dir_name="stock_info"
@@ -115,7 +126,10 @@ BROKER_INFO_CSV_PATH: Path = get_static_resolved_path(
 )
 
 
-""" === Database Files Full Paths === """
+# -----------------------------------------------------------------------
+# === Database Files Full Paths ===
+# -----------------------------------------------------------------------
+#
 DB_NAME: str = "data.db"
 TICK_DB_NAME: str = "tickDB"
 
@@ -123,7 +137,10 @@ DB_PATH: Path = get_static_resolved_path(base_dir=DATABASE_DIR_PATH, dir_name=DB
 TICK_DB_PATH: str = f"{os.getenv('DDB_PATH')}{TICK_DB_NAME}"
 
 
-""" === Database Table names === """
+# -----------------------------------------------------------------------
+# === Database Table names ===
+# -----------------------------------------------------------------------
+#
 PRICE_TABLE_NAME: str = "price"
 CHIP_TABLE_NAME: str = "chip"
 TICK_TABLE_NAME: str = "tick"
@@ -133,6 +150,7 @@ COMPREHENSIVE_INCOME_TABLE_NAME: str = "comprehensive_income"
 CASH_FLOW_TABLE_NAME: str = "cash_flow"
 EQUITY_CHANGE_TABLE_NAME: str = "equity_change"
 TICK_METADATA_TABLE_NAME: str = "TICK_METADATA_TABLE_NAME"
+STOCK_INFO_TABLE_NAME: str = "taiwan_stock_info"
 STOCK_INFO_WITH_WARRANT_TABLE_NAME: str = "taiwan_stock_info_with_warrant"
 SECURITIES_TRADER_INFO_TABLE_NAME: str = "taiwan_securities_trader_info"
 STOCK_TRADING_DAILY_REPORT_TABLE_NAME: str = (
@@ -140,7 +158,10 @@ STOCK_TRADING_DAILY_REPORT_TABLE_NAME: str = (
 )
 
 
-""" === Certs.cer === """
+# -----------------------------------------------------------------------
+# === Certs.cer ===
+# -----------------------------------------------------------------------
+#
 CERTS_DIR_PATH: Path = get_static_resolved_path(
     base_dir=BASE_DIR_PATH, dir_name="certs"
 )
@@ -149,7 +170,10 @@ CERTS_FILE_PATH: Path = get_static_resolved_path(
 )
 
 
-""" === DolphinDB server setting === """
+# -----------------------------------------------------------------------
+# === DolphinDB server setting ===
+# -----------------------------------------------------------------------
+#
 DDB_PATH: str | None = os.getenv("DDB_PATH")
 DDB_HOST: str | None = os.getenv("DDB_HOST")
 DDB_PORT: int = int(os.getenv("DDB_PORT") or "0")
@@ -157,11 +181,17 @@ DDB_USER: str | None = os.getenv("DDB_USER")
 DDB_PASSWORD: str | None = os.getenv("DDB_PASSWORD")
 
 
-""" === Shioaji API === """
+# -----------------------------------------------------------------------
+# === Shioaji API ===
+# -----------------------------------------------------------------------
+#
 API_KEY: str | None = os.getenv("API_KEY")
 API_SECRET_KEY: str | None = os.getenv("API_SECRET_KEY")
 
-""" === API list for crawling tick data === """
+# -----------------------------------------------------------------------
+# === API list for crawling tick data ===
+# -----------------------------------------------------------------------
+#
 NUM_API: int = 4
 API_KEYS: List[Optional[str]] = [os.getenv(f"API_KEY_{i + 1}") for i in range(NUM_API)]
 API_SECRET_KEYS: List[Optional[str]] = [

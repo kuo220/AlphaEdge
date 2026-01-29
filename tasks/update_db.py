@@ -17,9 +17,6 @@ from trader.pipeline.updaters.stock_tick_updater import StockTickUpdater
 from trader.pipeline.utils import DataType, FinMindDataType
 
 """
-* 所有資料爬蟲起始日（除了 Tick）
-- From: 2013 (ROC: 102)/1/1 ~ present
-
 * 財報申報期限
 一般行業：
 - Q1：5月15日
@@ -50,7 +47,8 @@ from trader.pipeline.utils import DataType, FinMindDataType
             - fs: 僅更新財報資料
             - mrr: 僅更新月營收報表
             - finmind: 更新所有 FinMind 資料（台股總覽、證券商資訊、券商分點統計）
-            - stock_info: 僅更新 FinMind 台股總覽(含權證)
+            - stock_info: 僅更新 FinMind 台股總覽（不含權證）
+            - stock_info_with_warrant: 僅更新 FinMind 台股總覽（含權證）
             - broker_info: 僅更新 FinMind 證券商資訊
             - broker_trading: 僅更新 FinMind 券商分點統計
             - all: 更新所有資料（包含 tick）
@@ -69,8 +67,11 @@ from trader.pipeline.utils import DataType, FinMindDataType
     - 更新所有 FinMind 資料：
         python -m tasks.update_db --target finmind
 
-    - 僅更新 FinMind 台股總覽：
+    - 僅更新 FinMind 台股總覽（不含權證）：
         python -m tasks.update_db --target stock_info
+
+    - 僅更新 FinMind 台股總覽（含權證）：
+        python -m tasks.update_db --target stock_info_with_warrant
 
     - 僅更新 FinMind 券商分點統計：
         python -m tasks.update_db --target broker_trading
@@ -149,7 +150,7 @@ def get_update_time_config(
         # FinMind 所有資料：券商分點統計從 2021/6/30 開始
         return {
             "start_date": datetime.date(2021, 6, 30),
-            "end_date": datetime.date.today(),
+            "end_date": datetime.date(2026, 1, 23),
         }
     elif data_type == FinMindDataType.BROKER_TRADING or (
         isinstance(data_type, str)
@@ -252,6 +253,10 @@ def main() -> None:
         finmind_updater: FinMindUpdater = FinMindUpdater()
         finmind_updater.update(data_type=FinMindDataType.STOCK_INFO)
 
+    if FinMindDataType.STOCK_INFO_WITH_WARRANT.value.lower() in targets:
+        finmind_updater: FinMindUpdater = FinMindUpdater()
+        finmind_updater.update(data_type=FinMindDataType.STOCK_INFO_WITH_WARRANT)
+
     if FinMindDataType.BROKER_INFO.value.lower() in targets:
         finmind_updater: FinMindUpdater = FinMindUpdater()
         finmind_updater.update(data_type=FinMindDataType.BROKER_INFO)
@@ -261,7 +266,7 @@ def main() -> None:
             FinMindDataType.BROKER_TRADING.value.lower()
         )
         finmind_updater: FinMindUpdater = FinMindUpdater()
-        finmind_updater.update_broker_trading_daily_report_batch(
+        finmind_updater.update_broker_trading_daily_report(
             start_date=time_config["start_date"],
             end_date=time_config["end_date"],
         )

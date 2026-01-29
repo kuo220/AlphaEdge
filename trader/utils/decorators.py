@@ -5,7 +5,7 @@ from loguru import logger
 
 
 def log_thread(func: Callable) -> Callable:
-    """Decorator: log thread info when function starts."""
+    """Decorator: log thread info when function starts"""
 
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         thread_id: int = threading.get_ident()

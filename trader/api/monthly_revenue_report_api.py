@@ -18,6 +18,8 @@ from trader.pipeline.utils import DataType
 from trader.pipeline.utils.data_utils import DataUtils
 from trader.pipeline.utils.sqlite_utils import SQLiteUtils
 
+"""Monthly Revenue Report Data API: query SQLite monthly revenue table"""
+
 
 class MonthlyRevenueReportAPI(BaseDataAPI):
     """Monthly Revenue Report Data API"""
@@ -30,10 +32,7 @@ class MonthlyRevenueReportAPI(BaseDataAPI):
     def setup(self):
         """Set Up the Config of Data API"""
 
-        # Set Up Connection
-        self.conn = sqlite3.connect(DB_PATH)
-
-        # 設定 log 檔案儲存路徑
+        self.conn: sqlite3.Connection = sqlite3.connect(DB_PATH)
         LogManager.setup_logger("monthly_revenue_report_api.log")
 
     def get(
@@ -62,7 +61,7 @@ class MonthlyRevenueReportAPI(BaseDataAPI):
         start_month: int,
         end_month: int,
     ) -> pd.DataFrame:
-        """取得指定年度跟季度的範圍內的財報"""
+        """取得指定年度與月份範圍內的月營收報表"""
 
         query: str = f"""
         SELECT * FROM {MONTHLY_REVENUE_TABLE_NAME}

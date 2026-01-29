@@ -2,7 +2,7 @@
 """
 自動生成 API 文檔的輔助腳本
 
-此腳本可以從 Python 原始碼中提取 docstring 並更新文檔。
+此腳本可以從 Python 原始碼中提取 docstring 並更新文檔
 """
 
 import ast

@@ -167,6 +167,19 @@ theme:
 2. **範例測試**: 確保文檔中的範例程式碼可以正常執行
 3. **版本對應**: 文檔應該對應當前版本的 API
 
+## 資料更新狀態
+
+AlphaEdge 的資料更新系統使用 `UpdateStatus` 來追蹤更新狀態：
+
+- `UpdateStatus.SUCCESS`: 成功更新
+- `UpdateStatus.NO_DATA`: 沒有資料（API 返回空結果）
+- `UpdateStatus.ALREADY_UP_TO_DATE`: 資料庫已是最新
+- `UpdateStatus.ERROR`: 發生錯誤
+
+詳細的資料更新流程說明請參考：
+- [券商分點統計更新流程](broker_trading_update_flow.md)
+- [專案 README](../README.md#資料庫更新)
+
 ## 未來改進
 
 1. **補充文檔內容**: 根據實際使用情況補充更多範例和說明

@@ -1,8 +1,3 @@
-"""
-測試 FinMindUpdater 的更新功能
-使用臨時資料庫進行測試，不會影響 data.db
-"""
-
 import datetime
 import os
 import sqlite3
@@ -34,11 +29,11 @@ SECURITIES_TRADER_INFO_TABLE_NAME = "taiwan_securities_trader_info"
 STOCK_TRADING_DAILY_REPORT_TABLE_NAME = "taiwan_stock_trading_daily_report_secid_agg"
 
 
+"""測試 FinMindUpdater 各更新方法，使用臨時資料庫"""
+
+
 def test_finmind_updater():
-    """
-    測試 FinMindUpdater 的各種更新方法
-    使用臨時資料庫進行測試
-    """
+    """測試 FinMindUpdater 各更新方法，使用臨時資料庫"""
     print(f"\n{'='*60}")
     print(f"測試 FinMindUpdater（使用臨時資料庫）")
     print(f"{'='*60}")

@@ -82,7 +82,7 @@ class StockTickUpdater(BaseDataUpdater):
                 self.api_list.append(api_instance)
 
         # Set up number of threads
-        self.num_threads = len(self.api_list)
+        self.num_threads: int = len(self.api_list)
 
         # Generate tick_metadata backup
         StockTickUtils.generate_tick_metadata_backup()
@@ -98,7 +98,7 @@ class StockTickUpdater(BaseDataUpdater):
         """Update the Database"""
 
         # 重置全局統計信息
-        self.global_stats = {
+        self.global_stats: Dict[str, Any] = {
             "start_time": time.time(),
             "total_stocks_processed": 0,
             "successful_stocks": 0,

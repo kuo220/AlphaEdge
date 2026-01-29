@@ -73,16 +73,16 @@ class DataUtils:
     ) -> bool:
         """
         - Description:
-            檢查 DataFrame 是否包含必要欄位，可設定為必須全數存在或至少存在一個。
-            常用於清洗資料前驗證欄位完整性。
+            檢查 DataFrame 是否包含必要欄位，可設定為必須全數存在或至少存在一個
+            常用於清洗資料前驗證欄位完整性
 
         - Parameters:
             - df: pd.DataFrame
-                欲檢查的 DataFrame。
+                欲檢查的 DataFrame
             - required_cols: List[str]
-                欲確認是否存在的欄位名稱列表。
+                欲確認是否存在的欄位名稱列表
             - require_all: bool
-                預設為 True，表示所有欄位皆需存在；若為 False，表示只要存在任一欄位即可通過。
+                預設為 True，表示所有欄位皆需存在；若為 False，表示只要存在任一欄位即可通過
 
         - Return: bool
             - 是否符合條件（True: 符合，False: 不符合）
@@ -207,8 +207,8 @@ class DataUtils:
 
         if case_insensitive:
             columns = columns.str.lower()
-            startswith_list: List[str] = [word.lower() for word in startswith_list]
-            contains_list: List[str] = [word.lower() for word in contains_list]
+            startswith_list = [word.lower() for word in startswith_list]
+            contains_list = [word.lower() for word in contains_list]
 
         for keyword in startswith_list:
             columns_to_drop |= columns.str.startswith(keyword)
@@ -269,7 +269,7 @@ class DataUtils:
     ) -> Optional[pd.DataFrame]:
         """
         - Description:
-            根據指定欄位去除重複的資料列，並重設 index。
+            根據指定欄位去除重複的資料列，並重設 index
 
         - Parameters:
             - df: pd.DataFrame
@@ -325,7 +325,7 @@ class DataUtils:
     def load_json(file_path: Path, encoding: str = FileEncoding.UTF8.value) -> Any:
         """
         - Description:
-            從指定 JSON 檔案讀取資料。
+            從指定 JSON 檔案讀取資料
 
         - Parameters:
             - file_path: Path
@@ -339,7 +339,8 @@ class DataUtils:
 
         try:
             with open(file_path, "r", encoding=encoding) as f:
-                return json.load(f)
+                data: Any = json.load(f)
+                return data
         except FileNotFoundError:
             logger.error(f"找不到檔案: {file_path}")
             return None

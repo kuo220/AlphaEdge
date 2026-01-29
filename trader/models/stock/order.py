@@ -2,10 +2,7 @@ import datetime
 
 from trader.utils import Action, PositionType
 
-"""
-This module defines the structure for stock orders used in the backtesting phase,
-including trade direction, quantity, and price information.
-"""
+"""StockOrder: structure for stock orders in backtesting (direction, quantity, price)"""
 
 
 class StockOrder:

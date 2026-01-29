@@ -73,6 +73,7 @@ nav:
     - 策略開發: examples/strategy.md
     - 資料查詢: examples/data_query.md
   - 最佳實踐: best-practices.md
+  - 註解與 Docstring 規範: docstring-style.md
   - 常見問題: faq.md
 
 plugins:

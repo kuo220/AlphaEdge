@@ -1,12 +1,7 @@
-"""
-Log Manager for unified logging configuration.
-
-This module provides a centralized logging management system using loguru.
-It ensures consistent logging configuration across the entire application.
-"""
+"""Log Manager for unified logging configuration using loguru"""
 
 from pathlib import Path
-from typing import Optional, Set
+from typing import Any, Optional, Set
 
 from loguru import logger
 
@@ -14,16 +9,10 @@ from trader.config import BACKTEST_LOGS_DIR_PATH, LOGS_DIR_PATH
 
 
 class LogManager:
-    """
-    Unified Log Manager for the application.
-
-    This class provides centralized logging configuration and management.
-    It prevents duplicate logger configurations and ensures consistent
-    logging behavior across all modules.
-    """
+    """Unified Log Manager for the application"""
 
     _configured_logs: Set[str] = set()
-    """Track which log files have been configured to prevent duplicates."""
+    """Track which log files have been configured to prevent duplicates"""
 
     @staticmethod
     def setup_logger(
@@ -51,16 +40,16 @@ class LogManager:
         """
         # Use default log directory if not specified
         if log_dir is None:
-            log_dir = LOGS_DIR_PATH
+            log_dir: Path = LOGS_DIR_PATH
 
         # Ensure log directory exists
         log_dir.mkdir(parents=True, exist_ok=True)
 
         # Create full log file path
-        log_path = log_dir / log_file
+        log_path: Path = log_dir / log_file
 
         # Check if this log file has already been configured
-        log_path_str = str(log_path)
+        log_path_str: str = str(log_path)
         if log_path_str in LogManager._configured_logs:
             # Logger already configured, skip to avoid duplicates
             return
@@ -97,7 +86,7 @@ class LogManager:
         Example:
             LogManager.setup_backtest_logger("momentum_strategy")
         """
-        log_file = f"{strategy_name}.log"
+        log_file: str = f"{strategy_name}.log"
         LogManager.setup_logger(
             log_file=log_file,
             log_dir=BACKTEST_LOGS_DIR_PATH,
@@ -108,10 +97,7 @@ class LogManager:
 
     @staticmethod
     def remove_default_handler() -> None:
-        """
-        Remove the default loguru handler (console output).
-        Useful for testing or when you only want file logging.
-        """
+        """Remove the default loguru handler (console output)"""
         logger.remove()
 
     @staticmethod
@@ -137,14 +123,5 @@ class LogManager:
 
     @staticmethod
     def get_logger():
-        """
-        Get the loguru logger instance.
-
-        Returns:
-            The loguru logger instance
-
-        Example:
-            logger = LogManager.get_logger()
-            logger.info("This is a log message")
-        """
+        """Get the loguru logger instance"""
         return logger

@@ -1,8 +1,3 @@
-"""
-測試 StockTickUpdater 的 update 函數
-只測試爬取和清洗，不存入資料庫
-"""
-
 import datetime
 import sys
 from pathlib import Path
@@ -35,15 +30,11 @@ from trader.config import TICK_DOWNLOADS_PATH, TICK_METADATA_DIR_PATH
 from trader.pipeline.updaters.stock_tick_updater import StockTickUpdater
 from trader.pipeline.utils.stock_tick_utils import StockTickUtils
 
+"""測試 StockTickUpdater.update：僅爬取與清洗，不寫入資料庫"""
+
 
 def test_update_without_db(start_date: datetime.date, end_date: datetime.date = None):
-    """
-    測試 StockTickUpdater 的 update 函數，但不存入資料庫
-
-    Args:
-        start_date: 開始日期，例如 datetime.date(2024, 1, 15)
-        end_date: 結束日期，預設為今天，例如 datetime.date(2024, 1, 17)
-    """
+    """測試 StockTickUpdater.update，不存入資料庫"""
     if end_date is None:
         end_date = datetime.date.today()
 
@@ -60,7 +51,7 @@ def test_update_without_db(start_date: datetime.date, end_date: datetime.date = 
 
     # 將 loader.add_to_db 替換為空函數，避免存入資料庫
     def dummy_add_to_db(remove_file=False):
-        """空的函數，不執行任何操作"""
+        """空函數，不執行任何操作"""
         logger.info("⚠️  跳過資料庫寫入（測試模式）")
         return None
 

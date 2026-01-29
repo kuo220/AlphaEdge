@@ -13,22 +13,7 @@ from trader.pipeline.utils import FileEncoding
 from trader.strategies.stock import BaseStockStrategy
 from trader.utils.time import TimeUtils
 
-"""
-report.py
-
-Generates performance reports based on backtest results.
-
-This module summarizes key performance metrics—such as cumulative return, maximum drawdown (MDD),
-and Sharpe ratio—based on trading records and equity curves. It also provides optional tools for
-visualizing and exporting results.
-
-Features:
-- Aggregate key backtest metrics
-- Generate equity curve plots
-- Export performance reports to Excel or other formats
-
-Intended for use in strategy evaluation and performance review.
-"""
+"""Generates performance reports based on backtest results"""
 
 
 class StockBacktestReporter(BaseBacktestReporter):
@@ -91,7 +76,7 @@ class StockBacktestReporter(BaseBacktestReporter):
 
         Note:
             對於股票分割（如 1 拆 4），分割日期及之後的價格需要乘以調整因子（4），
-            這樣可以確保價格序列的連續性。
+            這樣可以確保價格序列的連續性
 
             範例（單次分割）：
             - 分割前 100 元（保持原樣）
@@ -130,7 +115,7 @@ class StockBacktestReporter(BaseBacktestReporter):
         if len(adjusted_price) > 0:
             # 轉換索引為 date 類型（如果還不是）
             if not isinstance(adjusted_price.index[0], datetime.date):
-                adjusted_price.index = pd.to_datetime(adjusted_price.index).date
+                adjusted_price.index = pd.to_datetime(adjusted_price.index).date  # type: ignore
             # 確保索引是 date 類型的列表
             index_dates: List[datetime.date] = [
                 d if isinstance(d, datetime.date) else pd.to_datetime(d).date()

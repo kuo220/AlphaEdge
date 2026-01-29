@@ -1,12 +1,7 @@
 from typing import Dict, List
 
-"""
-Balance sheet column mapping dictionary
-本對照表用於清洗資產負債表欄位名稱：
-- key：標準化後的統一欄位名稱（cleaned/normalized name）
-- value：原始欄位可能出現的多種名稱（raw variants）
-資料清洗時會將出現在 value 中的原始名稱，統一轉換為對應的 key。
-"""
+"""財報欄位對照表：key 為標準化欄位名，value 為原始欄位名列表，清洗時將 value 轉為 key"""
+
 
 balance_sheet_column_map: Dict[str, List[str]] = {
     "年度": ["年度"],

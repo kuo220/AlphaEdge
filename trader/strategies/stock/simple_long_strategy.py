@@ -50,11 +50,11 @@ class SimpleLongStrategy(BaseStockStrategy):
         # 載入資料 API
         self.setup_apis()
 
-    def setup_account(self, account: StockAccount):
+    def setup_account(self, account: StockAccount) -> None:
         """設置虛擬帳戶資訊"""
-        self.account = account
+        self.account: StockAccount = account
 
-    def setup_apis(self):
+    def setup_apis(self) -> None:
         """設置資料 API"""
         # 根據回測級別載入對應的價格資料
         if self.scale in (Scale.DAY, Scale.MIX):

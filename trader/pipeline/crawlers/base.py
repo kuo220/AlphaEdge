@@ -1,9 +1,6 @@
 from abc import ABC, abstractmethod
 
-"""
-Abstract base class for all crawlers that fetch data for a specific date.
-Subclasses should implement the `crawl(date)` method.
-"""
+"""Abstract base class for all crawlers that fetch data for a specific date"""
 
 
 class BaseDataCrawler(ABC):
@@ -20,13 +17,4 @@ class BaseDataCrawler(ABC):
     @abstractmethod
     def crawl(self, *args, **kwargs) -> None:
         """Crawl Data"""
-        """
-        General case:
-        **kwargs = {
-            'date': datetime.date,
-            'dates': List[datetime.date],
-            'start_date': datetime.date,
-            'end_date': datetime.date
-        }
-        """
         pass

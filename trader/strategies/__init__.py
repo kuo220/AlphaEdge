@@ -1,5 +1,3 @@
 from .strategy_loader import StrategyLoader
 
-"""
-Main entry point for strategy modules, including submodules for stocks, futures, and more. 
-"""
+"""Main entry point for strategy modules, including stocks, futures, etc"""
