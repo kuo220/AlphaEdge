@@ -533,13 +533,33 @@ class FinMindLoader(BaseDataLoader):
             logger.warning("DataFrame is empty, skipping load")
             return 0
 
-        # 查詢資料庫中已存在的資料（根據複合主鍵）
+        # 從本批 df 取得唯一的 (stock_id, securities_trader_id) 組合，只查這些組合在 DB 中已存在的 key（優化：避免全表掃描）
+        unique_pairs: List[Tuple[str, str]] = [
+            (str(row["stock_id"]), str(row["securities_trader_id"]))
+            for row in df[["stock_id", "securities_trader_id"]]
+            .drop_duplicates()
+            .to_dict("records")
+        ]
+        if not unique_pairs:
+            logger.warning(
+                "DataFrame has no (stock_id, securities_trader_id) pairs, skipping load"
+            )
+            return 0
+
+        # 建構 WHERE 條件：只查詢本批涉及的 (stock_id, securities_trader_id)
+        placeholders: str = " OR ".join(
+            ["(stock_id = ? AND securities_trader_id = ?)"] * len(unique_pairs)
+        )
+        flat_params: List[str] = [p for pair in unique_pairs for p in pair]
         existing_query: str = f"""
         SELECT DISTINCT stock_id, date, securities_trader_id
         FROM {STOCK_TRADING_DAILY_REPORT_TABLE_NAME}
+        WHERE {placeholders}
         """
         try:
-            existing_df: pd.DataFrame = pd.read_sql_query(existing_query, self.conn)
+            existing_df: pd.DataFrame = pd.read_sql_query(
+                existing_query, self.conn, params=flat_params
+            )
 
             if not existing_df.empty:
                 # 建立已存在的鍵集合
