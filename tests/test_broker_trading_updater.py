@@ -69,7 +69,8 @@ def setup_test_database(
     conn = sqlite3.connect(db_path)
 
     # 創建股票資訊表
-    conn.execute(f"""
+    conn.execute(
+        f"""
         CREATE TABLE IF NOT EXISTS {STOCK_INFO_WITH_WARRANT_TABLE_NAME} (
             stock_id TEXT PRIMARY KEY,
             stock_name TEXT,
@@ -77,7 +78,8 @@ def setup_test_database(
             type TEXT,
             date TEXT
         )
-        """)
+        """
+    )
 
     # 插入測試股票
     for stock_id in stock_list:
@@ -91,7 +93,8 @@ def setup_test_database(
         )
 
     # 創建券商資訊表
-    conn.execute(f"""
+    conn.execute(
+        f"""
         CREATE TABLE IF NOT EXISTS {SECURITIES_TRADER_INFO_TABLE_NAME} (
             securities_trader_id TEXT PRIMARY KEY,
             securities_trader TEXT,
@@ -99,7 +102,8 @@ def setup_test_database(
             address TEXT,
             phone TEXT
         )
-        """)
+        """
+    )
 
     # 插入測試券商
     for trader_id in trader_list:
@@ -113,7 +117,8 @@ def setup_test_database(
         )
 
     # 創建券商交易報表表
-    conn.execute(f"""
+    conn.execute(
+        f"""
         CREATE TABLE IF NOT EXISTS {STOCK_TRADING_DAILY_REPORT_TABLE_NAME} (
             securities_trader TEXT,
             securities_trader_id TEXT,
@@ -125,7 +130,8 @@ def setup_test_database(
             sell_price REAL,
             PRIMARY KEY (securities_trader_id, stock_id, date)
         )
-        """)
+        """
+    )
 
     conn.commit()
     conn.close()

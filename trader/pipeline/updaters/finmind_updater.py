@@ -489,14 +489,12 @@ class FinMindUpdater(BaseDataUpdater):
 
                 try:
                     # 對單一券商、單一股票，一次性查詢整個日期範圍（批次時不在此處 commit，由下方每 N 筆統一 commit）
-                    status: UpdateStatus = (
-                        self._update_broker_trading_daily_report(
-                            stock_id=stock_id,
-                            securities_trader_id=securities_trader_id,
-                            start_date=combination_start_date,
-                            end_date=end_date_obj,
-                            do_commit=False,
-                        )
+                    status: UpdateStatus = self._update_broker_trading_daily_report(
+                        stock_id=stock_id,
+                        securities_trader_id=securities_trader_id,
+                        start_date=combination_start_date,
+                        end_date=end_date_obj,
+                        do_commit=False,
                     )
 
                     if status == UpdateStatus.NO_DATA:
@@ -668,9 +666,7 @@ class FinMindUpdater(BaseDataUpdater):
                     f"✅ Broker trading daily report updated successfully. Latest date in batch: {latest_date_from_df}"
                 )
             else:
-                logger.info(
-                    "✅ Broker trading daily report updated successfully."
-                )
+                logger.info("✅ Broker trading daily report updated successfully.")
             return UpdateStatus.SUCCESS
 
         except Exception as e:

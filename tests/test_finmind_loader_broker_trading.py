@@ -3,6 +3,7 @@
 只查詢本批 df 涉及的 (stock_id, securities_trader_id) 在 DB 中已存在的 key，而非全表掃描。
 使用測試用臨時資料庫。
 """
+
 import datetime
 import sqlite3
 import sys
@@ -70,9 +71,7 @@ def test_load_broker_trading_from_dataframe_optimization():
 
             conn = sqlite3.connect(temp_db_path)
             cur = conn.cursor()
-            cur.execute(
-                f"SELECT COUNT(*) FROM {STOCK_TRADING_DAILY_REPORT_TABLE_NAME}"
-            )
+            cur.execute(f"SELECT COUNT(*) FROM {STOCK_TRADING_DAILY_REPORT_TABLE_NAME}")
             total = cur.fetchone()[0]
             conn.close()
             assert total == 2, f"表應為 2 筆，實際 {total}"
@@ -82,9 +81,7 @@ def test_load_broker_trading_from_dataframe_optimization():
             assert n2 == 0, f"重複載入應插入 0 筆，實際 {n2}"
 
             cur = sqlite3.connect(temp_db_path).cursor()
-            cur.execute(
-                f"SELECT COUNT(*) FROM {STOCK_TRADING_DAILY_REPORT_TABLE_NAME}"
-            )
+            cur.execute(f"SELECT COUNT(*) FROM {STOCK_TRADING_DAILY_REPORT_TABLE_NAME}")
             total = cur.fetchone()[0]
             assert total == 2, f"表仍應為 2 筆，實際 {total}"
 
@@ -99,9 +96,7 @@ def test_load_broker_trading_from_dataframe_optimization():
             assert n3 == 1, f"應只插入 1 筆新日期，實際 {n3}"
 
             cur = sqlite3.connect(temp_db_path).cursor()
-            cur.execute(
-                f"SELECT COUNT(*) FROM {STOCK_TRADING_DAILY_REPORT_TABLE_NAME}"
-            )
+            cur.execute(f"SELECT COUNT(*) FROM {STOCK_TRADING_DAILY_REPORT_TABLE_NAME}")
             total = cur.fetchone()[0]
             assert total == 3, f"表應為 3 筆，實際 {total}"
 
@@ -143,9 +138,9 @@ def test_load_broker_trading_from_dataframe_optimization():
                 ("2317", "1020"),
             )
             count_2317_after = cur.fetchone()[0]
-            assert count_2317_after == 1, (
-                "另一組合 (2317, 1020) 筆數不應被改動，證明查詢只限本批"
-            )
+            assert (
+                count_2317_after == 1
+            ), "另一組合 (2317, 1020) 筆數不應被改動，證明查詢只限本批"
 
         finally:
             loader.disconnect()
