@@ -1,4 +1,4 @@
-[English](README.md) | [中文版 (Chinese)](#)
+[中文版 (Chinese)](#) | [English](README.md)
 
 # AlphaEdge
 
