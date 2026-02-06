@@ -22,7 +22,6 @@ from trader.pipeline.loaders.finmind_loader import FinMindLoader
 from trader.pipeline.updaters.base import BaseDataUpdater
 from trader.pipeline.utils import FinMindDataType, UpdateStatus
 from trader.pipeline.utils.data_utils import DataUtils
-from trader.pipeline.utils.sqlite_utils import SQLiteUtils
 from trader.utils import TimeUtils
 from trader.utils.instrument import StockUtils
 from trader.utils.log_manager import LogManager
@@ -51,6 +50,8 @@ class FinMindUpdater(BaseDataUpdater):
 
         # Broker trading metadata 文件路徑（記錄每個 broker_id 和 stock_id 的日期範圍）
         self.broker_trading_metadata_path: Path = BROKER_TRADING_METADATA_PATH
+        # Metadata 快取（雙層迴圈內只讀快取，減少重複讀取 JSON；僅在 _update_broker_trading_metadata_from_database 寫入後更新）
+        self._metadata_cache: Optional[Dict[str, Dict[str, Dict[str, str]]]] = None
 
         self.setup()
 
@@ -323,8 +324,10 @@ class FinMindUpdater(BaseDataUpdater):
             UpdateStatus.ERROR.value: 0,
         }
 
-        # 定期更新 metadata 的頻率（每處理 N 個項目後更新一次）
-        update_metadata_interval: int = 100
+        # 定期更新 metadata 的頻率（每處理 N 個項目後更新一次；過小則 I/O 頻繁，過大則中斷時可能重爬較多）
+        update_metadata_interval: int = 500
+        # 批次 commit 頻率（每 N 個組合 commit 一次 DB，減少 commit 次數；中斷時最多少最後未 commit 的一批）
+        commit_interval: int = 50
 
         # 輔助函數：記錄進度並定期更新 metadata
         def log_progress_and_update_metadata():
@@ -348,8 +351,8 @@ class FinMindUpdater(BaseDataUpdater):
                 # 每個組合開始處理時就增加計數（無論是否跳過都會被計入）
                 combination_count += 1
 
-                # 記錄正在處理的券商和股票
-                logger.info(
+                # 記錄正在處理的券商和股票（改為 debug 減少 I/O，進度已由 log_progress_and_update_metadata 每 50 筆 log 一次）
+                logger.debug(
                     f"Processing: trader_id={securities_trader_id}, stock_id={stock_id}"
                 )
 
@@ -485,13 +488,14 @@ class FinMindUpdater(BaseDataUpdater):
                         # 不 break，繼續當前循環
 
                 try:
-                    # 對單一券商、單一股票，一次性查詢整個日期範圍
+                    # 對單一券商、單一股票，一次性查詢整個日期範圍（批次時不在此處 commit，由下方每 N 筆統一 commit）
                     status: UpdateStatus = (
-                        self._crawl_and_save_broker_trading_daily_report(
+                        self._update_broker_trading_daily_report(
                             stock_id=stock_id,
                             securities_trader_id=securities_trader_id,
                             start_date=combination_start_date,
                             end_date=end_date_obj,
+                            do_commit=False,
                         )
                     )
 
@@ -514,12 +518,17 @@ class FinMindUpdater(BaseDataUpdater):
                         exc_info=True,
                     )
 
-                # 處理完成後檢查是否需要打印進度
+                # 處理完成後檢查是否需要打印進度，並每 N 筆 commit 一次 DB
                 log_progress_and_update_metadata()
+                if combination_count % commit_interval == 0 and self.loader.conn:
+                    self.loader.conn.commit()
 
             if quota_exhausted:
                 break
 
+        # 將尚未 commit 的寫入一次提交，再更新 metadata
+        if self.loader.conn:
+            self.loader.conn.commit()
         # 更新 metadata（無論是否完成）
         logger.info("Updating broker trading metadata after batch update...")
         self._update_broker_trading_metadata_from_database()
@@ -588,21 +597,23 @@ class FinMindUpdater(BaseDataUpdater):
     # Private Methods - Core Update Methods
     # ============================================================================
 
-    def _crawl_and_save_broker_trading_daily_report(
+    def _update_broker_trading_daily_report(
         self,
         stock_id: str,
         securities_trader_id: str,
         start_date: Union[datetime.date, str],
         end_date: Union[datetime.date, str],
+        do_commit: bool = True,
     ) -> UpdateStatus:
         """
-        核心方法：爬取並保存券商分點統計表資料（不包含時間判斷邏輯）
+        核心方法：更新券商分點統計表資料（給定股票、券商與日期區間，不包含時間判斷邏輯）
 
         Args:
             stock_id: 股票代碼
             securities_trader_id: 券商代碼
             start_date: 起始日期
             end_date: 結束日期
+            do_commit: 是否在寫入後立即 commit；批次更新時由呼叫端傳 False 並定期 commit
 
         Returns:
             UpdateStatus: 更新狀態
@@ -641,26 +652,25 @@ class FinMindUpdater(BaseDataUpdater):
                 return UpdateStatus.NO_DATA
 
             # Step 3: Load - 將資料保存到資料庫
-            # 使用 loader 的方法來載入資料
+            # 使用 loader 的方法來載入資料（do_commit=False 時由批次迴圈定期 commit）
             saved_count: int = self.loader.load_broker_trading_daily_report(
-                df=cleaned_df
+                df=cleaned_df, commit=do_commit
             )
 
             if saved_count == 0:
                 logger.debug("No new data was saved to database")
+                return UpdateStatus.SUCCESS
 
-            # 更新後重新取得 Table 最新的日期
-            table_latest_date: str = SQLiteUtils.get_table_latest_value(
-                conn=self.loader.conn,
-                table_name=STOCK_TRADING_DAILY_REPORT_TABLE_NAME,
-                col_name="date",
-            )
-            if table_latest_date:
+            # 成功後用當次 DataFrame 的 date 最大值 log，避免額外查詢 DB
+            if "date" in cleaned_df.columns and not cleaned_df.empty:
+                latest_date_from_df = str(cleaned_df["date"].max())
                 logger.info(
-                    f"✅ Broker trading daily report updated successfully. Latest available date: {table_latest_date}"
+                    f"✅ Broker trading daily report updated successfully. Latest date in batch: {latest_date_from_df}"
                 )
             else:
-                logger.warning("No new broker trading daily report data was updated")
+                logger.info(
+                    "✅ Broker trading daily report updated successfully."
+                )
             return UpdateStatus.SUCCESS
 
         except Exception as e:
@@ -867,7 +877,9 @@ class FinMindUpdater(BaseDataUpdater):
 
     def _load_broker_trading_metadata(self) -> Dict[str, Dict[str, Dict[str, str]]]:
         """
-        從 metadata 文件讀取 broker trading 的日期範圍資訊
+        從 metadata 文件讀取 broker trading 的日期範圍資訊。
+        若有快取（_metadata_cache）則直接回傳，減少重複 I/O；快取僅在
+        _update_broker_trading_metadata_from_database 成功寫入後更新。
 
         Returns:
             Dict[str, Dict[str, Dict[str, str]]]: metadata 結構
@@ -880,6 +892,9 @@ class FinMindUpdater(BaseDataUpdater):
                     }
                 }
         """
+        if self._metadata_cache is not None:
+            return self._metadata_cache
+
         if not self.broker_trading_metadata_path.exists():
             return {}
 
@@ -1058,6 +1073,8 @@ class FinMindUpdater(BaseDataUpdater):
             indent=2,
             ensure_ascii=False,
         )
+        # 寫入成功後更新快取，迴圈內後續 _load 只讀快取
+        self._metadata_cache = metadata
 
     def _check_date_exists_in_metadata(
         self,
