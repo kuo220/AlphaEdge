@@ -1,36 +1,38 @@
+[中文版 (Chinese)](README_zh.md) | [English](#)
+
 # AlphaEdge
 
 **AlphaEdge** is a *trading framework* designed for backtesting trading strategies, generating backtest reports, and enabling *live trading* through the [Shioaji API](https://sinotrade.github.io/zh_TW/). It supports backtesting and trading for **stocks, futures, and options** (though currently, only stock trading has been implemented).
 
-## 📚 文檔
+## 📚 Documentation
 
-- **[完整 API 文檔](docs/README.md)** - 使用 MkDocs 建立的完整 API 參考文檔（包含使用說明、文檔結構、特色功能）
-- **[架構分析](ARCHITECTURE_REVIEW.md)** - 系統架構詳細分析
-- **[策略開發指南](trader/strategies/README.md)** - 策略開發完整說明
+- **[Complete API Documentation](docs/README.md)** - Complete API reference documentation built with MkDocs (includes usage instructions, documentation structure, and features)
+- **[Architecture Analysis](ARCHITECTURE_REVIEW.md)** - Detailed system architecture analysis
+- **[Strategy Development Guide](trader/strategies/README.md)** - Complete guide for strategy development
 
-### 開啟 MkDocs 文檔網站查看說明
+### View Documentation Website with MkDocs
 
-若要本地預覽 API 文檔網站（含搜尋、導航、程式碼範例），請依下列步驟操作：
+To preview the API documentation website locally (with search, navigation, and code examples), follow these steps:
 
-1. **安裝 MkDocs 與文檔依賴**（在專案根目錄執行）：
+1. **Install MkDocs and documentation dependencies** (run in project root directory):
    ```bash
    pip install -r docs/requirements.txt
    ```
 
-2. **啟動文檔伺服器**：
+2. **Start the documentation server**:
    ```bash
    mkdocs serve
    ```
 
-3. **在瀏覽器開啟文檔**：
-   - 預設網址：**http://127.0.0.1:8000**
-   - 若 8000 埠被佔用，終端會顯示實際使用的埠號（例如 `http://127.0.0.1:8001`），請以終端顯示的網址為準。
+3. **Open documentation in browser**:
+   - Default URL: **http://127.0.0.1:8000**
+   - If port 8000 is occupied, the terminal will display the actual port used (e.g., `http://127.0.0.1:8001`), please use the URL shown in the terminal.
 
-4. **（選用）建置靜態網站**：僅建置、不啟動伺服器時可使用：
+4. **(Optional) Build static website**: To build only without starting the server:
    ```bash
    mkdocs build
    ```
-   產出會放在專案根目錄的 `site/` 資料夾，可自行部署到任意靜態網站主機。
+   Output will be in the `site/` folder in the project root, which can be deployed to any static website host.
 
 To get started, users should follow the instructions in [Strategy Instruction](trader/strategies/README.md) and complete the following steps:
 
@@ -38,107 +40,107 @@ To get started, users should follow the instructions in [Strategy Instruction](t
 2. Develop a trading strategy.
 3. Configure the strategy parameters.
 
-## 目錄
+## Table of Contents
 
 - [AlphaEdge](#alphaedge)
-- [文檔](#-文檔)
-  - [開啟 MkDocs 文檔網站查看說明](#開啟-mkdocs-文檔網站查看說明)
-- [回測方式](#回測方式)
-  - [執行回測](#執行回測)
-  - [回測級別](#回測級別)
-  - [回測結果](#回測結果)
-- [Strategy 格式](#strategy-格式)
-  - [基本結構](#基本結構)
-  - [必須實作的方法](#必須實作的方法)
-  - [策略設定參數](#策略設定參數)
-  - [資料 API 使用](#資料-api-使用)
-  - [FinMind 資料](#finmind-資料)
-  - [範例策略](#範例策略)
-- [資料庫更新](#資料庫更新)
-  - [更新指令](#更新指令)
-  - [支援的資料類型](#支援的資料類型)
-  - [更新流程](#更新流程)
+- [Documentation](#-documentation)
+  - [View Documentation Website with MkDocs](#view-documentation-website-with-mkdocs)
+- [Backtesting Methods](#backtesting-methods)
+  - [Running Backtests](#running-backtests)
+  - [Backtest Levels](#backtest-levels)
+  - [Backtest Results](#backtest-results)
+- [Strategy Format](#strategy-format)
+  - [Basic Structure](#basic-structure)
+  - [Required Methods](#required-methods)
+  - [Strategy Configuration Parameters](#strategy-configuration-parameters)
+  - [Data API Usage](#data-api-usage)
+  - [FinMind Data](#finmind-data)
+  - [Example Strategies](#example-strategies)
+- [Database Updates](#database-updates)
+  - [Update Commands](#update-commands)
+  - [Supported Data Types](#supported-data-types)
+  - [Update Process](#update-process)
 
-## 回測方式
+## Backtesting Methods
 
-### 執行回測
+### Running Backtests
 
-使用 `run.py` 執行回測，基本語法如下：
+Use `run.py` to execute backtests. Basic syntax:
 
 ```bash
 python run.py --strategy <StrategyName>
 ```
 
-**參數說明：**
-- `--mode`: 執行模式，可選 `backtest` 或 `live`，預設為 `backtest`
-- `--strategy`: 指定要使用的策略類別名稱（必填）
+**Parameter Description:**
+- `--mode`: Execution mode, options are `backtest` or `live`, default is `backtest`
+- `--strategy`: Specify the strategy class name to use (required)
 
-**使用範例：**
+**Usage Examples:**
 
 ```bash
-# 執行回測模式，使用名為 "Momentum" 的策略
+# Run backtest mode using a strategy named "Momentum"
 python run.py --strategy Momentum
 
-# 執行實盤模式（目前尚未實作）
+# Run live trading mode (not yet implemented)
 python run.py --mode live --strategy Momentum
 ```
 
-**注意事項：**
-- Strategy Name 是 Class 的名稱
-- 策略會自動從 `trader/strategies/stock/` 目錄載入
-- 回測結果會儲存在 `trader/backtest/results/<StrategyName>/` 目錄
+**Notes:**
+- Strategy Name is the Class name
+- Strategies are automatically loaded from the `trader/strategies/stock/` directory
+- Backtest results are stored in the `trader/backtest/results/<StrategyName>/` directory
 
-### 回測級別
+### Backtest Levels
 
-AlphaEdge 支援四種回測級別（KBar 級別）：
+AlphaEdge supports four backtest levels (KBar levels):
 
-1. **TICK**: 逐筆成交資料回測
-   - 使用 `StockTickAPI` 取得逐筆成交資料
-   - 適合需要精確價格和時間的策略
-   - 可參考 `trader/strategies/stock/momentum_tick_strategy.py` 範例
+1. **TICK**: Tick-by-tick trade data backtesting
+   - Uses `StockTickAPI` to get tick-by-tick trade data
+   - Suitable for strategies requiring precise prices and timing
+   - See `trader/strategies/stock/momentum_tick_strategy.py` for reference
 
-2. **DAY**: 日線資料回測
-   - 使用 `StockPriceAPI` 取得日線收盤價資料
-   - 適合基於日線技術指標的策略
-   - 可參考 `trader/strategies/stock/momentum_strategy.py` 或 `trader/strategies/stock/simple_long_strategy.py` 範例
+2. **DAY**: Daily bar data backtesting
+   - Uses `StockPriceAPI` to get daily closing price data
+   - Suitable for strategies based on daily technical indicators
+   - See `trader/strategies/stock/momentum_strategy.py` or `trader/strategies/stock/simple_long_strategy.py` for reference
 
-3. **MIX**: 混合級別回測
-   - 同時使用 TICK 和 DAY 資料
-   - 目前尚未完全實作
+3. **MIX**: Mixed level backtesting
+   - Uses both TICK and DAY data simultaneously
+   - Not yet fully implemented
 
-4. **ALL**: 使用所有可用資料
-   - 同時載入 TICK 和 DAY 資料 API
-   - 適合需要同時使用多種資料來源的策略
+4. **ALL**: Use all available data
+   - Loads both TICK and DAY data APIs simultaneously
+   - Suitable for strategies requiring multiple data sources
 
-在策略中設定回測級別：
+Set the backtest level in your strategy:
 
 ```python
-self.scale: str = Scale.DAY  # 或 Scale.TICK, Scale.MIX, Scale.ALL
+self.scale: str = Scale.DAY  # or Scale.TICK, Scale.MIX, Scale.ALL
 ```
 
-### 回測結果
+### Backtest Results
 
-回測完成後，系統會自動產生以下內容：
+After backtesting completes, the system automatically generates:
 
-1. **交易報告** (`trading_report.csv`)
-   - 包含所有交易記錄、損益統計等
+1. **Trading Report** (`trading_report.csv`)
+   - Contains all trading records, profit/loss statistics, etc.
 
-2. **圖表分析**
-   - 資產曲線圖 (`balance_curve.png`)
-   - 資產與基準比較圖 (`balance_and_benchmark_curve.png`)
-   - 最大回撤圖 (`balance_mdd.png`)
-   - 每日損益圖 (`everyday_profit.png`)
+2. **Chart Analysis**
+   - Balance curve chart (`balance_curve.png`)
+   - Balance and benchmark comparison chart (`balance_and_benchmark_curve.png`)
+   - Maximum drawdown chart (`balance_mdd.png`)
+   - Daily profit/loss chart (`everyday_profit.png`)
 
-3. **日誌檔案** (`<StrategyName>.log`)
-   - 記錄回測過程中的所有資訊和警告
+3. **Log Files** (`<StrategyName>.log`)
+   - Records all information and warnings during the backtest process
 
-回測結果儲存路徑：`trader/backtest/results/<StrategyName>/`
+Backtest results are stored at: `trader/backtest/results/<StrategyName>/`
 
-## Strategy 格式
+## Strategy Format
 
-### 基本結構
+### Basic Structure
 
-所有策略必須繼承 `BaseStockStrategy` 類別，並實作所有抽象方法。
+All strategies must inherit from the `BaseStockStrategy` class and implement all abstract methods.
 
 ```python
 from trader.strategies.stock import BaseStockStrategy
@@ -148,13 +150,13 @@ from trader.utils import Action, Scale, PositionType
 class MyStrategy(BaseStockStrategy):
     def __init__(self):
         super().__init__()
-        # 策略設定...
+        # Strategy configuration...
 ```
 
-### 必須實作的方法
+### Required Methods
 
 #### 1. `setup_account(account: StockAccount)`
-載入虛擬帳戶資訊，用於回測時管理資金和倉位。
+Load virtual account information for managing funds and positions during backtesting.
 
 ```python
 def setup_account(self, account: StockAccount):
@@ -162,30 +164,30 @@ def setup_account(self, account: StockAccount):
 ```
 
 #### 2. `setup_apis()`
-載入所需的資料 API，根據回測級別選擇性載入。
+Load required data APIs, selectively loaded based on backtest level.
 
 ```python
 def setup_apis(self):
-    self.chip = StockChipAPI()  # 籌碼資料
-    self.mrr = MonthlyRevenueReportAPI()  # 月營收資料
-    self.fs = FinancialStatementAPI()  # 財報資料
+    self.chip = StockChipAPI()  # Chip data
+    self.mrr = MonthlyRevenueReportAPI()  # Monthly revenue data
+    self.fs = FinancialStatementAPI()  # Financial statement data
     
     if self.scale in (Scale.TICK, Scale.MIX, Scale.ALL):
-        self.tick = StockTickAPI()  # 逐筆資料
+        self.tick = StockTickAPI()  # Tick data
     
     if self.scale in (Scale.DAY, Scale.MIX, Scale.ALL):
-        self.price = StockPriceAPI()  # 日線資料
+        self.price = StockPriceAPI()  # Daily bar data
 ```
 
 #### 3. `check_open_signal(stock_quotes: List[StockQuote]) -> List[StockOrder]`
-開倉策略邏輯，判斷哪些股票應該開倉。
+Opening position strategy logic to determine which stocks should open positions.
 
 ```python
 def check_open_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
     open_positions = []
     
     for stock_quote in stock_quotes:
-        # 你的開倉條件判斷
+        # Your opening condition logic
         if your_condition:
             open_positions.append(stock_quote)
     
@@ -193,7 +195,7 @@ def check_open_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
 ```
 
 #### 4. `check_close_signal(stock_quotes: List[StockQuote]) -> List[StockOrder]`
-平倉策略邏輯，判斷哪些持倉應該平倉。
+Closing position strategy logic to determine which positions should be closed.
 
 ```python
 def check_close_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
@@ -201,7 +203,7 @@ def check_close_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]
     
     for stock_quote in stock_quotes:
         if self.account.check_has_position(stock_quote.stock_id):
-            # 你的平倉條件判斷
+            # Your closing condition logic
             if your_condition:
                 close_positions.append(stock_quote)
     
@@ -209,7 +211,7 @@ def check_close_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]
 ```
 
 #### 5. `check_stop_loss_signal(stock_quotes: List[StockQuote]) -> List[StockOrder]`
-停損策略邏輯，判斷哪些持倉應該觸發停損。
+Stop loss strategy logic to determine which positions should trigger stop loss.
 
 ```python
 def check_stop_loss_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
@@ -218,7 +220,7 @@ def check_stop_loss_signal(self, stock_quotes: List[StockQuote]) -> List[StockOr
     for stock_quote in stock_quotes:
         if self.account.check_has_position(stock_quote.stock_id):
             position = self.account.get_first_open_position(stock_quote.stock_id)
-            # 你的停損條件判斷（例如：虧損超過 5%）
+            # Your stop loss condition logic (e.g., loss exceeds 5%)
             if (stock_quote.close / position.price - 1) < -0.05:
                 stop_loss_orders.append(stock_quote)
     
@@ -226,7 +228,7 @@ def check_stop_loss_signal(self, stock_quotes: List[StockQuote]) -> List[StockOr
 ```
 
 #### 6. `calculate_position_size(stock_quotes: List[StockQuote], action: Action) -> List[StockOrder]`
-計算下單股數，依據當前資金、價格、風控規則決定部位大小。
+Calculate order size based on current funds, price, and risk control rules.
 
 ```python
 def calculate_position_size(
@@ -235,7 +237,7 @@ def calculate_position_size(
     orders = []
     
     if action == Action.BUY:
-        # 計算可買張數
+        # Calculate available position count
         available_position_cnt = max(
             0, self.max_holdings - self.account.get_position_count()
         )
@@ -264,7 +266,7 @@ def calculate_position_size(
                     if available_position_cnt == 0:
                         break
     elif action == Action.SELL:
-        # 平倉時使用持倉的全部股數
+        # Use full position volume when closing
         for stock_quote in stock_quotes:
             position = self.account.get_first_open_position(stock_quote.stock_id)
             if position is None:
@@ -284,51 +286,51 @@ def calculate_position_size(
     return orders
 ```
 
-### 策略設定參數
+### Strategy Configuration Parameters
 
-在 `__init__` 方法中設定策略參數：
+Set strategy parameters in the `__init__` method:
 
 ```python
 def __init__(self):
     super().__init__()
     
-    # === 策略基本資訊 ===
-    self.strategy_name: str = "MyStrategy"  # 策略名稱
-    self.market: str = Market.STOCK  # 市場類型
-    self.position_type: str = PositionType.LONG  # 部位方向（多/空）
-    self.enable_intraday: bool = True  # 是否允許當沖
+    # === Strategy Basic Information ===
+    self.strategy_name: str = "MyStrategy"  # Strategy name
+    self.market: str = Market.STOCK  # Market type
+    self.position_type: str = PositionType.LONG  # Position direction (long/short)
+    self.enable_intraday: bool = True  # Whether to allow intraday trading
     
-    # === 帳戶設定 ===
-    self.init_capital: float = 1000000.0  # 初始資金
-    self.max_holdings: Optional[int] = 10  # 最大持倉檔數
+    # === Account Settings ===
+    self.init_capital: float = 1000000.0  # Initial capital
+    self.max_holdings: Optional[int] = 10  # Maximum number of positions
     
-    # === 回測設定 ===
-    self.is_backtest: bool = True  # 是否為回測模式
-    self.scale: str = Scale.DAY  # 回測級別
-    self.start_date: datetime.date = datetime.date(2020, 1, 1)  # 回測起始日
-    self.end_date: datetime.date = datetime.date(2025, 5, 31)  # 回測結束日
+    # === Backtest Settings ===
+    self.is_backtest: bool = True  # Whether in backtest mode
+    self.scale: str = Scale.DAY  # Backtest level
+    self.start_date: datetime.date = datetime.date(2020, 1, 1)  # Backtest start date
+    self.end_date: datetime.date = datetime.date(2025, 5, 31)  # Backtest end date
     
-    # 載入資料 API
+    # Load data APIs
     self.setup_apis()
 ```
 
-### 資料 API 使用
+### Data API Usage
 
-策略中可以透過以下 API 取得資料：
+Strategies can access data through the following APIs:
 
-#### StockPriceAPI - 日線價格資料
+#### StockPriceAPI - Daily Price Data
 
 ```python
-# 取得指定日期的所有股票價格
+# Get all stock prices for a specified date
 prices = self.price.get(date=datetime.date(2024, 1, 1))
 
-# 取得日期範圍的所有股票價格
+# Get all stock prices for a date range
 prices = self.price.get_range(
     start_date=datetime.date(2024, 1, 1),
     end_date=datetime.date(2024, 1, 31)
 )
 
-# 取得指定個股的價格
+# Get price for a specific stock
 stock_prices = self.price.get_stock_price(
     stock_id="2330",
     start_date=datetime.date(2024, 1, 1),
@@ -336,158 +338,158 @@ stock_prices = self.price.get_stock_price(
 )
 ```
 
-#### StockTickAPI - 逐筆成交資料
+#### StockTickAPI - Tick-by-Tick Trade Data
 
 ```python
-# 取得指定日期的逐筆資料
+# Get tick data for a specified date
 ticks = self.tick.get(date=datetime.date(2024, 1, 1))
 
-# 取得指定個股的逐筆資料
+# Get tick data for a specific stock
 stock_ticks = self.tick.get_stock_tick(
     stock_id="2330",
     date=datetime.date(2024, 1, 1)
 )
 ```
 
-#### StockChipAPI - 籌碼資料
+#### StockChipAPI - Chip Data
 
 ```python
-# 取得指定日期的籌碼資料
+# Get chip data for a specified date
 chips = self.chip.get(date=datetime.date(2024, 1, 1))
 ```
 
-#### MonthlyRevenueReportAPI - 月營收資料
+#### MonthlyRevenueReportAPI - Monthly Revenue Data
 
 ```python
-# 取得指定年月的月營收資料
+# Get monthly revenue data for a specified year and month
 mrr = self.mrr.get(year=2024, month=1)
 ```
 
-#### FinancialStatementAPI - 財報資料
+#### FinancialStatementAPI - Financial Statement Data
 
 ```python
-# 取得指定年季的財報資料
+# Get financial statement data for a specified year and quarter
 fs = self.fs.get(year=2024, season=1)
 ```
 
-### FinMind 資料
+### FinMind Data
 
-AlphaEdge 支援透過 FinMind API 取得以下資料：
+AlphaEdge supports accessing the following data through the FinMind API:
 
-1. **台股總覽(含權證)** (`stock_info`): 包含所有上市、上櫃、興櫃股票及權證的基本資訊
-2. **證券商資訊** (`broker_info`): 包含所有證券商的代碼、名稱、地址、電話等資訊
-3. **券商分點統計** (`broker_trading`): 每日各券商分點對各股票的買賣統計資料
+1. **Taiwan Stock Overview (including warrants)** (`stock_info`): Contains basic information for all listed, OTC, and emerging stocks and warrants
+2. **Securities Firm Information** (`broker_info`): Contains codes, names, addresses, phone numbers, etc. for all securities firms
+3. **Broker Branch Statistics** (`broker_trading`): Daily buy/sell statistics for each broker branch for each stock
 
-這些資料已儲存在 SQLite 資料庫中，可透過 SQL 查詢使用。目前尚未提供專用的 API 類別，建議直接在策略中使用 SQL 查詢或 pandas 讀取資料庫。
+This data is stored in a SQLite database and can be accessed through SQL queries. Currently, no dedicated API class is provided; it is recommended to use SQL queries or pandas to read the database directly in strategies.
 
-**資料表名稱：**
-- `taiwan_stock_info_with_warrant`: 台股總覽(含權證)
-- `taiwan_securities_trader_info`: 證券商資訊
-- `taiwan_stock_trading_daily_report_secid_agg`: 券商分點統計
+**Table Names:**
+- `taiwan_stock_info_with_warrant`: Taiwan Stock Overview (including warrants)
+- `taiwan_securities_trader_info`: Securities Firm Information
+- `taiwan_stock_trading_daily_report_secid_agg`: Broker Branch Statistics
 
-### 範例策略
+### Example Strategies
 
-AlphaEdge 提供了多個策略範例供參考：
+AlphaEdge provides several strategy examples for reference:
 
-- **MomentumStrategy** (`trader/strategies/stock/momentum_strategy.py`): 日線級別的動能策略
-- **MomentumTickStrategy** (`trader/strategies/stock/momentum_tick_strategy.py`): TICK 級別的動能策略
-- **SimpleLongStrategy** (`trader/strategies/stock/simple_long_strategy.py`): 簡易做多策略範例
+- **MomentumStrategy** (`trader/strategies/stock/momentum_strategy.py`): Momentum strategy at daily bar level
+- **MomentumTickStrategy** (`trader/strategies/stock/momentum_tick_strategy.py`): Momentum strategy at TICK level
+- **SimpleLongStrategy** (`trader/strategies/stock/simple_long_strategy.py`): Simple long position strategy example
 
-詳細的策略撰寫指南請參考 [Strategy Instruction](trader/strategies/README.md)。
+For detailed strategy writing guidelines, please refer to [Strategy Instruction](trader/strategies/README.md).
 
-## 資料庫更新
+## Database Updates
 
-### 更新指令
+### Update Commands
 
-使用 `tasks/update_db.py` 更新資料庫，基本語法如下：
+Use `tasks/update_db.py` to update the database. Basic syntax:
 
 ```bash
 python -m tasks.update_db --target <data_type>
 ```
 
-### 支援的資料類型
+### Supported Data Types
 
-- `tick`: 逐筆成交資料
-- `chip`: 三大法人籌碼資料
-- `price`: 收盤價資料
-- `fs`: 財報資料
-- `mrr`: 月營收報表
-- `finmind`: 更新所有 FinMind 資料（台股總覽、證券商資訊、券商分點統計）
-- `stock_info`: 僅更新 FinMind 台股總覽（不含權證）
-- `stock_info_with_warrant`: 僅更新 FinMind 台股總覽（含權證）
-- `broker_info`: 僅更新 FinMind 證券商資訊
-- `broker_trading`: 僅更新 FinMind 券商分點統計
-- `all`: 更新所有資料（包含 tick 和 finmind）
-- `no_tick`: 更新所有資料（不包含 tick，預設值）
+- `tick`: Tick-by-tick trade data
+- `chip`: Three major institutional investor chip data
+- `price`: Closing price data
+- `fs`: Financial statement data
+- `mrr`: Monthly revenue report
+- `finmind`: Update all FinMind data (Taiwan Stock Overview, Securities Firm Information, Broker Branch Statistics)
+- `stock_info`: Update only FinMind Taiwan Stock Overview (excluding warrants)
+- `stock_info_with_warrant`: Update only FinMind Taiwan Stock Overview (including warrants)
+- `broker_info`: Update only FinMind Securities Firm Information
+- `broker_trading`: Update only FinMind Broker Branch Statistics
+- `all`: Update all data (including tick and finmind)
+- `no_tick`: Update all data (excluding tick, default)
 
-### 更新流程
+### Update Process
 
-資料更新採用 ETL（Extract, Transform, Load）流程：
+Data updates follow an ETL (Extract, Transform, Load) process:
 
-1. **Crawl（爬蟲）**: 從資料來源爬取原始資料
-2. **Clean（清理）**: 清理和標準化資料格式
-3. **Load（載入）**: 將清理後的資料載入資料庫
+1. **Crawl**: Crawl raw data from data sources
+2. **Clean**: Clean and standardize data format
+3. **Load**: Load cleaned data into the database
 
-每個資料類型都有對應的 Updater 類別負責協調整個流程。
+Each data type has a corresponding Updater class responsible for coordinating the entire process.
 
-**使用範例：**
+**Usage Examples:**
 
 ```bash
-# 僅更新 tick 資料
+# Update only tick data
 python -m tasks.update_db --target tick
 
-# 更新三大法人與收盤價
+# Update three major institutional investors and closing prices
 python -m tasks.update_db --target chip price
 
-# 更新所有 FinMind 資料
+# Update all FinMind data
 python -m tasks.update_db --target finmind
 
-# 僅更新 FinMind 台股總覽
+# Update only FinMind Taiwan Stock Overview
 python -m tasks.update_db --target stock_info
 
-# 僅更新 FinMind 券商分點統計
+# Update only FinMind Broker Branch Statistics
 python -m tasks.update_db --target broker_trading
 
-# 同時更新多個資料類型
+# Update multiple data types simultaneously
 python -m tasks.update_db --target chip price finmind
 
-# 更新所有資料（不含 tick，預設）
+# Update all data (excluding tick, default)
 python -m tasks.update_db --target no_tick
-# 或
+# or
 python -m tasks.update_db
 
-# 更新所有資料（含 tick 和 finmind）
+# Update all data (including tick and finmind)
 python -m tasks.update_db --target all
 ```
 
-**資料更新時間範圍：**
+**Data Update Time Range:**
 
-- **一般資料**（price, chip, mrr, fs）: 從 2013/1/1 開始
-- **Tick 資料**: 從 2020/3/2 開始（Shioaji API 提供）
-- **FinMind 資料**:
-  - 台股總覽(含權證) (`stock_info`): 一次性更新全部資料
-  - 證券商資訊 (`broker_info`): 一次性更新全部資料
-  - 券商分點統計 (`broker_trading`): 從 2021/6/30 開始
+- **General Data** (price, chip, mrr, fs): Starting from 2013/1/1
+- **Tick Data**: Starting from 2020/3/2 (provided by Shioaji API)
+- **FinMind Data**:
+  - Taiwan Stock Overview (including warrants) (`stock_info`): One-time update of all data
+  - Securities Firm Information (`broker_info`): One-time update of all data
+  - Broker Branch Statistics (`broker_trading`): Starting from 2021/6/30
 
-**更新狀態說明：**
+**Update Status Description:**
 
-資料更新會返回以下狀態：
-- `UpdateStatus.SUCCESS`: 成功更新
-- `UpdateStatus.NO_DATA`: 沒有資料（API 返回空結果）
-- `UpdateStatus.ALREADY_UP_TO_DATE`: 資料庫已是最新
-- `UpdateStatus.ERROR`: 發生錯誤
+Data updates return the following statuses:
+- `UpdateStatus.SUCCESS`: Successfully updated
+- `UpdateStatus.NO_DATA`: No data (API returned empty results)
+- `UpdateStatus.ALREADY_UP_TO_DATE`: Database is already up to date
+- `UpdateStatus.ERROR`: Error occurred
 
-**注意事項：**
+**Notes:**
 
-- 更新程式會自動從資料庫中最新日期開始更新，無需手動指定起始日期
-- 更新過程中會自動處理延遲和錯誤重試
-- 更新日誌會儲存在 `trader/logs/` 目錄
-- FinMind 券商分點統計更新支援自動 API Quota 管理和 Metadata 追蹤，詳細流程請參考 [券商分點統計更新流程](docs/broker_trading_update_flow.md)
+- Update programs automatically start updating from the latest date in the database; no need to manually specify start date
+- Update process automatically handles delays and error retries
+- Update logs are stored in the `trader/logs/` directory
+- FinMind Broker Branch Statistics updates support automatic API Quota management and Metadata tracking. For detailed process, please refer to [Broker Branch Statistics Update Process](docs/broker_trading_update_flow.md)
 
-**財報申報期限提醒：**
+**Financial Report Filing Deadline Reminder:**
 
-一般行業財報申報期限：
-- Q1：5月15日
-- Q2：8月14日
-- Q3：11月14日
-- 年報：3月31日
+General industry financial report filing deadlines:
+- Q1: May 15
+- Q2: August 14
+- Q3: November 14
+- Annual Report: March 31
