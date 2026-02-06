@@ -12,7 +12,7 @@
 
 **影響**：不影響「用 metadata 跳過已爬」的邏輯，只減少 I/O。
 
-**狀態**：未實作
+**狀態**：已實作
 
 ---
 
@@ -52,7 +52,7 @@
 
 **影響**：不影響「中斷後跳過已爬」。
 
-**狀態**：未實作
+**狀態**：已實作
 
 ---
 
@@ -81,6 +81,6 @@
 ## 7. 其他小優化
 
 - **日誌**：每個組合都 `logger.info("Processing: trader_id=...")` 可改為 `logger.debug` 或每 N 個 log 一次，減少 I/O。
-- **成功後查詢**：`_crawl_and_save_broker_trading_daily_report` 成功後呼叫 `SQLiteUtils.get_table_latest_value` 只為 log；可改為用當次 DataFrame 的 `date` 最大值來 log，或移除／降頻。
+- **成功後查詢**：`_update_broker_trading_daily_report` 成功後呼叫 `SQLiteUtils.get_table_latest_value` 只為 log；可改為用當次 DataFrame 的 `date` 最大值來 log，或移除／降頻。
 
-**狀態**：未實作
+**狀態**：已實作

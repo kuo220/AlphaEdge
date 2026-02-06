@@ -486,7 +486,9 @@ class FinMindLoader(BaseDataLoader):
             logger.error(f"Error loading {csv_path.name}: {e}", exc_info=True)
 
     def load_broker_trading_daily_report(
-        self, df: Optional[pd.DataFrame] = None
+        self,
+        df: Optional[pd.DataFrame] = None,
+        commit: bool = True,
     ) -> Optional[int]:
         """載入當日券商分點統計表資料到資料庫
 
@@ -501,6 +503,7 @@ class FinMindLoader(BaseDataLoader):
                 - buy_volume, sell_volume, buy_price, sell_price (可選)
                 - securities_trader (可選)
                 如果為 None，則從 CSV 檔案載入（檔案結構：broker_trading/{broker_id}/{stock_id}.csv）
+            commit: 是否在寫入後立即 commit；若為 False（例如批次更新時由 updater 定期 commit），則不呼叫 conn.commit()
 
         Returns:
             int: 如果從 DataFrame 載入，返回成功插入的資料筆數
@@ -514,17 +517,20 @@ class FinMindLoader(BaseDataLoader):
 
         # 如果提供了 DataFrame，直接載入
         if df is not None:
-            return self._load_broker_trading_daily_report_from_dataframe(df)
+            return self._load_broker_trading_daily_report_from_dataframe(df, commit=commit)
         else:
             # 從 CSV 檔案載入
             self._load_broker_trading_daily_report_from_files()
             return None
 
-    def _load_broker_trading_daily_report_from_dataframe(self, df: pd.DataFrame) -> int:
+    def _load_broker_trading_daily_report_from_dataframe(
+        self, df: pd.DataFrame, commit: bool = True
+    ) -> int:
         """從 DataFrame 載入當日券商分點統計表資料到資料庫
 
         Args:
             df: 要載入的 DataFrame
+            commit: 是否在寫入後立即 commit
 
         Returns:
             int: 成功插入的資料筆數
@@ -626,7 +632,8 @@ class FinMindLoader(BaseDataLoader):
                 if_exists="append",
                 index=False,
             )
-            self.conn.commit()
+            if commit:
+                self.conn.commit()
 
             skipped_rows: int = original_count - len(new_df)
             if skipped_rows > 0:
@@ -665,7 +672,8 @@ class FinMindLoader(BaseDataLoader):
                     if_exists="append",
                     index=False,
                 )
-                self.conn.commit()
+                if commit:
+                    self.conn.commit()
                 logger.info(f"✅ Saved {len(df)} records to database (fallback mode)")
                 return len(df)
             except Exception as insert_error:
