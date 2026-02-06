@@ -159,7 +159,7 @@ def get_update_time_config(
         # FinMind 券商分點統計：從 2021/6/30 開始
         return {
             "start_date": datetime.date(2021, 6, 30),
-            "end_date": datetime.date.today(),
+            "end_date": datetime.date(2026, 1, 29),
         }
     else:
         # 預設通用設定（向後兼容）
