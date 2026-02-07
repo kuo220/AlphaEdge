@@ -224,8 +224,8 @@ for securities_trader_id in trader_list:  # 外層循環：券商
   ```python
   if not skip_processed_check and stock_id and securities_trader_id:
       if start_date_obj == end_date_obj:  # 單個日期
-          # 從 metadata 檢查日期是否在範圍內
-          if self._check_date_exists_in_metadata(...):
+          # 從 metadata 或 existing_dates 判斷該日期是否已在範圍內
+          if already_in_metadata_range:
               return UpdateStatus.ALREADY_UP_TO_DATE
   ```
 - **注意**: 在 batch 模式下，`skip_processed_check=True`，所以此檢查會被跳過

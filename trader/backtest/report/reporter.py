@@ -679,9 +679,9 @@ class StockBacktestReporter(BaseBacktestReporter):
 
         # 決定輸出路徑
         if self.output_dir is not None:
-            save_path = self.output_dir / file_name
+            save_path: Path = self.output_dir / file_name
         else:
-            save_path = Path(file_name)
+            save_path: Path = Path(file_name)
 
         # 確保資料夾存在
         save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -705,9 +705,9 @@ class StockBacktestReporter(BaseBacktestReporter):
 
         # 決定輸出路徑
         if self.output_dir is not None:
-            save_path = self.output_dir / file_name
+            save_path: Path = self.output_dir / file_name
         else:
-            save_path = Path(file_name)
+            save_path: Path = Path(file_name)
 
         # 確保資料夾存在
         save_path.parent.mkdir(parents=True, exist_ok=True)

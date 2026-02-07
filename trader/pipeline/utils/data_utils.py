@@ -207,8 +207,8 @@ class DataUtils:
 
         if case_insensitive:
             columns = columns.str.lower()
-            startswith_list = [word.lower() for word in startswith_list]
-            contains_list = [word.lower() for word in contains_list]
+            startswith_list: List[str] = [word.lower() for word in startswith_list]
+            contains_list: List[str] = [word.lower() for word in contains_list]
 
         for keyword in startswith_list:
             columns_to_drop |= columns.str.startswith(keyword)

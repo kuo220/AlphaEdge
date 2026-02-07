@@ -7,4 +7,9 @@ from .constant import (
     MarketType,
     UpdateStatus,
 )
+from .exceptions import (
+    FinMindError,
+    FinMindQuotaExhaustedError,
+    PipelineError,
+)
 from .url_manager import URLManager
