@@ -7,6 +7,7 @@ from FinMind.data import DataLoader
 from loguru import logger
 
 from trader.pipeline.crawlers.base import BaseDataCrawler
+from trader.pipeline.utils import FinMindError, FinMindQuotaExhaustedError
 from trader.utils.log_manager import LogManager
 
 """
@@ -73,6 +74,11 @@ class FinMindCrawler(BaseDataCrawler):
             return df
 
         except Exception as e:
+            if FinMindError.is_quota_error(e):
+                logger.warning(
+                    f"FinMind API quota exhausted while crawling Taiwan Stock Info: {e}"
+                )
+                raise FinMindQuotaExhaustedError("FinMind API quota exhausted") from e
             logger.error(f"Error crawling Taiwan Stock Info: {e}")
             return None
 
@@ -103,6 +109,11 @@ class FinMindCrawler(BaseDataCrawler):
             return df
 
         except Exception as e:
+            if FinMindError.is_quota_error(e):
+                logger.warning(
+                    f"FinMind API quota exhausted while crawling Taiwan Stock Info With Warrant: {e}"
+                )
+                raise FinMindQuotaExhaustedError("FinMind API quota exhausted") from e
             logger.error(f"Error crawling Taiwan Stock Info With Warrant: {e}")
             return None
 
@@ -134,6 +145,11 @@ class FinMindCrawler(BaseDataCrawler):
             return df
 
         except Exception as e:
+            if FinMindError.is_quota_error(e):
+                logger.warning(
+                    f"FinMind API quota exhausted while crawling Broker Info: {e}"
+                )
+                raise FinMindQuotaExhaustedError("FinMind API quota exhausted") from e
             logger.error(f"Error crawling Broker Info: {e}")
             return None
 
@@ -216,6 +232,12 @@ class FinMindCrawler(BaseDataCrawler):
             return df
 
         except Exception as e:
+            if FinMindError.is_quota_error(e):
+                logger.warning(
+                    f"FinMind API quota exhausted while crawling broker trading daily report "
+                    f"from {start_date} to {end_date}: {e}"
+                )
+                raise FinMindQuotaExhaustedError("FinMind API quota exhausted") from e
             logger.error(
                 f"Error crawling broker trading daily report from {start_date} to {end_date}: {e}"
             )

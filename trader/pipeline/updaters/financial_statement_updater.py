@@ -88,6 +88,12 @@ from trader.utils import TimeUtils
 class FinancialStatementUpdater(BaseDataUpdater):
     """Financial Statement Updater"""
 
+    BATCH_SLEEP_EVERY_N_FILES: int = 10
+    BATCH_SLEEP_DURATION_SECONDS: int = 30
+    BATCH_RANDOM_DELAY_MIN: int = 1
+    BATCH_RANDOM_DELAY_MAX: int = 5
+    LAST_SEASON: int = 4  # 第4季，用於季別進位判斷
+
     def __init__(self):
         super().__init__()
 
@@ -195,12 +201,14 @@ class FinancialStatementUpdater(BaseDataUpdater):
                     continue
 
                 file_cnt += 1
-                if file_cnt == 10:
+                if file_cnt == self.BATCH_SLEEP_EVERY_N_FILES:
                     logger.info("Sleep 30 seconds...")
                     file_cnt = 0
-                    time.sleep(30)
+                    time.sleep(self.BATCH_SLEEP_DURATION_SECONDS)
                 else:
-                    delay: int = random.randint(1, 5)
+                    delay: int = random.randint(
+                        self.BATCH_RANDOM_DELAY_MIN, self.BATCH_RANDOM_DELAY_MAX
+                    )
                     time.sleep(delay)
 
         # Step 3: Load
@@ -273,12 +281,14 @@ class FinancialStatementUpdater(BaseDataUpdater):
                     continue
 
                 file_cnt += 1
-                if file_cnt == 10:
+                if file_cnt == self.BATCH_SLEEP_EVERY_N_FILES:
                     logger.info("Sleep 30 seconds...")
                     file_cnt = 0
-                    time.sleep(30)
+                    time.sleep(self.BATCH_SLEEP_DURATION_SECONDS)
                 else:
-                    delay: int = random.randint(1, 5)
+                    delay: int = random.randint(
+                        self.BATCH_RANDOM_DELAY_MIN, self.BATCH_RANDOM_DELAY_MAX
+                    )
                     time.sleep(delay)
 
         # Step 3: Load
@@ -351,12 +361,14 @@ class FinancialStatementUpdater(BaseDataUpdater):
                     continue
 
                 file_cnt += 1
-                if file_cnt == 10:
+                if file_cnt == self.BATCH_SLEEP_EVERY_N_FILES:
                     logger.info("Sleep 30 seconds...")
                     file_cnt = 0
-                    time.sleep(30)
+                    time.sleep(self.BATCH_SLEEP_DURATION_SECONDS)
                 else:
-                    delay: int = random.randint(1, 5)
+                    delay: int = random.randint(
+                        self.BATCH_RANDOM_DELAY_MIN, self.BATCH_RANDOM_DELAY_MAX
+                    )
                     time.sleep(delay)
 
         # Step 3: Load
@@ -428,12 +440,14 @@ class FinancialStatementUpdater(BaseDataUpdater):
                     continue
 
                 file_cnt += 1
-                if file_cnt == 10:
+                if file_cnt == self.BATCH_SLEEP_EVERY_N_FILES:
                     logger.info("Sleep 30 seconds...")
                     file_cnt = 0
-                    time.sleep(30)
+                    time.sleep(self.BATCH_SLEEP_DURATION_SECONDS)
                 else:
-                    delay: int = random.randint(1, 5)
+                    delay: int = random.randint(
+                        self.BATCH_RANDOM_DELAY_MIN, self.BATCH_RANDOM_DELAY_MAX
+                    )
                     time.sleep(delay)
 
         # Step 3: Load
@@ -483,7 +497,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
             return default_year, default_season
 
         # Step 2: 處理進位（第4季 → 第1季 + 年份進位）
-        if latest_season == 4:
+        if latest_season == self.LAST_SEASON:
             return latest_year + 1, 1
         else:
             return latest_year, latest_season + 1

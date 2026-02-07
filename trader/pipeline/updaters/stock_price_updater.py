@@ -29,6 +29,14 @@ TPEX 網站提供資料日期：
 class StockPriceUpdater(BaseDataUpdater):
     """Stock Price Updater"""
 
+    # 清洗後最少筆數（少於此不處理）
+    MIN_DF_ROWS_AFTER_CLEAN: int = 2
+    # 每處理 N 個檔案休息一次
+    BATCH_SLEEP_EVERY_N_FILES: int = 100
+    BATCH_SLEEP_DURATION_SECONDS: int = 120
+    BATCH_RANDOM_DELAY_MIN: int = 1
+    BATCH_RANDOM_DELAY_MAX: int = 5
+
     def __init__(self):
         super().__init__()
 
@@ -74,14 +82,22 @@ class StockPriceUpdater(BaseDataUpdater):
             tpex_df: Optional[pd.DataFrame] = self.crawler.crawl_tpex_price(date)
 
             # Step 2: Clean
-            if twse_df is not None and not twse_df.empty and len(twse_df) > 2:
+            if (
+                twse_df is not None
+                and not twse_df.empty
+                and len(twse_df) > self.MIN_DF_ROWS_AFTER_CLEAN
+            ):
                 cleaned_twse_df: pd.DataFrame = self.cleaner.clean_twse_price(
                     twse_df, date
                 )
                 if cleaned_twse_df is None or cleaned_twse_df.empty:
                     logger.warning(f"Cleaned TWSE dataframe empty on {date}")
 
-            if tpex_df is not None and not tpex_df.empty and len(tpex_df) > 2:
+            if (
+                tpex_df is not None
+                and not tpex_df.empty
+                and len(tpex_df) > self.MIN_DF_ROWS_AFTER_CLEAN
+            ):
                 cleaned_tpex_df: pd.DataFrame = self.cleaner.clean_tpex_price(
                     tpex_df, date
                 )
@@ -90,12 +106,14 @@ class StockPriceUpdater(BaseDataUpdater):
 
             file_cnt += 1
 
-            if file_cnt == 100:
+            if file_cnt == self.BATCH_SLEEP_EVERY_N_FILES:
                 logger.info("Sleep 2 minutes...")
                 file_cnt = 0
-                time.sleep(120)
+                time.sleep(self.BATCH_SLEEP_DURATION_SECONDS)
             else:
-                delay: int = random.randint(1, 5)
+                delay: int = random.randint(
+                    self.BATCH_RANDOM_DELAY_MIN, self.BATCH_RANDOM_DELAY_MAX
+                )
                 time.sleep(delay)
 
         # Step 3: Load

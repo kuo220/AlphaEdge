@@ -13,6 +13,8 @@ from .constant import Action, Status
 class ShioajiAccount:
     """Shioaji API Account Tool"""
 
+    CONTRACTS_TIMEOUT_MS: int = 30000  # API 合約載入逾時（毫秒）
+
     # API login
     @staticmethod
     def API_login(
@@ -25,7 +27,9 @@ class ShioajiAccount:
         try:
             print("API logging in...")
             api.login(
-                api_key=api_key, secret_key=api_secret_key, contracts_timeout=30000
+                api_key=api_key,
+                secret_key=api_secret_key,
+                contracts_timeout=ShioajiAccount.CONTRACTS_TIMEOUT_MS,
             )
             print("API logging in successfully!")
             return api

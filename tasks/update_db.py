@@ -14,6 +14,14 @@ from trader.pipeline.updaters.monthly_revenue_report_updater import (
 from trader.pipeline.updaters.stock_chip_updater import StockChipUpdater
 from trader.pipeline.updaters.stock_price_updater import StockPriceUpdater
 from trader.pipeline.updaters.stock_tick_updater import StockTickUpdater
+from trader.config import (
+    DEFAULT_CHIP_PRICE_START_DATE,
+    DEFAULT_END_MONTH,
+    DEFAULT_START_YEAR,
+    FINMIND_BROKER_TRADING_END_DATE,
+    FINMIND_BROKER_TRADING_START_DATE,
+    TICK_UPDATE_START_DATE,
+)
 from trader.pipeline.utils import DataType, FinMindDataType
 
 """
@@ -119,57 +127,50 @@ def get_update_time_config(
         包含時間區間設定的字典
     """
     if data_type == DataType.TICK:
-        # TICK 資料：從 2020/03/02 開始
         return {
-            "start_date": datetime.date(2024, 5, 10),
+            "start_date": TICK_UPDATE_START_DATE,
             "end_date": datetime.date.today(),
         }
     elif data_type == DataType.CHIP or data_type == DataType.PRICE:
-        # CHIP 和 PRICE 資料：從 2013/1/1 開始
         return {
-            "start_date": datetime.date(2013, 1, 1),
+            "start_date": DEFAULT_CHIP_PRICE_START_DATE,
             "end_date": datetime.date.today(),
         }
     elif data_type == DataType.FS:
-        # 財報資料：使用年份和季度
         return {
-            "start_year": 2013,
+            "start_year": DEFAULT_START_YEAR,
             "end_year": datetime.date.today().year,
             "start_season": 1,
             "end_season": 4,
         }
     elif data_type == DataType.MRR:
-        # 月營收報表：使用年份和月份
         return {
-            "start_year": 2013,
+            "start_year": DEFAULT_START_YEAR,
             "end_year": datetime.date.today().year,
             "start_month": 1,
-            "end_month": 12,
+            "end_month": DEFAULT_END_MONTH,
         }
     elif data_type == DataType.FINMIND:
-        # FinMind 所有資料：券商分點統計從 2021/6/30 開始
         return {
-            "start_date": datetime.date(2021, 6, 30),
-            "end_date": datetime.date(2026, 1, 23),
+            "start_date": FINMIND_BROKER_TRADING_START_DATE,
+            "end_date": FINMIND_BROKER_TRADING_END_DATE,
         }
     elif data_type == FinMindDataType.BROKER_TRADING or (
         isinstance(data_type, str)
         and data_type.lower() == FinMindDataType.BROKER_TRADING.value.lower()
     ):
-        # FinMind 券商分點統計：從 2021/6/30 開始
         return {
-            "start_date": datetime.date(2021, 6, 30),
-            "end_date": datetime.date.today(),
+            "start_date": FINMIND_BROKER_TRADING_START_DATE,
+            "end_date": FINMIND_BROKER_TRADING_END_DATE,
         }
     else:
-        # 預設通用設定（向後兼容）
         return {
-            "start_date": datetime.date(2013, 1, 1),
+            "start_date": DEFAULT_CHIP_PRICE_START_DATE,
             "end_date": datetime.date.today(),
-            "start_year": 2013,
+            "start_year": DEFAULT_START_YEAR,
             "end_year": datetime.date.today().year,
             "start_month": 1,
-            "end_month": 12,
+            "end_month": DEFAULT_END_MONTH,
             "start_season": 1,
             "end_season": 4,
         }

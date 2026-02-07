@@ -27,6 +27,12 @@ from trader.pipeline.loaders.base import BaseDataLoader
 class StockTickLoader(BaseDataLoader):
     """Stock Tick Loader"""
 
+    DEFAULT_TICK_DB_START_TIME: str = "2020.03.01"
+    DEFAULT_TICK_DB_END_TIME: str = "2030.12.31"
+    TICK_DB_HASH_PARTITIONS: int = 25
+    CONNECT_MAX_RETRIES: int = 3
+    CONNECT_RETRY_DELAY: float = 1.0
+
     def __init__(self):
         super().__init__()
 
@@ -58,7 +64,11 @@ class StockTickLoader(BaseDataLoader):
             logger.info("Database doesn't exist!")
             self.create_db()
 
-    def connect(self, max_retries: int = 3, retry_delay: float = 1.0) -> None:
+    def connect(
+        self,
+        max_retries: Optional[int] = None,
+        retry_delay: Optional[float] = None,
+    ) -> None:
         """
         Connect to the Database with retry mechanism
 
@@ -66,23 +76,29 @@ class StockTickLoader(BaseDataLoader):
             max_retries: Maximum number of connection retry attempts
             retry_delay: Delay in seconds between retry attempts
         """
+        _max_retries: int = (
+            max_retries if max_retries is not None else self.CONNECT_MAX_RETRIES
+        )
+        _retry_delay: float = (
+            retry_delay if retry_delay is not None else self.CONNECT_RETRY_DELAY
+        )
 
-        for attempt in range(1, max_retries + 1):
+        for attempt in range(1, _max_retries + 1):
             try:
                 self.session: ddb.session = ddb.session()
                 self.session.connect(DDB_HOST, DDB_PORT, DDB_USER, DDB_PASSWORD)
                 logger.info("Successfully connected to DolphinDB")
                 return
             except Exception as e:
-                if attempt < max_retries:
+                if attempt < _max_retries:
                     logger.warning(
-                        f"Connection attempt {attempt}/{max_retries} failed: {e}. "
-                        f"Retrying in {retry_delay} seconds..."
+                        f"Connection attempt {attempt}/{_max_retries} failed: {e}. "
+                        f"Retrying in {_retry_delay} seconds..."
                     )
-                    time.sleep(retry_delay)
+                    time.sleep(_retry_delay)
                 else:
                     logger.error(
-                        f"Failed to connect to DolphinDB after {max_retries} attempts: {e}"
+                        f"Failed to connect to DolphinDB after {_max_retries} attempts: {e}"
                     )
                     raise
 
@@ -94,8 +110,8 @@ class StockTickLoader(BaseDataLoader):
     def create_db(self) -> None:
         """創建 dolphinDB"""
 
-        start_time: str = "2020.03.01"
-        end_time: str = "2030.12.31"
+        start_time: str = self.DEFAULT_TICK_DB_START_TIME
+        end_time: str = self.DEFAULT_TICK_DB_END_TIME
 
         if self.session.existsDatabase(TICK_DB_PATH):
             logger.info("Database exists!")
@@ -103,7 +119,7 @@ class StockTickLoader(BaseDataLoader):
             logger.info("Database doesn't exist!\nCreating a database...")
             script: str = f"""
             create database "{DDB_PATH}{TICK_DB_NAME}"
-            partitioned by VALUE({start_time}..{end_time}), HASH([SYMBOL, 25])
+            partitioned by VALUE({start_time}..{end_time}), HASH([SYMBOL, {self.TICK_DB_HASH_PARTITIONS}])
             engine='TSDB'
             create table "{DDB_PATH}{TICK_DB_NAME}"."{TICK_TABLE_NAME}"(
                 stock_id SYMBOL

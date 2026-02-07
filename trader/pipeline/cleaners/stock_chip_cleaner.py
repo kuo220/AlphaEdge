@@ -13,19 +13,23 @@ from trader.utils import TimeUtils
 class StockChipCleaner(BaseDataCleaner):
     """Stock Chip Cleaner (Transform)"""
 
+    # TWSE 三大法人資料改制日期
+    TWSE_FIRST_REFORM_DATE: datetime.date = datetime.date(2014, 12, 1)
+    TWSE_SECOND_REFORM_DATE: datetime.date = datetime.date(2017, 12, 18)
+    # TPEX 三大法人資料改制日期
+    TPEX_FIRST_REFORM_DATE: datetime.date = datetime.date(2014, 12, 1)
+    TPEX_SECOND_REFORM_DATE: datetime.date = datetime.date(2018, 1, 15)
+
     def __init__(self):
         super().__init__()
 
         # Chip DataFrame Cleaned Columns
         self.chip_cleaned_cols: Optional[List[str]] = None
 
-        # The date that TWSE chip data format was reformed
-        self.twse_first_reform_date: datetime.date = datetime.date(2014, 12, 1)
-        self.twse_second_reform_date: datetime.date = datetime.date(2017, 12, 18)
-
-        # The date that TPEX chip data format was reformed
-        self.tpex_first_reform_date: datetime.date = datetime.date(2014, 12, 1)
-        self.tpex_second_reform_date: datetime.date = datetime.date(2018, 1, 15)
+        self.twse_first_reform_date: datetime.date = self.TWSE_FIRST_REFORM_DATE
+        self.twse_second_reform_date: datetime.date = self.TWSE_SECOND_REFORM_DATE
+        self.tpex_first_reform_date: datetime.date = self.TPEX_FIRST_REFORM_DATE
+        self.tpex_second_reform_date: datetime.date = self.TPEX_SECOND_REFORM_DATE
 
         # Downloads directory Path
         self.chip_dir: Path = CHIP_DOWNLOADS_PATH

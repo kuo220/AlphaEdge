@@ -30,6 +30,9 @@ From 2020/04/01 ~ 2024/05/10
 class StockTickUpdater(BaseDataUpdater):
     """Stock Tick Updater"""
 
+    # API 剩餘用量低於此值（MB）即停止爬取
+    TICK_API_MIN_REMAINING_MB: float = 20.0
+
     def __init__(self):
 
         super().__init__()
@@ -284,7 +287,7 @@ class StockTickUpdater(BaseDataUpdater):
             # 判斷 api 用量（統一檢查，避免重複）
             try:
                 remaining_mb: float = api.usage().remaining_bytes / 1024**2
-                if remaining_mb < 20:
+                if remaining_mb < self.TICK_API_MIN_REMAINING_MB:
                     logger.warning(
                         f"API quota low ({remaining_mb:.2f} MB remaining) for {api}. "
                         f"Stopped crawling at stock {stock_id}."
@@ -314,7 +317,7 @@ class StockTickUpdater(BaseDataUpdater):
                 # 統一 API 配額檢查（在每次爬取前檢查，因為配額是動態變化的）
                 try:
                     remaining_mb: float = api.usage().remaining_bytes / 1024**2
-                    if remaining_mb < 20:
+                    if remaining_mb < self.TICK_API_MIN_REMAINING_MB:
                         logger.warning(
                             f"API quota low ({remaining_mb:.2f} MB remaining) for {api}. "
                             f"Stopped crawling {stock_id} at date {date.isoformat()}."

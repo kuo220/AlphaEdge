@@ -35,13 +35,16 @@ class StockTickUtils:
     # 類級別的鎖，用於保護 metadata 文件的讀寫操作
     _metadata_lock: Lock = Lock()
 
+    # 無法從 metadata 取得日期時的預設 fallback 日期
+    TICK_DEFAULT_FALLBACK_DATE: datetime.date = datetime.date(2020, 4, 1)
+
     @staticmethod
     def get_table_latest_date() -> datetime.date:
         """從 tick_metadata.json 中取得 tick table 的最新日期"""
 
         time_data: Dict[str, Any] = DataUtils.load_json(TICK_METADATA_PATH)
         if time_data is None:
-            return datetime.date(2020, 4, 1)
+            return StockTickUtils.TICK_DEFAULT_FALLBACK_DATE
         # 從所有股票中找出最新的日期
         latest_date: Optional[datetime.date] = None
         for stock_info in time_data.get("stocks", {}).values():
@@ -51,7 +54,7 @@ class StockTickUtils:
                 )
                 if latest_date is None or stock_date > latest_date:
                     latest_date = stock_date
-        return latest_date if latest_date else datetime.date(2020, 4, 1)
+        return latest_date if latest_date else StockTickUtils.TICK_DEFAULT_FALLBACK_DATE
 
     @staticmethod
     def generate_tick_metadata_backup() -> None:

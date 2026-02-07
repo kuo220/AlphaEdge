@@ -22,6 +22,9 @@ from trader.utils import TimeUtils
 class MonthlyRevenueReportCrawler(BaseDataCrawler):
     """TWSE & TPEX Monthly Revenue Report Crawler"""
 
+    CRAWL_DELAY_MIN: float = 1.0
+    CRAWL_DELAY_MAX: float = 3.0
+
     def __init__(self):
         # Downloads directory Path
         self.mrr_dir: Path = MONTHLY_REVENUE_REPORT_DOWNLOADS_PATH
@@ -173,7 +176,7 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
                         ):
                             df.columns = df.columns.droplevel(0)
                             all_columns.extend(df.columns)
-            time.sleep(random.uniform(1, 3))
+            time.sleep(random.uniform(self.CRAWL_DELAY_MIN, self.CRAWL_DELAY_MAX))
 
         # 去除重複欄位並保留順序
         unique_columns: List[str] = list(dict.fromkeys(all_columns))

@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple, Union
 
 import pandas as pd
-from FinMind.data import DataLoader
 from loguru import logger
 
 from trader.config import (
@@ -20,7 +19,11 @@ from trader.pipeline.cleaners.finmind_cleaner import FinMindCleaner
 from trader.pipeline.crawlers.finmind_crawler import FinMindCrawler
 from trader.pipeline.loaders.finmind_loader import FinMindLoader
 from trader.pipeline.updaters.base import BaseDataUpdater
-from trader.pipeline.utils import FinMindDataType, UpdateStatus
+from trader.pipeline.utils import (
+    FinMindDataType,
+    FinMindQuotaExhaustedError,
+    UpdateStatus,
+)
 from trader.pipeline.utils.data_utils import DataUtils
 from trader.utils import TimeUtils
 from trader.utils.instrument import StockUtils
@@ -32,10 +35,39 @@ from trader.utils.log_manager import LogManager
 class FinMindUpdater(BaseDataUpdater):
     """FinMind Updater"""
 
+    # API Quota 相關常數（供 _wait_for_quota_reset 使用）
+    QUOTA_RESET_INTERVAL_SECONDS: int = (
+        3600  # 配額重置間隔（秒），用於 fallback 推算下次重置時間
+    )
+    MIN_REMAINING_QUOTA_TO_RESUME: int = (
+        3000  # 剩餘 quota 至少達此值才視為已恢復、繼續更新
+    )
+    DEFAULT_API_QUOTA_LIMIT: int = (
+        20000  # 每小時最大 API 調用次數（無法從 API 取得時使用）
+    )
+    SECONDS_PER_MINUTE: int = 60  # 分鐘轉秒（用於配額輪詢間隔等）
+
+    # 配額用盡後等待恢復的預設參數
+    QUOTA_CHECK_INTERVAL_MINUTES: int = 10  # 每隔幾分鐘查詢一次 API usage
+    QUOTA_MAX_WAIT_MINUTES: int = 120  # 最大等待時間（分鐘）
+
+    # 券商分點批量更新：進度記錄、metadata 更新、commit 間隔
+    BATCH_LOG_PROGRESS_INTERVAL: int = 50  # 每處理 N 筆記錄一次進度
+    BATCH_UPDATE_METADATA_INTERVAL: int = 500  # 每處理 N 筆更新一次 metadata
+    BATCH_COMMIT_INTERVAL: int = 50  # 每處理 N 筆 commit 一次
+
+    # 預設日期（update_all 時 broker_trading 若未給 start_date）
+    DEFAULT_BROKER_TRADING_START_DATE: datetime.date = datetime.date(2021, 6, 30)
+
+    # API 剩餘配額查詢：有效值下界（usage 與 limit 的合法性檢查）
+    MIN_VALID_API_USAGE: int = 0
+    MIN_VALID_API_LIMIT: int = 1
+
     def __init__(self):
         super().__init__()
 
-        # SQLite Connection
+        # SQLite Connection（用於讀取：股票/券商列表、metadata 從 DB 查詢）
+        # 寫入由 self.loader.conn 負責（broker trading 等）；兩者皆指向同一 DB_PATH
         self.conn: Optional[sqlite3.Connection] = None
 
         # ETL
@@ -43,10 +75,11 @@ class FinMindUpdater(BaseDataUpdater):
         self.cleaner: FinMindCleaner = FinMindCleaner()
         self.loader: FinMindLoader = FinMindLoader()
 
-        # API Quota 追蹤（初始值，會在 setup 中動態獲取）
-        self.api_quota_limit: int = 20000  # 每小時最大 API 調用次數（預設值）
-        self.api_call_count: int = 0  # 當前小時的 API 調用次數
-        self.quota_reset_time: float = time.time() + 3600  # 下次重置時間（1小時後）
+        # API Quota（供 _wait_for_quota_reset 查詢與 fallback 用；配額用盡由 FinMindQuotaExhaustedError 處理）
+        self.api_quota_limit: int = self.DEFAULT_API_QUOTA_LIMIT
+        self.quota_reset_time: float = (
+            time.time() + self.QUOTA_RESET_INTERVAL_SECONDS
+        )  # 下次重置時間（無法從 API 取得剩餘時用）
 
         # Broker trading metadata 文件路徑（記錄每個 broker_id 和 stock_id 的日期範圍）
         self.broker_trading_metadata_path: Path = BROKER_TRADING_METADATA_PATH
@@ -154,7 +187,14 @@ class FinMindUpdater(BaseDataUpdater):
         logger.info("* Start Updating Taiwan Stock Info...")
 
         # Step 1: Crawl
-        df: Optional[pd.DataFrame] = self.crawler.crawl_stock_info()
+        try:
+            df: Optional[pd.DataFrame] = self.crawler.crawl_stock_info()
+        except FinMindQuotaExhaustedError as e:
+            logger.error(
+                "⚠️ FinMind API quota exhausted. Please wait for quota reset and retry later. %s",
+                e,
+            )
+            return
         if df is None or df.empty:
             logger.warning("No stock info data to update")
             return
@@ -181,7 +221,14 @@ class FinMindUpdater(BaseDataUpdater):
         logger.info("* Start Updating Taiwan Stock Info With Warrant...")
 
         # Step 1: Crawl
-        df: Optional[pd.DataFrame] = self.crawler.crawl_stock_info_with_warrant()
+        try:
+            df: Optional[pd.DataFrame] = self.crawler.crawl_stock_info_with_warrant()
+        except FinMindQuotaExhaustedError as e:
+            logger.error(
+                "⚠️ FinMind API quota exhausted. Please wait for quota reset and retry later. %s",
+                e,
+            )
+            return
         if df is None or df.empty:
             logger.warning("No stock info with warrant data to update")
             return
@@ -210,7 +257,14 @@ class FinMindUpdater(BaseDataUpdater):
         logger.info("* Start Updating Broker Info...")
 
         # Step 1: Crawl
-        df: Optional[pd.DataFrame] = self.crawler.crawl_broker_info()
+        try:
+            df: Optional[pd.DataFrame] = self.crawler.crawl_broker_info()
+        except FinMindQuotaExhaustedError as e:
+            logger.error(
+                "⚠️ FinMind API quota exhausted. Please wait for quota reset and retry later. %s",
+                e,
+            )
+            return
         if df is None or df.empty:
             logger.warning("No broker info data to update")
             return
@@ -251,20 +305,19 @@ class FinMindUpdater(BaseDataUpdater):
             f"* Start Updating Broker Trading Daily Report: {start_date} to {end_date}"
         )
 
-        # 轉換日期格式
-        if isinstance(start_date, str):
-            start_date_obj: datetime.date = datetime.datetime.strptime(
-                start_date, "%Y-%m-%d"
-            ).date()
-        else:
-            start_date_obj: datetime.date = start_date
+        def _to_date(value: Union[datetime.date, str]) -> datetime.date:
+            """將 date 或字串轉為 datetime.date；字串須為 YYYY-MM-DD 格式。"""
+            if isinstance(value, datetime.date):
+                return value
+            try:
+                return datetime.datetime.strptime(value, "%Y-%m-%d").date()
+            except (ValueError, TypeError) as e:
+                raise ValueError(
+                    f"Invalid date format: expected datetime.date or 'YYYY-MM-DD' string, got {type(value).__name__!r}"
+                ) from e
 
-        if isinstance(end_date, str):
-            end_date_obj: datetime.date = datetime.datetime.strptime(
-                end_date, "%Y-%m-%d"
-            ).date()
-        else:
-            end_date_obj: datetime.date = end_date
+        start_date_obj: datetime.date = _to_date(start_date)
+        end_date_obj: datetime.date = _to_date(end_date)
 
         # 取得股票列表和券商列表
         stock_list: List[str] = self._get_stock_list()
@@ -313,7 +366,7 @@ class FinMindUpdater(BaseDataUpdater):
         )
 
         # Loop: 券商 -> 股票
-        combination_count: int = 0
+        processed_count: int = 0
         quota_exhausted: bool = False
 
         # 統計各種狀態
@@ -324,32 +377,26 @@ class FinMindUpdater(BaseDataUpdater):
             UpdateStatus.ERROR.value: 0,
         }
 
-        # 定期更新 metadata 的頻率（每處理 N 個項目後更新一次；過小則 I/O 頻繁，過大則中斷時可能重爬較多）
-        update_metadata_interval: int = 500
-        # 批次 commit 頻率（每 N 個組合 commit 一次 DB，減少 commit 次數；中斷時最多少最後未 commit 的一批）
-        commit_interval: int = 50
-
         # 輔助函數：記錄進度並定期更新 metadata
         def log_progress_and_update_metadata():
             """記錄處理進度並在需要時更新 metadata（避免程式意外中斷時遺失進度）"""
-            if combination_count % 50 == 0:
+            if processed_count % self.BATCH_LOG_PROGRESS_INTERVAL == 0:
                 logger.info(
-                    f"Progress: {combination_count}/{total_combinations} combinations processed "
-                    f"(API calls: {self.api_call_count}/{self.api_quota_limit}) | "
+                    f"Progress: {processed_count}/{total_combinations} combinations processed | "
                     f"Stats: success={stats[UpdateStatus.SUCCESS.value]}, no_data={stats[UpdateStatus.NO_DATA.value]}, "
                     f"error={stats[UpdateStatus.ERROR.value]}, already_up_to_date={stats[UpdateStatus.ALREADY_UP_TO_DATE.value]}"
                 )
             # 定期更新 metadata（避免程式意外中斷時遺失進度）
-            if combination_count % update_metadata_interval == 0:
+            if processed_count % self.BATCH_UPDATE_METADATA_INTERVAL == 0:
                 logger.debug(
-                    f"Periodically updating metadata at {combination_count} combinations..."
+                    f"Periodically updating metadata at {processed_count} combinations..."
                 )
                 self._update_broker_trading_metadata_from_database()
 
         for securities_trader_id in securities_trader_list:
             for stock_id in stock_list:
                 # 每個組合開始處理時就增加計數（無論是否跳過都會被計入）
-                combination_count += 1
+                processed_count += 1
 
                 # 記錄正在處理的券商和股票（改為 debug 減少 I/O，進度已由 log_progress_and_update_metadata 每 50 筆 log 一次）
                 logger.debug(
@@ -363,15 +410,15 @@ class FinMindUpdater(BaseDataUpdater):
                 )
 
                 # 檢查該組合是否在 metadata 中
-                combination_in_metadata: bool = (
+                has_metadata: bool = (
                     securities_trader_id in metadata
                     and stock_id in metadata[securities_trader_id]
                     and "latest_date" in metadata[securities_trader_id][stock_id]
                 )
 
-                combination_start_date: datetime.date = start_date_obj
+                update_start_date: datetime.date = start_date_obj
 
-                if combination_in_metadata:
+                if has_metadata:
                     try:
                         # 如果 metadata 中有該組合的資料，從最新日期+1開始
                         latest_date_str: str = metadata[securities_trader_id][stock_id][
@@ -380,35 +427,22 @@ class FinMindUpdater(BaseDataUpdater):
                         latest_date: datetime.date = datetime.datetime.strptime(
                             latest_date_str, "%Y-%m-%d"
                         ).date()
-                        combination_start_date = latest_date + datetime.timedelta(
-                            days=1
-                        )
+                        update_start_date = latest_date + datetime.timedelta(days=1)
                     except (ValueError, KeyError) as e:
                         logger.debug(
                             f"Error parsing latest_date from metadata for {securities_trader_id}/{stock_id}: {e}"
                         )
-                        combination_start_date = start_date_obj
+                        update_start_date = start_date_obj
 
-                # 確保起始日期不早於 start_date_obj，不晚於 end_date_obj
-                combination_start_date = max(combination_start_date, start_date_obj)
+                update_start_date = max(update_start_date, start_date_obj)
 
-                # 如果該組合不在 metadata 中，且起始日期在有效範圍內，應該要更新
-                # 只有在 metadata 中存在且起始日期超過結束日期時才跳過
-                if combination_in_metadata and combination_start_date > end_date_obj:
-                    # 該組合已經是最新的，跳過
-                    stats[UpdateStatus.ALREADY_UP_TO_DATE.value] += 1
-                    log_progress_and_update_metadata()
-                    continue
-
-                # 如果該組合不在 metadata 中，但起始日期超過結束日期，這表示日期範圍無效
-                if (
-                    not combination_in_metadata
-                    and combination_start_date > end_date_obj
-                ):
-                    logger.warning(
-                        f"Invalid date range for new combination {securities_trader_id}/{stock_id}: "
-                        f"start_date={combination_start_date} > end_date={end_date_obj}. Skipping."
-                    )
+                # 起始日期已超過結束日期：已是最新或日期範圍無效，跳過
+                if update_start_date > end_date_obj:
+                    if not has_metadata:
+                        logger.warning(
+                            f"Invalid date range for new combination {securities_trader_id}/{stock_id}: "
+                            f"start_date={update_start_date} > end_date={end_date_obj}. Skipping."
+                        )
                     stats[UpdateStatus.ALREADY_UP_TO_DATE.value] += 1
                     log_progress_and_update_metadata()
                     continue
@@ -421,14 +455,14 @@ class FinMindUpdater(BaseDataUpdater):
 
                 # 產生目標日期範圍的所有日期
                 target_dates: List[datetime.date] = TimeUtils.generate_date_range(
-                    combination_start_date, end_date_obj
+                    update_start_date, end_date_obj
                 )
 
                 # 如果日期範圍為空（例如 start_date > end_date），跳過
                 if not target_dates:
                     logger.warning(
                         f"Empty date range for {securities_trader_id}/{stock_id}: "
-                        f"start_date={combination_start_date}, end_date={end_date_obj}. Skipping."
+                        f"start_date={update_start_date}, end_date={end_date_obj}. Skipping."
                     )
                     stats[UpdateStatus.ALREADY_UP_TO_DATE.value] += 1
                     log_progress_and_update_metadata()
@@ -444,7 +478,7 @@ class FinMindUpdater(BaseDataUpdater):
                 if not missing_dates:
                     # 所有日期都已存在，跳過此組合
                     # 但如果是新組合（不在 metadata 中），這不應該發生，記錄警告
-                    if not combination_in_metadata:
+                    if not has_metadata:
                         logger.warning(
                             f"Unexpected: combination {securities_trader_id}/{stock_id} not in metadata "
                             f"but all dates {target_date_strs} appear to exist. This may indicate a logic error."
@@ -453,74 +487,60 @@ class FinMindUpdater(BaseDataUpdater):
                     log_progress_and_update_metadata()
                     continue
 
-                # 在每次 API 調用前檢查 quota
-                if not self._check_and_update_api_quota():
-                    # 自動等待 quota 重置（每隔 10 分鐘查詢一次 API usage）
-                    logger.warning(
-                        f"⚠️ API quota exhausted! Used {self.api_call_count}/{self.api_quota_limit} calls. "
-                        f"Progress: {combination_count}/{total_combinations} combinations processed. "
-                        f"Last processed: trader={securities_trader_id}, stock={stock_id}"
-                    )
-                    # 更新 metadata（從資料庫讀取）
-                    logger.info(
-                        "Updating broker trading metadata before waiting for quota reset..."
-                    )
-                    self._update_broker_trading_metadata_from_database()
-
-                    # 等待 quota 重置（每隔 10 分鐘查詢一次，最多等待 2 小時）
-                    quota_restored: bool = self._wait_for_quota_reset(
-                        check_interval_minutes=10,
-                        max_wait_minutes=120,  # 最多等待 2 小時
-                    )
-
-                    if not quota_restored:
-                        quota_exhausted: bool = True
-                        logger.error(
-                            f"❌ Failed to restore API quota within maximum wait time. "
-                            f"Please check API status and restart manually."
-                        )
-                        break
-                    else:
-                        # Quota 已恢復，繼續處理
-                        logger.info(
-                            f"🔄 Resuming update from trader={securities_trader_id}, stock={stock_id}"
-                        )
-                        # 不 break，繼續當前循環
-
-                try:
-                    # 對單一券商、單一股票，一次性查詢整個日期範圍（批次時不在此處 commit，由下方每 N 筆統一 commit）
-                    status: UpdateStatus = (
-                        self._update_broker_trading_daily_report(
+                # 配額用盡時會等待恢復並重試「本組合」，成功或未恢復才往下一組合
+                while True:
+                    try:
+                        status: UpdateStatus = self._update_broker_trading_daily_report(
                             stock_id=stock_id,
                             securities_trader_id=securities_trader_id,
-                            start_date=combination_start_date,
+                            start_date=update_start_date,
                             end_date=end_date_obj,
                             do_commit=False,
                         )
-                    )
-
-                    if status == UpdateStatus.NO_DATA:
-                        logger.debug(
-                            f"No data for trader={securities_trader_id}, stock={stock_id} "
-                            f"(date range: {combination_start_date} to {end_date_obj})"
+                        if status == UpdateStatus.NO_DATA:
+                            logger.debug(
+                                f"No data for trader={securities_trader_id}, stock={stock_id} "
+                                f"(date range: {update_start_date} to {end_date_obj})"
+                            )
+                        if status.value in stats:
+                            stats[status.value] += 1
+                        else:
+                            logger.warning(f"Unknown status returned: {status}")
+                            stats[UpdateStatus.ERROR.value] += 1
+                        break
+                    except FinMindQuotaExhaustedError as e:
+                        logger.warning(
+                            f"⚠️ FinMind API quota exhausted. "
+                            f"Progress: {processed_count}/{total_combinations}. "
+                            f"Current: trader={securities_trader_id}, stock={stock_id}. {e}"
                         )
-
-                    # 統計狀態
-                    if status.value in stats:
-                        stats[status.value] += 1
-                    else:
-                        logger.warning(f"Unknown status returned: {status}")
+                        self._update_broker_trading_metadata_from_database()
+                        quota_restored: bool = self._wait_for_quota_reset()
+                        if not quota_restored:
+                            quota_exhausted = True
+                            logger.error(
+                                "❌ API quota not restored within max wait time. Please check API and restart later."
+                            )
+                            break
+                        logger.info(
+                            f"🔄 Quota restored. Retrying current combination: trader={securities_trader_id}, stock={stock_id}"
+                        )
+                    except Exception as e:
                         stats[UpdateStatus.ERROR.value] += 1
-                except Exception as e:
-                    stats[UpdateStatus.ERROR.value] += 1
-                    logger.error(
-                        f"Error updating broker trading daily report for trader={securities_trader_id}, stock={stock_id}: {e}",
-                        exc_info=True,
-                    )
+                        logger.error(
+                            f"Error updating broker trading daily report for trader={securities_trader_id}, stock={stock_id}: {e}",
+                            exc_info=True,
+                        )
+                        break
 
-                # 處理完成後檢查是否需要打印進度，並每 N 筆 commit 一次 DB
+                if quota_exhausted:
+                    break
+
                 log_progress_and_update_metadata()
-                if combination_count % commit_interval == 0 and self.loader.conn:
+                if (
+                    processed_count % self.BATCH_COMMIT_INTERVAL == 0
+                    and self.loader.conn
+                ):
                     self.loader.conn.commit()
 
             if quota_exhausted:
@@ -537,12 +557,12 @@ class FinMindUpdater(BaseDataUpdater):
         if quota_exhausted:
             logger.warning(
                 f"⚠️ Batch update paused due to API quota exhaustion. "
-                f"Processed {combination_count}/{total_combinations} combinations. "
+                f"Processed {processed_count}/{total_combinations} combinations. "
                 f"Please wait for quota reset and resume from where it stopped."
             )
         else:
             logger.info(
-                f"✅ Batch update completed. Processed {combination_count} combinations"
+                f"✅ Batch update completed. Processed {processed_count} combinations"
             )
 
         # 輸出詳細統計
@@ -580,10 +600,9 @@ class FinMindUpdater(BaseDataUpdater):
 
         # 更新券商分點統計（需要日期範圍）
         if start_date is None:
-            # 預設從 2021/6/30 開始
-            start_date: Union[datetime.date, str] = datetime.date(2021, 6, 30)
+            start_date = self.DEFAULT_BROKER_TRADING_START_DATE
         if end_date is None:
-            end_date: Union[datetime.date, str] = datetime.date.today()
+            end_date = datetime.date.today()
 
         # 批量更新所有券商和股票組合
         self.update_broker_trading_daily_report(
@@ -617,7 +636,7 @@ class FinMindUpdater(BaseDataUpdater):
 
         Returns:
             UpdateStatus: 更新狀態
-                - UpdateStatus.SUCCESS: 成功更新
+                - UpdateStatus.SUCCESS: 成功更新（含 API 有回傳但本批皆為重複、saved_count==0 之情況）
                 - UpdateStatus.NO_DATA: 沒有資料（API 返回空結果）
                 - UpdateStatus.ERROR: 發生錯誤
         """
@@ -628,7 +647,7 @@ class FinMindUpdater(BaseDataUpdater):
         )
 
         try:
-            # Step 1: Crawl
+            # Step 1: Crawl（配額用盡時由上層迴圈捕捉並等待重置）
             df: Optional[pd.DataFrame] = self.crawler.crawl_broker_trading_daily_report(
                 stock_id=stock_id,
                 securities_trader_id=securities_trader_id,
@@ -658,21 +677,23 @@ class FinMindUpdater(BaseDataUpdater):
             )
 
             if saved_count == 0:
+                # API 有回傳且已清洗，但本批無新寫入（例如皆為重複）；視為成功、不報錯
                 logger.debug("No new data was saved to database")
                 return UpdateStatus.SUCCESS
 
             # 成功後用當次 DataFrame 的 date 最大值 log，避免額外查詢 DB
             if "date" in cleaned_df.columns and not cleaned_df.empty:
-                latest_date_from_df = str(cleaned_df["date"].max())
+                latest_date_from_df: str = str(cleaned_df["date"].max())
                 logger.info(
                     f"✅ Broker trading daily report updated successfully. Latest date in batch: {latest_date_from_df}"
                 )
             else:
-                logger.info(
-                    "✅ Broker trading daily report updated successfully."
-                )
+                logger.info("✅ Broker trading daily report updated successfully.")
             return UpdateStatus.SUCCESS
 
+        except FinMindQuotaExhaustedError:
+            # 配額用盡：不在此處處理，向上拋出由批次迴圈統一等待／中斷
+            raise
         except Exception as e:
             logger.error(
                 f"Error updating broker trading daily report: {e}",
@@ -684,142 +705,95 @@ class FinMindUpdater(BaseDataUpdater):
     # Private Methods - API Quota Management
     # ============================================================================
 
-    def _check_and_update_api_quota(self) -> bool:
-        """
-        檢查 API quota 是否足夠，並更新調用次數
-
-        Returns:
-            bool: True 表示 quota 足夠可以繼續調用，False 表示 quota 已用盡
-        """
-        current_time: float = time.time()
-
-        # 如果已經超過重置時間，重置計數器
-        if current_time >= self.quota_reset_time:
-            logger.info(
-                f"API quota reset. Previous hour used {self.api_call_count}/{self.api_quota_limit} calls"
-            )
-            self.api_call_count: int = 0
-            self.quota_reset_time: float = current_time + 3600  # 重置為下一個小時
-
-        # 檢查是否接近或超過 quota 限制（保留 50 次作為緩衝）
-        remaining_quota: int = self.api_quota_limit - self.api_call_count
-        if remaining_quota <= 50:
-            wait_seconds: int = int(self.quota_reset_time - current_time) + 1
-            logger.warning(
-                f"⚠️ API quota nearly exhausted! Used {self.api_call_count}/{self.api_quota_limit} calls. "
-                f"Remaining: {remaining_quota} calls. "
-                f"Quota will reset in {wait_seconds} seconds ({wait_seconds // 60} minutes). "
-                f"Stopping update to avoid quota exhaustion."
-            )
-            return False
-
-        # 增加調用次數
-        self.api_call_count += 1
-
-        # 每 1000 次調用記錄一次狀態
-        if self.api_call_count % 1000 == 0:
-            remaining_quota: int = self.api_quota_limit - self.api_call_count
-            logger.info(
-                f"API quota status: {self.api_call_count}/{self.api_quota_limit} calls used, "
-                f"{remaining_quota} remaining"
-            )
-
-        return True
-
     def _get_api_remaining_quota_from_api(self) -> Optional[int]:
         """
-        從 FinMind API 查詢剩餘的 API quota（如果 API 支援）
+        從 FinMind API 查詢剩餘的 API quota。
+
+        FinMind DataLoader 提供：
+        - api_usage: 目前已經使用的次數
+        - api_usage_limit: 每小時可以使用的總次數
+        剩餘次數 = api_usage_limit - api_usage。
 
         Returns:
-            Optional[int]: 剩餘的 API 調用次數，如果無法查詢則返回 None
+            Optional[int]: 剩餘的 API 調用次數，若無法查詢則返回 None
         """
         try:
             if not self.crawler.api:
                 return None
-
-            api: DataLoader = self.crawler.api
-
-            # FinMind API: api.api_usage_limit 回傳剩餘次數
-            if hasattr(api, "api_usage_limit"):
-                remaining: int = api.api_usage_limit
-                if isinstance(remaining, int) and remaining >= 0:
-                    return remaining
-
+            if not hasattr(self.crawler.api, "api_usage") or not hasattr(
+                self.crawler.api, "api_usage_limit"
+            ):
+                return None
+            usage: int = self.crawler.api.api_usage
+            limit: int = self.crawler.api.api_usage_limit
+            if not (
+                isinstance(usage, int)
+                and isinstance(limit, int)
+                and usage >= self.MIN_VALID_API_USAGE
+                and limit >= self.MIN_VALID_API_LIMIT
+            ):
+                return None
+            remaining: int = max(self.MIN_VALID_API_USAGE, limit - usage)
+            logger.info(f"📊 目前使用次數 / 總次數: {usage} / {limit}")
+            return remaining
         except Exception as e:
             logger.debug(f"Could not query API remaining quota from FinMind API: {e}")
         return None
 
-    def _wait_for_quota_reset(
-        self,
-        check_interval_minutes: int = 10,
-        max_wait_minutes: Optional[int] = None,
-    ) -> bool:
+    def _wait_for_quota_reset(self) -> bool:
         """
-        等待 API quota 重置，每隔指定時間查詢一次 API usage
+        等待 API quota 重置，每隔指定時間查詢一次 API usage。
 
-        Args:
-            check_interval_minutes: 每隔幾分鐘查詢一次 API usage（預設 10 分鐘）
-            max_wait_minutes: 最大等待時間（分鐘），如果為 None 則不限制
+        使用類別常數 QUOTA_CHECK_INTERVAL_MINUTES、QUOTA_MAX_WAIT_MINUTES。
 
         Returns:
             bool: True 表示 quota 已恢復，False 表示達到最大等待時間或發生錯誤
         """
-        check_interval_seconds: int = check_interval_minutes * 60
-        max_wait_seconds: Optional[int] = (
-            max_wait_minutes * 60 if max_wait_minutes else None
+        check_interval_seconds: int = (
+            self.QUOTA_CHECK_INTERVAL_MINUTES * self.SECONDS_PER_MINUTE
         )
+        max_wait_seconds: int = self.QUOTA_MAX_WAIT_MINUTES * self.SECONDS_PER_MINUTE
         start_wait_time: float = time.time()
 
         logger.info(
-            f"⏳ Waiting for API quota reset. Checking every {check_interval_minutes} minutes..."
+            f"⏳ Waiting for API quota reset. Checking every {self.QUOTA_CHECK_INTERVAL_MINUTES} minutes..."
         )
 
         while True:
             # 檢查是否超過最大等待時間
-            if max_wait_seconds:
-                elapsed: float = time.time() - start_wait_time
-                if elapsed >= max_wait_seconds:
-                    logger.warning(
-                        f"⚠️ Maximum wait time ({max_wait_minutes} minutes) reached. Stopping wait."
-                    )
-                    return False
+            elapsed: float = time.time() - start_wait_time
+            if elapsed >= max_wait_seconds:
+                logger.warning(
+                    f"⚠️ Maximum wait time ({self.QUOTA_MAX_WAIT_MINUTES} minutes) reached. Stopping wait."
+                )
+                return False
 
             # 嘗試從 API 查詢剩餘 quota
             remaining: Optional[int] = self._get_api_remaining_quota_from_api()
 
             if remaining is not None:
-                # 如果能夠查詢到剩餘 quota，檢查是否已重置
-                current_usage: int = self.api_quota_limit - remaining
-                logger.info(
-                    f"📊 Current API usage: {current_usage}/{self.api_quota_limit} calls. "
-                    f"Remaining: {remaining} calls."
-                )
-
-                if remaining > 50:  # 有足夠的 quota（保留 50 次緩衝）
-                    # 重置本地計數器
-                    self.api_call_count: int = 0
-                    self.quota_reset_time: float = time.time() + 3600
+                if remaining >= self.MIN_REMAINING_QUOTA_TO_RESUME:
+                    self.quota_reset_time = (
+                        time.time() + self.QUOTA_RESET_INTERVAL_SECONDS
+                    )
                     logger.info(
                         f"✅ API quota has been reset! Resuming update. "
                         f"Remaining quota: {remaining} calls."
                     )
                     return True
             else:
-                # 如果無法查詢 API usage，使用時間判斷
+                # 如果無法查詢 API usage，使用時間判斷（fallback）
                 current_time: float = time.time()
                 if current_time >= self.quota_reset_time:
-                    # 已經超過重置時間，重置計數器
-                    self.api_call_count: int = 0
-                    self.quota_reset_time: float = current_time + 3600
-                    logger.info(f"✅ API quota reset time reached. Resuming update.")
+                    self.quota_reset_time = (
+                        current_time + self.QUOTA_RESET_INTERVAL_SECONDS
+                    )
+                    logger.info("✅ API quota reset time reached. Resuming update.")
                     return True
 
-            # 計算已等待時間
-            elapsed: float = time.time() - start_wait_time
-
             logger.info(
-                f"⏳ Quota not yet reset. Next check in {check_interval_minutes} minutes. "
-                f"(Elapsed: {elapsed / 60:.1f} minutes)"
+                f"⏳ Quota not yet reset. Next check in {self.QUOTA_CHECK_INTERVAL_MINUTES} minutes. "
+                f"(Elapsed: {elapsed / self.SECONDS_PER_MINUTE:.1f} minutes)"
             )
 
             # 等待指定時間
@@ -970,14 +944,14 @@ class FinMindUpdater(BaseDataUpdater):
 
                         # 更新 metadata
                         if stock_id not in metadata[securities_trader_id]:
-                            # 新項目，直接設置日期範圍
+                            # 情況 A：DB 已有此組合但 metadata 遺漏，直接寫入查到的日期範圍
                             metadata[securities_trader_id][stock_id] = {
                                 "earliest_date": earliest_date.strftime("%Y-%m-%d"),
                                 "latest_date": latest_date.strftime("%Y-%m-%d"),
                             }
                             updated_count += 1
                         else:
-                            # 如果已存在，比較並更新日期範圍
+                            # 情況 B：metadata 已有此組合，比較並擴展 earliest/latest 日期範圍
                             existing_earliest: Optional[datetime.date] = None
                             existing_latest: Optional[datetime.date] = None
 
@@ -1070,66 +1044,10 @@ class FinMindUpdater(BaseDataUpdater):
         DataUtils.save_json(
             metadata,
             self.broker_trading_metadata_path,
-            indent=2,
             ensure_ascii=False,
         )
         # 寫入成功後更新快取，迴圈內後續 _load 只讀快取
         self._metadata_cache = metadata
-
-    def _check_date_exists_in_metadata(
-        self,
-        securities_trader_id: str,
-        stock_id: str,
-        date: Union[datetime.date, str],
-    ) -> bool:
-        """
-        檢查指定日期是否已存在於 metadata 記錄的日期範圍內
-
-        Args:
-            securities_trader_id: 券商代碼
-            stock_id: 股票代碼
-            date: 要檢查的日期
-
-        Returns:
-            bool: True 表示日期在範圍內，False 表示不在範圍內或沒有記錄
-        """
-        # 轉換日期格式
-        if isinstance(date, datetime.date):
-            date_obj: datetime.date = date
-        else:
-            date_obj: datetime.date = datetime.datetime.strptime(
-                str(date), "%Y-%m-%d"
-            ).date()
-
-        # 從 metadata 讀取日期範圍
-        metadata: Dict[str, Dict[str, Dict[str, str]]] = (
-            self._load_broker_trading_metadata()
-        )
-
-        if (
-            securities_trader_id not in metadata
-            or stock_id not in metadata[securities_trader_id]
-        ):
-            return False
-
-        stock_info: Dict[str, str] = metadata[securities_trader_id][stock_id]
-
-        if "earliest_date" not in stock_info or "latest_date" not in stock_info:
-            return False
-
-        try:
-            earliest_date: datetime.date = datetime.datetime.strptime(
-                stock_info["earliest_date"], "%Y-%m-%d"
-            ).date()
-            latest_date: datetime.date = datetime.datetime.strptime(
-                stock_info["latest_date"], "%Y-%m-%d"
-            ).date()
-
-            # 檢查日期是否在範圍內
-            return earliest_date <= date_obj <= latest_date
-        except (ValueError, KeyError) as e:
-            logger.debug(f"Error checking date in metadata: {e}")
-            return False
 
     def _get_existing_dates_from_metadata(
         self,

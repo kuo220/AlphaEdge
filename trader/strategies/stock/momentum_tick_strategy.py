@@ -19,15 +19,21 @@ from trader.utils.market_calendar import MarketCalendar
 class MomentumTickStrategy(BaseStockStrategy):
     """Tick 級別動能策略（基於原本 MomentumStrategy 改寫）"""
 
+    DEFAULT_MAX_HOLDINGS: int = 10
+    DEFAULT_BACKTEST_START_DATE: datetime.date = datetime.date(2020, 5, 1)
+    DEFAULT_BACKTEST_END_DATE: datetime.date = datetime.date(2025, 5, 31)
+    MIN_PRICE_CHANGE_PCT_FOR_SIGNAL: float = 9.0
+    MIN_VOLUME_LOTS: int = 5000
+
     def __init__(self):
         super().__init__()
         self.strategy_name: str = "Momentum_Tick"
         self.init_capital: float = 1000000.0
-        self.max_holdings: int = 10
+        self.max_holdings: int = self.DEFAULT_MAX_HOLDINGS
         self.scale: Scale = Scale.TICK
 
-        self.start_date: datetime.date = datetime.date(2020, 5, 1)
-        self.end_date: datetime.date = datetime.date(2025, 5, 31)
+        self.start_date: datetime.date = self.DEFAULT_BACKTEST_START_DATE
+        self.end_date: datetime.date = self.DEFAULT_BACKTEST_END_DATE
 
         self.setup_apis()
 
@@ -95,15 +101,15 @@ class MomentumTickStrategy(BaseStockStrategy):
 
             price_chg: float = (tick.close / yesterday_close_price - 1) * 100
 
-            if price_chg < 9:
+            if price_chg < self.MIN_PRICE_CHANGE_PCT_FOR_SIGNAL:
                 continue
 
             logger.info(
                 f"[Tick] 股票 {tick.stock_id} 時間 {tick.time} 漲幅 {round(price_chg, 2)}%"
             )
 
-            # Condition 2: 單筆 tick 成交量 >= 5000 張
-            if tick.volume < 5000:
+            # Condition 2: 單筆 tick 成交量 >= MIN_VOLUME_LOTS
+            if tick.volume < self.MIN_VOLUME_LOTS:
                 continue
 
             open_positions.append(stock_quote)

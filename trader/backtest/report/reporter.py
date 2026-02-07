@@ -19,6 +19,9 @@ from trader.utils.time import TimeUtils
 class StockBacktestReporter(BaseBacktestReporter):
     """Generates visual reports based on backtest results"""
 
+    SPLIT_ADJUSTMENT_WARNING_PCT: float = 5.0  # 分割調整差異超過此 % 發出警告
+    CHART_FONT_SIZE: int = 15
+
     # 股票分割配置：{股票代號: [(分割日期, 分割比例), ...]}
     # 分割比例格式：1:4 表示 1 拆 4（1 股變成 4 股，調整因子為 4）
     # 範例：{"0050": [(datetime.date(2025, 6, 18), 4)]}
@@ -209,7 +212,7 @@ class StockBacktestReporter(BaseBacktestReporter):
                         / price_before_split
                         * 100
                     )
-                    if diff_pct > 5:  # 如果差異超過 5%，發出警告
+                    if diff_pct > self.SPLIT_ADJUSTMENT_WARNING_PCT:
                         logger.warning(
                             f"警告：分割當天調整後價格 ({price_on_split_date_after:.2f}) 與分割前一天價格 ({price_before_split:.2f}) 差異較大 ({diff_pct:.2f}%)，"
                             f"可能表示分割比例配置不正確或數據有問題"
@@ -657,7 +660,7 @@ class StockBacktestReporter(BaseBacktestReporter):
                 text=fig_text.replace("\n", "<br>"),
                 showarrow=False,
                 font=dict(
-                    size=15,
+                    size=self.CHART_FONT_SIZE,
                     color="white",
                 ),
                 align="left",
@@ -679,9 +682,9 @@ class StockBacktestReporter(BaseBacktestReporter):
 
         # 決定輸出路徑
         if self.output_dir is not None:
-            save_path = self.output_dir / file_name
+            save_path: Path = self.output_dir / file_name
         else:
-            save_path = Path(file_name)
+            save_path: Path = Path(file_name)
 
         # 確保資料夾存在
         save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -705,9 +708,9 @@ class StockBacktestReporter(BaseBacktestReporter):
 
         # 決定輸出路徑
         if self.output_dir is not None:
-            save_path = self.output_dir / file_name
+            save_path: Path = self.output_dir / file_name
         else:
-            save_path = Path(file_name)
+            save_path: Path = Path(file_name)
 
         # 確保資料夾存在
         save_path.parent.mkdir(parents=True, exist_ok=True)

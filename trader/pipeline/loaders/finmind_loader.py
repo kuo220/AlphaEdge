@@ -517,7 +517,9 @@ class FinMindLoader(BaseDataLoader):
 
         # 如果提供了 DataFrame，直接載入
         if df is not None:
-            return self._load_broker_trading_daily_report_from_dataframe(df, commit=commit)
+            return self._load_broker_trading_daily_report_from_dataframe(
+                df, commit=commit
+            )
         else:
             # 從 CSV 檔案載入
             self._load_broker_trading_daily_report_from_files()

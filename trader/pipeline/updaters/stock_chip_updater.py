@@ -30,6 +30,11 @@ from trader.utils import TimeUtils
 class StockChipUpdater(BaseDataUpdater):
     """Stock Chip Updater"""
 
+    BATCH_SLEEP_EVERY_N_FILES: int = 100
+    BATCH_SLEEP_DURATION_SECONDS: int = 120
+    BATCH_RANDOM_DELAY_MIN: int = 1
+    BATCH_RANDOM_DELAY_MAX: int = 5
+
     def __init__(self):
         super().__init__()
 
@@ -91,12 +96,14 @@ class StockChipUpdater(BaseDataUpdater):
 
             file_cnt += 1
 
-            if file_cnt == 100:
+            if file_cnt == self.BATCH_SLEEP_EVERY_N_FILES:
                 logger.info("Sleep 2 minutes...")
                 file_cnt = 0
-                time.sleep(120)
+                time.sleep(self.BATCH_SLEEP_DURATION_SECONDS)
             else:
-                delay: int = random.randint(1, 5)
+                delay: int = random.randint(
+                    self.BATCH_RANDOM_DELAY_MIN, self.BATCH_RANDOM_DELAY_MAX
+                )
                 time.sleep(delay)
 
         # Step 3: Load

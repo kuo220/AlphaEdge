@@ -12,6 +12,13 @@ from trader.pipeline.utils import URLManager
 class RequestUtils:
     """Requests utils"""
 
+    # Session 建立與 HTTP 請求常數
+    SESSION_INIT_MAX_ATTEMPTS: int = 10
+    REQUEST_TIMEOUT_SECONDS: int = 10
+    SESSION_RETRY_DELAY_SECONDS: int = 10
+    HTTP_MAX_RETRIES: int = 3
+    HTTP_RETRY_DELAY_SECONDS: int = 60
+
     ses: Optional[requests.Session] = None  # Session
 
     @staticmethod
@@ -31,12 +38,12 @@ class RequestUtils:
     def find_best_session(cls, url: str) -> Optional[requests.Session]:
         """嘗試建立可用的 requests.Session 連線"""
 
-        for i in range(10):
+        for i in range(cls.SESSION_INIT_MAX_ATTEMPTS):
             try:
                 logger.info(f"獲取新的Session 第 {i} 回合")
                 headers: Dict[str, str] = cls.generate_random_header()
                 ses: requests.Session = requests.Session()
-                ses.get(url, headers=headers, timeout=10)
+                ses.get(url, headers=headers, timeout=cls.REQUEST_TIMEOUT_SECONDS)
                 ses.headers.update(headers)
                 logger.info("成功！")
                 cls.ses = ses
@@ -45,7 +52,7 @@ class RequestUtils:
             except (ConnectionError, ReadTimeout) as error:
                 logger.info(error)
                 logger.info("失敗,10秒後重試")
-                time.sleep(10)
+                time.sleep(cls.SESSION_RETRY_DELAY_SECONDS)
 
         logger.info("您的網頁IP已經被證交所封鎖,請更新IP來獲取解鎖")
         logger.info(" 手機:開啟飛航模式,再關閉,即可獲得新的IP")
@@ -58,13 +65,15 @@ class RequestUtils:
         if cls.ses is None:
             cls.find_best_session(url)
 
-        for i in range(3):
+        for i in range(cls.HTTP_MAX_RETRIES):
             try:
-                return cls.ses.get(url, timeout=10, **kwargs)
+                return cls.ses.get(url, timeout=cls.REQUEST_TIMEOUT_SECONDS, **kwargs)
             except (ConnectionError, ReadTimeout, ChunkedEncodingError) as error:
                 logger.info(error)
-                logger.info(f"retry one more time after 60s {2 - i} times left")
-                time.sleep(60)
+                logger.info(
+                    f"retry one more time after 60s {cls.HTTP_MAX_RETRIES - 1 - i} times left"
+                )
+                time.sleep(cls.HTTP_RETRY_DELAY_SECONDS)
                 cls.find_best_session(url)
         return None
 
@@ -75,12 +84,14 @@ class RequestUtils:
         if cls.ses is None:
             cls.find_best_session(url)
 
-        for i in range(3):
+        for i in range(cls.HTTP_MAX_RETRIES):
             try:
-                return cls.ses.post(url, timeout=10, **kwargs)
+                return cls.ses.post(url, timeout=cls.REQUEST_TIMEOUT_SECONDS, **kwargs)
             except (ConnectionError, ReadTimeout) as error:
                 logger.info(error)
-                logger.info(f"retry one more time after 60s {2 - i} times left")
-                time.sleep(60)
+                logger.info(
+                    f"retry one more time after 60s {cls.HTTP_MAX_RETRIES - 1 - i} times left"
+                )
+                time.sleep(cls.HTTP_RETRY_DELAY_SECONDS)
                 cls.find_best_session(url)
         return None

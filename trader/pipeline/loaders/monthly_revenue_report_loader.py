@@ -80,7 +80,7 @@ class MonthlyRevenueReportLoader(BaseDataLoader):
 
         # Step 2: 指定欄位型別
         for col in cols:
-            col_name = f'"{col}"'
+            col_name: str = f'"{col}"'
 
             if col in self.text_not_null_cols:
                 col_defs.append(f"{col_name} TEXT NOT NULL")

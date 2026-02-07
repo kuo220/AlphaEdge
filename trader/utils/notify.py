@@ -11,6 +11,8 @@ from .constant import Action, StockPriceType
 class Notification:
     """執行 Line 通知"""
 
+    COLUMN_PADDING: int = 10  # 報表欄位寬度 padding
+
     @staticmethod
     def post_line_notify(token: str, msg: str) -> None:
         """Line notify"""
@@ -81,7 +83,7 @@ class Notification:
         msg += (
             "\n".join(
                 f"{row['code']:<{len(info['code'].name) + 5}}"
-                f"{row['quantity']:<{len(info['quantity'].name) + 10}}"
+                f"{row['quantity']:<{len(info['quantity'].name) + Notification.COLUMN_PADDING}}"
                 f"{row['chg_rate']:<{len(info['chg_rate'].name) + 5}}"
                 for _, row in info.iterrows()
             )

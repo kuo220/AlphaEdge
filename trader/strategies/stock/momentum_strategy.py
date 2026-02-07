@@ -23,15 +23,21 @@ from trader.utils.market_calendar import MarketCalendar
 class MomentumStrategy(BaseStockStrategy):
     """Strategy"""
 
+    DEFAULT_MAX_HOLDINGS: int = 10
+    DEFAULT_BACKTEST_START_DATE: datetime.date = datetime.date(2020, 5, 1)
+    DEFAULT_BACKTEST_END_DATE: datetime.date = datetime.date(2025, 5, 31)
+    MIN_PRICE_CHANGE_PCT_FOR_SIGNAL: float = 9.0  # 漲幅門檻 %
+    MIN_VOLUME_LOTS: int = 5000  # 成交量門檻（張）
+
     def __init__(self):
         super().__init__()
         self.strategy_name: str = "Momentum"
         self.init_capital: float = 1000000.0
-        self.max_holdings: int = 10
+        self.max_holdings: int = self.DEFAULT_MAX_HOLDINGS
         self.scale: Scale = Scale.DAY
 
-        self.start_date: datetime.date = datetime.date(2020, 5, 1)
-        self.end_date: datetime.date = datetime.date(2025, 5, 31)
+        self.start_date: datetime.date = self.DEFAULT_BACKTEST_START_DATE
+        self.end_date: datetime.date = self.DEFAULT_BACKTEST_END_DATE
 
         self.setup_apis()
 
@@ -87,11 +93,11 @@ class MomentumStrategy(BaseStockStrategy):
 
             price_chg: float = (stock_quote.close / yesterday_close_price - 1) * 100
 
-            if price_chg < 9:
+            if price_chg < self.MIN_PRICE_CHANGE_PCT_FOR_SIGNAL:
                 continue
             logger.info(f"股票 {stock_quote.stock_id} 漲幅 {round(price_chg, 2)}%")
-            # Condition 2: Volume > 5000 Lot
-            if stock_quote.volume < 5000:
+            # Condition 2: Volume > MIN_VOLUME_LOTS
+            if stock_quote.volume < self.MIN_VOLUME_LOTS:
                 continue
 
             open_positions.append(stock_quote)

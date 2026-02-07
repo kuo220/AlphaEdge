@@ -9,6 +9,9 @@ from loguru import logger
 
 from trader.pipeline.utils import FileEncoding
 
+# 全專案 JSON 儲存預設縮排
+DEFAULT_JSON_INDENT: int = 2
+
 
 class DataUtils:
     """Data Tools"""
@@ -207,8 +210,8 @@ class DataUtils:
 
         if case_insensitive:
             columns = columns.str.lower()
-            startswith_list = [word.lower() for word in startswith_list]
-            contains_list = [word.lower() for word in contains_list]
+            startswith_list: List[str] = [word.lower() for word in startswith_list]
+            contains_list: List[str] = [word.lower() for word in contains_list]
 
         for keyword in startswith_list:
             columns_to_drop |= columns.str.startswith(keyword)
@@ -298,7 +301,7 @@ class DataUtils:
         file_path: Path,
         encoding: str = FileEncoding.UTF8.value,
         ensure_ascii: bool = False,
-        indent: int = 2,
+        indent: int = DEFAULT_JSON_INDENT,
     ) -> None:
         """
         - Description:
