@@ -2,7 +2,7 @@
 
 ## 概述
 
-當調用 `update_broker_trading_daily_report_batch(start_date, end_date)` 時，系統會按照以下流程判斷每一筆資料是否需要更新。
+當調用 `update_broker_trading_daily_report(start_date, end_date)` 時（對外公開的批量更新方法），系統會按照以下流程判斷每一筆資料是否需要更新。內部單一組合的更新由私有方法 `_update_broker_trading_daily_report(stock_id, securities_trader_id, start_date, end_date, do_commit)` 執行。
 
 ---
 
@@ -19,7 +19,7 @@
   ↓
 【階段 4】對每個 (券商, 股票) 組合進行判斷
   ├─→ 判斷 1: 檢查日期範圍是否已完整存在
-  ├─→ 判斷 2: 檢查 API Quota
+  ├─→ 判斷 2: API Quota 耗盡時等待／重試
   ├─→ 判斷 3: 執行實際更新
   └─→ 判斷 4: 定期更新 Metadata
   ↓
@@ -35,54 +35,42 @@
 ### 【階段 1】初始化與日期範圍確定
 
 #### 步驟 1.1: 日期格式轉換
-- **位置**: `update_broker_trading_daily_report_batch()` 第 405-418 行
+- **位置**: `update_broker_trading_daily_report()` 第 302-314 行
 - **判斷邏輯**:
-  - 如果 `start_date` 是字串，轉換為 `datetime.date`
-  - 如果 `end_date` 是字串，轉換為 `datetime.date`
+  - 使用內部函數 `_to_date()` 將 `start_date`、`end_date` 轉為 `datetime.date`
+  - 若為字串須為 `YYYY-MM-DD` 格式，否則拋出 `ValueError`
 
-#### 步驟 1.2: 確定實際起始日期
-- **位置**: `get_actual_update_start_date()` 第 803-839 行
+#### 步驟 1.2: 取得股票與券商列表並過濾
+- **位置**: 第 316-346 行
 - **判斷邏輯**:
-  1. 查詢資料庫 `taiwan_stock_trading_daily_report_secid_agg` 表的最新日期
-  2. **如果資料庫有資料**:
-     - 取得最新日期 `latest_date`
-     - 實際起始日期 = `latest_date + 1天`
-  3. **如果資料庫沒有資料**:
-     - 使用提供的 `start_date` 作為實際起始日期
-- **結果**: 得到 `actual_start_date`
-
-#### 步驟 1.3: 檢查是否需要更新（全局檢查）
-- **位置**: `update_broker_trading_daily_report_batch()` 第 429-434 行
-- **判斷邏輯**:
-  ```
-  if actual_start_date > end_date_obj:
-      # 資料庫已是最新，不需要更新
-      return  # 直接結束，不進行任何更新
-  ```
-- **結果**: 如果實際起始日期已超過結束日期，整個更新流程結束
+  1. 呼叫 `_get_stock_list()` 取得資料庫中所有股票代碼
+  2. 呼叫 `_get_securities_trader_list()` 取得所有券商代碼
+  3. 使用 `StockUtils.filter_common_stocks()` 過濾出一般股票（排除 ETF、權證等）
+  4. 若股票列表或券商列表為空，記錄警告並直接結束
+- **說明**: 目前沒有「全局」的實際起始日期檢查；每個 (券商, 股票) 組合的起始日期在階段 4 的迴圈內，依該組合的 metadata 個別決定。
 
 ---
 
 ### 【階段 2】獲取股票和券商列表
 
 #### 步驟 2.1: 獲取股票列表
-- **位置**: `_get_stock_list()` 第 841-858 行
+- **位置**: `_get_stock_list()` 第 801-817 行
 - **判斷邏輯**:
-  - 從資料庫 `taiwan_stock_info_with_warrant` 表查詢所有不重複的 `stock_id`
-  - **如果沒有股票**: 記錄警告並結束更新
+  - 從資料庫 `taiwan_stock_info` 表（`STOCK_INFO_TABLE_NAME`）查詢所有不重複的 `stock_id`
+  - **如果沒有股票**: 返回空列表，上層會記錄警告並結束更新
 
 #### 步驟 2.2: 獲取券商列表
-- **位置**: `_get_securities_trader_list()` 第 860-879 行
+- **位置**: `_get_securities_trader_list()` 第 820-837 行
 - **判斷邏輯**:
   - 從資料庫 `taiwan_securities_trader_info` 表查詢所有不重複的 `securities_trader_id`
-  - **如果沒有券商**: 記錄警告並結束更新
+  - **如果沒有券商**: 返回空列表，上層會記錄警告並結束更新
 
 ---
 
 ### 【階段 3】初始化 Metadata
 
 #### 步驟 3.1: 從資料庫讀取並建立 Metadata
-- **位置**: `_update_broker_trading_metadata_from_database()` 第 993-1142 行
+- **位置**: `_update_broker_trading_metadata_from_database()` 第 879 行起（至約 1045 行）
 - **判斷邏輯**:
   1. 從資料庫 `taiwan_stock_trading_daily_report_secid_agg` 表查詢每個 (securities_trader_id, stock_id) 組合的日期範圍
   2. 對每個組合:
@@ -100,13 +88,11 @@
          }
        }
        ```
-  3. 如果 metadata 中已存在該組合:
-     - 比較並更新 `earliest_date`（取更早的日期）
-     - 比較並更新 `latest_date`（取更晚的日期）
-  4. 清理 metadata 中資料庫不存在的記錄
+  3. 若 metadata 中已存在該組合，會比較並更新為更早/更晚的日期
+  4. 清理 metadata 中資料庫不存在的記錄，並寫入 JSON 與快取
 
 #### 步驟 3.2: Metadata 已就緒
-- **說明**: Metadata 已從資料庫讀取並更新完成，可以直接用於後續的日期範圍檢查
+- **說明**: Metadata 已從資料庫讀取並更新完成，可直接用於後續迴圈內的日期範圍檢查
 
 ---
 
@@ -121,207 +107,142 @@ for securities_trader_id in trader_list:  # 外層循環：券商
 
 #### 判斷 1: 檢查日期範圍是否已完整存在 ⭐ **核心判斷**
 
-**位置**: `update_broker_trading_daily_report_batch()` 第 488-508 行
+**位置**: `update_broker_trading_daily_report()` 迴圈內約第 400-484 行
 
-**步驟 1.1: 取得已存在的日期範圍**
-- **方法**: `_get_existing_dates_from_metadata(securities_trader_id, stock_id)`
-- **位置**: `_get_existing_dates_from_metadata()` 第 1197-1246 行
+**步驟 1.1: 依 metadata 決定此組合的起始日期**
+- **位置**: 約第 401-432 行
 - **判斷邏輯**:
-  1. 從 `broker_trading_metadata.json` 讀取該組合的日期範圍
-  2. **如果 metadata 中不存在該組合**:
-     - 返回空集合 `set()`
-  3. **如果 metadata 中存在該組合**:
-     - 取得 `earliest_date` 和 `latest_date`
-     - 使用 `TimeUtils.generate_date_range()` 生成該範圍內的所有日期
-     - 返回所有日期的字串集合
+  - 從 `_load_broker_trading_metadata()` 取得該組合的 `latest_date`（若存在）
+  - 若有 metadata：`update_start_date = latest_date + 1 天`，否則使用傳入的 `start_date_obj`
+  - 若 `update_start_date > end_date_obj`：已是最新或範圍無效，跳過此組合（`ALREADY_UP_TO_DATE`）
+
+**步驟 1.2: 取得已存在的日期範圍**
+- **方法**: `_get_existing_dates_from_metadata(securities_trader_id, stock_id)`
+- **位置**: `_get_existing_dates_from_metadata()` 第 1047-1093 行
+- **判斷邏輯**:
+  1. 從 metadata 讀取該組合的 `earliest_date`、`latest_date`
+  2. 若不存在或缺少日期：返回空集合 `set()`
+  3. 使用 `TimeUtils.generate_date_range()` 生成該範圍內所有日期，轉為字串集合
 - **結果**: `existing_dates: Set[str]` = 已存在的所有日期
 
-**步驟 1.2: 產生目標日期範圍**
-- **位置**: `update_broker_trading_daily_report_batch()` 第 494-500 行
+**步驟 1.3: 產生目標日期範圍並計算缺失**
+- **位置**: 約第 452-484 行
 - **判斷邏輯**:
-  - 使用 `TimeUtils.generate_date_range(actual_start_date, end_date_obj)` 生成目標日期範圍
-  - 轉換為字串集合: `target_date_strs: Set[str]`
-- **結果**: `target_date_strs` = 需要更新的所有日期
-
-**步驟 1.3: 計算缺失的日期**
-- **位置**: `update_broker_trading_daily_report_batch()` 第 502-508 行
-- **判斷邏輯**:
-  ```python
-  missing_dates = target_date_strs - existing_dates
-  
-  if not missing_dates:  # 如果沒有缺失的日期
-      # 所有日期都已存在，跳過此組合
-      stats[UpdateStatus.ALREADY_UP_TO_DATE.value] += 1
-      continue  # 跳過，不進行更新
-  ```
-- **結果**: 
-  - **如果 `missing_dates` 為空**: 跳過此組合，不進行更新
-  - **如果 `missing_dates` 不為空**: 繼續進行後續判斷
+  - `target_dates = TimeUtils.generate_date_range(update_start_date, end_date_obj)`，再轉為 `target_date_strs`
+  - `missing_dates = target_date_strs - existing_dates`
+  - 若 `missing_dates` 為空：跳過此組合（`ALREADY_UP_TO_DATE`）；否則進入判斷 2／3（執行更新）
+- **結果**: 有缺失日期才繼續呼叫 `_update_broker_trading_daily_report`
 
 ---
 
-#### 判斷 2: 檢查 API Quota
+#### 判斷 2: API Quota 耗盡時的處理
 
-**位置**: `update_broker_trading_daily_report_batch()` 第 510-540 行
+**位置**: `update_broker_trading_daily_report()` 迴圈內約第 486-523 行
 
-**步驟 2.1: 檢查 Quota 是否足夠**
-- **方法**: `_check_and_update_api_quota()`
-- **位置**: `_check_and_update_api_quota()` 第 661-701 行
+目前實作**不**在呼叫 API 前先檢查 quota，而是直接呼叫 `_update_broker_trading_daily_report()`；若 crawler 拋出 `FinMindQuotaExhaustedError`，則在迴圈內處理：
+
+**步驟 2.1: 捕捉 Quota 耗盡**
 - **判斷邏輯**:
-  1. 檢查是否超過重置時間（每小時重置）
-  2. 計算剩餘 quota: `remaining_quota = api_quota_limit - api_call_count`
-  3. **如果 `remaining_quota <= 50`**:
-     - 記錄警告
-     - 返回 `False`（quota 不足）
-  4. **如果 quota 足夠**:
-     - `api_call_count += 1`
-     - 返回 `True`（可以繼續）
+  1. 在 `try` 中呼叫 `_update_broker_trading_daily_report(...)` 執行單一組合更新
+  2. 若拋出 `FinMindQuotaExhaustedError`：進入步驟 2.2；若成功或為其他狀態則更新統計並 `break` 出 `while True`，繼續下一組合
 
-**步驟 2.2: 處理 Quota 耗盡的情況**
-- **位置**: `update_broker_trading_daily_report_batch()` 第 511-540 行
+**步驟 2.2: Quota 耗盡後的恢復流程**
+- **位置**: 約第 506-523 行
 - **判斷邏輯**:
   ```python
-  if not self._check_and_update_api_quota():
-      # 1. 更新 metadata（保存當前進度）
+  except FinMindQuotaExhaustedError as e:
+      # 1. 先將當前進度寫回 metadata（從資料庫更新）
       self._update_broker_trading_metadata_from_database()
-      
-      # 2. 等待 quota 重置（使用類別常數 QUOTA_CHECK_INTERVAL_MINUTES、QUOTA_MAX_WAIT_MINUTES）
+      # 2. 等待 quota 重置（QUOTA_CHECK_INTERVAL_MINUTES、QUOTA_MAX_WAIT_MINUTES）
       quota_restored = self._wait_for_quota_reset()
-      
       if not quota_restored:
-          # 等待超時，結束更新
           quota_exhausted = True
-          break
-      else:
-          # Quota 已恢復，繼續處理當前組合
-          continue
+          break  # 結束整個批量更新
+      # 3. 已恢復則重試「當前」組合（continue 回到 while True）
   ```
+- **方法**: `_wait_for_quota_reset()` 約第 736 行起，每隔 `QUOTA_CHECK_INTERVAL_MINUTES` 查詢 API 剩餘次數或依時間 fallback，最多等待 `QUOTA_MAX_WAIT_MINUTES`
 - **結果**:
-  - **如果 quota 足夠**: 繼續執行更新
-  - **如果 quota 耗盡且等待超時**: 結束整個更新流程
-  - **如果 quota 耗盡但已恢復**: 繼續處理當前組合
+  - **已恢復**: 重試當前 (券商, 股票) 組合
+  - **等待超時**: 設 `quota_exhausted = True` 並結束批量更新
 
 ---
 
 #### 判斷 3: 執行實際更新
 
-**位置**: `update_broker_trading_daily_report_batch()` 第 551-590 行
+**位置**: 迴圈內約第 486-537 行（呼叫 `_update_broker_trading_daily_report` 並依 `UpdateStatus` 統計、定期 commit）
 
 **步驟 3.1: 調用單一組合更新方法**
-- **方法**: `update_broker_trading_daily_report()`
-- **位置**: `update_broker_trading_daily_report()` 第 228-382 行
-- **參數**: 
-  - `skip_processed_check=True`（因為 batch 方法已經檢查過了）
+- **方法**: `_update_broker_trading_daily_report(stock_id, securities_trader_id, start_date, end_date, do_commit=False)`
+- **位置**: `_update_broker_trading_daily_report()` 第 612-695 行
+- **參數**: 批次時 `do_commit=False`，由迴圈依 `BATCH_COMMIT_INTERVAL` 定期 commit
 
-**步驟 3.2: 在單一組合更新方法中的判斷**
+**步驟 3.2: 在單一組合更新方法中的流程**
 
-**子步驟 3.2.1: 檢查是否跳過處理檢查**
-- **位置**: `update_broker_trading_daily_report()` 第 258-296 行
+**子步驟 3.2.1: 執行爬取**
+- **位置**: 約第 642-655 行
 - **判斷邏輯**:
-  ```python
-  if not skip_processed_check and stock_id and securities_trader_id:
-      if start_date_obj == end_date_obj:  # 單個日期
-          # 從 metadata 或 existing_dates 判斷該日期是否已在範圍內
-          if already_in_metadata_range:
-              return UpdateStatus.ALREADY_UP_TO_DATE
-  ```
-- **注意**: 在 batch 模式下，`skip_processed_check=True`，所以此檢查會被跳過
+  - `df = self.crawler.crawl_broker_trading_daily_report(...)`
+  - 若 `df is None or df.empty`：返回 `UpdateStatus.NO_DATA`
 
-**子步驟 3.2.2: 再次確認實際起始日期**
-- **位置**: `update_broker_trading_daily_report()` 第 298-317 行
+**子步驟 3.2.2: 執行清理**
+- **位置**: 約第 656-663 行
 - **判斷邏輯**:
-  ```python
-  actual_start_date = self.get_actual_update_start_date(default_date=start_date)
-  
-  if actual_start_date > end_date:
-      return UpdateStatus.ALREADY_UP_TO_DATE
-  ```
-- **結果**: 如果實際起始日期已超過結束日期，返回 `ALREADY_UP_TO_DATE`
+  - `cleaned_df = self.cleaner.clean_broker_trading_daily_report(df)`
+  - 若清理後為空：返回 `UpdateStatus.NO_DATA`
 
-**子步驟 3.2.3: 執行爬取**
-- **位置**: `update_broker_trading_daily_report()` 第 321-341 行
+**子步驟 3.2.3: 保存資料**
+- **位置**: 約第 664-684 行
 - **判斷邏輯**:
-  ```python
-  df = self.crawler.crawl_broker_trading_daily_report(...)
-  
-  if df is None or df.empty:
-      return UpdateStatus.NO_DATA  # API 返回空結果
-  ```
-- **結果**:
-  - **如果 API 返回空資料**: 返回 `NO_DATA`
-  - **如果有資料**: 繼續處理
+  - 呼叫 `self.loader.load_broker_trading_daily_report(df=cleaned_df, commit=do_commit)` 將資料寫入 SQLite 資料庫（表 `taiwan_stock_trading_daily_report_secid_agg`）
+  - 若 `saved_count == 0`（例如皆為重複）：仍視為成功，返回 `UpdateStatus.SUCCESS`
+- **結果**: 成功則返回 `UpdateStatus.SUCCESS`
 
-**子步驟 3.2.4: 執行清理**
-- **位置**: `update_broker_trading_daily_report()` 第 343-349 行
+**步驟 3.3: 處理更新結果與 commit**
+- **位置**: 約第 489-537 行
 - **判斷邏輯**:
-  ```python
-  cleaned_df = self.cleaner.clean_broker_trading_daily_report(df)
-  
-  if cleaned_df is None or cleaned_df.empty:
-      return UpdateStatus.NO_DATA  # 清理後為空
-  ```
-- **結果**:
-  - **如果清理後為空**: 返回 `NO_DATA`
-  - **如果有資料**: 繼續處理
-
-**子步驟 3.2.5: 保存資料**
-- **位置**: `update_broker_trading_daily_report()` 第 351-375 行
-- **判斷邏輯**:
-  - 目前資料庫存儲被禁用（註解掉）
-  - 資料會保存到 CSV 檔案: `finmind/downloads/broker_trading/{broker_id}/{stock_id}.csv`
-- **結果**: 返回 `UpdateStatus.SUCCESS`
-
-**步驟 3.3: 處理更新結果**
-- **位置**: `update_broker_trading_daily_report_batch()` 第 562-575 行
-- **判斷邏輯**:
-  ```python
-  status = self.update_broker_trading_daily_report(...)
-  
-  # 統計狀態
-  if status.value in stats:
-      stats[status.value] += 1
-  ```
+  - 依 `status` 更新 `stats[status.value]`，每 `BATCH_COMMIT_INTERVAL`（50）筆呼叫 `self.loader.conn.commit()`
 - **可能的狀態**:
-  - `SUCCESS`: 成功更新
-  - `NO_DATA`: API 返回空結果或清理後為空
-  - `ALREADY_UP_TO_DATE`: 已是最新（理論上不會出現，因為前面已檢查）
+  - `SUCCESS`: 成功寫入資料庫
+  - `NO_DATA`: API 返回空或清理後為空
+  - `ALREADY_UP_TO_DATE`: 迴圈內已跳過（此方法不會返回此狀態）
   - `ERROR`: 發生錯誤
 
 ---
 
 #### 判斷 4: 定期更新 Metadata
 
-**位置**: `update_broker_trading_daily_report_batch()` 第 577-582 行
+**位置**: 輔助函數 `log_progress_and_update_metadata()` 內，約第 374-387 行；每輪迴圈處理完一組合後會呼叫此函數
 
 **判斷邏輯**:
 ```python
-if combination_count % update_metadata_interval == 0:  # 每 100 個組合
-    # 從資料庫讀取並更新 metadata
+if processed_count % self.BATCH_UPDATE_METADATA_INTERVAL == 0:  # 每 500 個組合
     self._update_broker_trading_metadata_from_database()
 ```
 - **目的**: 避免程式意外中斷時遺失進度
-- **頻率**: 每處理 100 個組合後更新一次
+- **頻率**: 每處理 **500** 個組合更新一次（常數 `BATCH_UPDATE_METADATA_INTERVAL = 500`）；進度 log 為每 50 筆（`BATCH_LOG_PROGRESS_INTERVAL`）
 
 ---
 
 ### 【階段 5】完成後更新 Metadata
 
-**位置**: `update_broker_trading_daily_report_batch()` 第 595-597 行
+**位置**: `update_broker_trading_daily_report()` 約第 541-546 行（迴圈結束後）
 
 **判斷邏輯**:
 ```python
-# 無論是否完成，都更新 metadata
+if self.loader.conn:
+    self.loader.conn.commit()
+logger.info("Updating broker trading metadata after batch update...")
 self._update_broker_trading_metadata_from_database()
 ```
-- **目的**: 確保 metadata 反映資料庫中的最新數據狀態
+- **目的**: 將尚未 commit 的寫入一次提交，並確保 metadata 反映資料庫中的最新狀態
 
 ---
 
 ## 關鍵判斷點總結
 
-### 1. **全局日期範圍檢查**（階段 1）
-- **判斷**: `actual_start_date > end_date_obj`
-- **結果**: 如果為真，整個更新流程結束
+### 1. **股票/券商列表與過濾**（階段 1）
+- **判斷**: 取得股票與券商列表並過濾一般股票；若任一為空則結束
+- **結果**: 確保後續迴圈有可處理的組合
 
 ### 2. **單一組合日期範圍檢查**（階段 4，判斷 1）⭐ **最重要**
 - **判斷**: `missing_dates = target_date_strs - existing_dates`
@@ -329,11 +250,10 @@ self._update_broker_trading_metadata_from_database()
   - 如果 `missing_dates` 為空 → 跳過此組合
   - 如果 `missing_dates` 不為空 → 繼續更新
 
-### 3. **API Quota 檢查**（階段 4，判斷 2）
-- **判斷**: `remaining_quota <= 50`
+### 3. **API Quota 耗盡處理**（階段 4，判斷 2）
+- **判斷**: 呼叫 API 時若拋出 `FinMindQuotaExhaustedError`
 - **結果**: 
-  - 如果 quota 不足 → 等待或結束
-  - 如果 quota 足夠 → 繼續更新
+  - 更新 metadata → 呼叫 `_wait_for_quota_reset()` → 恢復則重試當前組合，超時則結束批量更新
 
 ### 4. **API 返回資料檢查**（階段 4，判斷 3）
 - **判斷**: `df is None or df.empty`
@@ -363,10 +283,10 @@ self._update_broker_trading_metadata_from_database()
 3. **避免重複更新**: 如果目標日期範圍完全包含在 metadata 記錄的範圍內，則跳過更新
 
 ### Metadata 的更新時機
-1. **初始化時**: 掃描所有 CSV 檔案並建立 metadata
-2. **API Quota 耗盡前**: 保存當前進度
-3. **每 100 個組合**: 定期更新，避免遺失進度
-4. **完成後**: 最終更新，確保 metadata 最新
+1. **初始化時**: 從資料庫 `taiwan_stock_trading_daily_report_secid_agg` 查詢並建立/更新 metadata（JSON + 快取）
+2. **API Quota 耗盡時**: 在等待重置前先從資料庫更新 metadata，保存當前進度
+3. **每 500 個組合**: 定期呼叫 `_update_broker_trading_metadata_from_database()`，避免遺失進度
+4. **完成後**: 迴圈結束後再次從資料庫更新 metadata，確保與 DB 一致
 
 ---
 
@@ -422,7 +342,7 @@ Metadata 記錄: earliest_date=2021-06-30, latest_date=2021-12-31
 
 ## 注意事項
 
-1. **Metadata 是唯一判斷依據**: 系統不會直接讀取 CSV 檔案來判斷，而是依賴 metadata
+1. **Metadata 是唯一判斷依據**: 日期是否已存在依 metadata（由資料庫 `taiwan_stock_trading_daily_report_secid_agg` 彙總而來）判斷，不直接掃描檔案
 2. **日期範圍假設**: Metadata 假設日期範圍是連續的（從 earliest_date 到 latest_date 的所有日期都存在）
-3. **定期更新 Metadata**: 每 100 個組合後會重新掃描 CSV 並更新 metadata，確保準確性
-4. **API Quota 管理**: 系統會自動檢查和管理 API quota，避免超過限制
+3. **定期更新 Metadata**: 每 500 個組合會從資料庫重新查詢並寫入 metadata（`_update_broker_trading_metadata_from_database()`），確保與 DB 一致
+4. **API Quota**: 配額耗盡時由 crawler 拋出 `FinMindQuotaExhaustedError`，由 updater 捕捉後等待重置或結束批量更新
