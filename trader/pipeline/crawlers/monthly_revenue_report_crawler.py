@@ -176,9 +176,7 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
                         ):
                             df.columns = df.columns.droplevel(0)
                             all_columns.extend(df.columns)
-            time.sleep(
-                random.uniform(self.CRAWL_DELAY_MIN, self.CRAWL_DELAY_MAX)
-            )
+            time.sleep(random.uniform(self.CRAWL_DELAY_MIN, self.CRAWL_DELAY_MAX))
 
         # 去除重複欄位並保留順序
         unique_columns: List[str] = list(dict.fromkeys(all_columns))

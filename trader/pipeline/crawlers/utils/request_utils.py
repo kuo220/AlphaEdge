@@ -86,9 +86,7 @@ class RequestUtils:
 
         for i in range(cls.HTTP_MAX_RETRIES):
             try:
-                return cls.ses.post(
-                    url, timeout=cls.REQUEST_TIMEOUT_SECONDS, **kwargs
-                )
+                return cls.ses.post(url, timeout=cls.REQUEST_TIMEOUT_SECONDS, **kwargs)
             except (ConnectionError, ReadTimeout) as error:
                 logger.info(error)
                 logger.info(

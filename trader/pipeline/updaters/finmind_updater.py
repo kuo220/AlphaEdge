@@ -36,9 +36,15 @@ class FinMindUpdater(BaseDataUpdater):
     """FinMind Updater"""
 
     # API Quota 相關常數（供 _wait_for_quota_reset 使用）
-    QUOTA_RESET_INTERVAL_SECONDS: int = 3600  # 配額重置間隔（秒），用於 fallback 推算下次重置時間
-    MIN_REMAINING_QUOTA_TO_RESUME: int = 3000  # 剩餘 quota 至少達此值才視為已恢復、繼續更新
-    DEFAULT_API_QUOTA_LIMIT: int = 20000  # 每小時最大 API 調用次數（無法從 API 取得時使用）
+    QUOTA_RESET_INTERVAL_SECONDS: int = (
+        3600  # 配額重置間隔（秒），用於 fallback 推算下次重置時間
+    )
+    MIN_REMAINING_QUOTA_TO_RESUME: int = (
+        3000  # 剩餘 quota 至少達此值才視為已恢復、繼續更新
+    )
+    DEFAULT_API_QUOTA_LIMIT: int = (
+        20000  # 每小時最大 API 調用次數（無法從 API 取得時使用）
+    )
     SECONDS_PER_MINUTE: int = 60  # 分鐘轉秒（用於配額輪詢間隔等）
 
     # 配額用盡後等待恢復的預設參數
@@ -421,9 +427,7 @@ class FinMindUpdater(BaseDataUpdater):
                         latest_date: datetime.date = datetime.datetime.strptime(
                             latest_date_str, "%Y-%m-%d"
                         ).date()
-                        update_start_date = latest_date + datetime.timedelta(
-                            days=1
-                        )
+                        update_start_date = latest_date + datetime.timedelta(days=1)
                     except (ValueError, KeyError) as e:
                         logger.debug(
                             f"Error parsing latest_date from metadata for {securities_trader_id}/{stock_id}: {e}"
@@ -533,7 +537,10 @@ class FinMindUpdater(BaseDataUpdater):
                     break
 
                 log_progress_and_update_metadata()
-                if processed_count % self.BATCH_COMMIT_INTERVAL == 0 and self.loader.conn:
+                if (
+                    processed_count % self.BATCH_COMMIT_INTERVAL == 0
+                    and self.loader.conn
+                ):
                     self.loader.conn.commit()
 
             if quota_exhausted:
@@ -745,9 +752,7 @@ class FinMindUpdater(BaseDataUpdater):
         check_interval_seconds: int = (
             self.QUOTA_CHECK_INTERVAL_MINUTES * self.SECONDS_PER_MINUTE
         )
-        max_wait_seconds: int = (
-            self.QUOTA_MAX_WAIT_MINUTES * self.SECONDS_PER_MINUTE
-        )
+        max_wait_seconds: int = self.QUOTA_MAX_WAIT_MINUTES * self.SECONDS_PER_MINUTE
         start_wait_time: float = time.time()
 
         logger.info(
