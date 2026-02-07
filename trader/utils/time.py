@@ -7,6 +7,8 @@ from dateutil.rrule import DAILY, MONTHLY, rrule
 class TimeUtils:
     """處理各式關於時間問題的工具"""
 
+    ROC_EPOCH_YEAR: int = 1911  # 民國年與西元年換算：西元 = 民國 + ROC_EPOCH_YEAR
+
     @staticmethod
     def get_time_diff_in_sec(
         start_time: datetime.datetime,
@@ -24,9 +26,11 @@ class TimeUtils:
 
         try:
             year_int: int = int(year)
-            if year_int < 1912:
-                raise ValueError("民國元年從 1912 年開始，請輸入有效的西元年份")
-            return str(year_int - 1911)
+            if year_int < TimeUtils.ROC_EPOCH_YEAR + 1:
+                raise ValueError(
+                    f"民國元年從 {TimeUtils.ROC_EPOCH_YEAR + 1} 年開始，請輸入有效的西元年份"
+                )
+            return str(year_int - TimeUtils.ROC_EPOCH_YEAR)
         except (ValueError, TypeError):
             raise ValueError(f"無效的年份輸入：{year}")
 
@@ -35,7 +39,7 @@ class TimeUtils:
         """將民國年轉為西元年"""
 
         try:
-            return int(year) + 1911
+            return int(year) + TimeUtils.ROC_EPOCH_YEAR
         except (ValueError, TypeError):
             raise ValueError(f"無效的年份輸入：{year}")
 

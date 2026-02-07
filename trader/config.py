@@ -1,3 +1,4 @@
+import datetime
 import os
 from pathlib import Path
 from typing import List, Optional
@@ -156,6 +157,18 @@ SECURITIES_TRADER_INFO_TABLE_NAME: str = "taiwan_securities_trader_info"
 STOCK_TRADING_DAILY_REPORT_TABLE_NAME: str = (
     "taiwan_stock_trading_daily_report_secid_agg"
 )
+
+
+# -----------------------------------------------------------------------
+# === Default dates for update_db / pipeline（資料更新預設區間）===
+# -----------------------------------------------------------------------
+#
+DEFAULT_CHIP_PRICE_START_DATE: datetime.date = datetime.date(2013, 1, 1)
+DEFAULT_START_YEAR: int = 2013
+DEFAULT_END_MONTH: int = 12
+TICK_UPDATE_START_DATE: datetime.date = datetime.date(2024, 5, 10)
+FINMIND_BROKER_TRADING_START_DATE: datetime.date = datetime.date(2021, 6, 30)
+FINMIND_BROKER_TRADING_END_DATE: datetime.date = datetime.date(2026, 1, 23)
 
 
 # -----------------------------------------------------------------------

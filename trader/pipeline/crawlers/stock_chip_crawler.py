@@ -27,11 +27,13 @@ from trader.utils import TimeUtils
 class StockChipCrawler(BaseDataCrawler):
     """爬取上市、上櫃股票三大法人盤後籌碼"""
 
+    # TPEX URL 格式變更日（2014/12/1 起）
+    TPEX_URL_CHANGE_DATE: datetime.date = datetime.date(2014, 12, 1)
+
     def __init__(self):
         super().__init__()
 
-        # TPEX URL Change Date
-        self.tpex_url_change_date: datetime.date = datetime.date(2014, 12, 1)
+        self.tpex_url_change_date: datetime.date = self.TPEX_URL_CHANGE_DATE
 
     def setup(self) -> None:
         """Set Up the Config of Crawler"""

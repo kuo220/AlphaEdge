@@ -10,6 +10,8 @@ from trader.api.stock_price_api import StockPriceAPI
 class MarketCalendar:
     """Market Calendar"""
 
+    MARKET_CALENDAR_TEST_STOCK_ID: str = "2330"  # 用以判斷前一交易日是否開盤
+
     @staticmethod
     def check_stock_market_open(api: StockPriceAPI, date: datetime.date) -> bool:
         """
@@ -37,7 +39,7 @@ class MarketCalendar:
             - datetime.date
         """
 
-        stock_test: str = "2330"  # 以 2330 判斷前一天是否有開盤
+        stock_test: str = MarketCalendar.MARKET_CALENDAR_TEST_STOCK_ID
         last_trading_date: datetime.date = date - datetime.timedelta(days=1)
 
         if isinstance(api, sj.Shioaji):

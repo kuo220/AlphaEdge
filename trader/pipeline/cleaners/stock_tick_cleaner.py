@@ -20,6 +20,12 @@ class StockTickCleaner(BaseDataCleaner):
     _file_locks: Dict[str, Lock] = {}
     _locks_lock: Lock = Lock()  # 保護 _file_locks 字典本身的鎖
 
+    # Windows 關檔等待與儲存重試
+    FILE_CLOSE_WAIT_SECONDS: float = 0.01
+    MAX_SAVE_RETRIES: int = 3
+    INITIAL_RETRY_DELAY: float = 0.1
+    RETRY_BACKOFF_MULTIPLIER: int = 2
+
     def __init__(self):
         super().__init__()
 
@@ -104,11 +110,11 @@ class StockTickCleaner(BaseDataCleaner):
                     # 在 Windows 上，需要確保檔案句柄已釋放
                     if os.name == "nt":  # Windows
                         # 等待一下確保檔案已完全關閉
-                        time.sleep(0.01)
+                        time.sleep(self.FILE_CLOSE_WAIT_SECONDS)
 
                     # 在 Windows 上，如果目標檔案存在且被鎖定，先嘗試刪除
-                    max_retries: int = 3
-                    retry_delay: float = 0.1
+                    max_retries: int = self.MAX_SAVE_RETRIES
+                    retry_delay: float = self.INITIAL_RETRY_DELAY
 
                     for attempt in range(max_retries):
                         try:
@@ -136,7 +142,7 @@ class StockTickCleaner(BaseDataCleaner):
                                     f"{stock_id}.csv (file may be in use), retrying in {retry_delay}s..."
                                 )
                                 time.sleep(retry_delay)
-                                retry_delay *= 2  # 指數退避
+                                retry_delay *= self.RETRY_BACKOFF_MULTIPLIER  # 指數退避
                             else:
                                 # 最後一次嘗試失敗
                                 raise e

@@ -17,7 +17,7 @@ Usage:
         ...
 
     if FinMindError.is_quota_error(some_exception):
-        # 判斷是否為配額相關（含 HTTP 429、KeyError('data') 等）
+        # 判斷是否為配額相關（含 HTTP 402、KeyError('data') 等）
         ...
 """
 
@@ -49,8 +49,8 @@ class FinMindError(PipelineError):
 
         辨識條件（依序）：
         1. KeyError('data')：配額用盡時 FinMind API 常回傳無 "data" 的 JSON，套件內會拋出 KeyError。
-        2. HTTP 429：requests.HTTPError 且 response.status_code == 429。
-        3. 訊息關鍵字：429、quota、rate limit、exceeded、配額（含 __cause__ 鏈）。
+        2. HTTP 402：FinMind API 配額用盡時回傳 402 (Payment Required / 用量超出上限)。
+        3. 訊息關鍵字：402、quota、rate limit、exceeded、配額（含 __cause__ 鏈）。
 
         Args:
             exc: 要檢查的例外（可為鏈狀 __cause__ 的根）。
@@ -72,10 +72,10 @@ class FinMindError(PipelineError):
             ):
                 return True
 
-            # HTTP 429 (Too Many Requests)
+            # HTTP 402 (FinMind 配額用盡／用量超出上限)
             if hasattr(err, "response") and getattr(err, "response", None) is not None:
                 status = getattr(err.response, "status_code", None)
-                if status == 429:
+                if status == 402:
                     return True
 
             # 訊息或內容含配額相關關鍵字
@@ -88,7 +88,7 @@ class FinMindError(PipelineError):
             if any(
                 k in msg_lower
                 for k in (
-                    "429",
+                    "402",
                     "quota",
                     "rate limit",
                     "rate_limit",
@@ -107,7 +107,7 @@ class FinMindQuotaExhaustedError(FinMindError):
     """FinMind API 配額用盡。
 
     可能情境：
-    - HTTP 429 (Too Many Requests)
+    - HTTP 402（用量超出上限，依 FinMind API 說明）
     - API 回傳 JSON 無 "data" 鍵（FinMind 套件會拋出 KeyError('data')）
     - 回應內容含 quota / rate limit / exceeded 等關鍵字
     """

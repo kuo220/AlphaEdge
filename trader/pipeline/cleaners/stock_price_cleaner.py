@@ -12,11 +12,13 @@ from trader.utils import TimeUtils
 class StockPriceCleaner(BaseDataCleaner):
     """Stock Price Cleaner (Transform)"""
 
+    # 上櫃從此日起 csv 欄位格式不同（109/4/30）
+    TPEX_TABLE_CHANGE_DATE: datetime.date = datetime.date(2020, 4, 30)
+
     def __init__(self):
         super().__init__()
 
-        # TPEX Price Table Change Date
-        self.tpex_table_change_date: datetime.date = datetime.date(2020, 4, 30)
+        self.tpex_table_change_date: datetime.date = self.TPEX_TABLE_CHANGE_DATE
 
         # Downloads directory Path
         self.price_dir: Path = PRICE_DOWNLOADS_PATH

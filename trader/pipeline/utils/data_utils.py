@@ -9,6 +9,9 @@ from loguru import logger
 
 from trader.pipeline.utils import FileEncoding
 
+# 全專案 JSON 儲存預設縮排
+DEFAULT_JSON_INDENT: int = 2
+
 
 class DataUtils:
     """Data Tools"""
@@ -298,7 +301,7 @@ class DataUtils:
         file_path: Path,
         encoding: str = FileEncoding.UTF8.value,
         ensure_ascii: bool = False,
-        indent: int = 2,
+        indent: int = DEFAULT_JSON_INDENT,
     ) -> None:
         """
         - Description:

@@ -463,10 +463,7 @@ def test_broker_trading_updater():
                 print(f"  - 測試策略: 處理 2 個組合後觸發 quota 耗盡")
 
                 # Mock _wait_for_quota_reset 來避免真的等待
-                def mock_wait_for_quota_reset(
-                    check_interval_minutes: int = 10,
-                    max_wait_minutes: Optional[int] = None,
-                ) -> bool:
+                def mock_wait_for_quota_reset(self) -> bool:
                     """模擬等待 quota 重置（立即返回 False 以測試耗盡情況）"""
                     print("  ⚠️  API quota 耗盡，模擬等待失敗（測試目的）")
                     return False  # 模擬等待超時

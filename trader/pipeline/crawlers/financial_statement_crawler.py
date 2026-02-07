@@ -23,6 +23,11 @@ from trader.utils import TimeUtils
 class FinancialStatementCrawler(BaseDataCrawler):
     """Crawler for quarterly financial Statement"""
 
+    DEFAULT_START_YEAR: int = 2013
+    DEFAULT_END_YEAR: int = 2025
+    CRAWL_DELAY_MIN: float = 1.0
+    CRAWL_DELAY_MAX: float = 3.0
+
     def __init__(self):
         super().__init__()
 
@@ -257,8 +262,8 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
     def get_all_report_columns(
         self,
-        start_year: int = 2013,
-        end_year: int = 2025,
+        start_year: Optional[int] = None,
+        end_year: Optional[int] = None,
         seasons: List[int] = [1, 2, 3, 4],
         stock_id: str = "2330",
         report_type: FinancialStatementType = FinancialStatementType.BALANCE_SHEET,
@@ -269,8 +274,12 @@ class FinancialStatementCrawler(BaseDataCrawler):
         上市: 民國 102 (2013) 年 ~ present
         上櫃: 民國 102 (2013) 年 ~ present
         """
+        _start_year: int = (
+            start_year if start_year is not None else self.DEFAULT_START_YEAR
+        )
+        _end_year: int = end_year if end_year is not None else self.DEFAULT_END_YEAR
 
-        year_list: List[int] = list(range(start_year, end_year + 1))
+        year_list: List[int] = list(range(_start_year, _end_year + 1))
         all_columns: List[str] = []
 
         for year in year_list:
@@ -297,7 +306,9 @@ class FinancialStatementCrawler(BaseDataCrawler):
                 if df_list:
                     for df in df_list:
                         all_columns.extend(df.columns)
-            time.sleep(random.uniform(1, 3))
+            time.sleep(
+                random.uniform(self.CRAWL_DELAY_MIN, self.CRAWL_DELAY_MAX)
+            )
 
         # 去除重複欄位並保留順序
         unique_columns: List[str] = list(dict.fromkeys(all_columns))

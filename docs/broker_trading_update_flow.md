@@ -185,11 +185,8 @@ for securities_trader_id in trader_list:  # 外層循環：券商
       # 1. 更新 metadata（保存當前進度）
       self._update_broker_trading_metadata_from_database()
       
-      # 2. 等待 quota 重置
-      quota_restored = self._wait_for_quota_reset(
-          check_interval_minutes=10,
-          max_wait_minutes=120
-      )
+      # 2. 等待 quota 重置（使用類別常數 QUOTA_CHECK_INTERVAL_MINUTES、QUOTA_MAX_WAIT_MINUTES）
+      quota_restored = self._wait_for_quota_reset()
       
       if not quota_restored:
           # 等待超時，結束更新

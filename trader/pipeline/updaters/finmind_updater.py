@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple, Union
 
 import pandas as pd
-from FinMind.data import DataLoader
 from loguru import logger
 
 from trader.config import (
@@ -54,10 +53,15 @@ class FinMindUpdater(BaseDataUpdater):
     # 預設日期（update_all 時 broker_trading 若未給 start_date）
     DEFAULT_BROKER_TRADING_START_DATE: datetime.date = datetime.date(2021, 6, 30)
 
+    # API 剩餘配額查詢：有效值下界（usage 與 limit 的合法性檢查）
+    MIN_VALID_API_USAGE: int = 0
+    MIN_VALID_API_LIMIT: int = 1
+
     def __init__(self):
         super().__init__()
 
-        # SQLite Connection
+        # SQLite Connection（用於讀取：股票/券商列表、metadata 從 DB 查詢）
+        # 寫入由 self.loader.conn 負責（broker trading 等）；兩者皆指向同一 DB_PATH
         self.conn: Optional[sqlite3.Connection] = None
 
         # ETL
@@ -296,11 +300,15 @@ class FinMindUpdater(BaseDataUpdater):
         )
 
         def _to_date(value: Union[datetime.date, str]) -> datetime.date:
-            return (
-                datetime.datetime.strptime(value, "%Y-%m-%d").date()
-                if isinstance(value, str)
-                else value
-            )
+            """將 date 或字串轉為 datetime.date；字串須為 YYYY-MM-DD 格式。"""
+            if isinstance(value, datetime.date):
+                return value
+            try:
+                return datetime.datetime.strptime(value, "%Y-%m-%d").date()
+            except (ValueError, TypeError) as e:
+                raise ValueError(
+                    f"Invalid date format: expected datetime.date or 'YYYY-MM-DD' string, got {type(value).__name__!r}"
+                ) from e
 
         start_date_obj: datetime.date = _to_date(start_date)
         end_date_obj: datetime.date = _to_date(end_date)
@@ -503,10 +511,7 @@ class FinMindUpdater(BaseDataUpdater):
                             f"Current: trader={securities_trader_id}, stock={stock_id}. {e}"
                         )
                         self._update_broker_trading_metadata_from_database()
-                        quota_restored: bool = self._wait_for_quota_reset(
-                            check_interval_minutes=self.QUOTA_CHECK_INTERVAL_MINUTES,
-                            max_wait_minutes=self.QUOTA_MAX_WAIT_MINUTES,
-                        )
+                        quota_restored: bool = self._wait_for_quota_reset()
                         if not quota_restored:
                             quota_exhausted = True
                             logger.error(
@@ -590,7 +595,7 @@ class FinMindUpdater(BaseDataUpdater):
         if start_date is None:
             start_date = self.DEFAULT_BROKER_TRADING_START_DATE
         if end_date is None:
-            end_date: Union[datetime.date, str] = datetime.date.today()
+            end_date = datetime.date.today()
 
         # 批量更新所有券商和股票組合
         self.update_broker_trading_daily_report(
@@ -624,7 +629,7 @@ class FinMindUpdater(BaseDataUpdater):
 
         Returns:
             UpdateStatus: 更新狀態
-                - UpdateStatus.SUCCESS: 成功更新
+                - UpdateStatus.SUCCESS: 成功更新（含 API 有回傳但本批皆為重複、saved_count==0 之情況）
                 - UpdateStatus.NO_DATA: 沒有資料（API 返回空結果）
                 - UpdateStatus.ERROR: 發生錯誤
         """
@@ -665,6 +670,7 @@ class FinMindUpdater(BaseDataUpdater):
             )
 
             if saved_count == 0:
+                # API 有回傳且已清洗，但本批無新寫入（例如皆為重複）；視為成功、不報錯
                 logger.debug("No new data was saved to database")
                 return UpdateStatus.SUCCESS
 
@@ -694,77 +700,73 @@ class FinMindUpdater(BaseDataUpdater):
 
     def _get_api_remaining_quota_from_api(self) -> Optional[int]:
         """
-        從 FinMind API 查詢剩餘的 API quota（如果 API 支援）
+        從 FinMind API 查詢剩餘的 API quota。
+
+        FinMind DataLoader 提供：
+        - api_usage: 目前已經使用的次數
+        - api_usage_limit: 每小時可以使用的總次數
+        剩餘次數 = api_usage_limit - api_usage。
 
         Returns:
-            Optional[int]: 剩餘的 API 調用次數，如果無法查詢則返回 None
+            Optional[int]: 剩餘的 API 調用次數，若無法查詢則返回 None
         """
         try:
             if not self.crawler.api:
                 return None
-
-            api: DataLoader = self.crawler.api
-
-            # FinMind API: api.api_usage_limit 回傳剩餘次數
-            if hasattr(api, "api_usage_limit"):
-                remaining: int = api.api_usage_limit
-                if isinstance(remaining, int) and remaining >= 0:
-                    return remaining
-
+            if not hasattr(self.crawler.api, "api_usage") or not hasattr(
+                self.crawler.api, "api_usage_limit"
+            ):
+                return None
+            usage: int = self.crawler.api.api_usage
+            limit: int = self.crawler.api.api_usage_limit
+            if not (
+                isinstance(usage, int)
+                and isinstance(limit, int)
+                and usage >= self.MIN_VALID_API_USAGE
+                and limit >= self.MIN_VALID_API_LIMIT
+            ):
+                return None
+            remaining: int = max(self.MIN_VALID_API_USAGE, limit - usage)
+            logger.info(f"📊 目前使用次數 / 總次數: {usage} / {limit}")
+            return remaining
         except Exception as e:
             logger.debug(f"Could not query API remaining quota from FinMind API: {e}")
         return None
 
-    def _wait_for_quota_reset(
-        self,
-        check_interval_minutes: Optional[int] = None,
-        max_wait_minutes: Optional[int] = None,
-    ) -> bool:
+    def _wait_for_quota_reset(self) -> bool:
         """
-        等待 API quota 重置，每隔指定時間查詢一次 API usage
+        等待 API quota 重置，每隔指定時間查詢一次 API usage。
 
-        Args:
-            check_interval_minutes: 每隔幾分鐘查詢一次 API usage，None 則用類別常數
-            max_wait_minutes: 最大等待時間（分鐘），如果為 None 則不限制
+        使用類別常數 QUOTA_CHECK_INTERVAL_MINUTES、QUOTA_MAX_WAIT_MINUTES。
 
         Returns:
             bool: True 表示 quota 已恢復，False 表示達到最大等待時間或發生錯誤
         """
-        if check_interval_minutes is None:
-            check_interval_minutes = self.QUOTA_CHECK_INTERVAL_MINUTES
         check_interval_seconds: int = (
-            check_interval_minutes * self.SECONDS_PER_MINUTE
+            self.QUOTA_CHECK_INTERVAL_MINUTES * self.SECONDS_PER_MINUTE
         )
-        max_wait_seconds: Optional[int] = (
-            max_wait_minutes * self.SECONDS_PER_MINUTE if max_wait_minutes else None
+        max_wait_seconds: int = (
+            self.QUOTA_MAX_WAIT_MINUTES * self.SECONDS_PER_MINUTE
         )
         start_wait_time: float = time.time()
 
         logger.info(
-            f"⏳ Waiting for API quota reset. Checking every {check_interval_minutes} minutes..."
+            f"⏳ Waiting for API quota reset. Checking every {self.QUOTA_CHECK_INTERVAL_MINUTES} minutes..."
         )
 
         while True:
             # 檢查是否超過最大等待時間
-            if max_wait_seconds:
-                elapsed: float = time.time() - start_wait_time
-                if elapsed >= max_wait_seconds:
-                    logger.warning(
-                        f"⚠️ Maximum wait time ({max_wait_minutes} minutes) reached. Stopping wait."
-                    )
-                    return False
+            elapsed: float = time.time() - start_wait_time
+            if elapsed >= max_wait_seconds:
+                logger.warning(
+                    f"⚠️ Maximum wait time ({self.QUOTA_MAX_WAIT_MINUTES} minutes) reached. Stopping wait."
+                )
+                return False
 
             # 嘗試從 API 查詢剩餘 quota
             remaining: Optional[int] = self._get_api_remaining_quota_from_api()
 
             if remaining is not None:
-                # 如果能夠查詢到剩餘 quota，檢查是否已重置（API 回傳的 remaining 可能 > api_quota_limit，避免負數）
-                current_usage: int = max(0, self.api_quota_limit - remaining)
-                logger.info(
-                    f"📊 Current API usage: {current_usage}/{self.api_quota_limit} calls. "
-                    f"Remaining: {remaining} calls."
-                )
-
                 if remaining >= self.MIN_REMAINING_QUOTA_TO_RESUME:
                     self.quota_reset_time = (
                         time.time() + self.QUOTA_RESET_INTERVAL_SECONDS
@@ -784,11 +786,8 @@ class FinMindUpdater(BaseDataUpdater):
                     logger.info("✅ API quota reset time reached. Resuming update.")
                     return True
 
-            # 計算已等待時間
-            elapsed: float = time.time() - start_wait_time
-
             logger.info(
-                f"⏳ Quota not yet reset. Next check in {check_interval_minutes} minutes. "
+                f"⏳ Quota not yet reset. Next check in {self.QUOTA_CHECK_INTERVAL_MINUTES} minutes. "
                 f"(Elapsed: {elapsed / self.SECONDS_PER_MINUTE:.1f} minutes)"
             )
 
@@ -1040,7 +1039,6 @@ class FinMindUpdater(BaseDataUpdater):
         DataUtils.save_json(
             metadata,
             self.broker_trading_metadata_path,
-            indent=2,
             ensure_ascii=False,
         )
         # 寫入成功後更新快取，迴圈內後續 _load 只讀快取
