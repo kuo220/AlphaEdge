@@ -920,14 +920,14 @@ class FinMindUpdater(BaseDataUpdater):
 
                         # 更新 metadata
                         if stock_id not in metadata[securities_trader_id]:
-                            # 新項目，直接設置日期範圍
+                            # 情況 A：DB 已有此組合但 metadata 遺漏，直接寫入查到的日期範圍
                             metadata[securities_trader_id][stock_id] = {
                                 "earliest_date": earliest_date.strftime("%Y-%m-%d"),
                                 "latest_date": latest_date.strftime("%Y-%m-%d"),
                             }
                             updated_count += 1
                         else:
-                            # 如果已存在，比較並更新日期範圍
+                            # 情況 B：metadata 已有此組合，比較並擴展 earliest/latest 日期範圍
                             existing_earliest: Optional[datetime.date] = None
                             existing_latest: Optional[datetime.date] = None
 
