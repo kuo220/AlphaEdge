@@ -36,6 +36,24 @@ from trader.utils.log_manager import LogManager
 class FinMindUpdater(BaseDataUpdater):
     """FinMind Updater"""
 
+    # API Quota 相關常數（供 _wait_for_quota_reset 使用）
+    QUOTA_RESET_INTERVAL_SECONDS: int = 3600  # 配額重置間隔（秒），用於 fallback 推算下次重置時間
+    MIN_REMAINING_QUOTA_TO_RESUME: int = 3000  # 剩餘 quota 至少達此值才視為已恢復、繼續更新
+    DEFAULT_API_QUOTA_LIMIT: int = 20000  # 每小時最大 API 調用次數（無法從 API 取得時使用）
+    SECONDS_PER_MINUTE: int = 60  # 分鐘轉秒（用於配額輪詢間隔等）
+
+    # 配額用盡後等待恢復的預設參數
+    QUOTA_CHECK_INTERVAL_MINUTES: int = 10  # 每隔幾分鐘查詢一次 API usage
+    QUOTA_MAX_WAIT_MINUTES: int = 120  # 最大等待時間（分鐘）
+
+    # 券商分點批量更新：進度記錄、metadata 更新、commit 間隔
+    BATCH_LOG_PROGRESS_INTERVAL: int = 50  # 每處理 N 筆記錄一次進度
+    BATCH_UPDATE_METADATA_INTERVAL: int = 500  # 每處理 N 筆更新一次 metadata
+    BATCH_COMMIT_INTERVAL: int = 50  # 每處理 N 筆 commit 一次
+
+    # 預設日期（update_all 時 broker_trading 若未給 start_date）
+    DEFAULT_BROKER_TRADING_START_DATE: datetime.date = datetime.date(2021, 6, 30)
+
     def __init__(self):
         super().__init__()
 
@@ -48,9 +66,9 @@ class FinMindUpdater(BaseDataUpdater):
         self.loader: FinMindLoader = FinMindLoader()
 
         # API Quota（供 _wait_for_quota_reset 查詢與 fallback 用；配額用盡由 FinMindQuotaExhaustedError 處理）
-        self.api_quota_limit: int = 20000  # 每小時最大 API 調用次數（預設值）
+        self.api_quota_limit: int = self.DEFAULT_API_QUOTA_LIMIT
         self.quota_reset_time: float = (
-            time.time() + 3600
+            time.time() + self.QUOTA_RESET_INTERVAL_SECONDS
         )  # 下次重置時間（無法從 API 取得剩餘時用）
 
         # Broker trading metadata 文件路徑（記錄每個 broker_id 和 stock_id 的日期範圍）
@@ -345,22 +363,17 @@ class FinMindUpdater(BaseDataUpdater):
             UpdateStatus.ERROR.value: 0,
         }
 
-        update_metadata_interval: int = 500
-        commit_interval: int = 50
-        quota_check_interval_minutes: int = 10  # 配額用盡後輪詢間隔
-        quota_max_wait_minutes: int = 120  # 配額恢復最多等待時間
-
         # 輔助函數：記錄進度並定期更新 metadata
         def log_progress_and_update_metadata():
             """記錄處理進度並在需要時更新 metadata（避免程式意外中斷時遺失進度）"""
-            if processed_count % 50 == 0:
+            if processed_count % self.BATCH_LOG_PROGRESS_INTERVAL == 0:
                 logger.info(
                     f"Progress: {processed_count}/{total_combinations} combinations processed | "
                     f"Stats: success={stats[UpdateStatus.SUCCESS.value]}, no_data={stats[UpdateStatus.NO_DATA.value]}, "
                     f"error={stats[UpdateStatus.ERROR.value]}, already_up_to_date={stats[UpdateStatus.ALREADY_UP_TO_DATE.value]}"
                 )
             # 定期更新 metadata（避免程式意外中斷時遺失進度）
-            if processed_count % update_metadata_interval == 0:
+            if processed_count % self.BATCH_UPDATE_METADATA_INTERVAL == 0:
                 logger.debug(
                     f"Periodically updating metadata at {processed_count} combinations..."
                 )
@@ -491,8 +504,8 @@ class FinMindUpdater(BaseDataUpdater):
                         )
                         self._update_broker_trading_metadata_from_database()
                         quota_restored: bool = self._wait_for_quota_reset(
-                            check_interval_minutes=quota_check_interval_minutes,
-                            max_wait_minutes=quota_max_wait_minutes,
+                            check_interval_minutes=self.QUOTA_CHECK_INTERVAL_MINUTES,
+                            max_wait_minutes=self.QUOTA_MAX_WAIT_MINUTES,
                         )
                         if not quota_restored:
                             quota_exhausted = True
@@ -515,7 +528,7 @@ class FinMindUpdater(BaseDataUpdater):
                     break
 
                 log_progress_and_update_metadata()
-                if processed_count % commit_interval == 0 and self.loader.conn:
+                if processed_count % self.BATCH_COMMIT_INTERVAL == 0 and self.loader.conn:
                     self.loader.conn.commit()
 
             if quota_exhausted:
@@ -575,8 +588,7 @@ class FinMindUpdater(BaseDataUpdater):
 
         # 更新券商分點統計（需要日期範圍）
         if start_date is None:
-            # 預設從 2021/6/30 開始
-            start_date: Union[datetime.date, str] = datetime.date(2021, 6, 30)
+            start_date = self.DEFAULT_BROKER_TRADING_START_DATE
         if end_date is None:
             end_date: Union[datetime.date, str] = datetime.date.today()
 
@@ -705,22 +717,26 @@ class FinMindUpdater(BaseDataUpdater):
 
     def _wait_for_quota_reset(
         self,
-        check_interval_minutes: int = 10,
+        check_interval_minutes: Optional[int] = None,
         max_wait_minutes: Optional[int] = None,
     ) -> bool:
         """
         等待 API quota 重置，每隔指定時間查詢一次 API usage
 
         Args:
-            check_interval_minutes: 每隔幾分鐘查詢一次 API usage（預設 10 分鐘）
+            check_interval_minutes: 每隔幾分鐘查詢一次 API usage，None 則用類別常數
             max_wait_minutes: 最大等待時間（分鐘），如果為 None 則不限制
 
         Returns:
             bool: True 表示 quota 已恢復，False 表示達到最大等待時間或發生錯誤
         """
-        check_interval_seconds: int = check_interval_minutes * 60
+        if check_interval_minutes is None:
+            check_interval_minutes = self.QUOTA_CHECK_INTERVAL_MINUTES
+        check_interval_seconds: int = (
+            check_interval_minutes * self.SECONDS_PER_MINUTE
+        )
         max_wait_seconds: Optional[int] = (
-            max_wait_minutes * 60 if max_wait_minutes else None
+            max_wait_minutes * self.SECONDS_PER_MINUTE if max_wait_minutes else None
         )
         start_wait_time: float = time.time()
 
@@ -749,8 +765,10 @@ class FinMindUpdater(BaseDataUpdater):
                     f"Remaining: {remaining} calls."
                 )
 
-                if remaining > 50:  # 有足夠的 quota（保留 50 次緩衝）
-                    self.quota_reset_time = time.time() + 3600  # 下次 fallback 用
+                if remaining >= self.MIN_REMAINING_QUOTA_TO_RESUME:
+                    self.quota_reset_time = (
+                        time.time() + self.QUOTA_RESET_INTERVAL_SECONDS
+                    )
                     logger.info(
                         f"✅ API quota has been reset! Resuming update. "
                         f"Remaining quota: {remaining} calls."
@@ -760,7 +778,9 @@ class FinMindUpdater(BaseDataUpdater):
                 # 如果無法查詢 API usage，使用時間判斷（fallback）
                 current_time: float = time.time()
                 if current_time >= self.quota_reset_time:
-                    self.quota_reset_time = current_time + 3600
+                    self.quota_reset_time = (
+                        current_time + self.QUOTA_RESET_INTERVAL_SECONDS
+                    )
                     logger.info("✅ API quota reset time reached. Resuming update.")
                     return True
 
@@ -769,7 +789,7 @@ class FinMindUpdater(BaseDataUpdater):
 
             logger.info(
                 f"⏳ Quota not yet reset. Next check in {check_interval_minutes} minutes. "
-                f"(Elapsed: {elapsed / 60:.1f} minutes)"
+                f"(Elapsed: {elapsed / self.SECONDS_PER_MINUTE:.1f} minutes)"
             )
 
             # 等待指定時間
