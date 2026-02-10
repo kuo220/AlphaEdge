@@ -182,6 +182,13 @@ class FinMindLoader(BaseDataLoader):
 
         self.conn.commit()
 
+        # 建立 metadata GROUP BY 查詢用索引，避免每批更新時卡頓；IF NOT EXISTS 具 idempotent
+        cursor.execute(
+            f"CREATE INDEX IF NOT EXISTS idx_broker_trading_secid_stock_date "
+            f"ON {STOCK_TRADING_DAILY_REPORT_TABLE_NAME} (securities_trader_id, stock_id, date);"
+        )
+        self.conn.commit()
+
     def create_missing_tables(self) -> None:
         """確保所有 FinMind 資料表存在"""
 
@@ -200,10 +207,8 @@ class FinMindLoader(BaseDataLoader):
         ):
             self._create_broker_info_table()
 
-        if not SQLiteUtils.check_table_exist(
-            conn=self.conn, table_name=STOCK_TRADING_DAILY_REPORT_TABLE_NAME
-        ):
-            self._create_broker_trading_daily_report_table()
+        # broker trading 表與索引：每次都呼叫，表已存在時 CREATE TABLE/INDEX IF NOT EXISTS 為 no-op
+        self._create_broker_trading_daily_report_table()
 
     def add_to_db(self, remove_files: bool = False) -> None:
         """Add Data into Database from CSV files"""

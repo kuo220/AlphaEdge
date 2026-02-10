@@ -21,3 +21,6 @@ Downloads/*
 # MkDocs
 site/
 .cache/
+
+# broker_trading_metadata
+broker_trading_metadata.json

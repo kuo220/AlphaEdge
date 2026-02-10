@@ -25,72 +25,101 @@ from trader.config import (
 from trader.pipeline.utils import DataType, FinMindDataType
 
 """
-* 財報申報期限
-一般行業：
-- Q1：5月15日
-- Q2：8月14日
-- Q3：11月14日
-- 年報：3月31日
+資料更新任務主程式 (update_db)
 
+本模組為資料更新系統的入口，依 --target 參數選擇要更新的資料類型，
+可單一更新或一次指定多個目標。預設為 no_tick（更新所有資料但不含 tick）。
 
-* Shioaji 台股 ticks 資料時間表：
-- From: 2020/03/02 ~ Today
-- 目前資料庫資料時間：
-- From 2020/04/01 ~ 2024/05/10
+================================================================================
+參考：財報申報期限（一般行業）
+================================================================================
+  Q1    5月15日
+  Q2    8月14日
+  Q3    11月14日
+  年報  3月31日
 
-"""
+================================================================================
+參考：Shioaji 台股 ticks 資料時間
+================================================================================
+  可取得區間  2020/03/02 ~ 今日
+  目前 DB    2020/04/01 ~ 2024/05/10（依實際維護為準）
 
-"""
-* update_all.py 使用方式說明 *
+================================================================================
+參數說明
+================================================================================
 
-- Description:
-    本檔案為資料更新系統的主程式入口，可根據參數選擇要更新的資料類型（如 tick, chip, price 等）。
+  --target  <target> [<target> ...]
+      欲更新的資料類型，可多選。未指定時預設為 no_tick。
+      選項見下方「Target 對照表」。
 
-- Parameters:
-    - --target: List[str]
-        欲更新的資料類型，可選：
-            - tick: 僅更新 tick 資料
-            - chip: 僅更新三大法人籌碼資料
-            - price: 僅更新收盤價資料
-            - fs: 僅更新財報資料
-            - mrr: 僅更新月營收報表
-            - finmind: 更新所有 FinMind 資料（台股總覽、證券商資訊、券商分點統計）
-            - stock_info: 僅更新 FinMind 台股總覽（不含權證）
-            - stock_info_with_warrant: 僅更新 FinMind 台股總覽（含權證）
-            - broker_info: 僅更新 FinMind 證券商資訊
-            - broker_trading: 僅更新 FinMind 券商分點統計
-            - all: 更新所有資料（包含 tick）
-            - no_tick: 更新所有資料（不包含 tick）
+================================================================================
+Target 對照表
+================================================================================
 
-        預設為 no_tick，可同時指定多個目標
-        E.g. python -m tasks.update_db --target chip price tick
+  選項                        說明
+  -------------------------  -----------------------------------------------
+  tick                        逐筆成交 (Shioaji ticks)
+  chip                        三大法人籌碼
+  price                       收盤價
+  fs                          財報 (Financial Statement)
+  mrr                         月營收報表 (Monthly Revenue Report)
+  finmind                     全部 FinMind（台股總覽 + 證券商 + 券商分點）
+  stock_info                  FinMind 台股總覽（不含權證）
+  stock_info_with_warrant     FinMind 台股總覽（含權證）
+  broker_info                 FinMind 證券商資訊
+  broker_trading              FinMind 券商分點統計
+  all                         全部資料（含 tick）
+  no_tick                     全部資料（不含 tick，預設）
 
-- Usage Example:
-    - 僅更新 tick：
-        python -m tasks.update_db --target tick
+================================================================================
+各資料更新指令（單一 target）
+================================================================================
 
-    - 更新三大法人與收盤價：
-        python -m tasks.update_db --target chip price
+  # 逐筆成交
+  python -m tasks.update_db --target tick
 
-    - 更新所有 FinMind 資料：
-        python -m tasks.update_db --target finmind
+  # 三大法人籌碼
+  python -m tasks.update_db --target chip
 
-    - 僅更新 FinMind 台股總覽（不含權證）：
-        python -m tasks.update_db --target stock_info
+  # 收盤價
+  python -m tasks.update_db --target price
 
-    - 僅更新 FinMind 台股總覽（含權證）：
-        python -m tasks.update_db --target stock_info_with_warrant
+  # 財報
+  python -m tasks.update_db --target fs
 
-    - 僅更新 FinMind 券商分點統計：
-        python -m tasks.update_db --target broker_trading
+  # 月營收報表
+  python -m tasks.update_db --target mrr
 
-    - 更新所有資料（不含 tick）：
-        python -m tasks.update_db --target no_tick
-        or
-        python -m tasks.update_db
+  # 全部 FinMind（台股總覽 + 證券商 + 券商分點）
+  python -m tasks.update_db --target finmind
 
-    - 更新所有資料（含 tick）：
-        python -m tasks.update_db --target all
+  # FinMind 台股總覽（不含權證）
+  python -m tasks.update_db --target stock_info
+
+  # FinMind 台股總覽（含權證）
+  python -m tasks.update_db --target stock_info_with_warrant
+
+  # FinMind 證券商資訊
+  python -m tasks.update_db --target broker_info
+
+  # FinMind 券商分點統計
+  python -m tasks.update_db --target broker_trading
+
+  # 全部資料（含 tick）
+  python -m tasks.update_db --target all
+
+  # 全部資料（不含 tick，等同預設）
+  python -m tasks.update_db --target no_tick
+  或
+  python -m tasks.update_db
+
+================================================================================
+組合更新範例（多個 target）
+================================================================================
+
+  python -m tasks.update_db --target chip price
+  python -m tasks.update_db --target chip price tick
+  python -m tasks.update_db --target stock_info broker_trading
 """
 
 
