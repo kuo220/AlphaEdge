@@ -168,7 +168,7 @@ DEFAULT_START_YEAR: int = 2013
 DEFAULT_END_MONTH: int = 12
 TICK_UPDATE_START_DATE: datetime.date = datetime.date(2024, 5, 10)
 FINMIND_BROKER_TRADING_START_DATE: datetime.date = datetime.date(2021, 6, 30)
-FINMIND_BROKER_TRADING_END_DATE: datetime.date = datetime.date(2026, 1, 23)
+FINMIND_BROKER_TRADING_END_DATE: datetime.date = datetime.date(2026, 2, 1)
 
 
 # -----------------------------------------------------------------------
