@@ -391,6 +391,9 @@ class FinMindUpdater(BaseDataUpdater):
                 logger.debug(
                     f"Periodically updating metadata at {processed_count} combinations..."
                 )
+                # 先 commit loader 未提交寫入，避免 self.conn 的 SELECT 被 self.loader.conn 鎖住
+                if self.loader.conn is not None:
+                    self.loader.conn.commit()
                 self._update_broker_trading_metadata_from_database()
 
         for securities_trader_id in securities_trader_list:
