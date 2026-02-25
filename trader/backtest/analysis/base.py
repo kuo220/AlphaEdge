@@ -46,6 +46,11 @@ class BaseBacktestAnalyzer(ABC):
         """計算 Sortino Ratio"""
         pass
 
+    @abstractmethod
+    def compute_information_ratio(self) -> Optional[float]:
+        """計算 Information Ratio（策略超額報酬相對於基準的穩定性）"""
+        pass
+
     # ===== Trade Statistics =====
     @abstractmethod
     def compute_win_rate(self) -> float:
