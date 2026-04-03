@@ -56,10 +56,10 @@ class StockTickCleaner(BaseDataCleaner):
         try:
             # 時間格式轉換，加強錯誤處理
             try:
-                df.ts = pd.to_datetime(df.ts, errors="coerce")
+                df["ts"] = pd.to_datetime(df["ts"], errors="coerce")
                 # 檢查是否有無效的時間值
-                if df.ts.isna().any():
-                    invalid_count: int = df.ts.isna().sum()
+                if df["ts"].isna().any():
+                    invalid_count: int = df["ts"].isna().sum()
                     logger.warning(
                         f"Stock {stock_id}: {invalid_count} rows have invalid timestamp, will be dropped"
                     )
