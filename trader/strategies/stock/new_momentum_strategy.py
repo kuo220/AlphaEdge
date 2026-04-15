@@ -31,7 +31,7 @@ class NewMomentumStrategy(BaseStockStrategy):
 
     DEFAULT_MAX_HOLDINGS: int = 10
     DEFAULT_BACKTEST_START_DATE: datetime.date = datetime.date(2025, 1, 1)
-    DEFAULT_BACKTEST_END_DATE: datetime.date = datetime.date(2025, 12, 31)
+    DEFAULT_BACKTEST_END_DATE: datetime.date = datetime.date(2025, 1, 31)
 
     # 買進參數
     MIN_VOLUME_LOTS: int = 5000  # 最小成交量（張）

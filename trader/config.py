@@ -172,18 +172,6 @@ FINMIND_BROKER_TRADING_END_DATE: datetime.date = datetime.date(2026, 2, 1)
 
 
 # -----------------------------------------------------------------------
-# === Certs.cer ===
-# -----------------------------------------------------------------------
-#
-CERTS_DIR_PATH: Path = get_static_resolved_path(
-    base_dir=BASE_DIR_PATH, dir_name="certs"
-)
-CERTS_FILE_PATH: Path = get_static_resolved_path(
-    base_dir=CERTS_DIR_PATH, dir_name="certs.cer"
-)
-
-
-# -----------------------------------------------------------------------
 # === DolphinDB server setting ===
 # -----------------------------------------------------------------------
 #
