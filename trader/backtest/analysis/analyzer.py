@@ -24,11 +24,13 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
         # Statistics
         self.benchmark: Optional[str] = None  # Benchmark stock
         self.risk_free_rate: Optional[float] = None  # 無風險利率（暫定0.02）
+        self.benchmark_return: Optional[float] = None  # 基準報酬率（用於 Information Ratio）
 
     def setup(self) -> None:
         """Set Up the Config of Analyzer"""
         self.benchmark: str = "0050"
         self.risk_free_rate: float = 0.02  # 無風險利率（暫定0.02）
+        self.benchmark_return: float = 0.0  # 基準報酬率（可依回測期間調整）
 
     # ===== Risk-Adjusted Metrics =====
     def compute_volatility(self) -> float:
@@ -59,6 +61,23 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
 
         if downside_dev > 0:
             return (roi_mean - self.risk_free_rate) / downside_dev
+        return None
+
+    def compute_information_ratio(self) -> Optional[float]:
+        """Compute Information Ratio（策略超額報酬相對於基準的穩定性）
+
+        IR = mean(active_returns) / std(active_returns)
+        active_returns = strategy_roi - benchmark_return
+        """
+        if not self.trade_records:
+            return None
+        benchmark: float = self.benchmark_return or 0.0
+        active_returns: np.ndarray = np.array(
+            [record.roi - benchmark for record in self.trade_records]
+        )
+        tracking_error: float = np.std(active_returns)
+        if tracking_error > 0:
+            return float(np.mean(active_returns) / tracking_error)
         return None
 
     # ===== Trade Statistics =====

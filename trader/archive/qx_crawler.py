@@ -27,7 +27,6 @@ from requests.exceptions import ConnectionError, ReadTimeout
 from tqdm import tnrange, tqdm, tqdm_notebook
 
 from trader.config import (
-    CERTS_FILE_PATH,
     FINANCIAL_REPORT_PATH,
     PIPELINE_DOWNLOADS_PATH,
     QUANTX_DB_PATH,
@@ -118,7 +117,7 @@ class QuantXCrawler:
         headers = DataUtils.generate_random_header()
 
         # 下載該年月的網站，並用pandas轉換成 dataframe
-        r = self.requests_get(url, headers=headers, verify=CERTS_FILE_PATH)
+        r = self.requests_get(url, headers=headers, verify=True)
         if r is None:
             print("**WARRN: requests cannot get html")
             return None
@@ -167,7 +166,7 @@ class QuantXCrawler:
         headers = DataUtils.generate_random_header()
 
         # 下載該年月的網站，並用pandas轉換成 dataframe
-        r = self.requests_get(url, headers=headers, verify=CERTS_FILE_PATH)
+        r = self.requests_get(url, headers=headers, verify=True)
         if r is None:
             print("**WARRN: requests cannot get html")
             return None
@@ -229,7 +228,7 @@ class QuantXCrawler:
         headers = DataUtils.generate_random_header()
 
         # 下載該年月的網站，並用pandas轉換成 dataframe
-        r = self.requests_get(url, headers=headers, verify=CERTS_FILE_PATH)
+        r = self.requests_get(url, headers=headers, verify=True)
         if r is None:
             print("**WARRN: requests cannot get html")
             return None
@@ -296,7 +295,7 @@ class QuantXCrawler:
         headers = DataUtils.generate_random_header()
 
         # 下載該年月的網站，並用pandas轉換成 dataframe
-        r = self.requests_get(url, headers=headers, verify=CERTS_FILE_PATH)
+        r = self.requests_get(url, headers=headers, verify=True)
         if r is None:
             print("**WARRN: requests cannot get html")
             return None
@@ -368,7 +367,7 @@ class QuantXCrawler:
 
             # 下載該年月的網站，並用pandas轉換成 dataframe
             try:
-                r = self.requests_get(url, headers=headers, verify=CERTS_FILE_PATH)
+                r = self.requests_get(url, headers=headers, verify=True)
                 r.encoding = "UTF-8"
             except:
                 print("**WARRN: requests cannot get html")
@@ -810,7 +809,7 @@ class QuantXCrawler:
 
         # 下載該年月的網站，並用pandas轉換成 dataframe
         try:
-            r = self.requests_get(url, headers=headers, verify=CERTS_FILE_PATH)
+            r = self.requests_get(url, headers=headers, verify=True)
             r.encoding = "big5"
         except:
             print("**WARRN: requests cannot get html")
@@ -888,7 +887,7 @@ class QuantXCrawler:
 
             # 下載該年月的網站，並用pandas轉換成 dataframe
             try:
-                r = self.requests_get(url, headers=headers, verify=CERTS_FILE_PATH)
+                r = self.requests_get(url, headers=headers, verify=True)
                 r.encoding = "big5"
             except:
                 print("**WARRN: requests cannot get html")
@@ -1060,7 +1059,7 @@ class QuantXCrawler:
                 print(url)
                 try:
                     r = self.requests_get(
-                        url, headers=headers, timeout=30, verify=CERTS_FILE_PATH
+                        url, headers=headers, timeout=30, verify=True
                     )
                 except:
                     print("**WARRN: requests cannot get stock", i, ".html")

@@ -83,7 +83,7 @@ class ShioajiAccount:
         pnl_df: pd.DataFrame = pd.DataFrame(
             s.__dict__ for s in api.list_profit_loss(api.stock_account)
         )
-        realized_pnl: int = round(pnl_df.pnl.sum()) if len(pnl_df) > 0 else 0
+        realized_pnl: int = round(pnl_df["pnl"].sum()) if len(pnl_df) > 0 else 0
         return realized_pnl
 
     @staticmethod
@@ -94,7 +94,7 @@ class ShioajiAccount:
             s.__dict__ for s in api.list_positions(api.stock_account)
         )
         unrealized_pnl: int = (
-            round(positions_df.pnl.sum()) if len(positions_df) > 0 else 0
+            round(positions_df["pnl"].sum()) if len(positions_df) > 0 else 0
         )
         return unrealized_pnl
 
