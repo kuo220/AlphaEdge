@@ -1,0 +1,35 @@
+services:
+  trader:
+    build:
+      context: .
+      dockerfile: trader/Dockerfile
+    container_name: alphaedge-trader
+    environment:
+      MODE: backtest
+      STRATEGY: NewMomentumStrategy
+    command:
+      [
+        "--mode",
+        "${MODE:-backtest}",
+        "--strategy",
+        "${STRATEGY:-NewMomentumStrategy}",
+      ]
+    volumes:
+      - alphaedge_results:/app/trader/backtest/results
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: alphaedge-frontend
+    ports:
+      - "8501:8501"
+    environment:
+      ALPHAEDGE_BACKTEST_RESULTS: /results
+    volumes:
+      - alphaedge_results:/results
+    depends_on:
+      - trader
+
+volumes:
+  alphaedge_results:
