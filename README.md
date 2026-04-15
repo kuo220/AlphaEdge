@@ -118,6 +118,28 @@ docker build -f frontend/Dockerfile -t alphaedge-frontend .
 docker run --rm -p 8501:8501 alphaedge-frontend
 ```
 
+### Option 3: Docker Compose (Trader + Frontend)
+
+#### Build and Start
+
+```bash
+# Build all services
+docker compose build
+
+# Start trader and frontend together
+docker compose up
+```
+
+#### Run in Background / Stop
+
+```bash
+# Start in detached mode
+docker compose up -d
+
+# Stop and remove containers
+docker compose down
+```
+
 ## Command Usage
 
 ```bash

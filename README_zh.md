@@ -112,6 +112,28 @@ docker build -f frontend/Dockerfile -t alphaedge-frontend .
 docker run --rm -p 8501:8501 alphaedge-frontend
 ```
 
+### 方式 3：Docker Compose（同時啟動 Trader + Frontend）
+
+#### 建立與啟動
+
+```bash
+# 建立所有服務映像
+docker compose build
+
+# 同時啟動 trader 與 frontend
+docker compose up
+```
+
+#### 背景執行 / 停止
+
+```bash
+# 以背景模式啟動
+docker compose up -d
+
+# 停止並移除 containers
+docker compose down
+```
+
 ## 指令教學
 
 ```bash
