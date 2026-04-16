@@ -26,6 +26,124 @@ except ModuleNotFoundError:
 
 
 st.set_page_config(page_title="AlphaEdge Backtest Viewer", layout="wide")
+st.markdown(
+    """
+    <style>
+        :root {
+            --ae-bg: #141821;
+            --ae-surface: #1b2230;
+            --ae-surface-2: #232c3d;
+            --ae-sidebar: #161d29;
+            --ae-border: #2d374a;
+            --ae-text: #e8ecf5;
+            --ae-muted: #9aa7bf;
+            --ae-accent: #5b8ff9;
+            --ae-accent-hover: #4a7ce5;
+        }
+
+        [data-testid="stAppViewContainer"] {
+            background: var(--ae-bg);
+            color: var(--ae-text);
+        }
+
+        [data-testid="stSidebar"] {
+            background: var(--ae-sidebar);
+            border-right: 1px solid var(--ae-border);
+        }
+
+        [data-testid="stSidebar"] * {
+            color: var(--ae-text);
+        }
+
+        [data-testid="stHeader"] {
+            background: transparent;
+        }
+
+        .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4,
+        .stMarkdown h5, .stMarkdown h6, p, label, span {
+            color: var(--ae-text) !important;
+        }
+
+        [data-baseweb="select"] > div,
+        [data-baseweb="input"] > div,
+        .stTextInput > div > div,
+        .stNumberInput > div > div {
+            background: var(--ae-surface);
+            border-color: var(--ae-border);
+            color: var(--ae-text);
+        }
+
+        [data-baseweb="tab-list"] {
+            gap: 0.4rem;
+        }
+
+        button[kind="secondary"] {
+            background: var(--ae-surface);
+            border: 1px solid var(--ae-border);
+            border-radius: 10px;
+            color: var(--ae-text);
+        }
+
+        button[data-baseweb="tab"] {
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            color: var(--ae-muted);
+            box-shadow: none;
+        }
+
+        button[data-baseweb="tab"][aria-selected="true"] {
+            background: transparent;
+            border: none;
+            color: #ffffff;
+        }
+
+        .stButton button,
+        .stDownloadButton button {
+            background: var(--ae-accent);
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+        }
+
+        .stButton button:hover,
+        .stDownloadButton button:hover {
+            background: var(--ae-accent-hover);
+        }
+
+        [data-testid="stMetric"] {
+            background: var(--ae-surface);
+            border: 1px solid var(--ae-border);
+            border-radius: 12px;
+            padding: 0.8rem;
+        }
+
+        [data-testid="stDataFrame"] {
+            border: 1px solid var(--ae-border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        [data-testid="stPlotlyChart"] {
+            border: 1px solid var(--ae-border);
+            border-radius: 16px;
+            overflow: hidden;
+            background: var(--ae-surface);
+            padding: 0.25rem;
+        }
+
+        [data-testid="stImage"] img {
+            border-radius: 16px;
+            border: 1px solid var(--ae-border);
+        }
+
+        .stCaption {
+            color: var(--ae-muted) !important;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 st.title("Backtest Report")
 
 
@@ -177,6 +295,13 @@ def _render_interactive_charts(df: pd.DataFrame) -> None:
             markers=True,
             title="資產曲線",
         )
+        line_fig.update_layout(
+            paper_bgcolor="#1b2230",
+            plot_bgcolor="#1b2230",
+            margin=dict(l=20, r=20, t=56, b=20),
+            xaxis=dict(showgrid=True, gridcolor="#2d374a", gridwidth=1),
+            yaxis=dict(showgrid=True, gridcolor="#2d374a", gridwidth=1),
+        )
         st.plotly_chart(line_fig, use_container_width=True)
 
     if "Realized PnL" in chart_df.columns and "Sell Date" in chart_df.columns:
@@ -189,6 +314,11 @@ def _render_interactive_charts(df: pd.DataFrame) -> None:
             .rename(columns={"Sell Date": "Date", "Realized PnL": "Daily PnL"})
         )
         bar_fig = px.bar(daily, x="Date", y="Daily PnL", title="每日損益")
+        bar_fig.update_layout(
+            paper_bgcolor="#1b2230",
+            plot_bgcolor="#1b2230",
+            margin=dict(l=20, r=20, t=56, b=20),
+        )
         st.plotly_chart(bar_fig, use_container_width=True)
 
 
