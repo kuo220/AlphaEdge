@@ -51,10 +51,7 @@ graph TB
     Readme --> Docs
 ```
 
-
-
 ## Module Guide
-
 
 | Module                   | Description                                                                                    |
 | ------------------------ | ---------------------------------------------------------------------------------------------- |
@@ -62,23 +59,20 @@ graph TB
 | `frontend/`              | Streamlit Docker image for viewing backtest results                                            |
 | `tasks/`                 | Data maintenance and database update scripts                                                   |
 | `tests/`                 | Unit/integration tests for crawlers, updaters, and DB workflows                                |
-| `docs/`                  | Project docs (setup, deployment, data coverage)                                                 |
+| `docs/`                  | Project docs (setup, deployment, data coverage)                                                |
 | `ARCHITECTURE_REVIEW.md` | Additional architecture analysis notes                                                         |
-
 
 ---
 
 ## Documentation
 
-
-| Document                                                       | Description                                                   |
-| -------------------------------------------------------------- | ------------------------------------------------------------- |
-| [Dev Setup](docs/setup/dev-setup.md)                           | Python environment, dependencies, formatting, env vars        |
-| [Dev Deployment](docs/deployment/dev-deployment.md)            | Local service startup flow, collector run commands, dashboard |
-| [Prod Deployment](docs/deployment/prod-deployment.md)          | Docker Compose deployment, monitoring, multi-node strategy    |
-| [Data Coverage](docs/exchanges/data_coverage.md)               | Data source and API coverage in current platform              |
-| [Strategy Development Guide](trader/strategies/README.md)      | How to implement strategies in this project                   |
-
+| Document                                                  | Description                                                   |
+| --------------------------------------------------------- | ------------------------------------------------------------- |
+| [Dev Setup](docs/setup/dev-setup.md)                      | Python environment, dependencies, formatting, env vars        |
+| [Dev Deployment](docs/deployment/dev-deployment.md)       | Local service startup flow, collector run commands, dashboard |
+| [Prod Deployment](docs/deployment/prod-deployment.md)     | Docker Compose deployment, monitoring, multi-node strategy    |
+| [Data Coverage](docs/exchanges/data_coverage.md)          | Data source and API coverage in current platform              |
+| [Strategy Development Guide](trader/strategies/README.md) | How to implement strategies in this project                   |
 
 ---
 
@@ -95,6 +89,26 @@ source .venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
+
+### Run Trader + Frontend Together (Local)
+
+After installing dependencies above, open two terminal tabs at project root:
+
+**Tab 1 (Trader: run backtest)**
+
+```bash
+source .venv/bin/activate
+python run.py --strategy <StrategyClassName>
+```
+
+**Tab 2 (Frontend: view results)**
+
+```bash
+source .venv/bin/activate
+streamlit run frontend/app.py
+```
+
+Then open: `http://localhost:8501`
 
 ### Option 2: Docker Container
 
@@ -165,6 +179,13 @@ AlphaEdge/
 │   ├── backtest/              # backtest engine and outputs
 │   └── data/                  # downloaded/raw data
 ├── frontend/                  # Streamlit docker image
+│   ├── app.py                 # Streamlit entrypoint
+│   ├── config.py              # frontend configuration
+│   ├── services/              # data loading services
+│   │   └── report_loader.py   # load backtest report files
+│   ├── Dockerfile             # frontend container image
+│   ├── README.md              # frontend usage notes
+│   └── __init__.py
 ├── tasks/                     # data update scripts
 ├── tests/                     # test suites
 ├── docs/                      # project docs
@@ -176,4 +197,3 @@ AlphaEdge/
 ├── README.md
 └── README_zh.md
 ```
-
