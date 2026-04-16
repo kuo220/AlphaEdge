@@ -35,10 +35,89 @@ def _to_numeric(df: pd.DataFrame, column: str) -> pd.Series:
     return pd.to_numeric(df[column], errors="coerce")
 
 
+def _extract_daily_returns(df: pd.DataFrame) -> pd.Series:
+    if "Sell Date" not in df.columns or "Cumulative Balance" not in df.columns:
+        return pd.Series(dtype=float)
+
+    work_df = df[["Sell Date", "Cumulative Balance"]].copy()
+    work_df["Sell Date"] = pd.to_datetime(work_df["Sell Date"], errors="coerce")
+    work_df["Cumulative Balance"] = pd.to_numeric(
+        work_df["Cumulative Balance"], errors="coerce"
+    )
+    work_df = work_df.dropna(subset=["Sell Date", "Cumulative Balance"])
+    if work_df.empty:
+        return pd.Series(dtype=float)
+
+    daily_balance = (
+        work_df.groupby(work_df["Sell Date"].dt.date)["Cumulative Balance"]
+        .last()
+        .astype(float)
+    )
+    if daily_balance.empty:
+        return pd.Series(dtype=float)
+
+    daily_returns = daily_balance.pct_change().dropna()
+    return daily_returns.replace([float("inf"), float("-inf")], pd.NA).dropna()
+
+
+def _calc_sharpe_ratio(daily_returns: pd.Series, annualization: int = 252) -> float:
+    if daily_returns.empty:
+        return float("nan")
+    std = daily_returns.std(ddof=0)
+    if std == 0 or pd.isna(std):
+        return float("nan")
+    return float((daily_returns.mean() / std) * (annualization**0.5))
+
+
+def _calc_sortino_ratio(daily_returns: pd.Series, annualization: int = 252) -> float:
+    if daily_returns.empty:
+        return float("nan")
+    downside = daily_returns[daily_returns < 0]
+    if downside.empty:
+        return float("nan")
+    downside_std = downside.std(ddof=0)
+    if downside_std == 0 or pd.isna(downside_std):
+        return float("nan")
+    return float((daily_returns.mean() / downside_std) * (annualization**0.5))
+
+
+def _extract_benchmark_returns(df: pd.DataFrame) -> pd.Series:
+    benchmark_candidates = [
+        "Benchmark Return",
+        "Benchmark Daily Return",
+        "Benchmark ROI",
+    ]
+    for column in benchmark_candidates:
+        if column in df.columns:
+            return pd.to_numeric(df[column], errors="coerce").dropna()
+    return pd.Series(dtype=float)
+
+
+def _calc_information_ratio(
+    daily_returns: pd.Series, benchmark_returns: pd.Series, annualization: int = 252
+) -> float:
+    if daily_returns.empty or benchmark_returns.empty:
+        return float("nan")
+
+    min_len = min(len(daily_returns), len(benchmark_returns))
+    if min_len == 0:
+        return float("nan")
+
+    strategy = daily_returns.tail(min_len).reset_index(drop=True)
+    benchmark = benchmark_returns.tail(min_len).reset_index(drop=True)
+    active_returns = strategy - benchmark
+    tracking_error = active_returns.std(ddof=0)
+    if tracking_error == 0 or pd.isna(tracking_error):
+        return float("nan")
+    return float((active_returns.mean() / tracking_error) * (annualization**0.5))
+
+
 def _render_metrics(df: pd.DataFrame) -> None:
     realized_pnl = _to_numeric(df, "Realized PnL")
     roi = _to_numeric(df, "ROI")
     cumulative_balance = _to_numeric(df, "Cumulative Balance")
+    daily_returns = _extract_daily_returns(df)
+    benchmark_returns = _extract_benchmark_returns(df)
 
     trade_count = int(len(df))
     win_count = int((realized_pnl > 0).sum())
@@ -47,14 +126,34 @@ def _render_metrics(df: pd.DataFrame) -> None:
     total_pnl = float(realized_pnl.sum()) if not realized_pnl.empty else 0.0
     avg_roi = float(roi.mean() * 100) if not roi.empty else 0.0
     last_balance = float(cumulative_balance.iloc[-1]) if not cumulative_balance.empty else 0.0
+    sharpe_ratio = _calc_sharpe_ratio(daily_returns)
+    sortino_ratio = _calc_sortino_ratio(daily_returns)
+    information_ratio = _calc_information_ratio(daily_returns, benchmark_returns)
 
-    col1, col2, col3, col4, col5, col6 = st.columns(6)
-    col1.metric("總交易數", trade_count)
-    col2.metric("勝率", f"{win_rate:.2f}%")
-    col3.metric("獲利筆數 / 虧損筆數", f"{win_count} / {loss_count}")
-    col4.metric("總已實現損益", f"{total_pnl:,.2f}")
-    col5.metric("平均 ROI", f"{avg_roi:.2f}%")
-    col6.metric("最後累積資產", f"{last_balance:,.2f}")
+    def _fmt_ratio(value: float) -> str:
+        return f"{value:.3f}" if pd.notna(value) else "N/A"
+
+    st.markdown("##### 交易概況")
+    r1c1, r1c2, r1c3 = st.columns(3)
+    r1c1.metric("總交易數", trade_count)
+    r1c2.metric("勝率", f"{win_rate:.2f}%")
+    r1c3.metric("獲利筆數 / 虧損筆數", f"{win_count} / {loss_count}")
+
+    st.divider()
+
+    st.markdown("##### 損益與資產")
+    r2c1, r2c2, r2c3 = st.columns(3)
+    r2c1.metric("總已實現損益", f"{total_pnl:,.2f}")
+    r2c2.metric("平均 ROI", f"{avg_roi:.2f}%")
+    r2c3.metric("最後累積資產", f"{last_balance:,.2f}")
+
+    st.divider()
+
+    st.markdown("##### 風險調整報酬")
+    r3c1, r3c2, r3c3 = st.columns(3)
+    r3c1.metric("Sharpe Ratio", _fmt_ratio(sharpe_ratio))
+    r3c2.metric("Sortino Ratio", _fmt_ratio(sortino_ratio))
+    r3c3.metric("Information Ratio", _fmt_ratio(information_ratio))
 
 
 def _render_interactive_charts(df: pd.DataFrame) -> None:
@@ -76,7 +175,7 @@ def _render_interactive_charts(df: pd.DataFrame) -> None:
             x="Sell Date",
             y="Cumulative Balance",
             markers=True,
-            title="互動資產曲線（可縮放、框選）",
+            title="資產曲線",
         )
         st.plotly_chart(line_fig, use_container_width=True)
 
@@ -89,7 +188,7 @@ def _render_interactive_charts(df: pd.DataFrame) -> None:
             .reset_index()
             .rename(columns={"Sell Date": "Date", "Realized PnL": "Daily PnL"})
         )
-        bar_fig = px.bar(daily, x="Date", y="Daily PnL", title="每日損益（互動）")
+        bar_fig = px.bar(daily, x="Date", y="Daily PnL", title="每日損益")
         st.plotly_chart(bar_fig, use_container_width=True)
 
 
@@ -129,7 +228,7 @@ if report.csv_path is None:
 df = read_trading_report(report.csv_path)
 
 overview_tab, detail_tab, chart_tab, image_tab, download_tab = st.tabs(
-    ["總覽", "交易明細", "互動圖表", "圖片", "下載"]
+    ["總覽", "交易明細", "圖表", "圖片", "下載"]
 )
 
 with overview_tab:
@@ -151,7 +250,7 @@ with detail_tab:
     st.dataframe(filtered_df, use_container_width=True, height=480)
 
 with chart_tab:
-    st.subheader("互動圖表")
+    st.subheader("圖表")
     _render_interactive_charts(df)
 
 with image_tab:
