@@ -90,6 +90,26 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
+### 本機同時執行 Trader + Frontend
+
+先完成上面的安裝，然後開兩個終端機分頁（都在專案根目錄）：
+
+**分頁 1（Trader：執行回測）**
+
+```bash
+source .venv/bin/activate
+python run.py --strategy <StrategyClassName>
+```
+
+**分頁 2（Frontend：檢視回測結果）**
+
+```bash
+source .venv/bin/activate
+streamlit run frontend/app.py
+```
+
+啟動後在瀏覽器開啟：`http://localhost:8501`
+
 ### 方式 2：Docker Container
 
 #### Trader Container
@@ -159,6 +179,13 @@ AlphaEdge/
 │   ├── backtest/              # 回測引擎與輸出
 │   └── data/                  # 下載 / 原始資料
 ├── frontend/                  # Streamlit Docker 映像
+│   ├── app.py                 # Streamlit 入口
+│   ├── config.py              # frontend 設定
+│   ├── services/              # 資料載入服務
+│   │   └── report_loader.py   # 載入回測報表檔案
+│   ├── Dockerfile             # frontend 容器映像
+│   ├── README.md              # frontend 使用說明
+│   └── __init__.py
 ├── tasks/                     # 資料更新腳本
 ├── tests/                     # 測試套件
 ├── docs/                      # 專案文件
