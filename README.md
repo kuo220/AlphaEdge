@@ -28,9 +28,15 @@ graph TB
         Data["trader/data"]
     end
 
-    subgraph output_layer ["Outputs"]
+    subgraph output_layer ["Backtest Outputs"]
         Backtest["trader/backtest/results"]
-        Frontend["frontend (Streamlit image)"]
+    end
+
+    subgraph frontend_layer ["Frontend (Streamlit)"]
+        FrontendApp["frontend/app.py"]
+        FrontendService["frontend/services/report_loader.py"]
+        FrontendConfig["frontend/config.py"]
+        FrontendDocker["frontend/Dockerfile"]
     end
 
     subgraph docs_layer ["Docs"]
@@ -47,7 +53,10 @@ graph TB
     Adapters --> DB
     Pipeline --> DB
     DB --> Backtest
-    Backtest --> Frontend
+    Backtest --> FrontendService
+    FrontendConfig --> FrontendService
+    FrontendService --> FrontendApp
+    FrontendDocker --> FrontendApp
     Readme --> Docs
 ```
 
