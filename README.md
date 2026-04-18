@@ -100,6 +100,14 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
+To exit the virtualenv in the current shell:
+
+```bash
+deactivate
+```
+
+If you switch to **Option 2 (Docker)** for this project, you do not need a local venv: the container image already provides an isolated Python environment.
+
 ### Run Trader + Frontend Together (Local)
 
 After installing dependencies above, open two terminal tabs at project root:

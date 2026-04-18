@@ -100,6 +100,14 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
+若要關閉目前終端機裡已啟用的 venv：
+
+```bash
+deactivate
+```
+
+若改採下方 **方式 2（Docker）**，則**不需要**在本機使用 venv，映像內已具備隔離的 Python 環境。
+
 ### 本機同時執行 Trader + Frontend
 
 先完成上面的安裝，然後開兩個終端機分頁（都在專案根目錄）：
@@ -122,14 +130,23 @@ streamlit run frontend/app.py
 
 ### 方式 2：Docker Container
 
+在映像裡開 **互動式 shell**，即可像在 venv 裡一樣下指令。Trader 映像預設 `ENTRYPOINT` 為 `python run.py`，若要進入終端機，需用 `--entrypoint` 覆寫。
+
 #### Trader Container
 
 ```bash
 # 建立映像
 docker build -f trader/Dockerfile -t alphaedge-trader .
 
-# 啟動 container 並顯示 CLI 說明
-docker run --rm alphaedge-trader --help
+# 啟動 container 並進入 shell（工作目錄：/app）
+docker run --rm -it --entrypoint /bin/bash alphaedge-trader
+```
+
+在 container 內：
+
+```bash
+python run.py --help
+python run.py --strategy <StrategyClassName>
 ```
 
 #### Frontend Container
@@ -138,7 +155,22 @@ docker run --rm alphaedge-trader --help
 # 建立映像
 docker build -f frontend/Dockerfile -t alphaedge-frontend .
 
-# 啟動 container
+# 對應埠並啟動 container、進入 shell（工作目錄：/app）
+docker run --rm -it -p 8501:8501 --entrypoint /bin/bash alphaedge-frontend
+```
+
+在 container 內：
+
+```bash
+streamlit run frontend/app.py --server.address=0.0.0.0 --server.port=8501
+```
+
+啟動後在瀏覽器開啟：`http://localhost:8501`
+
+#### 單次執行（不進入互動 shell）
+
+```bash
+docker run --rm alphaedge-trader --help
 docker run --rm -p 8501:8501 alphaedge-frontend
 ```
 
