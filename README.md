@@ -90,8 +90,9 @@ graph TB
 ### Option 1: Local venv + requirements.txt
 
 ```bash
-# create and activate virtualenv
+# create virtualenv
 python3 -m venv .venv
+# activate virtualenv
 source .venv/bin/activate
 
 # install dependencies
