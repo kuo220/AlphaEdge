@@ -90,8 +90,9 @@ graph TB
 ### 方式 1：本機 venv + requirements.txt
 
 ```bash
-# 建立並啟用虛擬環境
+# 建立虛擬環境
 python3 -m venv .venv
+# 啟用虛擬環境
 source .venv/bin/activate
 
 # 安裝相依套件
