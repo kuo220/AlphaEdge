@@ -30,15 +30,15 @@ st.markdown(
     """
     <style>
         :root {
-            --ae-bg: #141821;
-            --ae-surface: #1b2230;
-            --ae-surface-2: #232c3d;
-            --ae-sidebar: #161d29;
-            --ae-border: #2d374a;
-            --ae-text: #e8ecf5;
-            --ae-muted: #9aa7bf;
-            --ae-accent: #5b8ff9;
-            --ae-accent-hover: #4a7ce5;
+            --ae-bg: var(--background-color);
+            --ae-surface: var(--secondary-background-color);
+            --ae-surface-2: color-mix(in srgb, var(--secondary-background-color) 80%, var(--text-color) 20%);
+            --ae-sidebar: var(--secondary-background-color);
+            --ae-border: color-mix(in srgb, var(--text-color) 20%, transparent 80%);
+            --ae-text: var(--text-color);
+            --ae-muted: color-mix(in srgb, var(--text-color) 60%, transparent 40%);
+            --ae-accent: var(--primary-color);
+            --ae-accent-hover: color-mix(in srgb, var(--primary-color) 85%, #000000 15%);
         }
 
         [data-testid="stAppViewContainer"] {
@@ -95,7 +95,7 @@ st.markdown(
         button[data-baseweb="tab"][aria-selected="true"] {
             background: transparent;
             border: none;
-            color: #ffffff;
+            color: var(--ae-text);
         }
 
         .stButton button,
@@ -139,6 +139,31 @@ st.markdown(
 
         .stCaption {
             color: var(--ae-muted) !important;
+        }
+
+        .ae-info-card {
+            background: var(--ae-surface);
+            border: 1px solid var(--ae-border);
+            border-radius: 14px;
+            padding: 0.9rem 1rem;
+            min-height: 96px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 0.35rem;
+        }
+
+        .ae-info-label {
+            font-size: 0.82rem;
+            color: var(--ae-muted);
+            letter-spacing: 0.02em;
+        }
+
+        .ae-info-value {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--ae-text);
+            word-break: break-word;
         }
     </style>
     """,
@@ -230,6 +255,82 @@ def _calc_information_ratio(
     return float((active_returns.mean() / tracking_error) * (annualization**0.5))
 
 
+def _extract_starting_capital(df: pd.DataFrame) -> tuple[float | None, bool]:
+    explicit_columns = [
+        "Starting Capital",
+        "Initial Capital",
+        "Initial Balance",
+        "起始資金",
+        "本金",
+    ]
+    for column in explicit_columns:
+        if column in df.columns:
+            values = pd.to_numeric(df[column], errors="coerce").dropna()
+            if not values.empty:
+                return float(values.iloc[0]), False
+
+    if "Cumulative Balance" in df.columns:
+        values = pd.to_numeric(df["Cumulative Balance"], errors="coerce").dropna()
+        if not values.empty:
+            return float(values.iloc[0]), True
+    return None, False
+
+
+def _extract_backtest_date_range(df: pd.DataFrame) -> tuple[pd.Timestamp | None, pd.Timestamp | None]:
+    date_columns = ["Buy Date", "Sell Date", "Date", "Trade Date", "交易日期", "買進日期", "賣出日期"]
+    parsed_dates: list[pd.Series] = []
+    for column in date_columns:
+        if column in df.columns:
+            dates = pd.to_datetime(df[column], errors="coerce").dropna()
+            if not dates.empty:
+                parsed_dates.append(dates)
+
+    if not parsed_dates:
+        return None, None
+
+    merged = pd.concat(parsed_dates, ignore_index=True)
+    if merged.empty:
+        return None, None
+    return pd.Timestamp(merged.min()), pd.Timestamp(merged.max())
+
+
+def _render_info_card(label: str, value: str) -> None:
+    st.markdown(
+        f"""
+        <div class="ae-info-card">
+            <div class="ae-info-label">{label}</div>
+            <div class="ae-info-value">{value}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_strategy_overview(report: BacktestReport, df: pd.DataFrame) -> None:
+    starting_capital, is_estimated = _extract_starting_capital(df)
+    start_date, end_date = _extract_backtest_date_range(df)
+
+    if start_date is not None and end_date is not None:
+        date_range = f"{start_date.date()} ~ {end_date.date()}"
+    else:
+        date_range = "N/A"
+
+    if starting_capital is None:
+        starting_capital_text = "N/A"
+    else:
+        starting_capital_text = f"{starting_capital:,.2f}"
+        if is_estimated:
+            starting_capital_text += "（估算）"
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        _render_info_card("策略名稱", report.strategy_name)
+    with c2:
+        _render_info_card("策略起始資金", starting_capital_text)
+    with c3:
+        _render_info_card("回測日期區間", date_range)
+
+
 def _render_metrics(df: pd.DataFrame) -> None:
     realized_pnl = _to_numeric(df, "Realized PnL")
     roi = _to_numeric(df, "ROI")
@@ -274,6 +375,15 @@ def _render_metrics(df: pd.DataFrame) -> None:
     r3c3.metric("Information Ratio", _fmt_ratio(information_ratio))
 
 
+def _get_chart_theme() -> dict[str, str]:
+    return {
+        "paper_bg": "rgba(0,0,0,0)",
+        "plot_bg": "rgba(0,0,0,0)",
+        "grid": "var(--ae-border)",
+        "text": "var(--ae-text)",
+    }
+
+
 def _render_interactive_charts(df: pd.DataFrame) -> None:
     if df.empty:
         st.info("目前沒有交易資料可畫圖。")
@@ -283,6 +393,8 @@ def _render_interactive_charts(df: pd.DataFrame) -> None:
     if "Sell Date" in chart_df.columns:
         chart_df["Sell Date"] = pd.to_datetime(chart_df["Sell Date"], errors="coerce")
         chart_df = chart_df.sort_values("Sell Date")
+
+    chart_theme = _get_chart_theme()
 
     if "Cumulative Balance" in chart_df.columns and "Sell Date" in chart_df.columns:
         chart_df["Cumulative Balance"] = pd.to_numeric(
@@ -296,11 +408,12 @@ def _render_interactive_charts(df: pd.DataFrame) -> None:
             title="資產曲線",
         )
         line_fig.update_layout(
-            paper_bgcolor="#1b2230",
-            plot_bgcolor="#1b2230",
+            paper_bgcolor=chart_theme["paper_bg"],
+            plot_bgcolor=chart_theme["plot_bg"],
+            font=dict(color=chart_theme["text"]),
             margin=dict(l=20, r=20, t=56, b=20),
-            xaxis=dict(showgrid=True, gridcolor="#2d374a", gridwidth=1),
-            yaxis=dict(showgrid=True, gridcolor="#2d374a", gridwidth=1),
+            xaxis=dict(showgrid=True, gridcolor=chart_theme["grid"], gridwidth=1),
+            yaxis=dict(showgrid=True, gridcolor=chart_theme["grid"], gridwidth=1),
         )
         st.plotly_chart(line_fig, use_container_width=True)
 
@@ -313,11 +426,19 @@ def _render_interactive_charts(df: pd.DataFrame) -> None:
             .reset_index()
             .rename(columns={"Sell Date": "Date", "Realized PnL": "Daily PnL"})
         )
-        bar_fig = px.bar(daily, x="Date", y="Daily PnL", title="每日損益")
+        bar_fig = px.bar(
+            daily,
+            x="Date",
+            y="Daily PnL",
+            title="每日損益",
+        )
         bar_fig.update_layout(
-            paper_bgcolor="#1b2230",
-            plot_bgcolor="#1b2230",
+            paper_bgcolor=chart_theme["paper_bg"],
+            plot_bgcolor=chart_theme["plot_bg"],
+            font=dict(color=chart_theme["text"]),
             margin=dict(l=20, r=20, t=56, b=20),
+            xaxis=dict(showgrid=True, gridcolor=chart_theme["grid"], gridwidth=1),
+            yaxis=dict(showgrid=True, gridcolor=chart_theme["grid"], gridwidth=1),
         )
         st.plotly_chart(bar_fig, use_container_width=True)
 
@@ -362,6 +483,9 @@ overview_tab, detail_tab, chart_tab, image_tab, download_tab = st.tabs(
 )
 
 with overview_tab:
+    st.subheader("策略摘要")
+    _render_strategy_overview(report, df)
+    st.divider()
     st.subheader("關鍵指標")
     _render_metrics(df)
     st.caption(f"報表檔案：`{report.csv_path.name}`")
