@@ -95,9 +95,9 @@ python3 -m venv .venv
 # 啟用虛擬環境
 source .venv/bin/activate
 
-# 安裝相依套件
-pip install --upgrade pip
-pip install -r requirements.txt
+# 安裝相依套件（使用 -m pip 可確保安裝在目前這支 Python／venv 底下）
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 ```
 
 若要關閉目前終端機裡已啟用的 venv：

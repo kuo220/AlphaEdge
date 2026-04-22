@@ -95,9 +95,9 @@ python3 -m venv .venv
 # activate virtualenv
 source .venv/bin/activate
 
-# install dependencies
-pip install --upgrade pip
-pip install -r requirements.txt
+# install dependencies (use -m pip so installs target this venv’s Python)
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 ```
 
 To exit the virtualenv in the current shell:

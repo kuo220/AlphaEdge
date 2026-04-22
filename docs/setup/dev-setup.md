@@ -5,7 +5,7 @@
 ## 前置需求
 
 - Python 3.11+（建議 3.11 或 3.12）
-- pip
+- pip（隨 Python 安裝；以下請用 `python -m pip`，以確保安裝在目前使用的直譯器環境）
 - Git
 - （選用）DolphinDB：若要使用 tick 相關 API/更新
 
@@ -22,14 +22,14 @@ source .venv/bin/activate
 建議先安裝核心執行所需套件：
 
 ```bash
-pip install --upgrade pip
-pip install pandas numpy requests loguru python-dotenv fake-useragent plotly kaleido shioaji
+python -m pip install --upgrade pip
+python -m pip install pandas numpy requests loguru python-dotenv fake-useragent plotly kaleido shioaji
 ```
 
 如需執行測試，另安裝：
 
 ```bash
-pip install pytest
+python -m pip install pytest
 ```
 
 ## 3) 設定環境變數
@@ -87,7 +87,7 @@ source .venv/bin/activate
 
 ```bash
 # 安裝全部（含 dev 工具、各交易所 SDK、通知套件）
-pip install -e ".[dev,kalshi,polymarket,notifications]"
+python -m pip install -e ".[dev,kalshi,polymarket,notifications]"
 ```
 
 各 optional dependency group：
