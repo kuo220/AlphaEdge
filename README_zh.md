@@ -14,22 +14,22 @@ graph TB
     end
 
     subgraph trading_core ["交易核心"]
-        Strategies["trader/strategies"]
-        Managers["trader/managers"]
-        Models["trader/models"]
-        Utils["trader/utils"]
+        Strategies["core/strategies"]
+        Managers["core/managers"]
+        Models["core/models"]
+        Utils["core/utils"]
     end
 
     subgraph data_layer ["資料與流程層"]
-        API["trader/api"]
-        Adapters["trader/adapters"]
-        Pipeline["trader/pipeline"]
-        DB["trader/database"]
-        Data["trader/data"]
+        API["core/api"]
+        Adapters["core/adapters"]
+        Pipeline["core/pipeline"]
+        DB["core/database"]
+        Data["core/data"]
     end
 
     subgraph output_layer ["回測輸出層"]
-        Backtest["trader/backtest/results"]
+        Backtest["core/backtest/results"]
     end
 
     subgraph frontend_layer ["前端層（Streamlit）"]
@@ -64,7 +64,7 @@ graph TB
 
 | 模組                     | 說明                                                                  |
 | ------------------------ | --------------------------------------------------------------------- |
-| `trader/`                | 交易領域核心程式碼（策略、管理器、模型、介接層、API、資料與回測輸出） |
+| `core/`                | 交易領域核心程式碼（策略、管理器、模型、介接層、API、資料與回測輸出） |
 | `frontend/`              | 用於檢視回測結果的 Streamlit Docker 映像                              |
 | `tasks/`                 | 資料維護與資料庫更新腳本                                              |
 | `tests/`                 | crawler、updater 與資料庫流程的單元/整合測試                          |
@@ -81,7 +81,7 @@ graph TB
 | [開發部署](docs/deployment/dev-deployment.md)      | 本地服務啟動流程、collector 執行指令、dashboard |
 | [正式環境部署](docs/deployment/prod-deployment.md) | Docker Compose 部署、監控、多節點策略           |
 | [資料覆蓋範圍](docs/exchanges/data_coverage.md)    | 目前平台資料來源與 API 覆蓋範圍                 |
-| [策略開發指南](trader/strategies/README.md)        | 本專案策略實作方式                              |
+| [策略開發指南](core/strategies/README.md)        | 本專案策略實作方式                              |
 
 ---
 
@@ -136,7 +136,7 @@ streamlit run frontend/app.py
 
 ```bash
 # 建立映像
-docker build -f trader/Dockerfile -t alphaedge-trader .
+docker build -f core/Dockerfile -t alphaedge-trader .
 
 # 啟動 container 並進入 shell（工作目錄：/app）
 docker run --rm -it --entrypoint /bin/bash alphaedge-trader
@@ -210,7 +210,7 @@ python run.py --strategy <StrategyClassName>
 
 ```text
 AlphaEdge/
-├── trader/                    # 交易領域模組
+├── core/                    # 交易領域模組
 │   ├── strategies/            # 策略實作
 │   ├── api/                   # 資料存取 API
 │   ├── adapters/              # 資料介接 / 整合層

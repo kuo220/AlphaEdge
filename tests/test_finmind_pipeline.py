@@ -20,7 +20,7 @@ from loguru import logger
 def test_finmind_pipeline():
     """測試 FinMind 完整流程，使用臨時資料庫"""
     # 直接使用字符串常數，避免導入 config 時的循環導入問題
-    # 這些常數值與 trader.config 中定義的一致
+    # 這些常數值與 core.config 中定義的一致
     STOCK_INFO_WITH_WARRANT_TABLE_NAME = "taiwan_stock_info_with_warrant"
     SECURITIES_TRADER_INFO_TABLE_NAME = "taiwan_securities_trader_info"
     STOCK_TRADING_DAILY_REPORT_TABLE_NAME = (
@@ -51,33 +51,33 @@ def test_finmind_pipeline():
     )
 
     # 將臨時 config 放入 sys.modules
-    sys.modules["trader.config"] = temp_config
+    sys.modules["core.config"] = temp_config
 
     # 現在導入其他模組（它們會使用臨時的 config）
-    from trader.pipeline.cleaners.finmind_cleaner import FinMindCleaner
-    from trader.pipeline.crawlers.finmind_crawler import FinMindCrawler
+    from core.pipeline.cleaners.finmind_cleaner import FinMindCleaner
+    from core.pipeline.crawlers.finmind_crawler import FinMindCrawler
 
     # 現在嘗試導入真正的 config（此時所有依賴的模組都已經初始化）
     # 如果成功，替換臨時的 config
     try:
         # 先移除臨時的 config
-        if "trader.config" in sys.modules:
-            del sys.modules["trader.config"]
+        if "core.config" in sys.modules:
+            del sys.modules["core.config"]
         # 現在導入真正的 config
-        import trader.config as real_config
+        import core.config as real_config
 
         # 更新臨時 config 的屬性為真實值
         temp_config.DB_PATH = real_config.DB_PATH
         temp_config.FINMIND_DOWNLOADS_PATH = real_config.FINMIND_DOWNLOADS_PATH
         # 將真實的 config 放回 sys.modules
-        sys.modules["trader.config"] = real_config
+        sys.modules["core.config"] = real_config
     except Exception as e:
         # 如果導入真正的 config 失敗，繼續使用臨時的 config
         print(f"⚠️  無法導入真正的 config，使用臨時配置: {e}")
-        sys.modules["trader.config"] = temp_config
+        sys.modules["core.config"] = temp_config
 
     # 現在導入 loader（使用真正的或臨時的 config）
-    from trader.pipeline.loaders.finmind_loader import FinMindLoader
+    from core.pipeline.loaders.finmind_loader import FinMindLoader
 
     print(f"\n{'='*60}")
     print(f"測試 FinMind 完整流程（使用臨時資料庫）")
@@ -105,8 +105,8 @@ def test_finmind_pipeline():
     try:
         # 使用 mock 替換 DB_PATH，讓 loader 使用臨時資料庫
         # 需要同時 patch 多個地方，因為 DB_PATH 可能在不同模組中被導入
-        with patch("trader.config.DB_PATH", temp_db_path), patch(
-            "trader.pipeline.loaders.finmind_loader.DB_PATH", temp_db_path
+        with patch("core.config.DB_PATH", temp_db_path), patch(
+            "core.pipeline.loaders.finmind_loader.DB_PATH", temp_db_path
         ):
             # 初始化各個組件
             print("\n1️⃣ 初始化組件...")

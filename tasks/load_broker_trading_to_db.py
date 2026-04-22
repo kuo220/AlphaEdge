@@ -2,7 +2,7 @@
 
 from loguru import logger
 
-from trader.pipeline.loaders.finmind_loader import FinMindLoader
+from core.pipeline.loaders.finmind_loader import FinMindLoader
 
 
 def main() -> None:

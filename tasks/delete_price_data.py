@@ -7,7 +7,7 @@ from typing import List
 
 from loguru import logger
 
-from trader.config import DB_PATH, PRICE_TABLE_NAME
+from core.config import DB_PATH, PRICE_TABLE_NAME
 
 
 def parse_date(date_str: str) -> str:

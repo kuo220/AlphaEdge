@@ -1,9 +1,9 @@
 import argparse
 from typing import Dict, Type
 
-from trader.backtest import Backtester
-from trader.strategies import StrategyLoader
-from trader.strategies.stock import BaseStockStrategy
+from core.backtest import Backtester
+from core.strategies import StrategyLoader
+from core.strategies.stock import BaseStockStrategy
 
 """Main entry point of the trading system: run backtest or live trading from project root"""
 

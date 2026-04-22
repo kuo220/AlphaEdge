@@ -6,11 +6,11 @@ import pandas as pd
 import shioaji as sj
 from loguru import logger
 
-from trader.config import TICK_DOWNLOADS_PATH
-from trader.pipeline.cleaners.stock_tick_cleaner import StockTickCleaner
-from trader.pipeline.crawlers.stock_tick_crawler import StockTickCrawler
-from trader.utils import ShioajiAccount, ShioajiAPI, TimeUtils
-from trader.config import API_KEY, API_SECRET_KEY
+from core.config import TICK_DOWNLOADS_PATH
+from core.pipeline.cleaners.stock_tick_cleaner import StockTickCleaner
+from core.pipeline.crawlers.stock_tick_crawler import StockTickCrawler
+from core.utils import ShioajiAccount, ShioajiAPI, TimeUtils
+from core.config import API_KEY, API_SECRET_KEY
 
 """測試 StockTickCrawler：爬取與清洗，不寫入資料庫"""
 

@@ -210,10 +210,10 @@ def test_broker_trading_updater():
 
         # 清除可能已緩存的模組
         modules_to_clear = [
-            "trader.pipeline.updaters.finmind_updater",
-            "trader.pipeline.loaders.finmind_loader",
-            "trader.pipeline.cleaners.finmind_cleaner",
-            "trader.pipeline.crawlers.finmind_crawler",
+            "core.pipeline.updaters.finmind_updater",
+            "core.pipeline.loaders.finmind_loader",
+            "core.pipeline.cleaners.finmind_cleaner",
+            "core.pipeline.crawlers.finmind_crawler",
         ]
         for module_name in modules_to_clear:
             if module_name in sys.modules:
@@ -229,11 +229,11 @@ def test_broker_trading_updater():
             sys.modules["FinMind.data"] = finmind_data_mock
 
         # 使用 patch 替換配置（在導入前 patch）
-        with patch("trader.config.DB_PATH", temp_db_path), patch(
-            "trader.config.FINMIND_DOWNLOADS_PATH", temp_downloads_path
-        ), patch("trader.config.BROKER_TRADING_METADATA_PATH", temp_metadata_file):
+        with patch("core.config.DB_PATH", temp_db_path), patch(
+            "core.config.FINMIND_DOWNLOADS_PATH", temp_downloads_path
+        ), patch("core.config.BROKER_TRADING_METADATA_PATH", temp_metadata_file):
             # 導入 updater（在 patch 後導入，這樣會使用 patch 後的值）
-            from trader.pipeline.updaters.finmind_updater import FinMindUpdater
+            from core.pipeline.updaters.finmind_updater import FinMindUpdater
 
             updater = FinMindUpdater()
 
@@ -315,19 +315,19 @@ def test_broker_trading_updater():
 
             # 清除模組緩存
             modules_to_clear = [
-                "trader.pipeline.updaters.finmind_updater",
-                "trader.pipeline.loaders.finmind_loader",
-                "trader.pipeline.cleaners.finmind_cleaner",
-                "trader.pipeline.crawlers.finmind_crawler",
+                "core.pipeline.updaters.finmind_updater",
+                "core.pipeline.loaders.finmind_loader",
+                "core.pipeline.cleaners.finmind_cleaner",
+                "core.pipeline.crawlers.finmind_crawler",
             ]
             for module_name in modules_to_clear:
                 if module_name in sys.modules:
                     del sys.modules[module_name]
 
-            with patch("trader.config.DB_PATH", temp_db_path), patch(
-                "trader.config.FINMIND_DOWNLOADS_PATH", temp_downloads_path
-            ), patch("trader.config.BROKER_TRADING_METADATA_PATH", temp_metadata_file):
-                from trader.pipeline.updaters.finmind_updater import FinMindUpdater
+            with patch("core.config.DB_PATH", temp_db_path), patch(
+                "core.config.FINMIND_DOWNLOADS_PATH", temp_downloads_path
+            ), patch("core.config.BROKER_TRADING_METADATA_PATH", temp_metadata_file):
+                from core.pipeline.updaters.finmind_updater import FinMindUpdater
 
                 updater2 = FinMindUpdater()
                 updater2.crawler.crawl_broker_trading_daily_report = (
@@ -406,20 +406,20 @@ def test_broker_trading_updater():
 
             # 清除可能已緩存的模組
             modules_to_clear = [
-                "trader.pipeline.updaters.finmind_updater",
-                "trader.pipeline.loaders.finmind_loader",
-                "trader.pipeline.cleaners.finmind_cleaner",
-                "trader.pipeline.crawlers.finmind_crawler",
+                "core.pipeline.updaters.finmind_updater",
+                "core.pipeline.loaders.finmind_loader",
+                "core.pipeline.cleaners.finmind_cleaner",
+                "core.pipeline.crawlers.finmind_crawler",
             ]
             for module_name in modules_to_clear:
                 if module_name in sys.modules:
                     del sys.modules[module_name]
 
-            with patch("trader.config.DB_PATH", temp_db_path), patch(
-                "trader.config.FINMIND_DOWNLOADS_PATH", temp_downloads_path
-            ), patch("trader.config.BROKER_TRADING_METADATA_PATH", temp_metadata_file):
+            with patch("core.config.DB_PATH", temp_db_path), patch(
+                "core.config.FINMIND_DOWNLOADS_PATH", temp_downloads_path
+            ), patch("core.config.BROKER_TRADING_METADATA_PATH", temp_metadata_file):
                 # 重新導入 updater
-                from trader.pipeline.updaters.finmind_updater import FinMindUpdater
+                from core.pipeline.updaters.finmind_updater import FinMindUpdater
 
                 updater2 = FinMindUpdater()
                 updater2.crawler.crawl_broker_trading_daily_report = (

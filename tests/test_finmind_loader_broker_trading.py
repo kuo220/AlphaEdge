@@ -15,7 +15,7 @@ import pandas as pd
 project_root: Path = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
-from trader.config import STOCK_TRADING_DAILY_REPORT_TABLE_NAME
+from core.config import STOCK_TRADING_DAILY_REPORT_TABLE_NAME
 
 
 def _make_broker_trading_df(
@@ -49,10 +49,10 @@ def test_load_broker_trading_from_dataframe_optimization():
     timestamp: str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     temp_db_path: str = str(temp_dir / f"test_finmind_loader_opt_{timestamp}.db")
 
-    with patch("trader.config.DB_PATH", temp_db_path), patch(
-        "trader.pipeline.loaders.finmind_loader.DB_PATH", temp_db_path
+    with patch("core.config.DB_PATH", temp_db_path), patch(
+        "core.pipeline.loaders.finmind_loader.DB_PATH", temp_db_path
     ):
-        from trader.pipeline.loaders.finmind_loader import FinMindLoader
+        from core.pipeline.loaders.finmind_loader import FinMindLoader
 
         loader: FinMindLoader = FinMindLoader()
         loader.connect()

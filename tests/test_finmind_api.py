@@ -6,7 +6,7 @@
 使用方法（從專案根目錄執行）：
     python -m tests.test_finmind_api
 
-測試內容（對應 trader.api.finmind_api）：
+測試內容（對應 core.api.finmind_api）：
     1. get_stock_info(stock_id) - 單一股票台股總覽（不含權證）
     2. get_all_stock_info() - 全部台股總覽（不含權證）
     3. get_stock_info_with_warrant(stock_id) - 單一股票台股總覽（含權證）
@@ -30,7 +30,7 @@ sys.path.insert(0, str(project_root))
 
 import pandas as pd
 
-from trader.api.finmind_api import FinMindAPI
+from core.api.finmind_api import FinMindAPI
 
 
 def test_finmind_api() -> bool:

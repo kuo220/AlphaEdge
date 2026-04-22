@@ -65,7 +65,7 @@ def test_finmind_updater():
         return False
 
     # 先導入不依賴 config 的模組
-    from trader.pipeline.utils import FinMindDataType
+    from core.pipeline.utils import FinMindDataType
 
     # 解決循環導入：使用 mock 在導入前先設置 config 模組
     from unittest.mock import MagicMock
@@ -87,29 +87,29 @@ def test_finmind_updater():
     )
 
     # 將臨時 config 放入 sys.modules（如果還沒有）
-    if "trader.config" not in sys.modules:
-        sys.modules["trader.config"] = temp_config
+    if "core.config" not in sys.modules:
+        sys.modules["core.config"] = temp_config
 
     # 現在嘗試導入真正的 config
     try:
         # 先移除臨時的 config
-        if "trader.config" in sys.modules:
-            del sys.modules["trader.config"]
+        if "core.config" in sys.modules:
+            del sys.modules["core.config"]
         # 現在導入真正的 config
-        import trader.config as real_config
+        import core.config as real_config
 
         # 更新臨時 config 的屬性為真實值
         temp_config.DB_PATH = real_config.DB_PATH
         temp_config.FINMIND_DOWNLOADS_PATH = real_config.FINMIND_DOWNLOADS_PATH
         # 將真實的 config 放回 sys.modules
-        sys.modules["trader.config"] = real_config
+        sys.modules["core.config"] = real_config
     except Exception as e:
         # 如果導入真正的 config 失敗，繼續使用臨時的 config
         print(f"⚠️  無法導入真正的 config，使用臨時配置: {e}")
-        sys.modules["trader.config"] = temp_config
+        sys.modules["core.config"] = temp_config
 
     # 現在導入 updater（使用真正的或臨時的 config）
-    from trader.pipeline.updaters.finmind_updater import FinMindUpdater
+    from core.pipeline.updaters.finmind_updater import FinMindUpdater
 
     # 創建臨時資料庫檔案
     temp_dir: Path = project_root / "tests" / "temp"
@@ -122,9 +122,9 @@ def test_finmind_updater():
 
     try:
         # 使用 mock 替換 DB_PATH
-        with patch("trader.config.DB_PATH", temp_db_path), patch(
-            "trader.pipeline.updaters.finmind_updater.DB_PATH", temp_db_path
-        ), patch("trader.pipeline.loaders.finmind_loader.DB_PATH", temp_db_path):
+        with patch("core.config.DB_PATH", temp_db_path), patch(
+            "core.pipeline.updaters.finmind_updater.DB_PATH", temp_db_path
+        ), patch("core.pipeline.loaders.finmind_loader.DB_PATH", temp_db_path):
             # ===== 測試 1: update_stock_info_with_warrant =====
             print(f"\n{'='*60}")
             print("測試 1: update_stock_info_with_warrant()")

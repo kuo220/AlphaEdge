@@ -28,7 +28,7 @@ try:
     except ImportError:
         pass
 
-    from trader.config import DB_PATH
+    from core.config import DB_PATH
 except (ImportError, ModuleNotFoundError):
     # 如果無法導入 config，使用預設路徑
     DB_PATH = project_root / "trader" / "database" / "data.db"

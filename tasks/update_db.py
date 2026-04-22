@@ -4,17 +4,17 @@ from typing import Dict, Set, Union
 
 from loguru import logger
 
-from trader.pipeline.updaters.financial_statement_updater import (
+from core.pipeline.updaters.financial_statement_updater import (
     FinancialStatementUpdater,
 )
-from trader.pipeline.updaters.finmind_updater import FinMindUpdater
-from trader.pipeline.updaters.monthly_revenue_report_updater import (
+from core.pipeline.updaters.finmind_updater import FinMindUpdater
+from core.pipeline.updaters.monthly_revenue_report_updater import (
     MonthlyRevenueReportUpdater,
 )
-from trader.pipeline.updaters.stock_chip_updater import StockChipUpdater
-from trader.pipeline.updaters.stock_price_updater import StockPriceUpdater
-from trader.pipeline.updaters.stock_tick_updater import StockTickUpdater
-from trader.config import (
+from core.pipeline.updaters.stock_chip_updater import StockChipUpdater
+from core.pipeline.updaters.stock_price_updater import StockPriceUpdater
+from core.pipeline.updaters.stock_tick_updater import StockTickUpdater
+from core.config import (
     DEFAULT_CHIP_PRICE_START_DATE,
     DEFAULT_END_MONTH,
     DEFAULT_START_YEAR,
@@ -22,7 +22,7 @@ from trader.config import (
     FINMIND_BROKER_TRADING_START_DATE,
     TICK_UPDATE_START_DATE,
 )
-from trader.pipeline.utils import DataType, FinMindDataType
+from core.pipeline.utils import DataType, FinMindDataType
 
 """
 資料更新任務主程式 (update_db)

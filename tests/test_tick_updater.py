@@ -26,9 +26,9 @@ except (ModuleNotFoundError, ImportError):
     DOLPHINDB_AVAILABLE = False
     print("⚠️  dolphindb 模組未安裝，使用 mock 模組（測試模式）")
 
-from trader.config import TICK_DOWNLOADS_PATH, TICK_METADATA_DIR_PATH
-from trader.pipeline.updaters.stock_tick_updater import StockTickUpdater
-from trader.pipeline.utils.stock_tick_utils import StockTickUtils
+from core.config import TICK_DOWNLOADS_PATH, TICK_METADATA_DIR_PATH
+from core.pipeline.updaters.stock_tick_updater import StockTickUpdater
+from core.pipeline.utils.stock_tick_utils import StockTickUtils
 
 """測試 StockTickUpdater.update：僅爬取與清洗，不寫入資料庫"""
 

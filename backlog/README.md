@@ -17,3 +17,4 @@
 | [broker_trading_index_and_lock_fix.md](broker_trading_index_and_lock_fix.md) | 券商分點表索引 (securities_trader_id, stock_id, date) 與 metadata 更新前 commit 避免 SQLite 鎖競爭 |
 | [broker_trading_no_data_handling.md](broker_trading_no_data_handling.md) | 券商分點 No Data 處理 |
 | [finmind-pipeline-optimization.md](finmind-pipeline-optimization.md) | FinMind 爬蟲／清洗／儲存流程優化計畫 |
+| [PostgreSQL遷移計畫.md](PostgreSQL遷移計畫.md) | AlphaEdge 由 SQLite3 遷移到 PostgreSQL 的分階段實作計畫 |

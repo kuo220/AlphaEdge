@@ -1,0 +1,352 @@
+import datetime
+import json
+import re
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import pandas as pd
+from loguru import logger
+
+from core.pipeline.utils import FileEncoding
+
+# 全專案 JSON 儲存預設縮排
+DEFAULT_JSON_INDENT: int = 2
+
+
+class DataUtils:
+    """Data Tools"""
+
+    @staticmethod
+    def move_col(
+        df: pd.DataFrame,
+        col_name: str,
+        ref_col_name: str,
+    ) -> None:
+        """移動 columns 位置：將 col_name 整個 column 移到 ref_col_name 後方"""
+
+        col_data: pd.Series = df.pop(col_name)
+        df.insert(df.columns.get_loc(ref_col_name) + 1, col_name, col_data)
+
+    @staticmethod
+    def remove_last_n_rows(df: pd.DataFrame, n_rows: int = 1) -> pd.DataFrame:
+        """刪除 DataFrame 中最後 n row"""
+
+        if len(df) <= n_rows:
+            return df.iloc[0:0]  # return empty DataFrame
+        return df.iloc[:-n_rows]
+
+    @staticmethod
+    def remove_redundant_col(df: pd.DataFrame, col_name: str) -> pd.DataFrame:
+        """刪除 DataFrame 中指定 column 欄位後面的所有欄位"""
+
+        if col_name in df.columns:
+            last_col_loc: int = df.columns.get_loc(col_name)
+            df = df.iloc[:, : last_col_loc + 1]
+        return df
+
+    @staticmethod
+    def convert_col_to_numeric(
+        df: pd.DataFrame, exclude_cols: List[str]
+    ) -> pd.DataFrame:
+        """將 exclude_cols 以外的 columns 資料都轉為數字型態（int or float）"""
+
+        for col in df.columns:
+            if col not in exclude_cols:
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+        return df
+
+    @staticmethod
+    def pad2(n: int | str) -> str:
+        """將數字補足為兩位數字字串"""
+        return str(n).zfill(2)
+
+    @staticmethod
+    def fill_nan(df: pd.DataFrame, value: int = 0) -> pd.DataFrame:
+        """檢查 DataFrame 是否有 NaN 值，若有則將所有 NaN 值填補為指定值"""
+
+        if df.isnull().values.any():
+            df.fillna(value, inplace=True)
+        return df
+
+    @staticmethod
+    def check_required_columns(
+        df: pd.DataFrame,
+        required_cols: List[str],
+        required_all: bool = True,
+    ) -> bool:
+        """
+        - Description:
+            檢查 DataFrame 是否包含必要欄位，可設定為必須全數存在或至少存在一個
+            常用於清洗資料前驗證欄位完整性
+
+        - Parameters:
+            - df: pd.DataFrame
+                欲檢查的 DataFrame
+            - required_cols: List[str]
+                欲確認是否存在的欄位名稱列表
+            - require_all: bool
+                預設為 True，表示所有欄位皆需存在；若為 False，表示只要存在任一欄位即可通過
+
+        - Return: bool
+            - 是否符合條件（True: 符合，False: 不符合）
+        """
+
+        if required_all:
+            return all(col in df.columns for col in required_cols)
+        else:
+            return any(col in df.columns for col in required_cols)
+
+    @staticmethod
+    def standardize_column_name(
+        word: str,
+        replace_pairs: Dict[str, str] = {"（": "(", "）": ")", "：": ":"},
+        remove_chars: List[str] = [],
+        remove_dash: List[str] = ["－", "-", "—", "–", "─"],
+        remove_whitespace: bool = True,
+    ) -> str:
+        """
+        - Description:
+            清除空白與特殊符號（括號、全半形減號），標準化欄位名稱用
+
+        - Parameters:
+            - word: str
+                欲清理的欄位名稱
+            - replace_pairs: Dict[str, str]
+                要替換的字元對 (如 {"（": "(", "）": ")"})
+            - remove_chars: List[str]
+                要統一替換成的文字，例如: 總額
+            - remove_dash: List[str]
+                要刪除的 dash (Default: ["－", "-", "—", "–", "─"])
+            - remove_whitespace: bool
+                是否移除所有空白 (包含 tab、全形空白)
+
+        - Return: str
+            - 處理後的欄位名稱
+        """
+
+        word: str = str(word)
+
+        if remove_whitespace:
+            word: str = re.sub(
+                r"\s+", "", word
+            )  # 清除所有空白（包含 tab, 換行, 全形空白）
+
+        for old, new in replace_pairs.items():
+            word: str = word.replace(old, new)
+        for char in remove_chars:
+            word: str = word.replace(char, "")
+        for dash in remove_dash:
+            word: str = word.replace(dash, "")
+
+        return word
+
+    @staticmethod
+    def map_column_name(col: str, column_map: Dict[str, List[str]]) -> str:
+        """將欄位名稱對應至標準名稱，若無對應則回傳原名"""
+
+        for std_col, variants in column_map.items():
+            if col in variants:
+                return std_col
+        return col
+
+    @staticmethod
+    def replace_column_name(
+        col_name: str,
+        keywords: List[str],
+        replacement: str,
+    ) -> str:
+        """
+        - Description:
+            將欄位名稱中出現的指定關鍵字（如「合計」、「總計」）替換為指定詞（如「總額」）
+            e.g. 資產總計 -> 資產總額
+
+        - Parameters:
+            - col_name: str
+                欄位名稱
+            - keywords: List[str]
+                欲替換的關鍵字列表，例如: 合計"、"總計"
+            - replacement: str
+                要統一替換成的文字，例如: 總額
+
+        - Return: str
+            - 處理後的欄位名稱
+        """
+
+        for keyword in keywords:
+            if keyword in col_name:
+                return col_name.replace(keyword, replacement)
+        return col_name
+
+    @staticmethod
+    def remove_cols_by_keywords(
+        df: pd.DataFrame,
+        startswith: Optional[List[str]] = None,
+        contains: Optional[List[str]] = None,
+        case_insensitive: bool = True,
+    ) -> pd.DataFrame:
+        """
+        - Description:
+            移除以指定字串開頭或包含指定字串的欄位名稱
+
+        - Parameters:
+            - df: 原始 DataFrame
+            - startswith: 欲刪除欄位的開頭關鍵字，例如 ["Unnamed"]
+            - contains: 欲刪除欄位的包含關鍵字，例如 ["錯誤"]
+            - case_insensitive: 是否忽略大小寫（預設 True）
+
+        - Returns:
+            - 已刪除指定欄位的 DataFrame
+        """
+
+        # 確保 startswith / contains 一定是 list 型別，避免為 None 時無法迭代
+        startswith_list: List[str] = startswith or []
+        contains_list: List[str] = contains or []
+
+        # 將欄位轉成 str 型別，並保留原始 index
+        columns: pd.Index = df.columns.astype(str)
+
+        # 初始化刪除遮罩（與欄位 index 對齊）
+        columns_to_drop: pd.Series = pd.Series(False, index=columns)
+
+        if case_insensitive:
+            columns = columns.str.lower()
+            startswith_list: List[str] = [word.lower() for word in startswith_list]
+            contains_list: List[str] = [word.lower() for word in contains_list]
+
+        for keyword in startswith_list:
+            columns_to_drop |= columns.str.startswith(keyword)
+
+        for keyword in contains_list:
+            columns_to_drop |= columns.str.contains(keyword)
+
+        return df.loc[:, ~columns_to_drop]
+
+    @staticmethod
+    def remove_items_by_keywords(
+        items: List[str],
+        startswith: Optional[List[str]] = None,
+        contains: Optional[List[str]] = None,
+        case_insensitive: bool = True,
+    ) -> List[str]:
+        """
+        - Description:
+            移除符合指定關鍵字的欄位名稱（以開頭或包含），並回傳保留的欄位清單
+
+        - Parameters:
+            - columns: 欲移除的欄位名稱清單
+            - startswith: 欲排除的開頭字串，例如 ["Unnamed"]
+            - contains: 欲排除的部分字串，例如 ["錯誤"]
+            - case_insensitive: 是否忽略大小寫（預設 True）
+
+        - Returns:
+            - 過濾後保留的欄位名稱 List[str]
+        """
+
+        startswith_list: List[str] = startswith or []
+        contains_list: List[str] = contains or []
+        items_list: List[str] = [str(item) for item in items]
+
+        def normalize(s: str) -> str:
+            return s.lower() if case_insensitive else s
+
+        norm_starts: List[str] = [normalize(s) for s in startswith_list]
+        norm_contains: List[str] = [normalize(s) for s in contains_list]
+
+        new_items: List[str] = []
+
+        for item in items_list:
+            norm_item: str = normalize(item)
+            if any(norm_item.startswith(s) for s in norm_starts):
+                continue
+            if any(c in norm_item for c in norm_contains):
+                continue
+            new_items.append(norm_item)
+
+        return new_items
+
+    @staticmethod
+    def remove_duplicate_rows(
+        df: pd.DataFrame,
+        subset: List[str],
+        keep: str | bool = "first",
+    ) -> Optional[pd.DataFrame]:
+        """
+        - Description:
+            根據指定欄位去除重複的資料列，並重設 index
+
+        - Parameters:
+            - df: pd.DataFrame
+                要處理的資料表
+            - subsets: List[str]
+                用來判斷重複的欄位名稱列表（例如 ["year", "month", "stock_id", "公司名稱"]）
+            - keep: str | bool
+                要保留哪一筆重複資料：
+                    - "first": 保留第一筆（預設）
+                    - "last": 保留最後一筆
+                    - False: 移除所有重複的列
+
+        - Returns:
+            - Optional[pd.DataFrame]
+                去除重複值並重設 index 的資料表；若輸入為 None 或空表則回傳 None
+        """
+
+        if df is None or df.empty:
+            return None
+
+        return df.drop_duplicates(subset=subset, keep=keep).reset_index(drop=True)
+
+    @staticmethod
+    def save_json(
+        data: Any,
+        file_path: Path,
+        encoding: str = FileEncoding.UTF8.value,
+        ensure_ascii: bool = False,
+        indent: int = DEFAULT_JSON_INDENT,
+    ) -> None:
+        """
+        - Description:
+            將資料儲存成 JSON 檔案
+
+        - Parameters:
+            - data: Any
+                要儲存的 Python 資料結構（如 dict 或 list）
+            - file_path: Path
+                儲存檔案的完整路徑
+            - encoding: str
+                檔案編碼（預設為 utf-8）
+            - ensure_ascii: bool
+                是否轉成 ASCII 編碼（預設 False，可保留中文）
+            - indent: int
+                JSON 排版的縮排層級（預設為 2）
+        """
+
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(file_path, "w", encoding=encoding) as f:
+            json.dump(data, f, ensure_ascii=ensure_ascii, indent=indent)
+
+    @staticmethod
+    def load_json(file_path: Path, encoding: str = FileEncoding.UTF8.value) -> Any:
+        """
+        - Description:
+            從指定 JSON 檔案讀取資料
+
+        - Parameters:
+            - file_path: Path
+                JSON 檔案的完整路徑
+            - encoding: str
+                檔案編碼（預設為 utf-8）
+
+        - Returns: Any
+            從 JSON 載入的 Python 資料（通常為 dict 或 list）
+        """
+
+        try:
+            with open(file_path, "r", encoding=encoding) as f:
+                data: Any = json.load(f)
+                return data
+        except FileNotFoundError:
+            logger.error(f"找不到檔案: {file_path}")
+            return None
+        except json.JSONDecodeError:
+            logger.error(f"JSON 格式錯誤: {file_path}")
+            return None
