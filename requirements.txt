@@ -1,13 +1,16 @@
 annotated-doc==0.0.4
 annotated-types==0.7.0
 base58==2.1.1
+based58==0.1.1
 beautifulsoup4==4.14.3
 certifi==2026.2.25
 cffi==2.0.0
 charset-normalizer==3.4.7
 choreographer==1.2.1
+ciso8601==2.3.3
 click==8.3.2
 curl_cffi==0.15.0
+fake-useragent==2.2.0
 filelock==3.28.0
 frozendict==2.4.7
 idna==3.11

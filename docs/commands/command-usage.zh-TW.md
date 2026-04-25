@@ -15,20 +15,22 @@
 
 ### Target 對照表
 
-| 選項 | 說明 |
-| --- | --- |
-| `tick` | 逐筆成交（Shioaji ticks） |
-| `chip` | 三大法人籌碼 |
-| `price` | 收盤價 |
-| `fs` | 財報（Financial Statement） |
-| `mrr` | 月營收報表（Monthly Revenue Report） |
-| `finmind` | 全部 FinMind（台股總覽 + 證券商 + 券商分點） |
-| `stock_info` | FinMind 台股總覽（不含權證） |
-| `stock_info_with_warrant` | FinMind 台股總覽（含權證） |
-| `broker_info` | FinMind 證券商資訊 |
-| `broker_trading` | FinMind 券商分點統計 |
-| `all` | 全部資料（含 tick） |
-| `no_tick` | 全部資料（不含 tick，預設） |
+
+| 選項                        | 說明                            |
+| ------------------------- | ----------------------------- |
+| `tick`                    | 逐筆成交（Shioaji ticks）           |
+| `chip`                    | 三大法人籌碼                        |
+| `price`                   | 收盤價                           |
+| `fs`                      | 財報（Financial Statement）       |
+| `mrr`                     | 月營收報表（Monthly Revenue Report） |
+| `finmind`                 | 全部 FinMind（台股總覽 + 證券商 + 券商分點） |
+| `stock_info`              | FinMind 台股總覽（不含權證）            |
+| `stock_info_with_warrant` | FinMind 台股總覽（含權證）             |
+| `broker_info`             | FinMind 證券商資訊                 |
+| `broker_trading`          | FinMind 券商分點統計                |
+| `all`                     | 全部資料（含 tick）                  |
+| `no_tick`                 | 全部資料（不含 tick，預設）              |
+
 
 ### 單一 target 範例
 
@@ -88,3 +90,4 @@ python -m tasks.update_db --target stock_info broker_trading
 ```bash
 python run.py --strategy <StrategyClassName>
 ```
+
