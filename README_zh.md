@@ -81,6 +81,7 @@ graph TB
 | [開發部署](docs/deployment/dev-deployment.md)      | 本地服務啟動流程、collector 執行指令、dashboard |
 | [正式環境部署](docs/deployment/prod-deployment.md) | Docker Compose 部署、監控、多節點策略           |
 | [資料覆蓋範圍](docs/exchanges/data_coverage.md)    | 目前平台資料來源與 API 覆蓋範圍                 |
+| [指令教學](docs/commands/command-usage.zh-TW.md) | `update_db` target 對照與完整執行範例           |
 | [策略開發指南](core/strategies/README.md)        | 本專案策略實作方式                              |
 
 ---
@@ -198,11 +199,19 @@ docker compose down
 
 ## 指令教學
 
-```bash
-# 更新資料庫（預設 no_tick）
-python -m tasks.update_db --target no_tick
+### 更新資料庫
 
-# 使用你的策略類別執行回測
+完整 target 對照表與單一/組合範例請見：[指令教學](docs/commands/command-usage.zh-TW.md)。
+
+```bash
+python -m tasks.update_db --target no_tick
+```
+
+### 執行回測
+
+將 `<StrategyClassName>` 換成你的策略類別名稱；更多指令情境可參考同一份[指令教學](docs/commands/command-usage.zh-TW.md)。
+
+```bash
 python run.py --strategy <StrategyClassName>
 ```
 
@@ -233,7 +242,8 @@ AlphaEdge/
 ├── docs/                      # 專案文件
 │   ├── setup/
 │   ├── deployment/
-│   └── exchanges/
+│   ├── exchanges/
+│   └── commands/
 ├── run.py
 ├── ARCHITECTURE_REVIEW.md
 ├── README.md

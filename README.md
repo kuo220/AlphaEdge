@@ -81,6 +81,7 @@ graph TB
 | [Dev Deployment](docs/deployment/dev-deployment.md)       | Local service startup flow, collector run commands, dashboard |
 | [Prod Deployment](docs/deployment/prod-deployment.md)     | Docker Compose deployment, monitoring, multi-node strategy    |
 | [Data Coverage](docs/exchanges/data_coverage.md)          | Data source and API coverage in current platform              |
+| [Command Usage](docs/commands/command-usage.md)           | Full `update_db` target reference and runnable examples       |
 | [Strategy Development Guide](core/strategies/README.md) | How to implement strategies in this project                   |
 
 ---
@@ -174,11 +175,19 @@ docker compose down
 
 ## Command Usage
 
-```bash
-# update database (default: no_tick)
-python -m tasks.update_db --target no_tick
+### Update database
 
-# run backtest with your strategy class
+For full target reference and single/multi-target examples, see [Command Usage](docs/commands/command-usage.md).
+
+```bash
+python -m tasks.update_db --target no_tick
+```
+
+### Run backtest
+
+Replace `<StrategyClassName>` with your strategy class name. More command scenarios are documented in [Command Usage](docs/commands/command-usage.md).
+
+```bash
 python run.py --strategy <StrategyClassName>
 ```
 
@@ -209,7 +218,8 @@ AlphaEdge/
 ├── docs/                      # project docs
 │   ├── setup/
 │   ├── deployment/
-│   └── exchanges/
+│   ├── exchanges/
+│   └── commands/
 ├── run.py
 ├── ARCHITECTURE_REVIEW.md
 ├── README.md
