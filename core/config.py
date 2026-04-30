@@ -15,7 +15,7 @@ def get_static_resolved_path(base_dir: Path, dir_name: str) -> Path:
 
 
 # -----------------------------------------------------------------------
-# Root Directory (trader/) Path
+# Root Directory (core/) Path
 # -----------------------------------------------------------------------
 #
 BASE_DIR_PATH: Path = Path(__file__).resolve().parent

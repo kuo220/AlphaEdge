@@ -1,3 +1,3 @@
-# trader/__init__.py
+# core/__init__.py
 
-"""Trader package: data access, backtesting, strategy management, utilities"""
+"""Core package: data access, backtesting, strategy management, utilities"""

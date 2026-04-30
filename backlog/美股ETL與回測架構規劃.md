@@ -13,9 +13,9 @@
 
 ### 目前可沿用的優點
 
-- `trader/pipeline` 已採用 `crawlers` / `cleaners` / `loaders` / `updaters` 分層，這是標準 ETL 架構。
+- `core/pipeline` 已採用 `crawlers` / `cleaners` / `loaders` / `updaters` 分層，這是標準 ETL 架構。
 - `tasks/update_db.py` 已有多 target 的更新入口，適合新增美股更新 target。
-- `trader/backtest`、`trader/strategies` 已有策略執行與結果輸出流程，可複用核心回測引擎概念。
+- `core/backtest`、`core/strategies` 已有策略執行與結果輸出流程，可複用核心回測引擎概念。
 
 ### 目前主要缺口
 
@@ -35,7 +35,7 @@
 建議以「市場維度」補一層，避免未來再擴到港股/期貨時重工。
 
 ```text
-trader/
+core/
 ├── api/
 │   ├── tw/                          # 既有台股 API（逐步搬遷，先可保留）
 │   └── us/                          # 新增：美股查詢 API（對內）
@@ -205,7 +205,7 @@ trader/
 
 ## Phase 1：最小可跑版本（2~4 週）
 
-- 建立 `trader/pipeline/us`、`trader/api/us`、`trader/strategies/us`。
+- 建立 `core/pipeline/us`、`core/api/us`、`core/strategies/us`。
 - 完成 `us_universe + us_price_daily` ETL（含 checkpoint + upsert）。
 - 新增一個 `USMomentumStrategy`（日線）。
 - 回測報表沿用既有 `reporter`，先完成可比較的資產曲線與交易明細。

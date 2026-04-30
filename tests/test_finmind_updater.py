@@ -73,12 +73,12 @@ def test_finmind_updater():
     # 創建一個臨時的 config mock，包含所有需要的屬性
     temp_config = MagicMock()
     temp_config.BACKTEST_LOGS_DIR_PATH = (
-        project_root / "trader" / "backtest" / "results" / "logs"
+        project_root / "core" / "backtest" / "results" / "logs"
     )
-    temp_config.LOGS_DIR_PATH = project_root / "trader" / "logs"
-    temp_config.DB_PATH = project_root / "trader" / "database" / "data.db"
+    temp_config.LOGS_DIR_PATH = project_root / "core" / "logs"
+    temp_config.DB_PATH = project_root / "core" / "database" / "data.db"
     temp_config.FINMIND_DOWNLOADS_PATH = (
-        project_root / "trader" / "pipeline" / "downloads" / "finmind"
+        project_root / "core" / "pipeline" / "downloads" / "finmind"
     )
     temp_config.STOCK_INFO_WITH_WARRANT_TABLE_NAME = STOCK_INFO_WITH_WARRANT_TABLE_NAME
     temp_config.SECURITIES_TRADER_INFO_TABLE_NAME = SECURITIES_TRADER_INFO_TABLE_NAME

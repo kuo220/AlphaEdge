@@ -34,7 +34,7 @@ python -m tasks.update_db --target tick
 
 ## 3) 執行回測
 
-策略名稱使用「類別名稱」，可先查看 `trader/strategies/stock/`。
+策略名稱使用「類別名稱」，可先查看 `core/strategies/stock/`。
 
 ```bash
 python run.py --strategy MomentumStrategy
@@ -51,7 +51,7 @@ python run.py --strategy MomentumTickStrategy
 
 回測結果輸出在：
 
-- `trader/backtest/results/<StrategyName>/`
+- `core/backtest/results/<StrategyName>/`
 
 通常包含：
 

@@ -137,10 +137,10 @@ streamlit run frontend/app.py
 
 ```bash
 # 建立映像
-docker build -f core/Dockerfile -t alphaedge-trader .
+docker build -f core/Dockerfile -t alphaedge-core .
 
 # 啟動 container 並進入 shell（工作目錄：/app）
-docker run --rm -it --entrypoint /bin/bash alphaedge-trader
+docker run --rm -it --entrypoint /bin/bash alphaedge-core
 ```
 
 在 container 內：
@@ -171,7 +171,7 @@ streamlit run frontend/app.py --server.address=0.0.0.0 --server.port=8501
 #### 單次執行（不進入互動 shell）
 
 ```bash
-docker run --rm alphaedge-trader --help
+docker run --rm alphaedge-core --help
 docker run --rm -p 8501:8501 alphaedge-frontend
 ```
 
@@ -183,7 +183,7 @@ docker run --rm -p 8501:8501 alphaedge-frontend
 # 建立所有服務映像
 docker compose build
 
-# 同時啟動 trader 與 frontend
+# 同時啟動 core 與 frontend
 docker compose up
 ```
 

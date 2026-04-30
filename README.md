@@ -135,10 +135,10 @@ Then open: `http://localhost:8501`
 
 ```bash
 # build image
-docker build -f core/Dockerfile -t alphaedge-trader .
+docker build -f core/Dockerfile -t alphaedge-core .
 
 # run container and show CLI help
-docker run --rm alphaedge-trader --help
+docker run --rm alphaedge-core --help
 ```
 
 #### Frontend Container
@@ -159,7 +159,7 @@ docker run --rm -p 8501:8501 alphaedge-frontend
 # Build all services
 docker compose build
 
-# Start trader and frontend together
+# Start core and frontend together
 docker compose up
 ```
 

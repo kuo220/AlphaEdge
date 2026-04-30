@@ -62,7 +62,7 @@ def main():
     """主函數"""
     # 從 dev/scripts/ 回到專案根目錄（需要上三層）
     project_root = Path(__file__).parent.parent.parent
-    api_dir = project_root / "trader" / "api"
+    api_dir = project_root / "core" / "api"
     docs_dir = project_root / "docs" / "api" / "data"
 
     print("正在掃描 API 檔案...")

@@ -31,7 +31,7 @@ try:
     from core.config import DB_PATH
 except (ImportError, ModuleNotFoundError):
     # 如果無法導入 config，使用預設路徑
-    DB_PATH = project_root / "trader" / "database" / "data.db"
+    DB_PATH = project_root / "core" / "database" / "data.db"
 
 
 """測試 data.db 中是否存在指定資料表"""

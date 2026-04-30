@@ -3,10 +3,12 @@ import os
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_RESULTS_ROOT = PROJECT_ROOT / "trader" / "backtest" / "results"
-RESULTS_ROOT = Path(
-    os.getenv("ALPHAEDGE_BACKTEST_RESULTS", str(DEFAULT_RESULTS_ROOT))
-).expanduser()
+DEFAULT_RESULTS_ROOT = PROJECT_ROOT / "core" / "backtest" / "results"
+_env_results_root = os.getenv("ALPHAEDGE_BACKTEST_RESULTS")
+if _env_results_root:
+    RESULTS_ROOT = Path(_env_results_root).expanduser()
+else:
+    RESULTS_ROOT = DEFAULT_RESULTS_ROOT
 
 # 允許舊檔名與新版輸出並存，避免前端因命名差異讀不到
 CHART_FILE_CANDIDATES = {

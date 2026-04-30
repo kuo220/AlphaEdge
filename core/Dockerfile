@@ -43,9 +43,9 @@ RUN pip install --no-cache-dir -r /tmp/requirements.docker.txt
 
 # NOTE:
 # Build this Dockerfile with project root as context:
-# docker build -f trader/Dockerfile -t alphaedge-trader .
+# docker build -f core/Dockerfile -t alphaedge-core .
 COPY run.py /app/run.py
-COPY trader /app/trader
+COPY core /app/core
 
 ENTRYPOINT ["python", "run.py"]
 CMD ["--help"]

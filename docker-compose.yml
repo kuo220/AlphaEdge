@@ -1,9 +1,9 @@
 services:
-  trader:
+  core:
     build:
       context: .
-      dockerfile: trader/Dockerfile
-    container_name: alphaedge-trader
+      dockerfile: core/Dockerfile
+    container_name: alphaedge-core
     environment:
       MODE: backtest
       STRATEGY: NewMomentumStrategy
@@ -15,7 +15,7 @@ services:
         "${STRATEGY:-NewMomentumStrategy}",
       ]
     volumes:
-      - alphaedge_results:/app/trader/backtest/results
+      - alphaedge_results:/app/core/backtest/results
 
   frontend:
     build:
@@ -29,7 +29,7 @@ services:
     volumes:
       - alphaedge_results:/results
     depends_on:
-      - trader
+      - core
 
 volumes:
   alphaedge_results:

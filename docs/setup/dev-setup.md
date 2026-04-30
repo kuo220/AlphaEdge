@@ -1,6 +1,6 @@
 # 開發環境設定（Dev Setup）
 
-本文件針對目前 `AlphaEdge` 專案實際結構整理（以 `run.py`、`tasks/update_db.py`、`trader/` 為主）。
+本文件針對目前 `AlphaEdge` 專案實際結構整理（以 `run.py`、`tasks/update_db.py`、`core/` 為主）。
 
 ## 前置需求
 
@@ -49,14 +49,14 @@ cp .env.example .env
 多數目錄會在執行時自動建立；若要先手動準備可建立：
 
 ```bash
-mkdir -p trader/database trader/data trader/logs trader/backtest/results
+mkdir -p core/database core/data core/logs core/backtest/results
 ```
 
 ## 5) 基本驗證
 
 ```bash
 # 檢查主要模組可載入
-python -c "from trader.backtest import Backtester; from trader.strategies import StrategyLoader; print('OK')"
+python -c "from core.backtest import Backtester; from core.strategies import StrategyLoader; print('OK')"
 
 # 顯示主程式參數
 python run.py --help
