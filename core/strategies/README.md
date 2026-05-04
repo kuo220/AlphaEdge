@@ -61,7 +61,21 @@ core/strategies/
 └── stock/                   # 股票策略目錄
     ├── __init__.py
     ├── base.py              # BaseStockStrategy 基類
-    └── momentum_strategy.py # 範例策略
+    ├── momentum_strategy_1.py # 動能策略 1（日線）
+    ├── momentum_strategy_2.py # 動能策略 2（Tick）
+    ├── momentum_strategy_3.py # 動能策略 3（均線動能）
+    └── momentum_strategy_4.py # 動能策略 4（日線：T−1/T−2 收盤動能，開盤進出）
+```
+
+#### 動能策略 4（`MomentumStrategy4`）
+
+- **篩選（T 日開盤前已知）**：T−1 收盤相對 T−2 收盤漲幅 ≥ 9%（可調 `MIN_PRICE_CHANGE_PCT_FOR_SIGNAL`）；成交量採 **T−1 全日量**（張）≥ 門檻（可調 `MIN_VOLUME_LOTS`）。
+- **買進**：T 日以 **`open`** 作為 `StockOrder.price`。
+- **賣出**：**開倉日的下一個交易日**（依 `StockPriceAPI` 有資料的交易日跳過休市，非僅日曆 +1 日）以 **`open`** 全數賣出。
+- **回測**：須使用日線流程（`Scale.DAY`）；與框架一致，每日先執行平倉再開倉，故隔日開盤賣出會在出場日先平倉後再評估新進場。
+
+```bash
+python run.py --strategy MomentumStrategy4
 ```
 
 ## 如何撰寫新策略
@@ -549,8 +563,8 @@ AlphaEdge 使用 `StrategyLoader` 自動載入策略。系統會自動掃描 `co
 執行回測時，使用策略的**類別名稱**（Class Name）來指定策略：
 
 ```bash
-# 如果策略類別名稱是 MomentumStrategy，則使用 "MomentumStrategy"
-python run.py --strategy MomentumStrategy
+# 如果策略類別名稱是 MomentumStrategy1，則使用 "MomentumStrategy1"
+python run.py --strategy MomentumStrategy1
 ```
 
 ## 使用策略進行回測
@@ -569,11 +583,14 @@ python run.py --strategy <StrategyName>
 ### 使用範例
 
 ```bash
-# 執行回測模式，使用名為 "MomentumStrategy" 的策略
-python run.py --strategy MomentumStrategy
+# 執行回測模式，使用名為 "MomentumStrategy1" 的策略（動能 1 日線）
+python run.py --strategy MomentumStrategy1
+
+# 動能策略 4：T−1/T−2 收盤篩選、T 開盤買、次一交易日開盤賣
+python run.py --strategy MomentumStrategy4
 
 # 執行實盤模式（目前尚未實作）
-python run.py --mode live --strategy MomentumStrategy
+python run.py --mode live --strategy MomentumStrategy1
 ```
 
 ### 回測結果
@@ -590,7 +607,7 @@ python run.py --mode live --strategy MomentumStrategy
 
 ## 完整範例
 
-參考 `core/strategies/stock/momentum_strategy.py` 查看完整的策略實作範例。該範例展示了：
+參考 `core/strategies/stock/momentum_strategy_1.py` 查看完整的策略實作範例。該範例展示了：
 
 - 如何設定策略參數
 - 如何實作開倉、平倉、停損邏輯

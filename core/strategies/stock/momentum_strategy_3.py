@@ -12,9 +12,9 @@ from core.utils import Action, Market, PositionType, Scale, Units
 from core.utils.market_calendar import MarketCalendar
 
 
-class NewMomentumStrategy(BaseStockStrategy):
+class MomentumStrategy3(BaseStockStrategy):
     """
-    新動能策略
+    動能策略 3（均線動能，日線）
 
     買進條件（全部滿足）：
     - 5日線 > 10日線 > 20日線
@@ -48,7 +48,7 @@ class NewMomentumStrategy(BaseStockStrategy):
 
     def __init__(self):
         super().__init__()
-        self.strategy_name: str = "NewMomentum"
+        self.strategy_name: str = "Momentum-3"
         self.market: str = Market.STOCK
         self.position_type: str = PositionType.LONG
         self.init_capital: float = 1000000.0

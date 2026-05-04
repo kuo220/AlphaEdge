@@ -32,7 +32,7 @@ docker run --rm \
   -v "$(pwd)/core/data:/app/core/data" \
   -v "$(pwd)/core/backtest/results:/app/core/backtest/results" \
   --env-file .env \
-  alphaedge-core --strategy MomentumStrategy
+  alphaedge-core --strategy MomentumStrategy1
 ```
 
 ## 4) 執行前端容器（選用）

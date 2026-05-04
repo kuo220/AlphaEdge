@@ -32,6 +32,8 @@ class OvernightLeadEventStrategy(BaseStockStrategy):
     VAL_START: datetime.date = datetime.date(2021, 1, 1)
     VAL_END: datetime.date = datetime.date(2021, 12, 31)
     TEST_START: datetime.date = datetime.date(2022, 1, 1)
+    MODEL_DATA_START: datetime.date = datetime.date(2020, 1, 1)
+    MODEL_DATA_END: datetime.date = datetime.date(2026, 4, 25)
 
     def __init__(self):
         super().__init__()
@@ -49,8 +51,9 @@ class OvernightLeadEventStrategy(BaseStockStrategy):
         # Backtest range
         self.is_backtest: bool = True
         self.scale: str = Scale.DAY
-        self.start_date: datetime.date = datetime.date(2020, 1, 1)
-        self.end_date: datetime.date = datetime.date(2026, 4, 25)
+        # Align event-driven evaluation window to RAST test period.
+        self.start_date: datetime.date = self.TEST_START
+        self.end_date: datetime.date = self.MODEL_DATA_END
 
         # Signal cache: {date: 0/1}
         self.signal_by_date: Dict[datetime.date, int] = {}
@@ -103,27 +106,40 @@ class OvernightLeadEventStrategy(BaseStockStrategy):
 
     def _build_signals(self) -> None:
         """Train ridge and create date->signal map for backtest dates."""
-        tickers = ["TSM", "2330.TW", "^SOX", "TWD=X"]
+        # 2330 與 strategy_lab 一致：SQLite 收盤；美股特徵仍用 yfinance。
+        tw_df = self.price.get_stock_price(
+            self.TARGET_STOCK_ID, self.MODEL_DATA_START, self.MODEL_DATA_END
+        )
+        if tw_df.empty:
+            raise RuntimeError(
+                f"No DB price rows for {self.TARGET_STOCK_ID} in "
+                f"{self.MODEL_DATA_START}~{self.MODEL_DATA_END}."
+            )
+        tw_df = tw_df.sort_values("date").reset_index(drop=True)
+        tw_df["date"] = pd.to_datetime(tw_df["date"]).dt.normalize()
+        tw_px = tw_df.set_index("date")["收盤價"].astype(float).sort_index()
+        tw_px.index = pd.to_datetime(tw_px.index).tz_localize(None).normalize()
+
+        us_tickers = ["TSM", "^SOX", "TWD=X"]
         df = yf.download(
-            tickers,
-            start=self.start_date.strftime("%Y-%m-%d"),
-            end=(self.end_date + datetime.timedelta(days=1)).strftime("%Y-%m-%d"),
+            us_tickers,
+            start=self.MODEL_DATA_START.strftime("%Y-%m-%d"),
+            end=(self.MODEL_DATA_END + datetime.timedelta(days=1)).strftime("%Y-%m-%d"),
             interval="1d",
             auto_adjust=True,
             progress=False,
             threads=True,
         )
         if df.empty:
-            raise RuntimeError("yfinance returned empty dataset for OvernightLeadEvent.")
+            raise RuntimeError("yfinance returned empty dataset for US tickers (OvernightLeadEvent).")
 
         close = df["Close"].copy() if isinstance(df.columns, pd.MultiIndex) else df[["Close"]]
         if not isinstance(df.columns, pd.MultiIndex):
-            close.columns = tickers[:1]
+            close.columns = us_tickers[:1]
         close = close.sort_index()
         close.index = pd.to_datetime(close.index).tz_localize(None).normalize()
 
         rets = close.pct_change()
-        tw_px = close["2330.TW"].dropna()
         us_calendar = close["TSM"].dropna().index
 
         rows: List[dict] = []
@@ -158,7 +174,10 @@ class OvernightLeadEventStrategy(BaseStockStrategy):
             )
 
         panel = pd.DataFrame(rows).dropna()
-        panel = panel[(panel["date"] >= self.start_date) & (panel["date"] <= self.end_date)]
+        panel = panel[
+            (panel["date"] >= self.MODEL_DATA_START)
+            & (panel["date"] <= self.MODEL_DATA_END)
+        ]
         panel = panel.drop_duplicates(subset=["date"], keep="last").sort_values("date")
         if panel.empty:
             raise RuntimeError("No aligned panel rows produced for OvernightLeadEvent.")

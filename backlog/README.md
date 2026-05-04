@@ -18,3 +18,5 @@
 | [broker_trading_no_data_handling.md](broker_trading_no_data_handling.md) | 券商分點 No Data 處理 |
 | [finmind-pipeline-optimization.md](finmind-pipeline-optimization.md) | FinMind 爬蟲／清洗／儲存流程優化計畫 |
 | [PostgreSQL遷移計畫.md](PostgreSQL遷移計畫.md) | AlphaEdge 由 SQLite3 遷移到 PostgreSQL 的分階段實作計畫 |
+| [回測引擎當沖執行順序重構.md](回測引擎當沖執行順序重構.md) | 當沖／日內策略之開倉、平倉順序與執行模型政策化（對齊業界 bar policy / event loop） |
+| [回測滑價與執行係數.md](回測滑價與執行係數.md) | 不大改 `core` 架構下新增滑價等係數：係數存放、`StockUtils` 調價、`Backtester` 掛點與文件 |

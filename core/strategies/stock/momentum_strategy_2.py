@@ -16,8 +16,11 @@ from core.utils import Action, PositionType, Scale, Units
 from core.utils.market_calendar import MarketCalendar
 
 
-class MomentumTickStrategy(BaseStockStrategy):
-    """Tick 級別動能策略（基於原本 MomentumStrategy 改寫）"""
+class MomentumStrategy2(BaseStockStrategy):
+    """動能策略 2（Tick）
+
+    基於動能策略 1（日線）改寫為逐筆成交。
+    """
 
     DEFAULT_MAX_HOLDINGS: int = 10
     DEFAULT_BACKTEST_START_DATE: datetime.date = datetime.date(2020, 5, 1)
@@ -27,7 +30,7 @@ class MomentumTickStrategy(BaseStockStrategy):
 
     def __init__(self):
         super().__init__()
-        self.strategy_name: str = "Momentum_Tick"
+        self.strategy_name: str = "Momentum-2"
         self.init_capital: float = 1000000.0
         self.max_holdings: int = self.DEFAULT_MAX_HOLDINGS
         self.scale: Scale = Scale.TICK
@@ -59,7 +62,7 @@ class MomentumTickStrategy(BaseStockStrategy):
     def check_open_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
         """開倉策略（Tick 級別）
 
-        規則沿用原 MomentumStrategy：
+        規則沿用動能策略 1（MomentumStrategy1）：
         1. 當日漲幅 > 9%
         2. 當下這一筆 tick 的成交量 >= 5000 張
 

@@ -37,14 +37,14 @@ python -m tasks.update_db --target tick
 策略名稱使用「類別名稱」，可先查看 `core/strategies/stock/`。
 
 ```bash
-python run.py --strategy MomentumStrategy
+python run.py --strategy MomentumStrategy1
 ```
 
 其他常見策略：
 
 ```bash
 python run.py --strategy SimpleLongStrategy
-python run.py --strategy MomentumTickStrategy
+python run.py --strategy MomentumStrategy2
 ```
 
 ## 4) 檢視結果

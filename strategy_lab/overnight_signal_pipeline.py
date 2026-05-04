@@ -15,6 +15,9 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import yfinance as yf
+from core.api.stock_price_api import StockPriceAPI
+from core.utils import Units
+from core.utils.instrument import StockUtils
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -43,9 +46,26 @@ def _ridge_fit_predict(
 
 
 def fetch_panel(start: dt.date, end: dt.date) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    tickers = ["TSM", "2330.TW", "^SOX", "TWD=X"]
+    """
+    2330 收盤與報酬：與 core/backtest 一致，使用 StockPriceAPI（SQLite）。
+    美股特徵：yfinance（TSM、^SOX、TWD=X）。
+    """
+    tw_id = "2330"
+    price_api = StockPriceAPI()
+    tw_df = price_api.get_stock_price(tw_id, start, end)
+    if tw_df.empty:
+        raise RuntimeError(
+            f"No DB price rows for {tw_id} between {start} and {end}. "
+            "Populate core/database price table to match backtester."
+        )
+    tw_df = tw_df.sort_values("date").reset_index(drop=True)
+    tw_df["date"] = pd.to_datetime(tw_df["date"]).dt.normalize()
+    tw_px = tw_df.set_index("date")["收盤價"].astype(float).sort_index()
+    tw_px.index = pd.to_datetime(tw_px.index).tz_localize(None).normalize()
+
+    us_tickers = ["TSM", "^SOX", "TWD=X"]
     data = yf.download(
-        tickers,
+        us_tickers,
         start=start.strftime("%Y-%m-%d"),
         end=end.strftime("%Y-%m-%d"),
         interval="1d",
@@ -53,15 +73,17 @@ def fetch_panel(start: dt.date, end: dt.date) -> Tuple[pd.DataFrame, pd.DataFram
         progress=False,
         threads=True,
     )
-    close = data["Close"].copy() if isinstance(data.columns, pd.MultiIndex) else data[["Close"]].copy()
+    if data.empty:
+        raise RuntimeError("yfinance returned empty dataset for US tickers.")
+    close_us = data["Close"].copy() if isinstance(data.columns, pd.MultiIndex) else data[["Close"]].copy()
     if not isinstance(data.columns, pd.MultiIndex):
-        close.columns = tickers[:1]
-    close = close.sort_index()
-    close.index = pd.to_datetime(close.index).tz_localize(None).normalize()
+        close_us.columns = us_tickers[:1]
+    close_us = close_us.sort_index()
+    close_us.index = pd.to_datetime(close_us.index).tz_localize(None).normalize()
+    rets = close_us.pct_change()
+    us_calendar = close_us["TSM"].dropna().index
 
-    rets = close.pct_change()
-    tw_px = close["2330.TW"].dropna()
-    us_calendar = close["TSM"].dropna().index
+    close_df = pd.DataFrame({"2330.TW": tw_px})
 
     rows = []
     for ts in tw_px.index:
@@ -85,12 +107,19 @@ def fetch_panel(start: dt.date, end: dt.date) -> Tuple[pd.DataFrame, pd.DataFram
         if np.isnan(r_tw):
             continue
         rows.append(
-            {"date": ts_d.date(), "r_tsm_us": r_tsm, "r_sox_us": r_sox, "r_twd": r_fx, "r_2330": r_tw}
+            {
+                "date": ts_d.date(),
+                "r_tsm_us": r_tsm,
+                "r_sox_us": r_sox,
+                "r_twd": r_fx,
+                "r_2330": r_tw,
+                "close_2330": float(tw_px.iloc[loc]),
+            }
         )
 
     panel = pd.DataFrame(rows).dropna()
     panel = panel.drop_duplicates(subset=["date"], keep="last").sort_values("date").reset_index(drop=True)
-    return close, panel
+    return close_df, panel
 
 
 def tune_alpha(
@@ -107,28 +136,70 @@ def tune_alpha(
     return best_alpha
 
 
-def run_backtest(panel: pd.DataFrame, coef: np.ndarray, x_cols: list[str], threshold: float = 0.0) -> pd.DataFrame:
-    X = panel[x_cols].values.astype(float)
-    pred = np.c_[np.ones(len(X)), X] @ coef
-    pos = (pred > threshold).astype(float)
-    r = panel["r_2330"].values.astype(float)
-    dpos = np.diff(np.r_[0.0, pos])
-    cost = np.where(dpos > 0, dpos * FEE_BUY, np.where(dpos < 0, (-dpos) * FEE_SELL_PLUS_TAX, 0.0))
-    strat_r = pos * r - cost
-    bh_r = r.copy()
+def run_backtest_with_signal(exec_df: pd.DataFrame) -> pd.DataFrame:
+    pred = exec_df["pred"].values.astype(float)
+    signal = exec_df["signal"].values.astype(int)
+    close = exec_df["close_2330"].values.astype(float)
+    r = exec_df["r_2330"].values.astype(float)
 
-    equity_s = (1.0 + strat_r).cumprod()
-    equity_bh = (1.0 + bh_r).cumprod()
+    # Event-driven aligned simulation: close-price execution, integer lots, TW fee/tax.
+    init_capital = 1_000_000.0
+    cash = init_capital
+    hold_lots = 0
+    equity_series = []
+    pos_series = []
+    strat_r = []
+
+    def max_buyable_lots(balance: float, price: float) -> int:
+        lots = int(balance // (price * Units.LOT))
+        while lots > 0:
+            comm = StockUtils.calculate_transaction_commission(price=price, volume=lots)
+            need = lots * price * Units.LOT + comm
+            if need <= balance:
+                return lots
+            lots -= 1
+        return 0
+
+    prev_equity = init_capital
+    for i in range(len(exec_df)):
+        px = close[i]
+        sig = signal[i]
+
+        if sig == 1 and hold_lots == 0:
+            buy_lots = max_buyable_lots(cash, px)
+            if buy_lots > 0:
+                buy_comm = StockUtils.calculate_transaction_commission(
+                    price=px, volume=buy_lots
+                )
+                cash -= buy_lots * px * Units.LOT + buy_comm
+                hold_lots = buy_lots
+        elif sig == 0 and hold_lots > 0:
+            sell_comm = StockUtils.calculate_transaction_commission(
+                price=px, volume=hold_lots
+            )
+            sell_tax = StockUtils.calculate_transaction_tax(price=px, volume=hold_lots)
+            cash += hold_lots * px * Units.LOT - (sell_comm + sell_tax)
+            hold_lots = 0
+
+        equity = cash + hold_lots * px * Units.LOT
+        equity_series.append(equity)
+        pos_series.append(1.0 if hold_lots > 0 else 0.0)
+        day_r = equity / prev_equity - 1.0 if prev_equity > 0 else 0.0
+        strat_r.append(day_r)
+        prev_equity = equity
+
+    equity_s = np.array(equity_series) / init_capital
+    bh_equity = (1.0 + r).cumprod()
     dd_s = equity_s / np.maximum.accumulate(equity_s) - 1.0
-    dd_bh = equity_bh / np.maximum.accumulate(equity_bh) - 1.0
+    dd_bh = bh_equity / np.maximum.accumulate(bh_equity) - 1.0
 
-    out = panel[["date"]].copy()
+    out = exec_df[["date"]].copy()
     out["pred"] = pred
-    out["position"] = pos
-    out["r_strategy"] = strat_r
-    out["r_buyhold"] = bh_r
+    out["position"] = np.array(pos_series)
+    out["r_strategy"] = np.array(strat_r)
+    out["r_buyhold"] = r
     out["equity_strategy"] = equity_s
-    out["equity_buyhold"] = equity_bh
+    out["equity_buyhold"] = bh_equity
     out["dd_strategy"] = dd_s
     out["dd_buyhold"] = dd_bh
     return out
@@ -292,7 +363,7 @@ def main(
     out = Path(output_dir or (_PROJECT_ROOT / "strategy_lab" / "output"))
     out.mkdir(parents=True, exist_ok=True)
 
-    _, panel = fetch_panel(data_start, data_end)
+    close_df, panel = fetch_panel(data_start, data_end)
     panel = panel[panel["date"] >= data_start].reset_index(drop=True)
 
     x_cols = ["r_tsm_us", "r_sox_us", "r_twd"]
@@ -310,8 +381,34 @@ def main(
     coef, _ = _ridge_fit_predict(X_fit, y_fit, X_fit, alpha)
 
     panel_test = test.reset_index(drop=True)
-    _, pred_test = _ridge_fit_predict(X_fit, y_fit, panel_test[x_cols].values.astype(float), alpha)
-    bt = run_backtest(panel_test, coef, x_cols, threshold=0.0)
+    _, pred_test = _ridge_fit_predict(
+        X_fit, y_fit, panel_test[x_cols].values.astype(float), alpha
+    )
+    signal_df = panel_test[["date", "r_2330", "close_2330"]].copy()
+    signal_df["pred"] = pred_test
+    signal_df["signal"] = (signal_df["pred"] > 0.0).astype(int)
+
+    # Align with event-driven loop: evaluate every TW trading day.
+    tw_px = close_df["2330.TW"].dropna().sort_index()
+    tw_ret = tw_px.pct_change()
+    exec_df = pd.DataFrame(
+        {
+            "date": tw_px.index.date,
+            "close_2330": tw_px.values,
+            "r_2330": tw_ret.values,
+        }
+    )
+    exec_df = exec_df[(exec_df["date"] >= TEST_START) & (exec_df["date"] <= data_end)]
+    exec_df = exec_df.dropna(subset=["r_2330", "close_2330"]).copy()
+    exec_df = exec_df.merge(
+        signal_df[["date", "pred", "signal"]],
+        on="date",
+        how="left",
+    )
+    exec_df["pred"] = exec_df["pred"].fillna(0.0)
+    exec_df["signal"] = exec_df["signal"].fillna(0).astype(int)
+
+    bt = run_backtest_with_signal(exec_df)
 
     summary_metrics(bt).to_csv(out / "metrics_summary.csv", header=["value"])
     pd.Series(
@@ -331,8 +428,7 @@ def main(
     plot_equity_curve(bt, out, title_suffix)
     plot_mdd(bt, out, title_suffix)
     plot_rolling_sharpe(bt, out)
-    ic_panel = panel_test.copy()
-    ic_panel["pred"] = pred_test
+    ic_panel = exec_df[["date", "r_2330", "pred"]].copy()
     plot_ic_by_year(ic_panel, out)
     plot_rolling_ic(ic_panel, out)
     plot_monthly_returns_heatmap(bt, out)

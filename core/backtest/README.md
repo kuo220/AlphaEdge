@@ -19,12 +19,12 @@ AlphaEdge 支援四種回測級別（KBar 級別）：
 1. **TICK**: 逐筆成交資料回測
    - 使用 `StockTickAPI` 取得逐筆成交資料
    - 適合需要精確價格和時間的策略
-   - 可參考 `core/strategies/stock/momentum_tick_strategy.py` 範例
+   - 可參考 `core/strategies/stock/momentum_strategy_2.py` 範例
 
 2. **DAY**: 日線資料回測
    - 使用 `StockPriceAPI` 取得日線收盤價資料
    - 適合基於日線技術指標的策略
-   - 可參考 `core/strategies/stock/momentum_strategy.py` 或 `core/strategies/stock/simple_long_strategy.py` 範例
+   - 可參考 `core/strategies/stock/momentum_strategy_1.py` 或 `core/strategies/stock/simple_long_strategy.py` 範例
 
 3. **MIX**: 混合級別回測
    - 同時使用 TICK 和 DAY 資料
@@ -105,11 +105,11 @@ python run.py --strategy <StrategyName>
 ### 使用範例
 
 ```bash
-# 執行回測模式，使用名為 "MomentumStrategy" 的策略
-python run.py --strategy MomentumStrategy
+# 執行回測模式，使用名為 "MomentumStrategy1" 的策略
+python run.py --strategy MomentumStrategy1
 
 # 執行實盤模式（目前尚未實作）
-python run.py --mode live --strategy MomentumStrategy
+python run.py --mode live --strategy MomentumStrategy1
 ```
 
 ### 注意事項
