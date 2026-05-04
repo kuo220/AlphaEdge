@@ -69,7 +69,9 @@ graph TB
 | `tasks/`                 | Data maintenance and database update scripts                                                   |
 | `tests/`                 | Unit/integration tests for crawlers, updaters, and DB workflows                                |
 | `docs/`                  | Project docs (setup, deployment, data coverage)                                                |
-| `ARCHITECTURE_REVIEW.md` | Additional architecture analysis notes                                                         |
+| `strategy_lab/`          | Standalone research module (overnight signal / cross-market); see `strategy_lab/README.md`   |
+| `dev/`                   | Optional dev tooling (conda env YAMLs, helper scripts)                                         |
+| `backlog/`               | Internal notes and future work items                                                           |
 
 ---
 
@@ -109,6 +111,8 @@ deactivate
 
 If you switch to **Option 2 (Docker)** for this project, you do not need a local venv: the container image already provides an isolated Python environment.
 
+Copy and fill credentials / paths: `cp .env.example .env` (details in [Dev Setup](docs/setup/dev-setup.md)).
+
 ### Run Trader + Frontend Together (Local)
 
 After installing dependencies above, open two terminal tabs at project root:
@@ -118,6 +122,7 @@ After installing dependencies above, open two terminal tabs at project root:
 ```bash
 source .venv/bin/activate
 python run.py --strategy <StrategyClassName>
+# optional: --mode backtest|live (default: backtest)
 ```
 
 **Tab 2 (Frontend: view results)**
@@ -189,6 +194,7 @@ Replace `<StrategyClassName>` with your strategy class name. More command scenar
 
 ```bash
 python run.py --strategy <StrategyClassName>
+# optional: --mode backtest|live (default: backtest)
 ```
 
 ## Project Structure
@@ -201,6 +207,7 @@ AlphaEdge/
 │   ├── adapters/              # data adapters / integrations
 │   ├── managers/              # account / order / flow managers
 │   ├── models/                # domain models
+│   ├── utils/                 # shared helpers (paths, calendar, logging, etc.)
 │   ├── pipeline/              # ETL/update pipeline
 │   ├── database/              # sqlite database files
 │   ├── backtest/              # backtest engine and outputs
@@ -213,15 +220,18 @@ AlphaEdge/
 │   ├── Dockerfile             # frontend container image
 │   ├── README.md              # frontend usage notes
 │   └── __init__.py
+├── strategy_lab/              # optional research / reports
 ├── tasks/                     # data update scripts
 ├── tests/                     # test suites
+├── dev/                       # optional conda envs and dev scripts
+├── backlog/                   # internal planning notes
 ├── docs/                      # project docs
 │   ├── setup/
 │   ├── deployment/
 │   ├── exchanges/
 │   └── commands/
+├── docker-compose.yml         # compose: core + frontend + shared results volume
 ├── run.py
-├── ARCHITECTURE_REVIEW.md
 ├── README.md
 └── README_zh.md
 ```
