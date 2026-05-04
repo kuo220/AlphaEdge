@@ -15,8 +15,9 @@ from core.pipeline.updaters.stock_chip_updater import StockChipUpdater
 from core.pipeline.updaters.stock_price_updater import StockPriceUpdater
 from core.pipeline.updaters.stock_tick_updater import StockTickUpdater
 from core.config import (
-    DEFAULT_CHIP_PRICE_START_DATE,
+    DEFAULT_CHIP_START_DATE,
     DEFAULT_END_MONTH,
+    DEFAULT_PRICE_START_DATE,
     DEFAULT_START_YEAR,
     FINMIND_BROKER_TRADING_END_DATE,
     FINMIND_BROKER_TRADING_START_DATE,
@@ -160,9 +161,14 @@ def get_update_time_config(
             "start_date": TICK_UPDATE_START_DATE,
             "end_date": datetime.date.today(),
         }
-    elif data_type == DataType.CHIP or data_type == DataType.PRICE:
+    elif data_type == DataType.CHIP:
         return {
-            "start_date": DEFAULT_CHIP_PRICE_START_DATE,
+            "start_date": DEFAULT_CHIP_START_DATE,
+            "end_date": datetime.date.today(),
+        }
+    elif data_type == DataType.PRICE:
+        return {
+            "start_date": DEFAULT_PRICE_START_DATE,
             "end_date": datetime.date.today(),
         }
     elif data_type == DataType.FS:
@@ -194,7 +200,7 @@ def get_update_time_config(
         }
     else:
         return {
-            "start_date": DEFAULT_CHIP_PRICE_START_DATE,
+            "start_date": DEFAULT_PRICE_START_DATE,
             "end_date": datetime.date.today(),
             "start_year": DEFAULT_START_YEAR,
             "end_year": datetime.date.today().year,
