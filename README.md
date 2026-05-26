@@ -69,7 +69,7 @@ graph TB
 | `tasks/`                 | Data maintenance and database update scripts                                                   |
 | `tests/`                 | Unit/integration tests for crawlers, updaters, and DB workflows                                |
 | `docs/`                  | Project docs (setup, deployment, data coverage)                                                |
-| `strategy_lab/`          | Standalone research module (overnight signal / cross-market); see `strategy_lab/README.md`   |
+| `strategy_lab/`          | Research workspace organized by concept (`strategies/`, `data_analysis/`, `notebooks/`, `ideas/`); see `strategy_lab/README.md` |
 | `dev/`                   | Optional dev tooling (conda env YAMLs, helper scripts)                                         |
 | `backlog/`               | Internal notes and future work items                                                           |
 
@@ -220,7 +220,7 @@ AlphaEdge/
 │   ├── Dockerfile             # frontend container image
 │   ├── README.md              # frontend usage notes
 │   └── __init__.py
-├── strategy_lab/              # optional research / reports
+├── strategy_lab/              # research workspace (strategies/ / data_analysis/ / notebooks/ / ideas/)
 ├── tasks/                     # data update scripts
 ├── tests/                     # test suites
 ├── dev/                       # optional conda envs and dev scripts

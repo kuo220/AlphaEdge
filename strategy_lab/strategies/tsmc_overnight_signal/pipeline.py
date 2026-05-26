@@ -26,7 +26,11 @@ from core.api.stock_price_api import StockPriceAPI
 from core.utils import Units
 from core.utils.instrument import StockUtils
 
-_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+# 此檔位於 strategy_lab/strategies/tsmc_overnight_signal/pipeline.py
+# parents[3] = AlphaEdge 專案根目錄
+_PROJECT_ROOT = Path(__file__).resolve().parents[3]
+_STRATEGY_DIR = Path(__file__).resolve().parent
+_DEFAULT_OUTPUT_DIR = _STRATEGY_DIR / "output"
 
 TRAIN_END = dt.date(2020, 12, 31)
 VAL_START = dt.date(2021, 1, 1)
@@ -750,7 +754,7 @@ def main(
     data_end: Optional[dt.date] = None,
 ) -> Path:
     data_end = data_end or dt.date.today()
-    out = Path(output_dir or (_PROJECT_ROOT / "strategy_lab" / "output"))
+    out = Path(output_dir or _DEFAULT_OUTPUT_DIR)
     out.mkdir(parents=True, exist_ok=True)
 
     close_df, panel = fetch_panel(data_start, data_end)

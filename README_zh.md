@@ -69,7 +69,7 @@ graph TB
 | `tasks/`        | 資料維護與資料庫更新腳本                                              |
 | `tests/`        | crawler、updater 與資料庫流程的單元/整合測試                          |
 | `docs/`         | 專案文件（環境設定、部署、資料覆蓋範圍）                              |
-| `strategy_lab/` | 獨立研究模組（隔夜訊號／跨市場等）；見 `strategy_lab/README.md`       |
+| `strategy_lab/` | 策略研究工作區，依概念分為 `strategies/`、`data_analysis/`、`notebooks/`、`ideas/`；見 `strategy_lab/README.md` |
 | `dev/`          | 選用開發工具（conda 環境 YAML、輔助腳本）                             |
 | `backlog/`      | 內部規劃與待辦筆記                                                    |
 
@@ -243,7 +243,7 @@ AlphaEdge/
 │   ├── Dockerfile             # frontend 容器映像
 │   ├── README.md              # frontend 使用說明
 │   └── __init__.py
-├── strategy_lab/              # 選用研究／報告
+├── strategy_lab/              # 策略研究工作區（strategies/ / data_analysis/ / notebooks/ / ideas/）
 ├── tasks/                     # 資料更新腳本
 ├── tests/                     # 測試套件
 ├── dev/                       # 選用 conda 環境與開發腳本

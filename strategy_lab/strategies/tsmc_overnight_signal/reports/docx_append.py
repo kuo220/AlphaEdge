@@ -15,8 +15,8 @@ Lang = str  # type alias; actual lang literals passed from caller
 
 
 def _g():
-    """Late import to avoid circular import with generate_quant_report_docx."""
-    import strategy_lab.generate_quant_report_docx as g
+    """Late import to avoid circular import with generate_docx."""
+    import strategy_lab.strategies.tsmc_overnight_signal.reports.generate_docx as g
 
     return g
 

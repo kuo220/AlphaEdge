@@ -1,234 +1,488 @@
-# 台積電跨市場定價與隔夜訊號研究（期末專題）
+# strategy_lab — 策略研究與開發工作區 (R&D Lab)
 
-**副標**：ADR、費半與匯率之領先資訊，Ridge 預測與歷史回測  
+這個資料夾是 **AlphaEdge** 專案底下的「**Research & Development 實驗室**」：
+**分析資料、思考交易策略、做小型實驗、寫筆記** 的地方。
 
-完整 Word 報告請執行 `strategy_lab/generate_quant_report_docx.py`（預設同時產出中／英）：
-
-- `strategy_lab/TSMC_OvernightSignal_Quant_Report.docx`（中文）
-- `strategy_lab/TSMC_OvernightSignal_Quant_Report_EN.docx`（英文）
-
-本資料夾為 **AlphaEdge** 專案底下的獨立研究模組，對應期末報告中「隔夜訊號領先／跨市場資訊」主題之簡化實作，並產出與業界研究報告相近之圖表與數據。資料來源以 **yfinance** 為主（含 ADR `TSM`、台股 `2330.TW`、費半 `^SOX`、匯率 `TWD=X`）。
-
-> **聲明**：以下為學術／課程專題之方法展示與歷史回測，**不構成投資建議**。實務交易涉及流動性、稅費細節、融券與期貨保證金、法規與執行落差，與本簡化模型不同。
-
----
-
-## 1. 摘要
-
-| 項目 | 說明 |
-|------|------|
-| **策略邏輯** | 利用「台股開盤前已結束之美股交易日」所累積的隔夜資訊（TSM 報酬、費半 SOX、台幣匯率），以 **Ridge 迴歸** 預測下一個台股交易日 **2330.TW** 之報酬，並依預測正負決定 **做多或空手**（教學用簡化，未模擬融券放空）。 |
-| **樣本切分** | 與期末報告建議一致：**訓練**至 2020-12-31、**驗證** 2021 年（用於 Ridge 懲罰係數 lambda 網格搜尋）、**測試** 2022-01-01 起至資料可取得之最近交易日。 |
-| **交易成本** | 台股買進手續費 **0.1425%**；賣出手續費 **0.1425%** + 證交稅 **0.3%**（與期末報告成本假設對齊）。 |
-| **與 AlphaEdge 關係** | 績效指標命名與圖表角色對齊 `core/backtest/README.md`（資產曲線、MDD、Sharpe 等慣例）；本模組以 **日頻向量回測** 實作，便於與 yfinance 對接，未直接繼承 `Backtester` 類別（可視為研究原型，日後可改寫為 `BaseStockStrategy` 以接入 `run.py`）。 |
+> **這裡不負責「跑正式回測」**。AlphaEdge 已經在 `core/` 提供一套完整的策略框架與回測器（`Backtester`、`StockBacktestReporter`、`StrategyLoader`），
+> 想跑正式回測請把策略放到 `core/strategies/stock/`，然後執行：
+>
+> ```bash
+> .venv/bin/python run.py --strategy <StrategyName>
+> ```
+>
+> `strategy_lab/` 是它的 **上游**：把想法、資料分析、研究筆記都在這裡完成，
+> 成熟後再「**搬到 `core/strategies/stock/`**」就能直接接上正式框架。
 
 ---
 
-## 2. 理論與假設（對應期末報告）
+## 目錄
 
-**隔夜訊號領先（Overnight Information Leakage）**
-
-台積電 ADR 於美國交易時段累積之價格與同產業、匯率變數，在台股開盤前已屬公開資訊。若市場非完全有效率，則存在可預測之 **隔日台股報酬** 成分（報告以 OLS／Ridge／XGBoost 為例；本實作採 **Ridge** 以降低共線性與過擬合）。
-
-**關鍵假設**
-
-1. 特徵於台股 **09:00 前** 即可觀測（本專題以「前一個美國交易日收盤報酬」對齊每一個台股交易日）。
-2. 日報酬近似可交易（以收盤對收盤持有期報酬近似，未使用台指期／個股期貨之保證金與換月）。
-3. 無額外流動性衝擊與漲跌停無法成交情境。
-
----
-
-## 3. 資料與特徵工程
-
-| 符號（yfinance） | 用途 |
-|------------------|------|
-| `TSM` | ADR 隔夜／前一日美國市場報酬 |
-| `2330.TW` | 台股報酬（目標變數與基準 Buy & Hold） |
-| `^SOX` | 費城半導體指數報酬（產業 β／情緒） |
-| `TWD=X` | 台幣兌美元（近似 NDF／即期走勢之代理變數） |
-
-**對齊規則**：對每一個 `2330.TW` 有交易的日曆日 t，取 **嚴格早於 t 之最後一個美國交易日** 之報酬作為特徵，避免前視偏差。
-
----
-
-## 4. 模型與交易規則
-
-- **模型**：Ridge 迴歸（含截距，L2 僅施加於斜率）；lambda 在對數空間網格上搜尋，並以 **2021 驗證集 MSE** 選取。
-- **再訓練**：選定 lambda 後，於 **訓練 + 驗證**（至 2021-12-31）重新估計係數，再於 **測試集** 產生預測（常見的 nested 風格簡化流程）。
-- **基準**：同一期間 **Buy & Hold 2330.TW**。
-
-### 4.1 何時買？何時賣？
-
-- **訊號定義**：令模型預測的隔日報酬為 `pred_t`。
-- **買進條件（Open / Add Long）**：當 `pred_t > 0`，代表模型預期當日報酬為正，目標部位設為 `1.0`（100% 做多 2330）。
-- **賣出條件（Reduce / Exit Long）**：當 `pred_t <= 0`，目標部位設為 `0.0`（空手）；若前一日有持股，則視為賣出平倉。
-- **本策略目前不做空**：`pred_t <= 0` 時只空手，不建立放空部位。
-- **交易成本扣法**：  
-  - 部位由 0 變 1（買進）時，扣買進手續費 `0.1425%`。  
-  - 部位由 1 變 0（賣出）時，扣賣出手續費 `0.1425% + 證交稅 0.3%`。  
-  - 若連續兩天同方向（都持有或都空手），則當日不產生換手成本。
-
-### 4.2 為什麼要用 Ridge？
-
-- **降低過擬合**：金融資料噪音高，Ridge 透過 L2 正則化抑制係數過大，避免把樣本內噪音當訊號。
-- **處理共線性**：`TSM` 與 `^SOX` 常有高度相關，普通線性回歸在此情境下係數可能不穩，Ridge 可讓係數更平滑穩定。
-- **提升樣本外穩定度**：研究目標是未來可用性而非只擬合歷史，Ridge 通常在 out-of-sample 更穩健。
-- **保留可解釋性**：相較更複雜模型，Ridge 仍為線性架構，較容易解讀各特徵對預測方向的影響。
+- [strategy\_lab — 策略研究與開發工作區 (R\&D Lab)](#strategy_lab--策略研究與開發工作區-rd-lab)
+  - [目錄](#目錄)
+  - [角色與分工](#角色與分工)
+  - [資料夾結構](#資料夾結構)
+  - [研究工作流（從想法到上線）](#研究工作流從想法到上線)
+  - [可直接複用的資料 API](#可直接複用的資料-api)
+    - [StockPriceAPI — 日線價格資料 (SQLite)](#stockpriceapi--日線價格資料-sqlite)
+    - [StockTickAPI — 逐筆成交資料 (DolphinDB)](#stocktickapi--逐筆成交資料-dolphindb)
+    - [StockChipAPI — 三大法人籌碼 (SQLite)](#stockchipapi--三大法人籌碼-sqlite)
+    - [MonthlyRevenueReportAPI — 月營收 (SQLite)](#monthlyrevenuereportapi--月營收-sqlite)
+    - [FinancialStatementAPI — 季報財報 (SQLite)](#financialstatementapi--季報財報-sqlite)
+    - [MarketCalendar — 交易日工具](#marketcalendar--交易日工具)
+  - [可直接複用的工具類 (Utils)](#可直接複用的工具類-utils)
+    - [StockUtils — 手續費／證交稅／單位換算](#stockutils--手續費證交稅單位換算)
+    - [Units / Commission — 單位與成本常數](#units--commission--單位與成本常數)
+    - [Action / Scale / PositionType / Market — 列舉常數](#action--scale--positiontype--market--列舉常數)
+  - [資料來源摘要](#資料來源摘要)
+  - [研究腳本怎麼寫？](#研究腳本怎麼寫)
+    - [最小可運行的研究腳本](#最小可運行的研究腳本)
+    - [常見模式：IC（Information Coefficient）分析](#常見模式icinformation-coefficient分析)
+    - [常見模式：算扣除手續費／證交稅後的真實報酬](#常見模式算扣除手續費證交稅後的真實報酬)
+  - [Jupyter Notebook 使用慣例](#jupyter-notebook-使用慣例)
+  - [從 R\&D 銜接到正式策略](#從-rd-銜接到正式策略)
+  - [命名與檔案慣例](#命名與檔案慣例)
+  - [聲明](#聲明)
 
 ---
 
-## 5. 測試集績效摘要（執行 `run_overnight_signal.py` 後由 `output/metrics_summary.csv` 產生，數值隨資料更新而變動）
+## 角色與分工
 
-請以你本機最新一次執行結果為準。最近一次產出約略為：
+| 區別          | `core/strategies/`                    | `strategy_lab/`                           |
+| ------------- | ------------------------------------- | ----------------------------------------- |
+| **角色**      | 正式上線、可被 `run.py` 載入的策略    | R&D、實驗、靈感、半成品、筆記             |
+| **結構**     | 強型別，繼承 `BaseStockStrategy`      | 自由發揮，可用 `.py` 或 `.ipynb`          |
+| **回測引擎** | `core/backtest/backtester.py`         | 自寫 vectorized backtest 或借用 core API |
+| **產出**     | 標準回測報表（`balance_curve.png` …） | 圖表、CSV、Word 報告、markdown 筆記       |
+| **觸發**     | `run.py --strategy <Name>`            | 直接 `python <script>.py` 或 notebook    |
 
-| 指標 | 本策略 | Buy & Hold 2330 |
-|------|--------|-----------------|
-| 累積報酬（淨值 − 1） | 約 **32.2**（淨值約 **33.2×**） | 約 **4.1**（淨值約 **5.1×**） |
-| 年化報酬（CAGR，日曆年數） | 約 **125%** | 約 **46%** |
-| 年化波動（日報酬年化） | 約 **23%** | （見日報酬序列） |
-| Sharpe（日頻、Rf≈2% 年化） | 約 **3.9** | 約 **1.4** |
-| 最大回撤（MDD） | 約 **−9.6%** | 約 **−38.5%** |
-| 做多日勝率 | 約 **66%** | — |
-
-**解讀提醒**：測試區間涵蓋台積電多頭波段，且模型在驗證集上選 lambda 仍屬輕度資料探勘；高夏普與低回撤可能部分來自 **正確避開部分下跌日之運氣與樣本特性**，實務應搭配走勢外樣本、蒙地卡羅與更嚴格之交易成本。
+**重要原則：** 研究階段請優先 **複用 `core/api/` 與 `core/utils/`**，
+不要在 lab 內重複實作資料讀取、手續費計算、交易日判斷等功能。
 
 ---
 
-## 6. 圖表清單（輸出於 `strategy_lab/output/`）
-
-與 AlphaEdge 回測報告常見圖表對應如下：
-
-| 檔案 | 說明 |
-|------|------|
-| `equity_curve.png` / `.html` | **資產（淨值）曲線**：策略 vs. Buy & Hold。 |
-| `mdd_underwater.png` / `.html` | **最大回撤（水下曲線）**：策略與基準之回撤百分比。 |
-| `rolling_sharpe.png` / `.html` | **滾動夏普比率**（約 63 交易日窗口，年化）。 |
-| `monthly_returns_heatmap.png` / `.html` | **月報酬率熱力圖**：檢視策略報酬之時間叢聚。 |
-| `ic_by_year.png` / `.html` | **年度 IC**：預測值與實現報酬之相關係數（報告建議之 Alpha 衰減分析起點）。 |
-| `rolling_ic.png` / `.html` | **滾動 IC**：觀察預測力是否隨時間漂移。 |
-| `backtest_daily.csv` | 每日部位、報酬、淨值、回撤。 |
-| `metrics_summary.csv` / `run_meta.csv` | 聚合指標與本次 lambda、手續費設定。 |
-
----
-
-## 7. 風險、限制與後續工作
-
-1. **模型風險**：線性 Ridge 無法捕捉非線性與結構斷點；報告建議之 XGBoost、滾動重訓尚未實作。  
-2. **匯率代理**：`TWD=X` 為即期匯率代理，非報告中之 NDF。  
-3. **執行假設**：未考慮開盤跳空撮合、漲跌停、盤中停損。  
-4. **法規與多空**：報告提及期貨下單與融券；本專題僅 **現貨做多／空手**。  
-5. **與 AlphaEdge 深度整合**：可將訊號改寫為 `core/strategies/stock/` 下之 `BaseStockStrategy` 子類別，並以 `Backtester` + `StockBacktestReporter` 產出與 `run.py --strategy ...` 完全一致之報表目錄結構。
-
----
-
-## 8. 環境與重現方式
-
-於專案根目錄（與 `requirements.txt` 同層）：
-
-```bash
-# 建議使用專案虛擬環境
-.venv/bin/python strategy_lab/run_overnight_signal.py
-# 產生 Word 報告（需 python-docx）
-.venv/bin/python strategy_lab/generate_quant_report_docx.py
-# 僅中文或僅英文：
-# .venv/bin/python strategy_lab/generate_quant_report_docx.py --lang zh
-# .venv/bin/python strategy_lab/generate_quant_report_docx.py --lang en
-```
-
-依賴與主專案相同（**numpy、pandas、yfinance、plotly、kaleido、python-docx** 等，見倉庫根目錄 `requirements.txt`）。若 `write_image` 失敗，仍會保留 `.html` 互動圖。
-
----
-
-## 9. 參考
-
-- 課程期末報告原始稿：`tsmc_arbitrage_report.docx`（樣本切分與成本假設）。  
-- AlphaEdge 回測架構說明：`../core/backtest/README.md`。  
-- 股價與指數資料：**yfinance**（[https://github.com/ranaroussi/yfinance](https://github.com/ranaroussi/yfinance)）。
-
----
-
-## 附錄：專案檔案結構
+## 資料夾結構
 
 ```
 strategy_lab/
-├── README.md
-├── run_overnight_signal.py
-├── overnight_signal_pipeline.py
-├── generate_quant_report_docx.py   # 彙整圖表與指標 → Word（中／英）
-├── TSMC_OvernightSignal_Quant_Report.docx
-├── TSMC_OvernightSignal_Quant_Report_EN.docx
-└── output/                         # run_overnight_signal 之圖表與 CSV
+├── README.md                   ← 你正在看的這份（R&D 參考文件）
+├── __init__.py
+│
+├── strategies/                 ← 完整的策略研究（一研究主題一資料夾）
+│   ├── README.md
+│   └── tsmc_overnight_signal/  ← 範例：TSMC 跨市場隔夜訊號研究
+│
+├── data_analysis/              ← 純資料分析、特徵探索、IC 研究
+│   └── README.md
+│
+├── notebooks/                  ← 探索性 Jupyter notebook
+│   └── README.md
+│
+└── ideas/                      ← 策略構想、文獻筆記、待驗證假設
+    └── README.md
 ```
 
-若需於報告中嵌入圖表，可直接引用 `output/` 內之 PNG 檔。
+各子資料夾用途請參考各自的 `README.md`。
 
 ---
 
-## 實際操盤隱患與風險檢核清單
+## 研究工作流（從想法到上線）
 
-以下清單聚焦「回測好看但實盤失效」最常見原因，建議在資金上線前逐項檢核。
+```
+ideas/           data_analysis/      strategies/<name>/      core/strategies/stock/<name>.py
+  │                  │                     │                            │
+  ▼                  ▼                     ▼                            ▼
+寫一段假設     EDA、相關性、IC    寫完整 pipeline，產圖表        繼承 BaseStockStrategy
+（markdown）   產出 CSV/PNG       與績效報告                     可被 run.py 載入
+                                                                       │
+                                                                       ▼
+                                                            .venv/bin/python run.py
+                                                              --strategy <Name>
+```
 
-### 1) 回測過度樂觀（Backtest Optimism）
+每一階段都是 **可選的**，依想法成熟度決定要在哪一層停下來。
+失敗的實驗也記得回頭到 `ideas/` 加註「結論：不 work，原因：⋯⋯」。
 
-- **單一樣本區間偏誤**：若測試期剛好包含策略有利行情（例如單邊多頭），績效可能被高估。  
-- **參數挑選偏誤**：即使有 train/val/test，若反覆觀察測試集後再微調規則，仍會把測試集「用髒」。  
-- **資料供應商偏差**：`yfinance` 資料可能有修訂、缺值或調整方式差異，實盤來源不一致會造成落差。  
+---
 
-**建議**：做 walk-forward / rolling out-of-sample、分市場情境壓力測試（升息、急跌、盤整），並固定「一次定版、一次評估」流程。
+## 可直接複用的資料 API
 
-### 2) Overfitting 與模型漂移
+所有 API 都在 `core/api/`，直接 import 就能用。
+**回傳值統一為 `pandas.DataFrame`**，方便接 `numpy / sklearn / plotly`。
 
-- **特徵數少不代表不會 overfit**：金融序列噪音高，即使只有 3 個特徵，仍可能過度擬合特定時段。  
-- **結構改變（Regime Shift）**：市場微結構、外資行為、宏觀環境改變後，舊係數可能失效。  
-- **Alpha 衰減**：同類策略被更多資金採用後，訊號優勢會下降。  
+### StockPriceAPI — 日線價格資料 (SQLite)
 
-**建議**：固定重訓週期（例如每月/每季）、監控 rolling IC 與 rolling Sharpe，並設置失效停用條件（如連續 N 期 IC 轉負）。
+來源：`core/database/data.db` 之 price 表。
 
-### 3) Look-Ahead Bias（前視偏差）
+```python
+import datetime
+from core.api.stock_price_api import StockPriceAPI
 
-- **時間戳對齊錯誤**：必須確保台股交易日 `t` 使用的是「嚴格早於 `t` 的最後美國交易日」特徵。  
-- **使用最終修正值**：若使用事後修正資料（例如某些宏觀或財報欄位），也會產生前視。  
-- **回測執行價假設過於理想**：用收盤價交易但訊號在盤前生成，若無合理成交機制，容易隱含前視或執行偏誤。  
+price = StockPriceAPI()
 
-**建議**：保留每筆訊號的「產生時間」「可交易時間」「實際下單時間」欄位，做 event-time 稽核。
+# 1) 取得指定日期「所有」股票的日線
+df_one_day = price.get(date=datetime.date(2024, 1, 2))
 
-### 4) 交易摩擦成本低估
+# 2) 取得指定日期區間「所有」股票的日線
+df_range = price.get_range(
+    start_date=datetime.date(2024, 1, 1),
+    end_date=datetime.date(2024, 1, 31),
+)
 
-目前模型已含台股手續費與證交稅，但實盤通常還有：
+# 3) 取得「指定個股」的日線
+df_2330 = price.get_stock_price(
+    stock_id="2330",
+    start_date=datetime.date(2024, 1, 1),
+    end_date=datetime.date(2024, 12, 31),
+)
+```
 
-- **滑價（Slippage）**：開盤撮合、流動性不足、單筆量過大都會增加實際成交成本。  
-- **委託/撮合不確定性**：限價可能成交不完全，市價在波動期可能偏離預期。  
-- **借券/融資成本（若未來加入放空或槓桿）**：融券費、融資利率、券源可得性。  
-- **匯兌與跨市場資金成本**：若策略擴展到真正跨市場對沖，需納入換匯點差、資金調撥成本。  
+回傳欄位（典型）：`date, stock_id, 開盤價, 最高價, 最低價, 收盤價, 成交量, ...`
 
-**建議**：在回測額外加入保守滑價模型（如固定 bps + 成交量比例衝擊），並做成本敏感度分析。
+### StockTickAPI — 逐筆成交資料 (DolphinDB)
 
-### 5) 流動性與容量（Capacity）風險
+來源：DolphinDB tick 表（需先連線；連線資訊由 `core/config` 帶入）。
+**注意：需安裝 `dolphindb` 套件且有可用的 DDB 伺服器。**
 
-- **策略可容納資金有限**：資金放大後，衝擊成本非線性增加。  
-- **集中風險高**：單一標的（2330）策略在事件風險（法說、地緣政治）下回撤可能集中爆發。  
+```python
+import datetime
+from core.api.stock_tick_api import StockTickAPI
 
-**建議**：先做容量曲線（AUM vs. 預期滑價/報酬）、分層下單與最大單日成交比限制。
+tick = StockTickAPI()
 
-### 6) 風控與執行風險
+# 1) 每個個股各自排序的 tick
+df = tick.get(
+    start_date=datetime.date(2024, 5, 10),
+    end_date=datetime.date(2024, 5, 10),
+)
 
-- **資料中斷/延遲**：訊號來源晚到可能導致錯時下單。  
-- **交易系統故障**：下單 API、網路、券商連線異常會造成執行偏差。  
-- **缺乏停損/熔斷機制**：極端行情下可能遠超回測假設。  
+# 2) 所有個股混排（模擬盤中時序）
+df_ordered = tick.get_ordered_ticks(
+    start_date=datetime.date(2024, 5, 10),
+    end_date=datetime.date(2024, 5, 10),
+)
 
-**建議**：建立 pre-trade 檢查（資料完整、倉位一致、風險限額），並加入 kill-switch、單日最大虧損與部位上限。
+# 3) 指定個股 tick
+df_2330 = tick.get_stock_ticks(
+    stock_id="2330",
+    start_date=datetime.date(2024, 5, 10),
+    end_date=datetime.date(2024, 5, 10),
+)
 
-### 7) 法規與合規風險
+# 4) 當日最後一筆 tick（常用於計算當日收盤）
+last = tick.get_last_tick(stock_id="2330", date=datetime.date(2024, 5, 10))
+```
 
-- **市場規則限制**：放空、當沖、漲跌幅、盤中處置等規則可能改變可執行性。  
-- **稅務與成本更新**：費率調整會直接影響策略邊際優勢。  
+### StockChipAPI — 三大法人籌碼 (SQLite)
 
-**建議**：將費率與規則參數化，並在每次部署前跑合規檢核清單。
+```python
+import datetime
+from core.api.stock_chip_api import StockChipAPI
 
-### 8) 建議的上線門檻（可直接作為專題結論）
+chip = StockChipAPI()
 
-- 至少通過 **3 段以上** 獨立 out-of-sample 區間測試。  
-- 在保守成本（含滑價）下，Sharpe、MDD、Calmar 仍高於基準。  
-- rolling IC 與 rolling Sharpe 無持續性崩壞。  
-- 有完整監控、告警、停用與人工接管流程。  
-- 先以小資金 paper/live-sim 觀察一段時間，再逐步放大。
+# 指定日所有股票
+df = chip.get(date=datetime.date(2024, 1, 2))
+
+# 指定日期區間
+df_range = chip.get_range(
+    start_date=datetime.date(2024, 1, 1),
+    end_date=datetime.date(2024, 1, 31),
+)
+
+# 指定個股
+df_2330 = chip.get_stock_chip(
+    stock_id="2330",
+    start_date=datetime.date(2024, 1, 1),
+    end_date=datetime.date(2024, 12, 31),
+)
+```
+
+主要欄位：`date, stock_id, 證券名稱, 外資買賣超股數, 投信買賣超股數, 自營商買賣超股數, ...`
+
+### MonthlyRevenueReportAPI — 月營收 (SQLite)
+
+```python
+from core.api.monthly_revenue_report_api import MonthlyRevenueReportAPI
+
+mrr = MonthlyRevenueReportAPI()
+
+# 單月
+df = mrr.get(year=2024, month=1)
+
+# 範圍
+df_range = mrr.get_range(
+    start_year=2023, end_year=2024,
+    start_month=1,   end_month=12,
+)
+```
+
+### FinancialStatementAPI — 季報財報 (SQLite)
+
+```python
+from core.api.financial_statement_api import FinancialStatementAPI
+
+fs = FinancialStatementAPI()
+
+# 取得 2024 Q1 的「特定」財報表（須傳入 table_name）
+df = fs.get(table_name="<your_fs_table>", year=2024, season=1)
+```
+
+> 不同財報（資產負債表、損益表、現金流量表）會落在不同的 SQLite 表，
+> 實際表名請以 `tasks/` 內的更新腳本或 `core/config.py` 為準。
+
+### MarketCalendar — 交易日工具
+
+```python
+import datetime
+from core.api.stock_price_api import StockPriceAPI
+from core.utils.market_calendar import MarketCalendar
+
+price = StockPriceAPI()
+
+# 1) 某日是否為台股開盤日
+is_open = MarketCalendar.check_stock_market_open(api=price, date=datetime.date(2024, 1, 2))
+
+# 2) 取得「嚴格早於指定日」的前一個交易日（會自動跳過休市日）
+prev_td = MarketCalendar.get_last_trading_date(api=price, date=datetime.date(2024, 1, 2))
+```
+
+---
+
+## 可直接複用的工具類 (Utils)
+
+### StockUtils — 手續費／證交稅／單位換算
+
+`core/utils/instrument.py`。所有 method 都是 `@staticmethod`：
+
+```python
+from core.utils.instrument import StockUtils
+from core.utils import Units
+
+# 1) 股數 / 張數 轉換（1 張 = 1000 股）
+lots = StockUtils.convert_share_to_lot(shares=5000)     # 5
+shares = StockUtils.convert_lot_to_share(lots=5)        # 5000
+
+# 2) 計算「買進手續費」（內含最低手續費門檻、折扣）
+buy_fee = StockUtils.calculate_transaction_commission(price=600.0, volume=5)
+
+# 3) 計算「賣出證交稅」
+sell_tax = StockUtils.calculate_transaction_tax(price=620.0, volume=5)
+
+# 4) 一次拿到「買、賣」雙邊摩擦成本
+buy_cost, sell_cost = StockUtils.calculate_transaction_cost(
+    buy_price=600.0, sell_price=620.0, volume=5,
+)
+
+# 5) 扣完手續費／稅之後的淨損益與 ROI（做多單）
+profit = StockUtils.calculate_net_profit(buy_price=600.0, sell_price=620.0, volume=5)
+roi    = StockUtils.calculate_roi(buy_price=600.0, sell_price=620.0, volume=5)  # %
+
+# 6) 過濾出「普通股」（4 位數、代號 1001~9958，排除 ETF / 權證）
+common_ids = StockUtils.filter_common_stocks(stock_ids=["2330", "0050", "9999", "00878"])
+# → ['2330']
+```
+
+### Units / Commission — 單位與成本常數
+
+來自 `core/utils/constant.py`：
+
+```python
+from core.utils import Units, Commission
+
+Units.LOT          # 1000（1 張 = 1000 股）
+Units.SHARE        # 1
+Commission.CommRate    # 0.001425（券商手續費率）
+Commission.Discount    # 0.3（手續費折扣，可依券商調整）
+Commission.MinFee      # 20.0（最低手續費）
+Commission.TaxRate     # 0.003（證交稅率）
+```
+
+實務換算範例：
+
+```python
+# 1 張 600 元的股票：
+notional = 600 * Units.LOT                          # 600,000
+buy_fee  = notional * Commission.CommRate * Commission.Discount  # ≈ 256.5 → 取 max(20, int(.))
+sell_tax = notional * Commission.TaxRate            # 1,800
+```
+
+### Action / Scale / PositionType / Market — 列舉常數
+
+```python
+from core.utils import Action, Scale, PositionType, Market
+
+Action.BUY, Action.SELL                  # 'Buy', 'Sell'
+Scale.DAY, Scale.TICK, Scale.MIX         # 回測級別
+PositionType.LONG, PositionType.SHORT    # 部位方向
+Market.STOCK, Market.FUTURE, Market.OPTION
+```
+
+研究階段通常**不需要直接用**這些；但若要把研究結果包成正式策略，這些就是必要的。
+
+---
+
+## 資料來源摘要
+
+| 資料種類       | 後端           | 提供 API                      | 來源 / 更新                                |
+| -------------- | -------------- | ----------------------------- | ------------------------------------------ |
+| 日線價量       | SQLite         | `StockPriceAPI`               | `tasks/` 內的爬蟲；表名見 `core/config.py` |
+| 逐筆 Tick      | DolphinDB      | `StockTickAPI`                | Shioaji / 第三方；需另起 DDB 服務          |
+| 三大法人籌碼   | SQLite         | `StockChipAPI`                | `tasks/` 內的爬蟲                          |
+| 月營收         | SQLite         | `MonthlyRevenueReportAPI`     | `tasks/` 內的爬蟲                          |
+| 財報           | SQLite         | `FinancialStatementAPI`       | `tasks/` 內的爬蟲                          |
+| 海外 ADR / FX  | yfinance       | 直接 `import yfinance as yf`  | 即時抓取（無本地表）                       |
+| 交易日／前一日 | 視 API 而定   | `MarketCalendar`              | 透過 `StockPriceAPI` 推算                 |
+
+> **資料庫位置**：`core/database/data.db`（SQLite）。
+> 想知道目前 DB 內有哪些表，可以快速跑：
+>
+> ```python
+> import sqlite3
+> from core.config import DB_PATH
+>
+> with sqlite3.connect(DB_PATH) as conn:
+>     for (name,) in conn.execute("SELECT name FROM sqlite_master WHERE type='table'"):
+>         print(name)
+> ```
+
+---
+
+## 研究腳本怎麼寫？
+
+### 最小可運行的研究腳本
+
+把這段存成 `strategy_lab/data_analysis/<your_topic>.py`，就能在專案根目錄跑：
+
+```python
+import datetime as dt
+import pandas as pd
+
+from core.api.stock_price_api import StockPriceAPI
+
+price = StockPriceAPI()
+df = price.get_stock_price(
+    stock_id="2330",
+    start_date=dt.date(2024, 1, 1),
+    end_date=dt.date(2024, 12, 31),
+)
+
+# 日報酬 → 月波動度
+df["date"] = pd.to_datetime(df["date"])
+df = df.sort_values("date").set_index("date")
+df["ret"] = df["收盤價"].pct_change()
+monthly_vol = df["ret"].resample("ME").std()
+print(monthly_vol.tail())
+```
+
+執行：
+
+```bash
+.venv/bin/python strategy_lab/data_analysis/<your_topic>.py
+```
+
+### 常見模式：IC（Information Coefficient）分析
+
+判斷「**訊號** 對 **隔日報酬** 是否有預測力」：
+
+```python
+import numpy as np
+
+def information_coefficient(pred: np.ndarray, real: np.ndarray) -> float:
+    """Pearson 相關係數；訊號值與實際報酬的線性相關度。"""
+    if len(pred) < 3:
+        return float("nan")
+    return float(np.corrcoef(pred, real)[0, 1])
+
+# 用法：
+# ic = information_coefficient(pred=signal_t, real=return_t_plus_1)
+# |IC| ≥ 0.05 在日頻已屬不錯；可以再切年度看穩定性。
+```
+
+### 常見模式：算扣除手續費／證交稅後的真實報酬
+
+```python
+from core.utils.instrument import StockUtils
+
+def realistic_pnl(buy_price: float, sell_price: float, volume_lots: int) -> dict:
+    profit = StockUtils.calculate_net_profit(
+        buy_price=buy_price, sell_price=sell_price, volume=volume_lots,
+    )
+    roi = StockUtils.calculate_roi(
+        buy_price=buy_price, sell_price=sell_price, volume=volume_lots,
+    )
+    return {"profit_twd": profit, "roi_pct": roi}
+
+print(realistic_pnl(600.0, 620.0, 5))
+# → {'profit_twd': ..., 'roi_pct': ...}
+```
+
+---
+
+## Jupyter Notebook 使用慣例
+
+- 放在 `strategy_lab/notebooks/`，檔名建議 `YYYY_MM_<主題>.ipynb`。
+- **第一個 cell** 用 markdown 寫研究問題、結論、TODO。
+- Notebook 內 **不要定義會被 import 的函式**；要重用請搬到 `data_analysis/` 或 `strategies/`。
+- Commit 前 **Restart & Clear All Outputs**，避免 diff 爆炸。
+- 想直接拿 core API：
+
+  ```python
+  # 在 notebook 開頭一次性把專案根加入 sys.path（若 .venv 已用 -e . 安裝就不需要）
+  import sys
+  from pathlib import Path
+  ROOT = Path.cwd()
+  while ROOT.name and not (ROOT / "core").is_dir():
+      ROOT = ROOT.parent
+  sys.path.insert(0, str(ROOT))
+
+  from core.api.stock_price_api import StockPriceAPI
+  ```
+
+---
+
+## 從 R&D 銜接到正式策略
+
+當 `strategy_lab/strategies/<name>/` 的研究結論穩定後，按以下步驟「**搬家**」：
+
+1. 在 `core/strategies/stock/` 建立 `<your_strategy>.py`，繼承 `BaseStockStrategy`。
+2. 把研究階段的訊號邏輯抽成 `_build_signals()`，
+   並實作框架要求的 6 個 method：
+   `setup_account / setup_apis / check_open_signal / check_close_signal / check_stop_loss_signal / calculate_position_size`。
+3. 跑回測：
+
+   ```bash
+   .venv/bin/python run.py --strategy <YourStrategyName>
+   ```
+4. 結果會落到 `core/backtest/results/<YourStrategyName>/`，
+   會自動產出 `balance_curve.png / balance_mdd.png / trading_report.csv` 等標準報表。
+
+> 詳細的「怎麼寫 `BaseStockStrategy` 子類別」請看 [`core/strategies/README.md`](../core/strategies/README.md)。
+> 範例可參考 `core/strategies/stock/overnight_lead_event_strategy.py`，
+> 它就是把 `strategy_lab/strategies/tsmc_overnight_signal/` 的研究結論搬進 core 框架的成品。
+
+---
+
+## 命名與檔案慣例
+
+| 物件                  | 命名規則                            | 範例                                  |
+| --------------------- | ----------------------------------- | ------------------------------------- |
+| 策略研究資料夾        | `snake_case`，名稱要看得出主題     | `tsmc_overnight_signal/`              |
+| 資料分析腳本          | `<topic>_<YYYY_MM>.py`              | `semiconductor_ic_2026_05.py`         |
+| Jupyter notebook      | `YYYY_MM_<topic>.ipynb`             | `2026_05_macro_carry.ipynb`           |
+| 想法筆記              | `YYYY_MM_<topic>.md`                | `ideas/2026_05_overnight_jp.md`       |
+| 研究產出（圖表 / CSV）| 放對應研究的 `output/` 子資料夾    | `strategies/<name>/output/`           |
+| Word／PDF 報告        | 放對應研究的 `reports/` 子資料夾   | `strategies/<name>/reports/*.docx`    |
+
+**不建議：**
+
+- 在 `strategy_lab/` 頂層直接放 script（請放到對應主題的子資料夾）。
+- 重複實作 `core/` 已有的 API、手續費、交易日邏輯。
+- 在 R&D 階段就用 `BaseStockStrategy`（除非確定要上線）——R&D 階段請保持自由。
+
+---
+
+## 聲明
+
+本資料夾內所有研究、回測結果、Word 報告皆為 **研究與教學用途**，
+**不構成投資建議**。實際下單前，請務必驗證資料、加入合理的滑價／流動性／法規假設，
+並通過 `core/` 的正式回測框架驗證後再考慮上線。

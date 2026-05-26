@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
-將 strategy_lab/output 之圖表與 CSV 彙整為 Word 量化報告（.docx），支援中文／英文。
+將 TSMC 隔夜訊號策略 output/ 之圖表與 CSV 彙整為 Word 量化報告（.docx），支援中文／英文。
 
 使用方式（專案根目錄）：
-    .venv/bin/python strategy_lab/generate_quant_report_docx.py
-    .venv/bin/python strategy_lab/generate_quant_report_docx.py --lang en
-    .venv/bin/python strategy_lab/generate_quant_report_docx.py --lang both
+    .venv/bin/python strategy_lab/strategies/tsmc_overnight_signal/reports/generate_docx.py
+    .venv/bin/python strategy_lab/strategies/tsmc_overnight_signal/reports/generate_docx.py --lang en
+    .venv/bin/python strategy_lab/strategies/tsmc_overnight_signal/reports/generate_docx.py --lang both
 
-若尚未有圖表／CSV，請先執行：.venv/bin/python strategy_lab/run_overnight_signal.py（含 baseline_comparison.csv）
+若尚未有圖表／CSV，請先執行：
+    .venv/bin/python strategy_lab/strategies/tsmc_overnight_signal/run.py
 """
 
 from __future__ import annotations
@@ -19,7 +20,9 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Literal, Optional
 
-_REPO_ROOT = Path(__file__).resolve().parents[1]
+# 此檔位於 strategy_lab/strategies/tsmc_overnight_signal/reports/generate_docx.py
+# parents[4] = AlphaEdge 專案根目錄
+_REPO_ROOT = Path(__file__).resolve().parents[4]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
@@ -35,7 +38,9 @@ except ImportError as e:
         "請先安裝 python-docx：pip install python-docx\n" + str(e)
     ) from e
 
-_OUTPUT = Path(__file__).resolve().parent / "output"
+# reports/ 與 output/ 是 tsmc_overnight_signal/ 底下的同層姊妹資料夾
+_STRATEGY_DIR = Path(__file__).resolve().parent.parent
+_OUTPUT = _STRATEGY_DIR / "output"
 _DOCX_ZH = Path(__file__).resolve().parent / "TSMC_OvernightSignal_Quant_Report.docx"
 _DOCX_EN = Path(__file__).resolve().parent / "TSMC_OvernightSignal_Quant_Report_EN.docx"
 
@@ -513,7 +518,10 @@ def build_report(
     lang: Lang,
     output_path: Optional[Path] = None,
 ) -> Path:
-    from strategy_lab.quant_report_docx_append import append_en_report, append_zh_report  # noqa: E402
+    from strategy_lab.strategies.tsmc_overnight_signal.reports.docx_append import (  # noqa: E402
+        append_en_report,
+        append_zh_report,
+    )
 
     titles = TITLES_EN if lang == "en" else TITLES_ZH
     out_doc = output_path or (_DOCX_EN if lang == "en" else _DOCX_ZH)
