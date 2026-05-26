@@ -62,16 +62,16 @@ graph TB
 
 ## 模組說明
 
-| 模組                     | 說明                                                                  |
-| ------------------------ | --------------------------------------------------------------------- |
-| `core/`                | 交易領域核心程式碼（策略、管理器、模型、介接層、API、資料與回測輸出） |
-| `frontend/`              | 用於檢視回測結果的 Streamlit Docker 映像                              |
-| `tasks/`                 | 資料維護與資料庫更新腳本                                              |
-| `tests/`                 | crawler、updater 與資料庫流程的單元/整合測試                          |
-| `docs/`                  | 專案文件（環境設定、部署、資料覆蓋範圍）                              |
-| `strategy_lab/`          | 獨立研究模組（隔夜訊號／跨市場等）；見 `strategy_lab/README.md`        |
-| `dev/`                   | 選用開發工具（conda 環境 YAML、輔助腳本）                            |
-| `backlog/`               | 內部規劃與待辦筆記                                                    |
+| 模組            | 說明                                                                  |
+| --------------- | --------------------------------------------------------------------- |
+| `core/`         | 交易領域核心程式碼（策略、管理器、模型、介接層、API、資料與回測輸出） |
+| `frontend/`     | 用於檢視回測結果的 Streamlit Docker 映像                              |
+| `tasks/`        | 資料維護與資料庫更新腳本                                              |
+| `tests/`        | crawler、updater 與資料庫流程的單元/整合測試                          |
+| `docs/`         | 專案文件（環境設定、部署、資料覆蓋範圍）                              |
+| `strategy_lab/` | 獨立研究模組（隔夜訊號／跨市場等）；見 `strategy_lab/README.md`       |
+| `dev/`          | 選用開發工具（conda 環境 YAML、輔助腳本）                             |
+| `backlog/`      | 內部規劃與待辦筆記                                                    |
 
 ---
 
@@ -83,8 +83,8 @@ graph TB
 | [開發部署](docs/deployment/dev-deployment.md)      | 本地服務啟動流程、collector 執行指令、dashboard |
 | [正式環境部署](docs/deployment/prod-deployment.md) | Docker Compose 部署、監控、多節點策略           |
 | [資料覆蓋範圍](docs/exchanges/data_coverage.md)    | 目前平台資料來源與 API 覆蓋範圍                 |
-| [指令教學](docs/commands/command-usage.zh-TW.md) | `update_db` target 對照與完整執行範例           |
-| [策略開發指南](core/strategies/README.md)        | 本專案策略實作方式                              |
+| [指令教學](docs/commands/command-usage.zh-TW.md)   | `update_db` target 對照與完整執行範例           |
+| [策略開發指南](core/strategies/README.md)          | 本專案策略實作方式                              |
 
 ---
 
