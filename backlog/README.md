@@ -20,3 +20,4 @@
 | [PostgreSQL遷移計畫.md](PostgreSQL遷移計畫.md) | AlphaEdge 由 SQLite3 遷移到 PostgreSQL 的分階段實作計畫 |
 | [回測引擎當沖執行順序重構.md](回測引擎當沖執行順序重構.md) | 當沖／日內策略之開倉、平倉順序與執行模型政策化（對齊業界 bar policy / event loop） |
 | [回測滑價與執行係數.md](回測滑價與執行係數.md) | 不大改 `core` 架構下新增滑價等係數：係數存放、`StockUtils` 調價、`Backtester` 掛點與文件 |
+| [台股新聞情緒溫度計篩選工具.md](台股新聞情緒溫度計篩選工具.md) | 每日爬取台股財經新聞，萃取個股利多/利空情緒並生成可篩選的溫度計指標 |
