@@ -92,11 +92,26 @@ graph TB
 
 ### 方式 1：本機 venv + requirements.txt
 
+**macOS / Linux**
+
 ```bash
 # 建立虛擬環境
 python3 -m venv .venv
 # 啟用虛擬環境
 source .venv/bin/activate
+
+# 安裝相依套件（使用 -m pip 可確保安裝在目前這支 Python／venv 底下）
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+**Windows（PowerShell 或 CMD）**
+
+```powershell
+# 建立虛擬環境
+python -m venv .venv
+# 啟用虛擬環境
+.venv\Scripts\activate
 
 # 安裝相依套件（使用 -m pip 可確保安裝在目前這支 Python／venv 底下）
 python -m pip install --upgrade pip

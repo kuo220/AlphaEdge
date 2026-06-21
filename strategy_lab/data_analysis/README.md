@@ -16,17 +16,27 @@
 |------|------------------|---------------|
 | 目的 | 「我想了解 / 我想假設」 | 「我要驗證 / 我要回測」 |
 | 產出 | 統計表、相關圖、特徵清單 | 績效曲線、Sharpe、回撤、訊號規則 |
-| 結構 | 單一 `.py` 或 `.ipynb` 即可 | 完整資料夾（pipeline + reports + output） |
+| 結構 | 主題子資料夾 + 分析腳本 | 完整資料夾（pipeline + reports + output） |
 
-## 建議寫法
+## 建議結構
+
+每一個分析主題一個 `snake_case` 子資料夾（與 `ideas/`、`notebooks/`、`strategies/` 命名對齊）：
 
 ```
 data_analysis/
 ├── README.md
 ├── __init__.py
-├── <topic>_<YYYY_MM>.py       # 例：semiconductor_correlation_2026_05.py
-└── output/                    # （可選）此分析的圖表、CSV
+└── tech_new_high_continuation/     ← 範例
+    ├── run.py                      # 入口腳本
+    ├── analysis.py                 # 主要分析邏輯
+    └── output/                     # 圖表、CSV
 ```
 
 - 每份腳本上方寫清楚：**研究問題、資料來源、結論**。
-- 結論若驅動了某個策略，請在 commit message / README 中互相連結。
+- 結論若驅動了某個策略，請在 commit message / README 中互相連結對應的 `ideas/<topic>/` 或 `strategies/<topic>/`。
+
+執行範例：
+
+```bash
+.venv/bin/python strategy_lab/data_analysis/tech_new_high_continuation/run.py
+```

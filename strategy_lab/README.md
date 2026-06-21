@@ -41,6 +41,7 @@
   - [Jupyter Notebook 使用慣例](#jupyter-notebook-使用慣例)
   - [從 R\&D 銜接到正式策略](#從-rd-銜接到正式策略)
   - [命名與檔案慣例](#命名與檔案慣例)
+  - [Cursor 使用](#cursor-使用)
   - [聲明](#聲明)
 
 ---
@@ -62,24 +63,32 @@
 
 ## 資料夾結構
 
+四大分類為**大分類**；每個研究主題用**一個 `snake_case` 子資料夾**區分。
+
 ```
 strategy_lab/
 ├── README.md                   ← 你正在看的這份（R&D 參考文件）
 ├── __init__.py
 │
-├── strategies/                 ← 完整的策略研究（一研究主題一資料夾）
+├── ideas/                      ← 策略構想、文獻筆記、待驗證假設
 │   ├── README.md
-│   └── tsmc_overnight_signal/  ← 範例：TSMC 跨市場隔夜訊號研究
+│   └── <topic_name>/           ← 例：momentum_breakout/README.md
 │
 ├── data_analysis/              ← 純資料分析、特徵探索、IC 研究
-│   └── README.md
+│   ├── README.md
+│   └── tech_new_high_continuation/  ← 例：run.py、analysis.py、output/
 │
 ├── notebooks/                  ← 探索性 Jupyter notebook
-│   └── README.md
+│   ├── README.md
+│   └── <topic_name>/           ← 例：2026_05_eda.ipynb、output/
 │
-└── ideas/                      ← 策略構想、文獻筆記、待驗證假設
-    └── README.md
+└── strategies/                 ← 完整的策略研究
+    ├── README.md
+    └── tsmc_overnight_signal/  ← 例：TSMC 跨市場隔夜訊號研究
 ```
+
+同一主題可跨分類存在（例如 `ideas/momentum_breakout/` 與 `data_analysis/momentum_breakout/`），
+**資料夾名稱保持一致**以便對照。
 
 各子資料夾用途請參考各自的 `README.md`。
 
@@ -351,7 +360,7 @@ Market.STOCK, Market.FUTURE, Market.OPTION
 
 ### 最小可運行的研究腳本
 
-把這段存成 `strategy_lab/data_analysis/<your_topic>.py`，就能在專案根目錄跑：
+先建立主題資料夾 `strategy_lab/data_analysis/<your_topic>/`，把腳本存成 `run.py` 或 `analysis.py`，就能在專案根目錄跑：
 
 ```python
 import datetime as dt
@@ -377,7 +386,7 @@ print(monthly_vol.tail())
 執行：
 
 ```bash
-.venv/bin/python strategy_lab/data_analysis/<your_topic>.py
+.venv/bin/python strategy_lab/data_analysis/<your_topic>/run.py
 ```
 
 ### 常見模式：IC（Information Coefficient）分析
@@ -420,7 +429,7 @@ print(realistic_pnl(600.0, 620.0, 5))
 
 ## Jupyter Notebook 使用慣例
 
-- 放在 `strategy_lab/notebooks/`，檔名建議 `YYYY_MM_<主題>.ipynb`。
+- 放在 `strategy_lab/notebooks/<topic_name>/`，檔名建議 `YYYY_MM_<描述>.ipynb`。
 - **第一個 cell** 用 markdown 寫研究問題、結論、TODO。
 - Notebook 內 **不要定義會被 import 的函式**；要重用請搬到 `data_analysis/` 或 `strategies/`。
 - Commit 前 **Restart & Clear All Outputs**，避免 diff 爆炸。
@@ -464,20 +473,28 @@ print(realistic_pnl(600.0, 620.0, 5))
 
 ## 命名與檔案慣例
 
-| 物件                  | 命名規則                            | 範例                                  |
-| --------------------- | ----------------------------------- | ------------------------------------- |
-| 策略研究資料夾        | `snake_case`，名稱要看得出主題     | `tsmc_overnight_signal/`              |
-| 資料分析腳本          | `<topic>_<YYYY_MM>.py`              | `semiconductor_ic_2026_05.py`         |
-| Jupyter notebook      | `YYYY_MM_<topic>.ipynb`             | `2026_05_macro_carry.ipynb`           |
-| 想法筆記              | `YYYY_MM_<topic>.md`                | `ideas/2026_05_overnight_jp.md`       |
-| 研究產出（圖表 / CSV）| 放對應研究的 `output/` 子資料夾    | `strategies/<name>/output/`           |
-| Word／PDF 報告        | 放對應研究的 `reports/` 子資料夾   | `strategies/<name>/reports/*.docx`    |
+| 物件                  | 命名規則                            | 範例                                              |
+| --------------------- | ----------------------------------- | ------------------------------------------------- |
+| 研究主題資料夾        | `snake_case`，名稱要看得出主題     | `tech_new_high_continuation/`、`tsmc_overnight_signal/` |
+| 想法筆記              | `ideas/<topic>/README.md` 或 `notes.md` | `ideas/momentum_breakout/README.md`           |
+| 資料分析              | `data_analysis/<topic>/run.py` 等  | `data_analysis/tech_new_high_continuation/run.py` |
+| Jupyter notebook      | `notebooks/<topic>/YYYY_MM_<描述>.ipynb` | `notebooks/macro_carry/2026_05_eda.ipynb`   |
+| 策略研究              | `strategies/<topic>/`              | `strategies/tsmc_overnight_signal/`               |
+| 研究產出（圖表 / CSV）| 放對應主題的 `output/` 子資料夾    | `data_analysis/<topic>/output/`                   |
+| Word／PDF 報告        | 放對應主題的 `reports/` 子資料夾   | `strategies/<topic>/reports/*.docx`               |
 
 **不建議：**
 
-- 在 `strategy_lab/` 頂層直接放 script（請放到對應主題的子資料夾）。
+- 在 `strategy_lab/` 頂層直接放 script / notebook / md（請先建 `<category>/<topic>/` 子資料夾）。
 - 重複實作 `core/` 已有的 API、手續費、交易日邏輯。
 - 在 R&D 階段就用 `BaseStockStrategy`（除非確定要上線）——R&D 階段請保持自由。
+
+---
+
+## Cursor 使用
+
+本 repo 已設定 [`.cursor/rules/strategy-lab-layout.mdc`](../.cursor/rules/strategy-lab-layout.mdc)（`globs: strategy_lab/**`）。
+在 `strategy_lab/` 內工作時，Cursor agent 會自動遵守上述分類與主題子資料夾慣例，無需每次重複說明。
 
 ---
 

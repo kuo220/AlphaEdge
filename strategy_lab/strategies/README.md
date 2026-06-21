@@ -1,6 +1,6 @@
 # strategies — 完整策略研究
 
-每一個策略研究主題一個資料夾。**結構不強制**，但要能「**一鍵重現所有圖表與績效**」。
+每一個策略研究主題一個 `snake_case` 子資料夾（與 `ideas/`、`data_analysis/`、`notebooks/` 命名對齊）。**結構不強制**，但要能「**一鍵重現所有圖表與績效**」。
 
 > 提醒：這裡是 R&D，**不是**正式回測。
 > 正式回測請看 [`core/strategies/README.md`](../../core/strategies/README.md)，並用：

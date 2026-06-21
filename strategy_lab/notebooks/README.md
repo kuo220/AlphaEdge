@@ -9,23 +9,28 @@
 - 把 `data_analysis/` 或 `strategies/` 的中間結果視覺化
 - 試別人的論文 / 程式範例
 
-## 命名建議
+## 建議結構
+
+每一個探索主題一個 `snake_case` 子資料夾（與其他分類命名對齊）：
 
 ```
 notebooks/
-└── YYYY_MM_<主題>.ipynb     # 例：2026_05_macro_momentum_eda.ipynb
+├── README.md
+└── macro_momentum/                    ← 例
+    ├── 2026_05_eda.ipynb
+    └── output/                        ← （可選）圖表、CSV
 ```
 
-依時間排序，方便回溯「當初是哪天做的實驗」。
+Notebook 檔名建議 `YYYY_MM_<描述>.ipynb`，依時間排序，方便回溯「當初是哪天做的實驗」。
 
 ## 寫作小技巧
 
 - **第一個 cell** 寫研究問題、結論、TODO，方便日後重看。
 - **變數命名要可讀**：notebook 寫太隨意，幾週後自己會看不懂。
-- **不要在 notebook 內定義會被其他模組 import 的函式**；若要重用，搬到 `data_analysis/` 或 `strategies/` 的 `.py`。
+- **不要在 notebook 內定義會被其他模組 import 的函式**；若要重用，搬到 `data_analysis/<topic>/` 或 `strategies/<topic>/` 的 `.py`。
 - 重的計算盡量 **cache 結果到 CSV**，重開 notebook 不用重跑。
 
 ## 與 repo 的關係
 
 - Notebook 通常很大、`diff` 不好看，commit 前建議 **Restart & Clear All Outputs** 再儲存。
-- 若是長期保留的研究結論，請整理成 `data_analysis/` 的 `.py` 或 `ideas/` 的 markdown。
+- 若是長期保留的研究結論，請整理成 `data_analysis/<topic>/` 的 `.py` 或 `ideas/<topic>/` 的 markdown。
