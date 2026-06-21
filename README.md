@@ -92,11 +92,26 @@ graph TB
 
 ### Option 1: Local venv + requirements.txt
 
+**macOS / Linux**
+
 ```bash
 # create virtualenv
 python3 -m venv .venv
 # activate virtualenv
 source .venv/bin/activate
+
+# install dependencies (use -m pip so installs target this venv’s Python)
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+**Windows (PowerShell or CMD)**
+
+```powershell
+# create virtualenv
+python -m venv .venv
+# activate virtualenv
+.venv\Scripts\activate
 
 # install dependencies (use -m pip so installs target this venv’s Python)
 python -m pip install --upgrade pip
