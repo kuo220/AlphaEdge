@@ -155,6 +155,10 @@ def get_update_time_config(
 
     Returns:
         包含時間區間設定的字典
+
+    Note:
+        預設結束日（end_date/end_year/end_month/end_season）皆更新到最新日（當日），
+        以確保資料持續同步至今日。
     """
     if data_type == DataType.TICK:
         return {
