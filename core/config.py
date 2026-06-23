@@ -131,7 +131,7 @@ BROKER_INFO_CSV_PATH: Path = get_static_resolved_path(
 # === Database Files Full Paths ===
 # -----------------------------------------------------------------------
 #
-DB_NAME: str = "data.db"
+DB_NAME: str = "stock.db"
 TICK_DB_NAME: str = "tickDB"
 
 DB_PATH: Path = get_static_resolved_path(base_dir=DATABASE_DIR_PATH, dir_name=DB_NAME)

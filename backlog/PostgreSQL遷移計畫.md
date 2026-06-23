@@ -4,7 +4,7 @@
 
 ## 1. 遷移目標與原則
 
-- 將目前以 `core/database/data.db` 為主的 SQLite 存取，改為 PostgreSQL。
+- 將目前以 `core/database/stock.db` 為主的 SQLite 存取，改為 PostgreSQL。
 - 先確保「功能等價」再做「效能優化」。
 - 採用分階段遷移：先讀取、再寫入、最後清理舊路徑。
 - 保留可回退方案（至少一個版本週期）。
@@ -98,7 +98,7 @@
 範例：
 
 ```bash
-pgloader sqlite:///absolute/path/to/core/database/data.db postgresql://postgres:postgres@localhost:5432/alphaedge
+pgloader sqlite:///absolute/path/to/core/database/stock.db postgresql://postgres:postgres@localhost:5432/alphaedge
 ```
 
 ### 方案 B：Python ETL（可控）

@@ -247,7 +247,7 @@ AlphaEdge/
 │   ├── models/                # 領域模型
 │   ├── utils/                 # 共用工具（路徑、交易日曆、日誌等）
 │   ├── pipeline/              # ETL / 更新流程
-│   ├── database/              # sqlite 資料庫檔案
+│   ├── database/              # sqlite 資料庫檔案（stock.db）
 │   ├── backtest/              # 回測引擎與輸出
 │   └── data/                  # 下載 / 原始資料
 ├── frontend/                  # Streamlit Docker 映像

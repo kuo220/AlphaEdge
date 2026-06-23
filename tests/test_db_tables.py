@@ -31,10 +31,10 @@ try:
     from core.config import DB_PATH
 except (ImportError, ModuleNotFoundError):
     # 如果無法導入 config，使用預設路徑
-    DB_PATH = project_root / "core" / "database" / "data.db"
+    DB_PATH = project_root / "core" / "database" / "stock.db"
 
 
-"""測試 data.db 中是否存在指定資料表"""
+"""測試 stock.db 中是否存在指定資料表"""
 
 
 def check_table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
@@ -64,10 +64,10 @@ def get_table_row_count(conn: sqlite3.Connection, table_name: str) -> int:
 
 def test_db_tables() -> bool:
     """
-    測試 data.db 中是否存在指定的資料表
+    測試 stock.db 中是否存在指定的資料表
     """
     print(f"\n{'='*60}")
-    print(f"測試 data.db 資料表存在性")
+    print(f"測試 stock.db 資料表存在性")
     print(f"{'='*60}")
     print(f"\n資料庫路徑: {DB_PATH}")
 
@@ -243,7 +243,7 @@ def parse_args() -> argparse.Namespace:
         python -m tests.test_db_tables --broker-trading
         python -m tests.test_db_tables --broker-trading --limit 10
     """
-    parser = argparse.ArgumentParser(description="測試 data.db 資料表與抽樣查詢")
+    parser = argparse.ArgumentParser(description="測試 stock.db 資料表與抽樣查詢")
     parser.add_argument(
         "--broker-trading",
         action="store_true",

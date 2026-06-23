@@ -1,7 +1,7 @@
 """
 測試 FinMindAPI 的每一個 function 是否正常運作
 
-直接使用 data.db 唯讀查詢，不更動資料庫
+直接使用 stock.db 唯讀查詢，不更動資料庫
 
 使用方法（從專案根目錄執行）：
     python -m tests.test_finmind_api
@@ -34,9 +34,9 @@ from core.api.finmind_api import FinMindAPI
 
 
 def test_finmind_api() -> bool:
-    """測試 FinMindAPI 所有方法（唯讀，使用 data.db）"""
+    """測試 FinMindAPI 所有方法（唯讀，使用 stock.db）"""
     print("\n" + "=" * 60)
-    print("測試 FinMindAPI 各 function（使用 data.db 唯讀）")
+    print("測試 FinMindAPI 各 function（使用 stock.db 唯讀）")
     print("=" * 60)
 
     api = FinMindAPI()

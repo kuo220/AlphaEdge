@@ -76,7 +76,7 @@ def test_finmind_updater():
         project_root / "core" / "backtest" / "results" / "logs"
     )
     temp_config.LOGS_DIR_PATH = project_root / "core" / "logs"
-    temp_config.DB_PATH = project_root / "core" / "database" / "data.db"
+    temp_config.DB_PATH = project_root / "core" / "database" / "stock.db"
     temp_config.FINMIND_DOWNLOADS_PATH = (
         project_root / "core" / "pipeline" / "downloads" / "finmind"
     )

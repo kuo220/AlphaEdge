@@ -60,31 +60,37 @@ graph TB
     Readme --> Docs
 ```
 
+
+
 ## Module Guide
 
-| Module                   | Description                                                                                    |
-| ------------------------ | ---------------------------------------------------------------------------------------------- |
-| `core/`                | Core trading domain code (strategies, managers, models, adapters, API, data, backtest outputs) |
-| `frontend/`              | Streamlit Docker image for viewing backtest results                                            |
-| `tasks/`                 | Data maintenance and database update scripts                                                   |
-| `tests/`                 | Unit/integration tests for crawlers, updaters, and DB workflows                                |
-| `docs/`                  | Project docs (setup, deployment, data coverage)                                                |
-| `strategy_lab/`          | Research workspace organized by concept (`strategies/`, `data_analysis/`, `notebooks/`, `ideas/`); see `strategy_lab/README.md` |
-| `dev/`                   | Optional dev tooling (conda env YAMLs, helper scripts)                                         |
-| `backlog/`               | Internal notes and future work items                                                           |
+
+| Module          | Description                                                                                                                     |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `core/`         | Core trading domain code (strategies, managers, models, adapters, API, data, backtest outputs)                                  |
+| `frontend/`     | Streamlit Docker image for viewing backtest results                                                                             |
+| `tasks/`        | Data maintenance and database update scripts                                                                                    |
+| `tests/`        | Unit/integration tests for crawlers, updaters, and DB workflows                                                                 |
+| `docs/`         | Project docs (setup, deployment, data coverage)                                                                                 |
+| `strategy_lab/` | Research workspace organized by concept (`strategies/`, `data_analysis/`, `notebooks/`, `ideas/`); see `strategy_lab/README.md` |
+| `dev/`          | Optional dev tooling (conda env YAMLs, helper scripts)                                                                          |
+| `backlog/`      | Internal notes and future work items                                                                                            |
+
 
 ---
 
 ## Documentation
 
-| Document                                                  | Description                                                   |
-| --------------------------------------------------------- | ------------------------------------------------------------- |
-| [Dev Setup](docs/setup/dev-setup.md)                      | Python environment, dependencies, formatting, env vars        |
-| [Dev Deployment](docs/deployment/dev-deployment.md)       | Local service startup flow, collector run commands, dashboard |
-| [Prod Deployment](docs/deployment/prod-deployment.md)     | Docker Compose deployment, monitoring, multi-node strategy    |
-| [Data Coverage](docs/exchanges/data_coverage.md)          | Data source and API coverage in current platform              |
-| [Command Usage](docs/commands/command-usage.md)           | Full `update_db` target reference and runnable examples       |
+
+| Document                                                | Description                                                   |
+| ------------------------------------------------------- | ------------------------------------------------------------- |
+| [Dev Setup](docs/setup/dev-setup.md)                    | Python environment, dependencies, formatting, env vars        |
+| [Dev Deployment](docs/deployment/dev-deployment.md)     | Local service startup flow, collector run commands, dashboard |
+| [Prod Deployment](docs/deployment/prod-deployment.md)   | Docker Compose deployment, monitoring, multi-node strategy    |
+| [Data Coverage](docs/exchanges/data_coverage.md)        | Data source and API coverage in current platform              |
+| [Command Usage](docs/commands/command-usage.md)         | Full `update_db` target reference and runnable examples       |
 | [Strategy Development Guide](core/strategies/README.md) | How to implement strategies in this project                   |
+
 
 ---
 
@@ -224,7 +230,7 @@ AlphaEdge/
 │   ├── models/                # domain models
 │   ├── utils/                 # shared helpers (paths, calendar, logging, etc.)
 │   ├── pipeline/              # ETL/update pipeline
-│   ├── database/              # sqlite database files
+│   ├── database/              # sqlite database files (stock.db)
 │   ├── backtest/              # backtest engine and outputs
 │   └── data/                  # downloaded/raw data
 ├── frontend/                  # Streamlit docker image
@@ -250,3 +256,4 @@ AlphaEdge/
 ├── README.md
 └── README_zh.md
 ```
+

@@ -120,7 +120,7 @@ ideas/           data_analysis/      strategies/<name>/      core/strategies/sto
 
 ### StockPriceAPI — 日線價格資料 (SQLite)
 
-來源：`core/database/data.db` 之 price 表。
+來源：`core/database/stock.db` 之 price 表。
 
 ```python
 import datetime
@@ -342,7 +342,7 @@ Market.STOCK, Market.FUTURE, Market.OPTION
 | 海外 ADR / FX  | yfinance       | 直接 `import yfinance as yf`  | 即時抓取（無本地表）                       |
 | 交易日／前一日 | 視 API 而定   | `MarketCalendar`              | 透過 `StockPriceAPI` 推算                 |
 
-> **資料庫位置**：`core/database/data.db`（SQLite）。
+> **資料庫位置**：`core/database/stock.db`（SQLite）。
 > 想知道目前 DB 內有哪些表，可以快速跑：
 >
 > ```python

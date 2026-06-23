@@ -68,6 +68,6 @@ python run.py --strategy MomentumStrategy2
 # 刪除指定日期的 price 資料
 python -m tasks.delete_price_data --date 2025-07-13
 
-# 將 broker_trading CSV 載入 data.db
+# 將 broker_trading CSV 載入 stock.db
 python -m tasks.load_broker_trading_to_db
 ```
