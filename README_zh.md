@@ -243,6 +243,7 @@ AlphaEdge/
 │   ├── strategies/            # 策略實作
 │   ├── api/                   # 資料存取 API
 │   ├── adapters/              # 資料介接 / 整合層
+│   │   └── stock_quote_adapter.py  # StockQuoteAdapter（日線/Tick → StockQuote）
 │   ├── managers/              # 帳務 / 訂單 / 流程管理
 │   ├── models/                # 領域模型
 │   ├── utils/                 # 共用工具（路徑、交易日曆、日誌等）

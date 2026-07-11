@@ -1,1 +1,1 @@
-from .quote_adapter import StockQuoteAdapter
+from .stock_quote_adapter import StockQuoteAdapter

@@ -226,6 +226,7 @@ AlphaEdge/
 │   ├── strategies/            # strategy implementations
 │   ├── api/                   # data access APIs
 │   ├── adapters/              # data adapters / integrations
+│   │   └── stock_quote_adapter.py  # StockQuoteAdapter (day/tick → StockQuote)
 │   ├── managers/              # account / order / flow managers
 │   ├── models/                # domain models
 │   ├── utils/                 # shared helpers (paths, calendar, logging, etc.)
