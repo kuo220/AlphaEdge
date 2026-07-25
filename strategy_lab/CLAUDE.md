@@ -7,12 +7,12 @@
 
 ## 分類決策
 
-| 工作性質 | 放置位置 |
-| -------- | -------- |
-| 未驗證假設、文獻筆記、失敗結論 | `ideas/<topic>/` |
-| EDA、IC、特徵探索、非完整策略 | `data_analysis/<topic>/` |
-| 探索性 Jupyter、快速視覺化 | `notebooks/<topic>/` |
-| 完整策略研究、可重現 pipeline | `strategies/<topic>/` |
+| 工作性質                       | 放置位置                 |
+| ------------------------------ | ------------------------ |
+| 未驗證假設、文獻筆記、失敗結論 | `ideas/<topic>/`         |
+| EDA、IC、特徵探索、非完整策略  | `data_analysis/<topic>/` |
+| 探索性 Jupyter、快速視覺化     | `notebooks/<topic>/`     |
+| 完整策略研究、可重現 pipeline  | `strategies/<topic>/`    |
 
 同一主題跨分類時，**資料夾名稱保持一致**（例如 `ideas/momentum_breakout/` 與 `data_analysis/momentum_breakout/`）。
 
