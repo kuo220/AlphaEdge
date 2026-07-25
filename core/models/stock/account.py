@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Union
 
 import pandas as pd
 
-from core.utils import Commission, PositionType, Scale
+from core.utils import Commission, PositionType, Scale, Units
 
 from .position import StockPosition
 from .record import StockTradeRecord
@@ -24,6 +24,9 @@ class StockAccount:
         # Account Performance
         self.realized_pnl: float = 0.0  # 總已實現損益（profit and loss）
         self.roi: float = 0.0  # 帳戶已實現總報酬率
+
+        # Short Positions
+        self.margin_used: float = 0.0  # 放空部位佔用的保證金總額
 
         # Transaction Costs
         self.total_commission: float = 0.0  # 總手續費
@@ -75,9 +78,43 @@ class StockAccount:
             position for position in self.positions if not position.is_closed
         ]
 
-    def check_has_position(self, stock_id: str) -> bool:
-        """檢查指定的股票是否有在庫存"""
-        return any(position.stock_id == stock_id for position in self.positions)
+    def get_positions(
+        self,
+        stock_id: Optional[str] = None,
+        position_type: Optional[PositionType] = None,
+    ) -> List[StockPosition]:
+        """取得庫存中符合條件的未平倉部位；參數為 None 表示不限制該條件"""
+
+        return [
+            position
+            for position in self.positions
+            if not position.is_closed
+            and (stock_id is None or position.stock_id == stock_id)
+            and (position_type is None or position.position_type == position_type)
+        ]
+
+    def get_short_market_value(self, prices: Dict[str, float]) -> float:
+        """依傳入的價格計算所有放空部位的市值（算維持率與空頭曝險用）"""
+
+        return sum(
+            prices.get(position.stock_id, position.price)
+            * position.volume
+            * Units.LOT.value
+            for position in self.get_positions(position_type=PositionType.SHORT)
+        )
+
+    def check_has_position(
+        self,
+        stock_id: str,
+        position_type: Optional[PositionType] = None,
+    ) -> bool:
+        """檢查指定的股票是否有在庫存；position_type 為 None 時不分方向（維持既有行為）"""
+
+        return any(
+            position.stock_id == stock_id
+            and (position_type is None or position.position_type == position_type)
+            for position in self.positions
+        )
 
     def update_realized_pnl(self):
         """更新已實現損益"""
@@ -94,7 +131,16 @@ class StockAccount:
 
         self.total_commission = sum(record.commission for record in self.trade_records)
         self.total_tax = sum(record.tax for record in self.trade_records)
-        self.total_transaction_cost = self.total_commission + self.total_tax
+
+        # 放空的借券費為支出、融券利息為收入，一併計入總交易成本
+        total_borrow_fee: float = sum(
+            record.borrow_fee for record in self.trade_records
+        )
+        total_interest: float = sum(record.interest for record in self.trade_records)
+
+        self.total_transaction_cost = (
+            self.total_commission + self.total_tax + total_borrow_fee - total_interest
+        )
 
     def update_account_status(self):
         """更新帳戶資訊"""
