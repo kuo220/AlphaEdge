@@ -1,0 +1,21 @@
+# AlphaEdge 專案規則（Claude Code）
+
+> 本檔案對齊 `.cursor/rules/commit-message-zh.mdc`（alwaysApply: true）,供 Claude Code 在本專案中永遠套用。
+
+## Commit 與 Push 回覆規格
+
+當使用者要求「commit + push」時，請遵守以下規範：
+
+1. Commit message 使用中文說明（可保留 conventional commit 前綴）。
+2. Commit 內文需用編號條列，格式為 `1.`, `2.`, `3.`，逐項描述每個變更。
+3. 回覆使用者時，需清楚列出：
+   - 分支名稱
+   - commit hash
+   - push 目標（例如 `origin/main`）
+   - 本次變更檔案清單
+4. 若同時有多種變更，先依主題分組，再在各組內維持編號條列。
+5. 若使用者未明確要求英文，預設以繁體中文回覆與撰寫說明。
+
+## 目錄專屬規則
+
+- `strategy_lab/` 目錄有自己的規則,見 [`strategy_lab/CLAUDE.md`](strategy_lab/CLAUDE.md)（對應 `.cursor/rules/strategy-lab-layout.mdc`，只在該目錄下工作時套用）。
