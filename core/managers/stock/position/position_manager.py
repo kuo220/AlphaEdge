@@ -1,23 +1,55 @@
-from typing import List, Optional
+import datetime
+from typing import List, Optional, Union
 
 from loguru import logger
 
 from core.managers.stock.position.base import BasePositionManager
 from core.models import StockAccount, StockOrder, StockPosition, StockTradeRecord
-from core.utils import Action, PositionType
+from core.utils import Action, PositionType, ShortMethod
+from core.utils.cost_model import CostConfig, StockCostModel
 from core.utils.instrument import StockUtils
 
 
 class StockPositionManager(BasePositionManager):
-    """Stock Position Manager"""
+    """
+    Stock Position Manager
 
-    def __init__(self, account: StockAccount):
+    多空的記帳差異全部收斂在此：
+    - LONG 沿用既有 StockUtils 公式（確保與改動前的回測結果逐筆相同）
+    - SHORT 一律走 StockCostModel，涵蓋保證金、借券費、融券利息與當沖稅率
+    """
+
+    def __init__(
+        self,
+        account: StockAccount,
+        cost_model: Optional[StockCostModel] = None,
+    ):
         super().__init__()
         self.account: StockAccount = account
+        self.cost_model: StockCostModel = cost_model or StockCostModel(
+            CostConfig.default()
+        )
 
     def setup(self, *args, **kwargs) -> None:
         """Set Up the Config of Stock Position Manager"""
         pass
+
+    def normalize_date(self, date: Union[datetime.date, datetime.datetime]) -> datetime.date:
+        """Tick 級別的 date 會是 datetime，統一取其日期部分以計算持有曆日數"""
+
+        return date.date() if isinstance(date, datetime.datetime) else date
+
+    def calculate_holding_days(
+        self,
+        entry_date: Union[datetime.date, datetime.datetime],
+        exit_date: Union[datetime.date, datetime.datetime],
+    ) -> int:
+        """計算持有曆日數（非交易日），同日開平倉為 0 天"""
+
+        if entry_date is None or exit_date is None:
+            return 0
+
+        return (self.normalize_date(exit_date) - self.normalize_date(entry_date)).days
 
     def open_position(self, stock_order: StockOrder) -> Optional[StockPosition]:
         """
@@ -83,6 +115,111 @@ class StockPositionManager(BasePositionManager):
             logger.info(
                 f"* Open Short Position: {stock_order.stock_id} ({stock_order.volume} lots)"
             )
+
+            position = self.open_short_position(stock_order, position_value)
+
+        return position
+
+    def open_short_position(
+        self,
+        stock_order: StockOrder,
+        position_value: float,
+    ) -> Optional[StockPosition]:
+        """
+        - Description:
+            開立放空部位（賣出）
+
+            資金規則：賣出價款不計入可用餘額，先留作擔保品記在 position.short_proceeds，
+            待回補平倉時才一次結算損益到 account.balance；帳戶當下只扣「保證金 + 開倉成本」。
+            當沖（DAY_TRADE）不需保證金，僅扣開倉成本。
+        - Parameters:
+            - stock_order: StockOrder
+                目標股票的訂單資訊
+            - position_value: float
+                開倉部位價值（賣出價金）
+        - Return:
+            - position: Optional[StockPosition]
+                開倉成功回傳部位，被風控擋下則回傳 None
+        """
+
+        short_method: ShortMethod = (
+            stock_order.short_method or self.cost_model.config.short_method
+        )
+
+        # 同一標的不允許同時持有反向部位（見 backlog §7.5）
+        if self.account.check_has_position(stock_order.stock_id, PositionType.LONG):
+            logger.warning(
+                f"[Open Short] {stock_order.stock_id} 已有做多部位，不允許同標的雙向持倉，拒絕開倉"
+            )
+            return None
+
+        # Calculate open commission & tax & borrow fee & margin
+        open_commission: int = self.cost_model.commission(
+            price=stock_order.price, volume=stock_order.volume
+        )
+        open_tax: int = self.cost_model.tax(
+            price=stock_order.price,
+            volume=stock_order.volume,
+            action=Action.SELL,
+            is_day_trade=stock_order.is_day_trade,
+        )
+        borrow_fee: int = self.cost_model.borrow_fee(
+            price=stock_order.price,
+            volume=stock_order.volume,
+            short_method=short_method,
+        )
+        margin: int = self.cost_model.margin_required(
+            price=stock_order.price,
+            volume=stock_order.volume,
+            short_method=short_method,
+        )
+        open_cost: int = open_commission + open_tax + borrow_fee
+
+        # Check if the account has enough balance for margin and costs
+        if self.account.balance < margin + open_cost:
+            logger.warning(
+                f"[Open Short] {stock_order.stock_id} 餘額不足："
+                f"需要 {margin + open_cost}，可用 {self.account.balance}，拒絕開倉"
+            )
+            return None
+
+        # Check single position short exposure limit
+        max_ratio: Optional[float] = (
+            self.cost_model.config.short_constraint.max_short_exposure_ratio
+        )
+        if max_ratio is not None and position_value > self.account.init_capital * max_ratio:
+            logger.warning(
+                f"[Open Short] {stock_order.stock_id} 曝險 {position_value} 超過上限 "
+                f"{self.account.init_capital * max_ratio}，拒絕開倉"
+            )
+            return None
+
+        logger.info(f"* Place Open Order: {stock_order.stock_id}")
+
+        position: StockPosition = StockPosition(
+            id=self.account.generate_trade_id(),
+            stock_id=stock_order.stock_id,
+            is_closed=False,
+            position_type=stock_order.position_type,
+            date=stock_order.date,
+            price=stock_order.price,
+            volume=stock_order.volume,
+            commission=open_commission,
+            tax=open_tax,
+            transaction_cost=open_cost,
+            unrealized_pnl=0,
+            unrealized_roi=0,
+            short_method=short_method,
+            is_day_trade=stock_order.is_day_trade,
+            margin=margin,
+            short_proceeds=position_value,
+            borrow_fee=borrow_fee,
+        )
+
+        self.account.balance -= margin + open_cost
+        self.account.margin_used += margin
+        self.account.positions.append(position)
+
         return position
 
     def close_position(self, stock_order: StockOrder) -> List[StockTradeRecord]:
@@ -99,11 +236,18 @@ class StockPositionManager(BasePositionManager):
         # 要平倉的倉位 List
         close_positions: List[StockTradeRecord] = []
 
-        # 從帳戶抓出所有該股票未平倉的倉位（FIFO）
+        # 平倉動作反推目標部位方向：賣出平多單、買進回補空單
+        target_position_type: PositionType = (
+            PositionType.LONG if stock_order.action == Action.SELL else PositionType.SHORT
+        )
+
+        # 從帳戶抓出所有該股票未平倉且同方向的倉位（FIFO）
         open_positions: List[StockPosition] = [
             p
             for p in self.account.positions
-            if p.stock_id == stock_order.stock_id and not p.is_closed
+            if p.stock_id == stock_order.stock_id
+            and not p.is_closed
+            and p.position_type == target_position_type
         ]
 
         # Calculate remaining close volume
@@ -199,7 +343,16 @@ class StockPositionManager(BasePositionManager):
                 logger.info(
                     f"* Close Short Position: {position.stock_id} ({position.volume} lots)"
                 )
-                pass
+
+                # 這筆 position 要回補的數量
+                close_volume: int = min(position.volume, remaining_close_volume)
+
+                record: StockTradeRecord = self.close_short_position(
+                    position, stock_order, close_volume
+                )
+
+                close_positions.append(record)
+                remaining_close_volume -= close_volume
 
         if remaining_close_volume > 0:
             logger.warning(
@@ -216,6 +369,137 @@ class StockPositionManager(BasePositionManager):
         self.account.remove_closed_positions()
 
         return close_positions
+
+    def close_short_position(
+        self,
+        position: StockPosition,
+        stock_order: StockOrder,
+        close_volume: int,
+    ) -> StockTradeRecord:
+        """
+        - Description:
+            回補放空部位（買進），支援部分回補的等比例攤提
+
+            保證金、擔保價款、借券費一律依回補張數比例攤提；
+            融券利息於此依 exit_date − entry_date 一次算出（見 backlog §4.3 計算時點表），
+            不由 accrue_holding_cost() 重複計算。
+        - Parameters:
+            - position: StockPosition
+                被回補的放空部位
+            - stock_order: StockOrder
+                回補訂單
+            - close_volume: int
+                本次回補張數（Unit: Lots）
+        - Return:
+            - record: StockTradeRecord
+                本次回補產生的交易紀錄
+        """
+
+        # 依張數比例攤提開倉時的各項成本與擔保品
+        ratio: float = close_volume / position.volume
+        prop_margin: float = round(position.margin * ratio, 2)
+        prop_proceeds: float = round(position.short_proceeds * ratio, 2)
+        prop_open_commission: int = int(position.commission * ratio)
+        prop_open_tax: int = int(position.tax * ratio)
+        prop_borrow_fee: int = int(position.borrow_fee * ratio)
+        prop_accrued_borrow_fee: int = int(position.accrued_borrow_fee * ratio)
+
+        # 回補手續費（買進不課證交稅）
+        close_commission: int = self.cost_model.commission(
+            price=stock_order.price, volume=close_volume
+        )
+
+        # 融券保證金利息（收入）
+        holding_days: int = self.calculate_holding_days(position.date, stock_order.date)
+        interest: int = self.cost_model.short_interest(
+            proceeds=prop_proceeds,
+            margin=prop_margin,
+            holding_days=holding_days,
+            short_method=position.short_method,
+        )
+
+        # 開倉成本、平倉成本與持有期間淨成本（借券費支出 − 利息收入）
+        entry_cost: int = prop_open_commission + prop_open_tax + prop_borrow_fee
+        carry_cost: int = prop_accrued_borrow_fee - interest
+
+        realized_pnl: float = self.cost_model.realized_pnl(
+            position_type=PositionType.SHORT,
+            entry_price=position.price,
+            exit_price=stock_order.price,
+            volume=close_volume,
+            entry_cost=entry_cost,
+            exit_cost=close_commission,
+            carry_cost=carry_cost,
+        )
+        roi: float = self.cost_model.roi(
+            position_type=PositionType.SHORT,
+            entry_price=position.price,
+            exit_price=stock_order.price,
+            volume=close_volume,
+            entry_cost=entry_cost,
+            exit_cost=close_commission,
+            carry_cost=carry_cost,
+        )
+        roi_on_capital: float = self.cost_model.roi_on_capital(
+            position_type=PositionType.SHORT,
+            entry_price=position.price,
+            exit_price=stock_order.price,
+            volume=close_volume,
+            entry_cost=entry_cost,
+            exit_cost=close_commission,
+            carry_cost=carry_cost,
+            margin=prop_margin,
+        )
+
+        # Create stock trade record（sell_* 為放空開倉、buy_* 為回補）
+        record: StockTradeRecord = StockTradeRecord(
+            id=position.id,
+            stock_id=position.stock_id,
+            is_closed=True,
+            position_type=position.position_type,
+            sell_date=position.date,
+            sell_price=position.price,
+            sell_volume=close_volume,
+            buy_date=stock_order.date,
+            buy_price=stock_order.price,
+            buy_volume=close_volume,
+            commission=prop_open_commission + close_commission,
+            tax=prop_open_tax,
+            transaction_cost=entry_cost
+            + close_commission
+            + prop_accrued_borrow_fee
+            - interest,
+            realized_pnl=realized_pnl,
+            roi=roi,
+            roi_on_capital=roi_on_capital,
+            short_method=position.short_method,
+            borrow_fee=prop_borrow_fee + prop_accrued_borrow_fee,
+            interest=interest,
+            margin=prop_margin,
+            holding_days=holding_days,
+        )
+
+        # Update position
+        position.volume -= close_volume
+        position.commission -= prop_open_commission
+        position.tax -= prop_open_tax
+        position.borrow_fee -= prop_borrow_fee
+        position.accrued_borrow_fee -= prop_accrued_borrow_fee
+        position.transaction_cost -= entry_cost
+        position.margin -= prop_margin
+        position.short_proceeds -= prop_proceeds
+        if position.volume == 0:
+            position.is_closed = True
+
+        # Update account：釋回保證金並結算損益
+        # realized_pnl 已扣掉開倉成本，而開倉成本在開倉當下就從餘額扣過了，
+        # 故此處加回 entry_cost，避免同一筆成本被扣兩次（與 LONG 的現金流口徑一致）
+        self.account.balance += prop_margin + realized_pnl + entry_cost
+        self.account.margin_used -= prop_margin
+        self.account.realized_pnl += realized_pnl
+        self.account.trade_records.append(record)
+
+        return record
 
     def calculate_position_value(self, price: float, volume: int) -> float:
         """

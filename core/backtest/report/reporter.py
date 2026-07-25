@@ -231,6 +231,10 @@ class StockBacktestReporter(BaseBacktestReporter):
         report_columns: List[str] = [
             "Stock ID",
             "Position Type",
+            "Entry Date",
+            "Entry Price",
+            "Exit Date",
+            "Exit Price",
             "Buy Date",
             "Buy Price",
             "Buy Volume",
@@ -251,12 +255,12 @@ class StockBacktestReporter(BaseBacktestReporter):
         cumulative_balance: float = self.account.init_capital
 
         # 過濾出已平倉的交易記錄（只有已平倉的記錄才有完整的買賣資訊）
-        # 確保交易記錄按 sell_date 排序（對於 tick 級別回測，同一天可能有多筆交易）
+        # 確保交易記錄按 exit_date（平倉日）排序（對於 tick 級別回測，同一天可能有多筆交易）
         # 排序確保累積值的計算順序正確，以及繪圖時 groupby().last() 能取得正確的最後一筆
         # 此排序邏輯對 tick 和 day 級別回測都適用
         #
         # 排序邏輯：
-        # 1. 主要排序：按 sell_date（賣出日期）
+        # 1. 主要排序：按 exit_date（平倉日期；SHORT 的 sell_date 是開倉日，不可用）
         # 2. 次要排序：保持 trade_records 的原始添加順序（使用索引）
         #    原因：trade_records 是按平倉順序添加的，而 id 是按開倉順序生成的
         #    使用原始順序可以確保同一天內的多筆交易按實際平倉時間順序排列
@@ -268,7 +272,7 @@ class StockBacktestReporter(BaseBacktestReporter):
             for _, r in sorted(
                 closed_records_with_index,
                 key=lambda x: (
-                    x[1].sell_date if x[1].sell_date else datetime.date.min,
+                    x[1].exit_date if x[1].exit_date else datetime.date.min,
                     x[0],  # 使用原始索引作為次要排序鍵，保持平倉順序
                 ),
             )
@@ -283,6 +287,10 @@ class StockBacktestReporter(BaseBacktestReporter):
             row: Dict[str, Any] = {
                 "Stock ID": record.stock_id,
                 "Position Type": record.position_type.value,
+                "Entry Date": record.entry_date,
+                "Entry Price": record.entry_price,
+                "Exit Date": record.exit_date,
+                "Exit Price": record.exit_price,
                 "Buy Date": record.buy_date,
                 "Buy Price": record.buy_price,
                 "Buy Volume": record.buy_volume,
@@ -313,7 +321,7 @@ class StockBacktestReporter(BaseBacktestReporter):
         init_row: pd.DataFrame = pd.DataFrame(
             [
                 {
-                    "Sell Date": self.origin_date,
+                    "Exit Date": self.origin_date,
                     "Cumulative PnL": 0.0,
                     "Cumulative Balance": self.account.init_capital,
                 }
@@ -328,7 +336,7 @@ class StockBacktestReporter(BaseBacktestReporter):
         fig: go.Figure = go.Figure()
         fig.add_trace(
             go.Scatter(
-                x=df["Sell Date"],
+                x=df["Exit Date"],
                 y=df["Cumulative Balance"],
                 mode="lines",
                 line=dict(color="blue", width=2),
@@ -338,7 +346,7 @@ class StockBacktestReporter(BaseBacktestReporter):
         self.set_figure_config(
             fig,
             title=fig_title,
-            xaxis_title="Sell Date",
+            xaxis_title="Exit Date",
             yaxis_title="Cumulative Balance",
         )
         self.save_figure(fig, f"{self.strategy.strategy_name}_balance_curve.png")
@@ -383,12 +391,12 @@ class StockBacktestReporter(BaseBacktestReporter):
 
         # === 策略累積資金資料 ===
         balance_df: pd.DataFrame = self.trading_report[
-            ["Sell Date", "Cumulative Balance"]
+            ["Exit Date", "Cumulative Balance"]
         ].copy()
-        balance_df["Sell Date"] = pd.to_datetime(balance_df["Sell Date"])
+        balance_df["Exit Date"] = pd.to_datetime(balance_df["Exit Date"])
 
         cumulative_balance: pd.Series = (
-            balance_df.groupby(balance_df["Sell Date"].dt.date)["Cumulative Balance"]
+            balance_df.groupby(balance_df["Exit Date"].dt.date)["Cumulative Balance"]
             .last()
             .astype(float)
         )
@@ -507,13 +515,13 @@ class StockBacktestReporter(BaseBacktestReporter):
 
         # === 累積資金資料 ===
         balance_df: pd.DataFrame = self.trading_report[
-            ["Sell Date", "Cumulative Balance"]
+            ["Exit Date", "Cumulative Balance"]
         ].copy()
-        balance_df["Sell Date"] = pd.to_datetime(balance_df["Sell Date"])
+        balance_df["Exit Date"] = pd.to_datetime(balance_df["Exit Date"])
 
         # 依日期取每日最後一筆 balance（避免一天多筆交易造成重複）
         cumulative_balance: pd.Series = (
-            balance_df.groupby(balance_df["Sell Date"].dt.date)["Cumulative Balance"]
+            balance_df.groupby(balance_df["Exit Date"].dt.date)["Cumulative Balance"]
             .last()
             .astype(float)
         )
@@ -587,18 +595,18 @@ class StockBacktestReporter(BaseBacktestReporter):
     def plot_everyday_profit(self) -> None:
         """繪製每天的利潤"""
 
-        # 轉換 Sell Date 為 datetime 格式
+        # 轉換 Exit Date 為 datetime 格式
         profit_df: pd.DataFrame = self.trading_report[
-            ["Sell Date", "Realized PnL"]
+            ["Exit Date", "Realized PnL"]
         ].copy()
-        profit_df["Sell Date"] = pd.to_datetime(profit_df["Sell Date"])
+        profit_df["Exit Date"] = pd.to_datetime(profit_df["Exit Date"])
 
         # 群組並計算每日總損益
         daily_profit: pd.DataFrame = (
-            profit_df.groupby(profit_df["Sell Date"].dt.date)["Realized PnL"]
+            profit_df.groupby(profit_df["Exit Date"].dt.date)["Realized PnL"]
             .sum()
             .reset_index()
-            .rename(columns={"Sell Date": "Date", "Realized PnL": "Daily PnL"})
+            .rename(columns={"Exit Date": "Date", "Realized PnL": "Daily PnL"})
         )
 
         # 建立 bar chart
