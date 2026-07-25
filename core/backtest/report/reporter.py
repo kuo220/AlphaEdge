@@ -244,8 +244,14 @@ class StockBacktestReporter(BaseBacktestReporter):
             "Commission",
             "Tax",
             "Transaction Cost",
+            "Borrow Fee",
+            "Interest",
+            "Margin",
+            "Holding Days",
+            "Short Method",
             "Realized PnL",
             "ROI",
+            "ROI on Capital",
             "Cumulative PnL",
             "Cumulative Balance",
         ]
@@ -300,8 +306,16 @@ class StockBacktestReporter(BaseBacktestReporter):
                 "Commission": record.commission,
                 "Tax": record.tax,
                 "Transaction Cost": record.transaction_cost,
+                "Borrow Fee": record.borrow_fee,
+                "Interest": record.interest,
+                "Margin": record.margin,
+                "Holding Days": record.holding_days,
+                "Short Method": (
+                    record.short_method.value if record.short_method else ""
+                ),
                 "Realized PnL": record.realized_pnl,
                 "ROI": record.roi,
+                "ROI on Capital": record.roi_on_capital,
                 "Cumulative PnL": cumulative_pnl,
                 "Cumulative Balance": cumulative_balance,
             }
@@ -310,6 +324,64 @@ class StockBacktestReporter(BaseBacktestReporter):
         # Convert to DataFrame
         df: pd.DataFrame = pd.DataFrame(rows, columns=report_columns)
         self.save_report(df, f"{self.strategy.strategy_name}_trading_report.csv")
+        return df
+
+    def generate_direction_summary(self) -> pd.DataFrame:
+        """
+        - Description:
+            產生多空分開的績效統計
+
+            多空的成本結構與風險型態完全不同（放空有借券費、保證金與無限虧損風險），
+            混在同一組數字裡會看不出策略到底靠哪一邊賺錢。
+        - Return:
+            - df: pd.DataFrame
+                以 Position Type 分組的統計表
+        """
+
+        if self.trading_report is None or self.trading_report.empty:
+            return pd.DataFrame()
+
+        rows: List[Dict[str, Any]] = []
+        for position_type, group in self.trading_report.groupby("Position Type"):
+            wins: pd.DataFrame = group[group["Realized PnL"] > 0]
+
+            rows.append(
+                {
+                    "Position Type": position_type,
+                    "Trades": len(group),
+                    "Win Rate (%)": round(len(wins) / len(group) * 100, 2),
+                    "Total PnL": round(group["Realized PnL"].sum(), 2),
+                    "Avg PnL": round(group["Realized PnL"].mean(), 2),
+                    "Avg ROI (%)": round(group["ROI"].mean(), 2),
+                    "Total Commission": round(group["Commission"].sum(), 2),
+                    "Total Tax": round(group["Tax"].sum(), 2),
+                    "Total Borrow Fee": round(group["Borrow Fee"].sum(), 2),
+                    "Total Interest": round(group["Interest"].sum(), 2),
+                    "Avg Holding Days": round(group["Holding Days"].mean(), 2),
+                }
+            )
+
+        df: pd.DataFrame = pd.DataFrame(rows)
+        self.save_report(df, f"{self.strategy.strategy_name}_direction_summary.csv")
+        return df
+
+    def generate_event_report(self, event_counts: Dict[str, int]) -> pd.DataFrame:
+        """
+        - Description:
+            輸出回測期間的事件計數（強制回補、斷頭、拒單等）
+
+            這些是放空策略的尾部風險，被平均進總績效就看不見了，必須單獨列出。
+        - Parameters:
+            - event_counts: Dict[str, int]
+                Backtester.event_counts
+        - Return:
+            - df: pd.DataFrame
+        """
+
+        df: pd.DataFrame = pd.DataFrame(
+            [{"Event": key, "Count": value} for key, value in event_counts.items()]
+        )
+        self.save_report(df, f"{self.strategy.strategy_name}_event_report.csv")
         return df
 
     def plot_balance_curve(self) -> None:

@@ -88,6 +88,9 @@ class Backtester:
         # 前一交易日收盤價，作為漲跌停判定基準
         self.prev_close: Dict[str, float] = {}
 
+        # 含未實現損益的每日權益序列（只認已實現損益會低估留倉放空的 MDD）
+        self.daily_equity: List[Dict[str, Any]] = []
+
         # 事件統計：放空策略的尾部風險不能被平均掉，需單獨計數
         self.event_counts: Dict[str, int] = {
             "rejected_direction": 0,  # 方向不合法被剔除的訂單
@@ -436,6 +439,7 @@ class Backtester:
         # 留倉：借券費計提與維持率／強制回補檢查
         self.execute_daily_position_check(date, stock_quotes)
 
+        self.snapshot_daily_equity(date, stock_quotes)
         self.update_prev_close(stock_quotes)
 
     # === Signal Execution ===
@@ -762,6 +766,52 @@ class Backtester:
         )
         return self.prev_close.get(position.stock_id, position.price)
 
+    # === Daily Equity ===
+    def snapshot_daily_equity(
+        self, date: datetime.date, stock_quotes: List[StockQuote]
+    ) -> float:
+        """
+        - Description:
+            記錄含未實現損益的每日權益，並更新各部位的未實現損益
+
+            只認已實現損益的權益曲線會把「持倉期間的逆勢」完全抹平，
+            而那正是放空最大的風險來源（見 backlog §7.7 註）。
+        - Parameters:
+            - date: datetime.date
+                當前交易日
+            - stock_quotes: List[StockQuote]
+                當日報價
+        - Return:
+            - equity: float
+                當日權益（現金 + 部位價值）
+        """
+
+        quote_map: Dict[str, StockQuote] = {sq.stock_id: sq for sq in stock_quotes}
+        position_value: float = 0.0
+
+        for position in self.account.get_positions():
+            price: float = self.get_mark_price(position, quote_map)
+            shares: int = StockUtils.convert_lot_to_share(position.volume)
+
+            if position.position_type == PositionType.SHORT:
+                # 開倉時只扣了保證金與成本，賣出價款留作擔保品
+                position.unrealized_pnl = round((position.price - price) * shares, 2)
+                position_value += position.margin + position.unrealized_pnl
+            else:
+                position.unrealized_pnl = round((price - position.price) * shares, 2)
+                position_value += price * shares
+
+            cost_basis: float = position.price * shares
+            position.unrealized_roi = (
+                round(position.unrealized_pnl / cost_basis * 100, 2)
+                if cost_basis
+                else 0.0
+            )
+
+        equity: float = round(self.account.balance + position_value, 2)
+        self.daily_equity.append({"Date": date, "Equity": equity})
+        return equity
+
     # === Report ===
     def generate_backtest_report(self) -> None:
         """Generate backtest report"""
@@ -771,6 +821,16 @@ class Backtester:
             self.strategy, self.strategy_result_dir
         )
         reporter.trading_report = reporter.generate_trading_report()
+
+        # 多空分開統計與事件計數（放空的尾部風險不可被平均掉）
+        reporter.generate_direction_summary()
+        reporter.generate_event_report(self.event_counts)
+
+        if self.daily_equity:
+            reporter.save_report(
+                pd.DataFrame(self.daily_equity),
+                f"{self.strategy.strategy_name}_daily_equity.csv",
+            )
 
         reporter.plot_balance_curve()
         reporter.plot_balance_and_benchmark_curve()

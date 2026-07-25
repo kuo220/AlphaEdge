@@ -41,6 +41,11 @@
     - [回測結果](#回測結果)
   - [完整範例](#完整範例)
     - [快速開始範例](#快速開始範例)
+  - [如何撰寫放空策略](#如何撰寫放空策略)
+    - [放空策略的設定欄位](#放空策略的設定欄位)
+    - [訊號方向對照](#訊號方向對照)
+    - [放空策略範例](#放空策略範例)
+    - [放空策略注意事項](#放空策略注意事項)
 
 ## 策略架構概述
 
@@ -715,3 +720,194 @@ python run.py --strategy SimpleStrategy
 - 策略類別名稱會作為策略識別名稱
 - 確保所有必須的方法都已實作
 - 回測前請確認資料庫中有所需的資料（使用 `python -m tasks.update_db` 更新資料）
+
+
+---
+
+## 如何撰寫放空策略
+
+回測框架支援放空（`PositionType.SHORT`），涵蓋**現股當沖沖賣**與**留倉（融券／借券）**兩種型態。
+成本模型、保證金、借券費、維持率追繳與強制回補全部由引擎處理，策略只需要宣告方向並回傳正確的訂單。
+
+完整規格見 [`backlog/放空回測框架建置.md`](../../backlog/放空回測框架建置.md)。
+
+### 放空策略的設定欄位
+
+在 `__init__` 中宣告（皆有預設值，只需設定用得到的）：
+
+| 欄位 | 型別 | 預設 | 說明 |
+| --- | --- | --- | --- |
+| `position_type` | `PositionType` | `LONG` | 設為 `SHORT` 即為放空策略 |
+| `enable_intraday` | `bool` | `True` | `True` 且方向為 SHORT 時，引擎自動採用**現股當沖沖賣**並切換為「先開後平」，使同日開平倉成立 |
+| `short_method` | `ShortMethod` | `MARGIN` | 留倉放空的管道：`MARGIN`（融券）或 `SBL`（借券）；當沖時由引擎強制為 `DAY_TRADE` |
+| `allowed_directions` | `Optional[Set[PositionType]]` | `None` | 訂單方向白名單，`None` 等同 `{position_type}`；要做多空並存的策略設為 `{LONG, SHORT}` |
+| `max_holding_days` | `Optional[int]` | `None` | 留倉放空的保險絲，超過即強制回補（建議 20~30 天，用來近似停券強制回補） |
+| `cost_config` | `Optional[CostConfig]` | `None` | 覆寫費率（手續費折扣、券費率等），`None` 使用市場常見預設值 |
+| `short_constraint` | `Optional[ShortConstraint]` | `None` | 可成交限制：可當沖清單、券源檢核、停券日、單一標的曝險上限 |
+| `day_trade_uncovered_policy` | `DayTradeUncoveredPolicy` | `FORCE_COVER_AT_CLOSE` | 當沖日終未回補的處理 |
+| `margin_call_policy` | `MarginCallPolicy` | `FORCE_COVER` | 維持率跌破 130% 的處理 |
+| `bar_execution_order` | `Optional[BarExecutionOrder]` | `None` | 單根 K 棒內的執行順序，`None` 由引擎依方向推導 |
+
+### 訊號方向對照
+
+放空是**先賣後買**，動作與做多完全相反：
+
+| 方法 | 做多（LONG） | 放空（SHORT） |
+| --- | --- | --- |
+| `check_open_signal` | `Action.BUY` | **`Action.SELL`** |
+| `check_close_signal` | `Action.SELL` | **`Action.BUY`**（回補） |
+| `check_stop_loss_signal` | `Action.SELL`，**價格下跌**觸發 | **`Action.BUY`**，**價格上漲**觸發 |
+
+> 訂單的 `position_type` 一律填 `PositionType.SHORT`。方向或動作填錯時，引擎會以 warning 剔除該筆訂單並計入拒單統計，不會靜默失敗。
+>
+> `short_method` 與 `is_day_trade` **不需要**自己填，引擎會依策略設定統一補值。
+
+### 放空策略範例
+
+```python
+import datetime
+from typing import List
+
+from core.api.stock_price_api import StockPriceAPI
+from core.models import StockAccount, StockOrder, StockQuote
+from core.strategies.stock import BaseStockStrategy
+from core.utils import Action, PositionType, Scale, ShortMethod
+
+
+class SimpleShortStrategy(BaseStockStrategy):
+    """
+    簡易放空策略（日線、融券留倉）
+
+    賣出（開倉）條件：
+    - 當日漲幅 ≥ 9%（追高後的均值回歸）
+
+    回補（平倉）條件：
+    - 持有部位且報價日 ≥ 開倉日 + 1 日曆日
+
+    停損條件：
+    - 開倉後上漲超過 5%（放空是價格上漲才虧損）
+    """
+
+    MIN_PRICE_CHANGE_PCT: float = 9.0  # 開倉的最小漲幅（%）
+    STOP_LOSS_PCT: float = 5.0  # 停損的上漲幅度（%）
+
+    def __init__(self):
+        super().__init__()
+
+        self.strategy_name: str = "Simple-Short"
+        self.init_capital: float = 1000000.0
+        self.max_holdings: int = 5
+        self.scale: Scale = Scale.DAY
+
+        # 放空設定：融券留倉，最長持有 20 個曆日
+        self.position_type: PositionType = PositionType.SHORT
+        self.enable_intraday: bool = False
+        self.short_method: ShortMethod = ShortMethod.MARGIN
+        self.max_holding_days: int = 20
+
+        self.start_date: datetime.date = datetime.date(2024, 1, 1)
+        self.end_date: datetime.date = datetime.date(2024, 12, 31)
+
+        self.setup_apis()
+
+    def setup_account(self, account: StockAccount) -> None:
+        """設置虛擬帳戶資訊"""
+
+        self.account: StockAccount = account
+
+    def setup_apis(self) -> None:
+        """設置資料 API"""
+
+        self.price: StockPriceAPI = StockPriceAPI()
+
+    def check_open_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
+        """開倉（賣出）：漲幅達門檻即放空"""
+
+        orders: List[StockOrder] = []
+        for quote in stock_quotes:
+            if self.account.check_has_position(quote.stock_id):
+                continue
+
+            if len(self.account.positions) >= self.max_holdings:
+                break
+
+            price_change_pct: float = (quote.close / quote.open - 1) * 100
+            if price_change_pct < self.MIN_PRICE_CHANGE_PCT:
+                continue
+
+            orders.append(
+                StockOrder(
+                    stock_id=quote.stock_id,
+                    date=quote.date,
+                    action=Action.SELL,  # 放空開倉是賣出
+                    position_type=PositionType.SHORT,
+                    price=quote.close,
+                    volume=1,
+                )
+            )
+        return orders
+
+    def check_close_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
+        """平倉（買進回補）：持有超過一個曆日即回補"""
+
+        orders: List[StockOrder] = []
+        for quote in stock_quotes:
+            for position in self.account.get_positions(
+                stock_id=quote.stock_id, position_type=PositionType.SHORT
+            ):
+                if (quote.date - position.date).days < 1:
+                    continue
+
+                orders.append(
+                    StockOrder(
+                        stock_id=quote.stock_id,
+                        date=quote.date,
+                        action=Action.BUY,  # 放空平倉是買進回補
+                        position_type=PositionType.SHORT,
+                        price=quote.close,
+                        volume=position.volume,
+                    )
+                )
+        return orders
+
+    def check_stop_loss_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
+        """停損：放空是「價格上漲」才虧損，方向與做多相反"""
+
+        orders: List[StockOrder] = []
+        for quote in stock_quotes:
+            for position in self.account.get_positions(
+                stock_id=quote.stock_id, position_type=PositionType.SHORT
+            ):
+                loss_pct: float = (quote.close / position.price - 1) * 100
+                if loss_pct < self.STOP_LOSS_PCT:
+                    continue
+
+                orders.append(
+                    StockOrder(
+                        stock_id=quote.stock_id,
+                        date=quote.date,
+                        action=Action.BUY,
+                        position_type=PositionType.SHORT,
+                        price=quote.close,
+                        volume=position.volume,
+                    )
+                )
+        return orders
+
+    def calculate_position_size(
+        self, stock_quotes: List[StockQuote], action: Action
+    ) -> List[StockOrder]:
+        """本範例固定 1 張，實務上應依保證金與曝險上限計算"""
+
+        return []
+```
+
+### 放空策略注意事項
+
+1. **資金佔用與做多不同**：放空的賣出價款會留作擔保品，不會進入可用餘額；帳戶當下只扣「保證金 + 開倉成本」，損益要等回補才結算。融券保證金成數為 90%，等於 1 張 100 元的股票會佔用 9 萬元。
+2. **成本課在賣出端**：證交稅在放空**開倉**時就課（當沖 0.15%、留倉 0.3%），與做多相反；融券另有 0.08% 的融券手續費。
+3. **當沖必須當日結清**：`enable_intraday=True` 時，日終仍未回補的部位會被引擎以收盤價強制回補並計數。若當日全日鎖漲停無法回補，會自動轉為融券留倉並記入 `limit_up_cover_failed`——這是放空最致命的尾部風險，**檢視回測結果時務必單獨看這個數字**。
+4. **維持率會斷頭**：留倉放空在維持率跌破 130% 時會被強制回補，不是等你自己的停損訊號。停損條件應設得比斷頭門檻更早觸發。
+5. **同一標的不可雙向持倉**：已有多單時開空單會被拒絕（反之亦然）。跨標的的多空並存則不受限制。
+6. **成交價會被驗證**：訂單價格必須落在當日高低區間與漲跌停內，否則會被拒單。當沖策略請明確宣告成交價假設（建議開倉用 `open`、回補用 `close`），並確保 `check_open_signal` 只使用該時點之前可得的資訊。
+7. **報表要看放空專屬欄位**：交易報表新增了 `Borrow Fee`、`Interest`、`Margin`、`Holding Days`、`ROI on Capital`，另有 `*_direction_summary.csv`（多空分開統計）與 `*_event_report.csv`（強制回補、斷頭、拒單次數）。
