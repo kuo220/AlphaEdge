@@ -95,15 +95,11 @@ class CostConfig:
     ) -> "CostConfig":
         """依放空管道與是否當沖，組出市場常見值的成本設定"""
 
-        # 當沖一律走現股當沖沖賣，借券費率不適用
+        # 當沖一律走現股當沖沖賣。
+        # 費率不可歸零：當沖單漲停無法回補時會轉為融券留倉（見 backlog §7.1），
+        # 屆時仍需以正常的保證金成數與券費率計算，歸零會讓維持率永遠不足而誤觸斷頭。
         if is_day_trade:
-            return cls(
-                short_method=ShortMethod.DAY_TRADE,
-                is_day_trade=True,
-                margin_rate=0.0,
-                borrow_fee_rate=0.0,
-                interest_rate=0.0,
-            )
+            return cls(short_method=ShortMethod.DAY_TRADE, is_day_trade=True)
 
         if short_method == ShortMethod.SBL:
             return cls(
