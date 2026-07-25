@@ -254,7 +254,7 @@ core/
 
 #### 5.1.2 股票期貨（股期,納入規劃）
 
-- 標的:每檔股票期貨對應一檔現股（如台積電期 2330F、鴻海期 2317F 等）,TAIFEX 目前掛牌約 250+ 檔,標的與口數會隨掛牌／下市定期異動,需獨立維護標的池（見 §6.3 `futures_stock_universe`）。
+- 標的:每檔股票期貨對應一檔現股（如台積電期 2330F、鴻海期 2317F 等）,TAIFEX 目前掛牌約 250+ 檔,標的與口數會隨掛牌／下市定期異動,需獨立維護標的池（見 §6.4 `futures_stock_universe`）。
 - 契約規格:契約乘數固定為 2,000 股／口（等同現股一張),無「大中小」之分,槓桿由保證金成數決定,不同於指數期貨系列各有不同點值。
 - 除權息處理:股票期貨無到期結算的除權息調整——標的除權息時,交易所以**調整契約乘數**或**發行新契約**因應,回測時需比照 TAIFEX 官方公告調整,**不可**沿用現股還原股價的邏輯,否則會重複調整或漏調。
 - 建議先納入流動性排名前 N 檔（例如依日均成交量取前 30–50 檔),而非一次爬全部 250+ 檔,避免低流動性標的污染回測訊號、拖慢爬取效率；名單本身也需定期更新（見 Phase 6）。
@@ -358,10 +358,32 @@ core/
 
 - `crawler`:對 TAIFEX / Shioaji 拉 raw 資料（retry、rate limit、timeout）。
 - `cleaner`:標準化欄位（`contract_id`, `product`, `expiry`, `trade_date`, OHLCV, `settlement`）、去重、型別校正。
-- `loader`:寫入 `futures.db`（upsert、唯一鍵約束）。
+- `loader`:以 `sqlite3` 連線並寫入 `core/database/futures.db`（upsert、唯一鍵約束）。
 - `updater`:編排日期範圍、checkpoint、錯誤重試；串起 crawl → clean → load。
 
-### 6.3 建議資料表（SQLite 先行）
+### 6.3 資料落地原則:一律先寫入 `futures.db`(SQLite3)
+
+**所有期貨資料在進入 API／回測之前,必須先經 loader 寫入 `core/database/futures.db`（Python 標準庫 `sqlite3`）。**
+不可讓 crawler 抓完直接餵給策略或回測,也不可讓回測直接讀 `downloads/` 下的 CSV／Parquet 中繼檔——中繼檔只是 crawler 到 loader 之間的暫存,不是資料真相來源（single source of truth）。
+
+理由:
+
+- 與現有台股流程一致（`StockPriceLoader` 即是 `sqlite3.connect(DB_PATH)` → upsert → `PRICE_TABLE_NAME`）,維護心智一致。
+- 唯一鍵約束在 DB 層擋掉重複與重跑污染,重跑 ETL 具冪等性。
+- 回測可重現:同一份 DB 快照 = 同一份回測輸入。
+- API 層（`FuturesPriceAPI` 等）只需面對 SQL,不必處理各來源的檔案格式差異。
+
+實作慣例（沿用台股既有做法）:
+
+- 在 `core/config.py` 新增 `FUTURES_DB_NAME: str = "futures.db"` 與 `FUTURES_DB_PATH`（沿用 `get_static_resolved_path(base_dir=DATABASE_DIR_PATH, ...)`）,並比照 `PRICE_TABLE_NAME` 新增 `FUTURES_*_TABLE_NAME` 常數,不要在程式中散落字串。
+- 期貨 loader 繼承 `BaseDataLoader`,在 `setup()` 內 `connect()` → `create_missing_tables()`,與 `StockPriceLoader` 同一套骨架。
+- 共用 `core/pipeline/utils/sqlite_utils.py` 的 `SQLiteUtils`（`check_table_exist`、`get_table_latest_value` 等）做增量更新的起訖日判斷,不要另寫一套。
+- `futures.db` 與 `stock.db` **分開**存放於 `core/database/`,避免 `stock_id` 與 `contract_id` 語意混用。
+- Tick 等高頻資料若量體過大,才另評估 DolphinDB／Parquet；但日線、籌碼、合約規格、保證金這類結構化表格資料一律走 `futures.db`。
+
+驗收標準:`--target futures_price` 跑完後,能直接用 `sqlite3 core/database/futures.db` 查到資料,且重跑一次筆數不變（冪等）。
+
+### 6.4 建議資料表（SQLite 先行）
 
 - `futures_contract`(合約／商品規格,含 `product_type` 區分指數期貨／股票期貨)
 - `futures_stock_universe`(股票期貨標的清單:`underlying_stock_id`、掛牌日、下市日、契約乘數異動紀錄)
@@ -389,7 +411,7 @@ core/
 | contract_month | string | 對應實際契約月(換月追蹤用) |
 | roll_flag | bool | 是否為換月接點 |
 
-### 6.4 CLI target 建議
+### 6.5 CLI target 建議
 
 - `futures_contract`(或併入 price updater 的前置步驟)
 - `futures_stock_universe`(股票期貨標的清單,獨立於指數期貨合約池)
@@ -459,8 +481,11 @@ core/
 
 ### Phase 1:單商品日 K 最小可跑閉環
 
-1. 以大台（TX）為起點,完成 `futures_price` ETL（日線／結算價,TAIFEX）→ `futures.db`。
-2. `FuturesPriceAPI` + `FuturesQuoteAdapter`。
+1. 以大台（TX）為起點,完成 `futures_price` ETL（日線／結算價,TAIFEX）→ **先用 `sqlite3` 寫入 `core/database/futures.db`**。此步驟是後續所有工作的前置:DB 沒建起來之前,不要開始寫 API、策略或回測。
+   - 1-1. `core/config.py` 加 `FUTURES_DB_NAME` / `FUTURES_DB_PATH` / `FUTURES_PRICE_TABLE_NAME`。
+   - 1-2. `FuturesPriceCrawler` → `FuturesPriceCleaner` → `FuturesPriceLoader`(`sqlite3` upsert) → `FuturesPriceUpdater`。
+   - 1-3. `tasks/update_db.py` 加 `--target futures_price`,跑完能用 `sqlite3 core/database/futures.db` 直接查到資料,且重跑冪等。
+2. `FuturesPriceAPI` + `FuturesQuoteAdapter`（**只從 `futures.db` 讀,不讀中繼檔**）。
 3. `models/futures` + `managers/futures`（簡化保證金即可）。
 4. `strategies/futures/base.py` + 一支示範策略。
 5. 平行新增 `FuturesBacktester`（不動既有 `Backtester`）,報表沿用既有 reporter。
@@ -501,7 +526,8 @@ core/
 - 所有時間欄位統一轉為台北時間並以 timezone-aware timestamp 儲存。
 - 連續合約構建需將「調整方式」與「換月規則」設計為可設定參數,不要寫死。
 - 原始資料與衍生資料分層存放,原始層唯讀,衍生層可重建,確保回測可重現。
-- 儲存格式:結構化表格資料走 `futures.db`（SQLite,對齊現有 `stock.db` 慣例）；tick／連續合約快取可用 Parquet 存於 `core/pipeline/downloads/futures/` 下。
+- **落地順序不可跳過**:crawl → clean → **`sqlite3` 寫入 `core/database/futures.db`** → API → 回測。`downloads/futures/` 下的 CSV／Parquet 只是 crawler 與 loader 之間的中繼暫存,任何下游（API、策略、回測、frontend）都不得直接讀取（詳見 §6.3）。
+- 儲存格式:結構化表格資料走 `futures.db`（SQLite,對齊現有 `stock.db` 慣例,使用 Python 標準庫 `sqlite3` 與既有 `SQLiteUtils`）；tick／連續合約快取可用 Parquet 存於 `core/pipeline/downloads/futures/` 下。
 - 保證金、契約規格、交易日曆屬低頻但關鍵資料,建議獨立維護並版本控管。
 
 ---
@@ -522,7 +548,7 @@ core/
 ## 十二、最後結論
 
 - 現有台股 ETL + 日線／Tick 回測骨架健康,**不用重寫**,但 `core/backtest/backtester.py` 現況是純股票實作,期貨需平行新增 `FuturesBacktester`,不可直接沿用。
-- 台期貨應以**平行垂直切片**加入:pipeline → DB → API → models/managers → strategies → backtest。
+- 台期貨應以**平行垂直切片**加入:pipeline → DB → API → models/managers → strategies → backtest；其中「DB」這一關不可省略,所有資料一律先用 `sqlite3` 落地到 `core/database/futures.db`,再往下游走（見 §6.3）。
 - 關鍵風險是誤用股票成本與日曆；保證金／換月／結算必須獨立建模。
 - 個股期貨（股期）已納入規劃,但因標的數量大（250+ 檔）、多數流動性偏低,建議分階段以流動性排名篩選後再擴充（見 Phase 6),避免一開始就攤開全部標的拖慢核心指數期貨閉環。
 - 建議先跑通 Phase 1 最小閉環（日線 + 簡化保證金 + 一支策略),再補日曆與換月,接著籌碼訊號,最後才做多商品、tick 與目錄收斂。
