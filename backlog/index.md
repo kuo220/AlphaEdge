@@ -17,11 +17,14 @@
 | 優先級 | 狀態 | 檔案 | 說明 | 進度 | 相依 |
 |:------:|:----:|------|------|------|------|
 | P0 | 🔄 | [放空回測框架建置.md](放空回測框架建置.md) | 把 `core/backtest` 從「只支援做多」升級為方向中立框架，補齊 SHORT 開平倉記帳、成本模型與多空報表 | Phase 0~4 共 24 項全數 ✅；P5-1（Phase 5）⏸ 本次範圍外 | 實作分支 `feature/short-backtest` |
-| P1 | ⬜ | [放空策略_外資大賣強勢股當沖.md](放空策略_外資大賣強勢股當沖.md) | 外資大賣 + 強勢股隔日開盤放空、尾盤回補（現股先賣後買當沖） | 尚未實作進 `core/strategies/stock/` | 依賴「放空回測框架建置」 |
-| P1 | ⬜ | [回測滑價與執行係數.md](回測滑價與執行係數.md) | 不大改 `core` 架構下新增滑價等執行係數：係數存放、`StockUtils` 調價、`Backtester` 掛點 | 0 / 4 項 | 與放空成本模型有重疊，宜一併收斂 |
+| P1 | ⬜ | [回測權益曲線改用逐日權益.md](回測權益曲線改用逐日權益.md) | 報表四張圖仍以已實現損益為軸，未接上 `snapshot_daily_equity` 產出的逐日權益，導致 MDD 被低估 | 未開始 | 承接「放空回測框架建置」P4-1 尾巴 |
+| P1 | ⬜ | [LONG成本模型口徑收斂.md](LONG成本模型口徑收斂.md) | `StockPositionManager` 的 LONG 分支仍走舊 `StockUtils`，與 SHORT 的 `StockCostModel` 兩套口徑並存 | 未開始 | 承接「放空回測框架建置」P2-1 偏離；阻擋滑價係數落地 |
+| P1 | ⬜ | [放空策略_外資大賣強勢股當沖.md](放空策略_外資大賣強勢股當沖.md) | 外資大賣 + 強勢股隔日開盤放空、尾盤回補（現股先賣後買當沖） | 尚未實作進 `core/strategies/stock/` | 依賴「放空回測框架建置」；同時是其 Phase 4 的端到端驗收用例 |
+| P1 | ⬜ | [回測滑價與執行係數.md](回測滑價與執行係數.md) | 不大改 `core` 架構下新增滑價等執行係數：係數存放、`StockUtils` 調價、`Backtester` 掛點 | 0 / 4 項 | 建議排在「LONG成本模型口徑收斂」之後 |
 | P2 | ⬜ | [回測引擎當沖執行順序重構.md](回測引擎當沖執行順序重構.md) | 當沖／日內策略的開倉、平倉順序政策化（對齊業界 bar policy / event loop） | 規劃中（未實作），內含 P0~P3 子項優先序 | 影響所有當沖策略回測可信度 |
 | P2 | 🔄 | [finmind-pipeline-optimization.md](finmind-pipeline-optimization.md) | FinMind 爬蟲／清洗／儲存流程優化計畫 | 4 / 7 項已實作 | — |
 | P2 | ⬜ | [broker_trading_no_data_handling.md](broker_trading_no_data_handling.md) | 券商分點 API 回傳 NO_DATA 時的 metadata 處理（建議做法一：`last_attempted_date`） | 僅紀錄做法，暫不實作 | — |
+| P2 | ⬜ | [放空框架Phase5延伸.md](放空框架Phase5延伸.md) | 融券餘額 ETL／券源檢核、停券日與股利補償、融資槓桿、同標的雙向持倉 | 未開始（融券餘額 ETL 為第一順位） | 承接「放空回測框架建置」P5-1；三項卡在資料源缺口 |
 | P3 | ⬜ | [PostgreSQL遷移計畫.md](PostgreSQL遷移計畫.md) | 由 SQLite3 遷移到 PostgreSQL 的分階段實作計畫 | Phase 0~5 皆未開始 | 影響面廣，建議在其他重構收斂後再動 |
 | P3 | ⬜ | [台期貨ETL與回測架構規劃.md](台期貨ETL與回測架構規劃.md) | 台期貨平行模組擴充：ETL、保證金/換月/日曆、回測與策略分支 | Phase 1~6 皆未開始 | 與「美股ETL與回測架構規劃」共用核心拆分原則 |
 | P3 | ⬜ | [美股ETL與回測架構規劃.md](美股ETL與回測架構規劃.md) | 美股平行模組擴充：市場分層、provider 抽象、回測核心拆分 | Phase 1~3 皆未開始 | 同上 |
