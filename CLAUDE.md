@@ -156,6 +156,15 @@ from core.config import DB_PATH, PRICE_TABLE_NAME
 1. 程式碼由 formatter 產生（Ruff/Black 風格，行寬 88、雙引號、magic trailing comma），提交前確保格式一致，不要手動調整成其他排版。
 2. SQL 查詢用三引號多行字串，參數一律走 `params=(...)` 佔位符，不要用 f-string 拼接使用者輸入。
 
+## Backlog 索引維護規範
+
+`backlog/index.md` 是所有待辦事項的單一索引表，記錄每個 `.md` 的優先級與完成狀態。**每次動到 `backlog/` 的內容，都必須同步更新 `index.md`**：
+
+1. **新增**待辦 `.md` 檔案時，在 `index.md` 表格新增對應的一列，填寫優先級、狀態、說明、進度與相依關係。
+2. **實作推進**時（子任務完成、階段狀態變更），同步更新該列的「狀態」與「進度」欄位，不可只改單一文件內的進度表。
+3. **項目完成整份移出** `backlog/` 時，同步刪除 `index.md` 與 `backlog/README.md` 中對應那一列。
+4. 檔名、標題或優先序調整時，一併更新 `index.md`，確保索引與各文件內容一致。
+
 ## 目錄專屬規則
 
 - `strategy_lab/` 目錄有自己的規則,見 [`strategy_lab/CLAUDE.md`](strategy_lab/CLAUDE.md)（對應 `.cursor/rules/strategy-lab-layout.mdc`，只在該目錄下工作時套用）。
