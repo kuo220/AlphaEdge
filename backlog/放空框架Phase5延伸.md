@@ -2,7 +2,7 @@
 
 ## Abstract
 
-- **背景／問題**：[放空回測框架建置.md](放空回測框架建置.md) 的 Phase 0~4 已完成，但 P5-1 的六個延伸項目被明確排除在該次範圍外（狀態 ⏸，備註「另開 backlog」）。其中三項卡在資料源缺口，兩項因會破壞 LONG 回歸保護線或範圍過大而暫緩。
+- **背景／問題**：[放空回測框架建置.md](放空回測框架建置.md) 的 Phase 0~4 已完成，但 Phase5-1 的六個延伸項目被明確排除在該次範圍外（狀態 ⏸，備註「另開 backlog」）。其中三項卡在資料源缺口，兩項因會破壞 LONG 回歸保護線或範圍過大而暫緩。
 - **目標**：補上放空回測缺少的市場約束——券源可得性、停券強制回補、股利補償——讓放空策略的機會數與績效不再被系統性高估。
 - **範圍界線**：**不做**融資做多槓桿與同標的雙向持倉（兩者暫緩，理由見 S4、S5）；不重寫既有成本模型；SBL 個股議定費率僅列為低優先，不在本次必做範圍。
 - **驗收標準**：融券餘額 ETL 可日更且有對應 API；`Backtester` 開倉前會檢核券源並把拒單計入事件統計；報表可量化「因無券源拒單」的次數。
@@ -13,8 +13,8 @@
 
 | 編號 | 步驟名稱 | 產出檔案 | 驗證方式 | 狀態 | 備註／中斷點 |
 |------|----------|----------|----------|:----:|--------------|
-| S1 | 融券餘額／信用交易 ETL（crawler→cleaner→loader→updater→API） | `core/pipeline/*/stock_margin_*.py`、`core/api/stock_margin_api.py` | `tasks/update_db.py --target stock_margin` 可日更；抽樣比對證交所原始數據 | ⬜ | **第一順位**；同時解掉券源檢核與券資比風控 |
-| S2 | 券源檢核接進回測框架 | `core/utils/cost_model.py`、`core/backtest/backtester.py` | 券源不足時拒單並計入 `event_counts`；報表出現「無券源拒單次數」 | ⬜ | 相依 S1 |
+| S1 | 融券餘額／信用交易 ETL（crawler→cleaner→loader→updater→API） | `core/pipeline/*/stock_margin_*.py`、`core/api/stock_margin_api.py` | `tasks/update_db.py --target margin` 可日更；抽樣比對證交所原始數據 | ✅ | CLI 參數定為 `--target margin`（偏離原規格的 `stock_margin`，見 S1）；歷史回補尚未執行 |
+| S2 | 券源檢核接進回測框架 | `core/backtest/models/cost_model.py`、`core/backtest/models/fill_model.py` | 券源不足時拒單並計入 `event_counts`；報表出現「無券源拒單次數」 | ⬜ | 相依 S1（已完成，資料缺口解除，可開工）；落點與路徑依 [回測引擎多市場抽象.md](回測引擎多市場抽象.md) 為準 |
 | S3 | 除權息行事曆 ETL ＋ 停券日強制回補與股利補償 | `core/pipeline/*/stock_dividend_*.py`、`core/backtest/backtester.py` | 停券日觸發強制回補；除息日扣股利補償 | ⬜ | 第二順位；相依 S1 的 ETL 慣例 |
 | S4 | 融資做多槓桿 | `core/managers/stock/position/position_manager.py` | LONG 回歸重產後逐筆可解釋 | ⏸ | 暫緩：會動 LONG 資金計算、破壞回歸保護線，且目前無策略需求 |
 | S5 | 同標的雙向持倉（net position 語意） | 多檔 | 待定 | ⏸ | 暫緩：範圍等同再開一個 Phase，目前無策略需求 |
@@ -26,8 +26,8 @@
 
 | 項目 | 現況 | 主要阻礙 | 對應步驟 |
 |------|------|----------|----------|
-| `SBL` 逐日市值計費 | **已於 P3-5 完成** | 僅剩「個股議定費率差異」，需借券成交資料 | S6（低優先） |
-| 券源可得性（融券餘額檢核） | ❌ 缺資料 | `chip` 表只有三大法人買賣超共 19 欄，無融券餘額／券資比；`price` 表亦無 | S1、S2（第一順位） |
+| `SBL` 逐日市值計費 | **已於 Phase3-5 完成** | 僅剩「個股議定費率差異」，需借券成交資料 | S6（低優先） |
+| 券源可得性（融券餘額檢核） | ✅ 資料已補齊（2026-08-01，S1 完成） | 新增 `margin` 表提供融券今日餘額／融券限額／券資比／註記 | S2（可開工） |
 | 停券日資料源（除權息／股東會） | ❌ 缺資料 | DB 無除權息行事曆，目前以 `max_holding_days` 近似 | S3（第二順位） |
 | 股利補償現金流 | ❌ 缺資料 | 需除息金額與日期，依賴上一項 | S3（附帶） |
 | 融資做多槓桿 | ⚠️ 可做但不建議現在做 | 無資料依賴，但會動 LONG 路徑資金計算，破壞回歸保護線；目前無策略需求 | S4（暫緩） |
@@ -37,14 +37,17 @@
 
 ---
 
-## S1. 融券餘額／信用交易 ETL ⬜
+## S1. 融券餘額／信用交易 ETL ✅
 
 - **目的**：補上放空可行性判斷所需的唯一資料缺口；沒有這份資料，引擎只能假設「任何標的隨時都借得到券」。
 - **做法**：
-  - **資料需求**（證交所每日信用交易統計）：融券餘額（張）、融券限額、融資餘額（張，券資比的分母）、當日融券賣出／買進／現券償還張數、是否為暫停融資融券標的（處置股、平盤下不得放空註記）。
-  - **落地方式**：沿用既有 `crawlers` / `cleaners` / `loaders` / `updaters` 四層慣例，可直接參考 `stock_chip_*` 那一組：
+  - **資料來源**：
+    - TWSE：`MI_MARGN`（`selectType=STOCK`，僅個股，不含 ETF／TDR／封閉式基金），16 欄。
+    - TPEX：上櫃股票融資融券餘額（`www.tpex.org.tw/www/zh-tw/margin/balance`），20 欄。
+    - 兩者實測自 2013-01-02 起版面未再改制，因此**不需要像 `stock_chip_*` 那樣做改制日期分流**，一律以「欄位位置」重新命名。
+  - **落地方式**：沿用既有 `crawlers` / `cleaners` / `loaders` / `updaters` 四層慣例：
 
-    | 層 | 新增檔案（建議） |
+    | 層 | 新增檔案 |
     |----|------------------|
     | crawler | `core/pipeline/crawlers/stock_margin_crawler.py` |
     | cleaner | `core/pipeline/cleaners/stock_margin_cleaner.py` |
@@ -52,19 +55,46 @@
     | updater | `core/pipeline/updaters/stock_margin_updater.py` |
     | API | `core/api/stock_margin_api.py` |
 
-  - 另需在 `tasks/update_db.py` 新增 `--target stock_margin`，並在 `core/config.py` 補表名常數。
-- **產出**：上表五個檔案 ＋ `tasks/update_db.py`、`core/config.py`。
-- **驗證方式**：`--target stock_margin` 可完成一次日更且中斷後可 resume；抽樣 20 筆與證交所原始數據比對一致。
+  - **資料表 `margin` 欄位（18 欄，數量單位一律為張）**：
+
+    | 欄位 | 說明 |
+    |------|------|
+    | `date`、`stock_id`、`證券名稱` | Primary Key 為 (`date`, `stock_id`) |
+    | `融資買進`／`融資賣出`／`融資現金償還`／`融資前日餘額`／`融資今日餘額`／`融資限額` | 融資六欄 |
+    | `融券買進`／`融券賣出`／`融券現券償還`／`融券前日餘額`／`融券今日餘額`／`融券限額` | 融券六欄（S2 券源檢核取 `融券今日餘額`） |
+    | `資券互抵` | 當日資券相抵張數 |
+    | `券資比` | 衍生欄位（%）：`融券今日餘額 / 融資今日餘額 × 100`，融資餘額為 0 時記為 0 |
+    | `註記` | 來源網站的處置／變更交易註記（如 `X`、`OX`、`11 C`），空值存為空字串 |
+
+  - 另在 `tasks/update_db.py` 新增 `--target margin`，`core/config.py` 補 `MARGIN_TABLE_NAME`／`MARGIN_DOWNLOADS_PATH`／`DEFAULT_MARGIN_START_DATE`，`core/pipeline/utils/constant.py` 補 `DataType.MARGIN`，`URLManager` 新增 `TWSE_MARGIN_ALL_URL`（`selectType=ALL`，含股票／ETF／TDR／受益證券）與 `TPEX_MARGIN_ALL_URL`（取代已失效的 `TPEX_MARGIN_SUMMARY_URL`），兩市場命名一致。
+- **產出**：
+  - 新增：`core/pipeline/crawlers/stock_margin_crawler.py`、`core/pipeline/cleaners/stock_margin_cleaner.py`、`core/pipeline/loaders/stock_margin_loader.py`、`core/pipeline/updaters/stock_margin_updater.py`、`core/api/stock_margin_api.py`、`tests/test_stock_margin_cleaner.py`
+  - 修改：`core/config.py`、`core/pipeline/utils/constant.py`、`core/pipeline/utils/url_manager.py`、`tasks/update_db.py`
+- **驗證方式與實際結果**（2026-08-01）：
+  1. **全流程日更**：以暫存 DB 跑 `StockMarginUpdater.update(2026-07-30 ~ 2026-07-31)`，兩日各入庫 1,974 筆（TWSE 1,060 ＋ TPEX 914）。
+  2. **Resume**：再次呼叫 `get_actual_update_start_date()` 回傳 `2026-08-01`（＝表內最新日 +1），確認中斷後可續跑。
+  3. **抽樣比對**：TWSE、TPEX 各抽 20 檔 × 14 個欄位與來源網站原始表格逐格比對，mismatch = 0。
+  4. **餘額恆等式**：全表 1,974 筆皆滿足 `今日餘額 = 前日餘額 + 增加 − 減少`（融資、融券各一式），確認 TPEX「券賣在券買之前」與 TWSE 相反的欄位順序有被正確處理。
+  5. **假日**：2026-01-01 兩來源皆判定為 Holiday 並跳過。
+  6. **單元測試**：`tests/test_stock_margin_cleaner.py` 6 項全數通過（不連網路、不連 DB）；`tests/backtest` 61 項未受影響。
 - **相依**：無。
+
+> **✅ 完成紀錄（2026-08-01）**
+> - **偏離原規格 ①**：CLI 參數定為 `--target margin` 而非規格寫的 `--target stock_margin`。原因是既有 target 命名皆為資料類型短名（`chip`、`price`、`tick`），且該值由 `DataType.MARGIN.name.lower()` 推導，另立長名會破壞 `all` / `no_tick` 的自動展開。
+> - **偏離原規格 ②**：規格列出的「是否為暫停融資融券標的（處置股、平盤下不得放空註記）」**未取得結構化欄位**。MI_MARGN 與櫃買餘額表只提供文字 `註記`（`X`／`OX`／`11 C` 等混合代碼），沒有可直接判讀的布林旗標；「平盤下不得放空」屬證交所另一份公告清單。本步驟先把 `註記` 原文入庫，是否再接一份公告清單由 S2 決定。
+> - **待辦（不影響本步驟驗收）**：2013-01-01 起的歷史回補尚未執行。單日約需 3~5 秒（含反爬 sleep），約 3,300 個交易日估計數小時，需另行執行 `python -m tasks.update_db --target margin`。**注意**：`get_actual_update_start_date()` 以表內最新日為準，故回補必須在表為空時整段跑完，不可先塞近期資料。
+> - **沿用既有慣例的已知問題**：`StockMarginLoader.add_to_db()` 比照 `StockChipLoader`，預設不刪除 downloads CSV，重跑時會因 Primary Key 衝突產生 warning（資料不會重複，但 log 會噪音）。此為既有 loader 的共通行為，未在本步驟修改。
 
 ## S2. 券源檢核接進回測框架 ⬜
 
 - **目的**：讓引擎在券源不足時拒單，並讓「機會數高估的幅度」可被量化。
 - **做法**：
+  - 資料由 S1 的 `StockMarginAPI` 提供：`get_stock_short_balance(stock_id, date)` 直接回傳當日融券今日餘額（張），查無資料時回傳 `None`（呼叫端須決定「跳過檢核」或「視為不可放空」）；`get_short_balance(date)` 可一次取當日全市場的餘額／限額／券資比／註記。
   - `ShortConstraint`（`core/utils/cost_model.py`）補「可借券張數上限」欄位。
   - `Backtester` 於開倉前檢核：該標的當日融券餘額不足或屬暫停融券標的 → 拒單並計入 `event_counts`（依框架設計原則 §6「不可靜默失敗」，須 log warning）。
   - 報表的事件統計新增「因無券源拒單次數」。
-- **產出**：`core/utils/cost_model.py`、`core/backtest/backtester.py`、`core/backtest/report/reporter.py`。
+- **產出**：`core/backtest/models/cost_model.py`（`ShortConstraint` 補欄位）、`core/backtest/models/fill_model.py`（開倉前的券源檢核）、`core/backtest/report/reporter.py`。
+- **落點說明（2026-08-02）**：券源檢核屬「這張單能不能成交」，與成交價可信度同性質，因此在 [回測引擎多市場抽象.md](回測引擎多市場抽象.md) 之後應放 `FillModel` 而非引擎本體；若在多市場抽象之前先做，則暫時放 `Backtester.execute_open_signal()`，並於重構時一併搬移。
 - **驗證方式**：構造一檔融券餘額為 0 的標的，開倉被拒且 `*_event_report.csv` 出現對應計數；既有 LONG 回歸不受影響。
 - **相依**：S1。
 
@@ -115,8 +145,14 @@
 ## 關聯與狀態
 
 - **優先級**：P2（S1、S2 融券餘額 ETL 與券源檢核）／ P3（其餘）
-- **相關程式**：`core/pipeline/*`、`core/api/*`、`core/utils/cost_model.py`、`core/backtest/backtester.py`、`tasks/update_db.py`
+- **進度**：S1 ✅（2026-08-01）；S2、S3 ⬜；S4~S6 ⏸
+- **是否併回 [放空回測框架建置.md](放空回測框架建置.md)：否**（2026-08-01 評估）。理由：
+  1. 該文件的狀態已是「Phase 0~4 全數完成」，進度追蹤表 24 列皆為 ✅，合併會讓一份已收斂的文件重新變成「進行中」，違反 [`CLAUDE.md` §3.3](../CLAUDE.md#33-實作過程的狀態更新)「進度追蹤表為單一進度來源」的用意，也擋住它整份移出 `backlog/` 的時機。
+  2. 兩份的工作性質不同：框架文件是**回測引擎內部改動**（無外部相依、以 LONG 回歸為保護線）；本文件有一半是 **ETL 與資料源工作**（`core/pipeline/*`、外部網站版面相依），驗證方式與回歸風險完全不同。
+  3. 框架文件本身已在 §Abstract 範圍界線與 Phase5-1 明確把這六項排除在該次範圍外，並指向本文件；連結關係已足夠，合併只會讓單一文件超過 900 行且兩種驗收標準混在一起。
+  - 兩者維持雙向連結即可；本文件完成後單獨移出 `backlog/`。
+- **相關程式**：`core/pipeline/*/stock_margin_*.py`、`core/api/stock_margin_api.py`、`core/utils/cost_model.py`、`core/backtest/backtester.py`、`tasks/update_db.py`
 - **相關 backlog**：
-  - [放空回測框架建置.md](放空回測框架建置.md)（P5-1 來源、§7.7 已知簡化）
+  - [放空回測框架建置.md](放空回測框架建置.md)（Phase5-1 來源、§7.7 已知簡化）
   - [放空策略_外資大賣強勢股當沖.md](放空策略_外資大賣強勢股當沖.md)（券源檢核直接影響該策略的機會數估計）
   - [LONG成本模型口徑收斂.md](LONG成本模型口徑收斂.md)（S4 融資槓桿建議排在其後）

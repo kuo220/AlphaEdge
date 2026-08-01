@@ -53,7 +53,7 @@ def generate_baseline() -> pd.DataFrame:
 
     backtester: Backtester = run_backtest_without_report(strategy)
 
-    # 直接由 trade_records 組表，避免依賴 reporter（reporter 在 P1-5 會被改動）
+    # 直接由 trade_records 組表，避免依賴 reporter（reporter 在 Phase1-5 會被改動）
     rows: List[dict] = [
         {
             "Stock ID": record.stock_id,

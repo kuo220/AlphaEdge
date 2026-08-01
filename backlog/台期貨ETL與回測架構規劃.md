@@ -2,10 +2,10 @@
 
 ## Abstract
 
-- **背景／問題**：專案目前只支援台股。`core/backtest/backtester.py` 是純股票實作（`StockAccount`、`StockPositionManager`、`StockQuoteAdapter` 全部寫死，連 `MarketCalendar.check_stock_market_open()` 都是股票專屬判斷），沒有期貨目錄、TAIFEX crawler、期貨表／API 與 `FuturesPositionManager`；合約生命週期、保證金、點值、夜盤日曆皆未建模。
-- **目標**：以「平行垂直切片」把台灣期貨（台指期系列 ＋ 股票期貨）加入專案：pipeline → `futures.db` → API → models/managers → strategies → `FuturesBacktester`，並與 [美股ETL與回測架構規劃.md](美股ETL與回測架構規劃.md) 共用「平行市場模組、共享核心、不共享市場細節」原則。
-- **範圍界線**：**保留現有台股流程不動**，不在 `Stock*` 類上硬接期貨分支；本規劃**不含**選擇權策略回測（PCR 僅作輔助訊號）、不含實盤下單、不含跨市場組合回測；股票期貨先鎖定流動性前 N 大標的，不一次攤開 250+ 檔。
-- **驗收標準**：`--target futures_price` 跑完後可用 `sqlite3 core/database/futures.db` 直接查到資料且重跑冪等；一支期貨示範策略可經 `FuturesBacktester` 跑完並產出報表；台股既有回歸測試逐筆不受影響。
+- **背景／問題**：專案目前只支援台股。沒有期貨目錄、TAIFEX crawler、期貨表／API 與期貨部位管理；合約生命週期、保證金、點值、夜盤日曆皆未建模。**現在連一筆台指期日線都沒有**（`core/database/` 只有 `stock.db`），所以最大宗的缺口在 ETL，不在回測引擎。
+- **目標**：以「平行垂直切片」把台灣期貨（台指期系列 ＋ 股票期貨）加入專案：pipeline → `futures.db` → API → models/managers → strategies → **既有的單一 `Backtester`**（透過 [回測引擎多市場抽象.md](回測引擎多市場抽象.md) 建立的 model 掛點接入），並與 [美股ETL與回測架構規劃.md](美股ETL與回測架構規劃.md) 共用「平行市場模組、共享核心、不共享市場細節」原則。
+- **範圍界線**：**保留現有台股流程不動**，不在 `Stock*` 類上硬接期貨分支；**不新增第二支 backtester**（原規劃的 `FuturesBacktester` 已作廢，理由見 §一）；本規劃**不含**選擇權策略回測（PCR 僅作輔助訊號）、不含實盤下單、不含跨市場組合回測；股票期貨先鎖定流動性前 N 大標的，不一次攤開 250+ 檔。
+- **驗收標準**：`--target futures_price` 跑完後可用 `sqlite3 core/database/futures.db` 直接查到資料且重跑冪等；一支期貨示範策略可經 `python run.py --strategy XXX` 跑完並產出報表；台股既有回歸雙線（LONG 915 筆 ＋ SHORT 快照）逐筆不受影響，且**回測引擎本身 0 行改動**。
 
 涵蓋範圍：連續合約構建（換月接續）與展期價差、日盤與夜盤資料整併、三大法人與大額交易人籌碼訊號、保證金制度變動下的槓桿與部位控管、交易成本模型（期交稅、手續費、滑價）、股票期貨標的池管理與流動性分級。
 
@@ -17,25 +17,25 @@
 
 | 編號 | 步驟名稱 | 產出檔案 | 驗證方式 | 狀態 | 備註／中斷點 |
 |------|----------|----------|----------|:----:|--------------|
-| P1-1 | `core/config.py` 新增期貨 DB 與表名常數 | `core/config.py` | `FUTURES_DB_PATH` 可解析 | ⬜ | 沿用 `get_static_resolved_path` |
-| P1-2 | `futures_price` 四層 ETL（TAIFEX 日線／結算價） | `core/pipeline/*/futures_price_*.py` | `--target futures_price` 跑完可查到資料且重跑冪等 | ⬜ | **前置關卡**：DB 沒建起來前不要寫 API／策略／回測（見 §6.3） |
-| P1-3 | `FuturesPriceAPI` ＋ `FuturesQuoteAdapter` | `core/api/futures_price_api.py`、`core/adapters/futures_quote_adapter.py` | 只從 `futures.db` 讀，不讀中繼檔 | ⬜ | 相依 P1-2 |
-| P1-4 | `models/futures` ＋ `managers/futures`（簡化保證金） | `core/models/futures/`、`core/managers/futures/` | 口數、多空、未平倉語意正確 | ⬜ | 相依 P1-3 |
-| P1-5 | `BaseFuturesStrategy` ＋ 一支示範策略 | `core/strategies/futures/` | 策略可被 `load_futures_strategies()` 載入 | ⬜ | 相依 P1-4 |
-| P1-6 | 平行新增 `FuturesBacktester`（不動既有 `Backtester`） | `core/backtest/` | 台股回歸逐筆相同；期貨策略可跑完 | ⬜ | 相依 P1-5 |
-| P1-7 | 連續合約構建（先做一種調整方式） | `core/pipeline/*/futures_continuous_*.py` | 換月接點的 `roll_flag` 正確 | ⬜ | 相依 P1-2 |
-| P2-1 | 期貨成本模型（期交稅、手續費、滑價） | `core/backtest/`、`core/utils/` | **不可複用證交稅**；有單元測試 | ⬜ | 相依 P1-6 |
-| P2-2 | 保證金歷史序列與槓桿／部位控管 | `core/pipeline/*`、`core/managers/futures/` | 保證金調整生效日對齊 | ⬜ | 相依 P2-1 |
-| P2-3 | 期貨交易日曆（日盤 ＋ 夜盤、結算日） | `core/utils/market_calendar.py` 或新增 futures calendar | 不沿用股票 calendar | ⬜ | 相依 P1-6 |
-| P2-4 | 換月規則參數化 | `core/backtest/` | 三種換月規則可切換 | ⬜ | 相依 P1-7、P2-3 |
-| P3-1 | 籌碼訊號 ETL（三大法人、大額交易人、PCR） | `core/pipeline/*/futures_chip_*.py` | 前視偏差對齊（T+1 可用） | ⬜ | 相依 P1-2 |
-| P4-1 | 多商品擴充（MTX、TMF、TE、TF） | `core/pipeline/*` | 各商品點值／乘數正確 | ⬜ | 相依 P2-2 |
-| P4-2 | 日盤／夜盤整併 | `core/pipeline/*`、日曆 | 跨盤別跳空被保留 | ⬜ | 相依 P2-3 |
-| P5-1 | 分 K 與 Tick（Shioaji futures ticks） | `core/pipeline/*/futures_tick_*.py` | 日內策略可回測 | ⬜ | 相依 P4-1；可參考 `StockTickUpdater` 多 key／執行緒 |
-| P5-2 | frontend 期貨專屬指標（保證金曲線、口數曝險） | `frontend/` | 指標可顯示 | ⬜ | 相依 P2-2 |
-| P5-3 | 目錄收斂至路徑 B（`tw_stock` / `tw_futures`） | 全專案 | 台股回歸逐筆相同 | ⏸ | 暫緩：與美股 `us/` 一起收斂，避免兩次重工 |
-| P6-1 | `futures_stock_universe` 標的池 ETL | `core/pipeline/*/futures_stock_universe_*.py` | 掛牌／下市與乘數異動可追蹤 | ⬜ | 相依 P1-2 |
-| P6-2 | 股票期貨行情 ETL 與除權息乘數調整 | `core/pipeline/*` | 與台股除權息處理對照，無雙重調整 | ⬜ | 相依 P6-1 |
+| Phase1-1 | `core/config.py` 新增期貨 DB 與表名常數 | `core/config.py` | `FUTURES_DB_PATH` 可解析 | ⬜ | 沿用 `get_static_resolved_path` |
+| Phase1-2 | `futures_price` 四層 ETL（TAIFEX 日線／結算價） | `core/pipeline/*/futures_price_*.py` | `--target futures_price` 跑完可查到資料且重跑冪等 | ⬜ | **前置關卡**：DB 沒建起來前不要寫 API／策略／回測（見 §6.3） |
+| Phase1-3 | `FuturesPriceAPI` ＋ `FuturesQuoteAdapter` | `core/api/futures_price_api.py`、`core/adapters/futures_quote_adapter.py` | 只從 `futures.db` 讀，不讀中繼檔 | ⬜ | 相依 Phase1-2 |
+| Phase1-4 | `models/futures` ＋ `managers/futures`（簡化保證金） | `core/models/futures/`、`core/managers/futures/` | 口數、多空、未平倉語意正確 | ⬜ | 相依 Phase1-3 |
+| Phase1-5 | `BaseFuturesStrategy` ＋ 一支示範策略 | `core/strategies/futures/` | 策略可被 `load_futures_strategies()` 載入 | ⬜ | 相依 Phase1-4 |
+| Phase1-6 | 實作期貨 model 組（不新增引擎） | `core/backtest/models/`、`core/backtest/datafeed/`、`core/backtest/factory.py` | 台股回歸雙線逐筆相同且引擎 0 行改動；期貨策略可跑完 | ⬜ | 相依 Phase1-5 ＋ [回測引擎多市場抽象.md](回測引擎多市場抽象.md) 全部完成 |
+| Phase1-7 | 連續合約構建（先做一種調整方式） | `core/pipeline/*/futures_continuous_*.py` | 換月接點的 `roll_flag` 正確 | ⬜ | 相依 Phase1-2 |
+| Phase2-1 | 期貨成本模型（期交稅、手續費、滑價） | `core/backtest/models/cost_model.py` | **不可複用證交稅**；有單元測試 | ⬜ | 相依 Phase1-6 |
+| Phase2-2 | 保證金歷史序列與槓桿／部位控管 | `core/pipeline/*`、`core/managers/futures/` | 保證金調整生效日對齊 | ⬜ | 相依 Phase2-1 |
+| Phase2-3 | 期貨交易日曆（日盤 ＋ 夜盤、結算日） | `core/backtest/datafeed/futures_calendar.py` | 不沿用股票 calendar | ⬜ | 相依 Phase1-6 |
+| Phase2-4 | 換月規則參數化 | `core/backtest/` | 三種換月規則可切換 | ⬜ | 相依 Phase1-7、Phase2-3 |
+| Phase3-1 | 籌碼訊號 ETL（三大法人、大額交易人、PCR） | `core/pipeline/*/futures_chip_*.py` | 前視偏差對齊（T+1 可用） | ⬜ | 相依 Phase1-2 |
+| Phase4-1 | 多商品擴充（MTX、TMF、TE、TF） | `core/pipeline/*` | 各商品點值／乘數正確 | ⬜ | 相依 Phase2-2 |
+| Phase4-2 | 日盤／夜盤整併 | `core/pipeline/*`、日曆 | 跨盤別跳空被保留 | ⬜ | 相依 Phase2-3 |
+| Phase5-1 | 分 K 與 Tick（Shioaji futures ticks） | `core/pipeline/*/futures_tick_*.py` | 日內策略可回測 | ⬜ | 相依 Phase4-1；可參考 `StockTickUpdater` 多 key／執行緒 |
+| Phase5-2 | frontend 期貨專屬指標（保證金曲線、口數曝險） | `frontend/` | 指標可顯示 | ⬜ | 相依 Phase2-2 |
+| Phase5-3 | 目錄收斂至路徑 B（`tw_stock` / `tw_futures`） | 全專案 | 台股回歸逐筆相同 | ⏸ | 暫緩：與美股 `us/` 一起收斂，避免兩次重工 |
+| Phase6-1 | `futures_stock_universe` 標的池 ETL | `core/pipeline/*/futures_stock_universe_*.py` | 掛牌／下市與乘數異動可追蹤 | ⬜ | 相依 Phase1-2 |
+| Phase6-2 | 股票期貨行情 ETL 與除權息乘數調整 | `core/pipeline/*` | 與台股除權息處理對照，無雙重調整 | ⬜ | 相依 Phase6-1 |
 
 ---
 
@@ -56,7 +56,8 @@
 
 - **沒有**期貨目錄、TAIFEX crawler、期貨表／API、期貨 `PositionManager`。
 - 資料模型與成本幾乎全是台股語意（`stock_id`、手續費 + 證交稅、全額持股）。
-- `core/backtest/backtester.py` 目前是純股票實作：`StockAccount`、`StockPositionManager`、`StockQuoteAdapter`、`BaseStockStrategy`、`StockOrder/Position/TradeRecord` 全部寫死，連 `MarketCalendar.check_stock_market_open()` 都是股票專屬判斷，**無法直接餵期貨資料**，必須平行建一支 `FuturesBacktester`。
+- `core/backtest/backtester.py` 目前是純股票實作：`StockAccount`、`StockPositionManager`、`StockQuoteAdapter`、`BaseStockStrategy`、`StockOrder/Position/TradeRecord` 全部寫死，連 `MarketCalendar.check_stock_market_open()` 都是股票專屬判斷，**無法直接餵期貨資料**。
+  - **原規劃是「平行建一支 `FuturesBacktester`」，此做法已作廢**（2026-08-02）。逐段分類後，那 838 行裡約 4 成是市場無關的骨架（日期迴圈、執行順序、方向驗證、訊號執行、報表），複製一份會讓兩邊永久漂移；而看似非分家不可的台股信用交易邏輯，全部都能對應到可插拔的 model 掛點。改採 [回測引擎多市場抽象.md](回測引擎多市場抽象.md) 的「單一引擎 ＋ 可插拔 model」，對齊 Backtrader `Cerebro`、Zipline、Lean `Engine`、Nautilus `BacktestEngine` 的一致做法。期貨端因此只需寫 model 實作，引擎 0 行改動。
 - `MarketCalendar` 以股票 `price` 表／日盤代理，未涵蓋夜盤與期貨結算日。
 - 合約生命週期（近月／遠月、連續合約、換月）尚未建模。
 - `BaseStockStrategy` 註解提到 Futures，但仍綁定股票 API／模型——不宜在其上硬接 if-futures。
@@ -65,7 +66,7 @@
 
 - **保留現有台股流程不動**，台期貨採「平行模組」建置，降低回歸風險。
 - **共享核心，不共享市場細節**：共用 ETL 抽象、回測事件迴圈、報表與 frontend；保證金、日曆、點值、合約碼分開。
-- **不要**在 `Stock*` 類上硬接期貨；應平行建 `Futures*` 分支，由 `run.py` 依 `Market` 分流。
+- **不要**在 `Stock*` 類上硬接期貨；應平行建 `Futures*` 分支，由 `core/backtest/factory.py` 依 `strategy.market` 分流（全專案唯一一處市場判斷，`run.py` 的 CLI 介面不變、不新增 `--market`）。
 
 ---
 
@@ -96,7 +97,7 @@ core/backtest  →  results  →  frontend
 ```mermaid
 flowchart TB
   subgraph entry [入口]
-    Run["run.py --market stock|futures"]
+    Run["run.py --strategy XXX（市場由策略宣告）"]
     Tasks["tasks/update_db.py --target ..."]
   end
 
@@ -123,7 +124,7 @@ flowchart TB
   end
 
   subgraph bt [回測]
-    Engine["backtest engine 共用"]
+    Engine["Backtester（單一引擎）\n＋ 市場 model 注入"]
     Report["report + frontend"]
   end
 
@@ -190,10 +191,13 @@ core/
 ├── strategies/
 │   ├── stock/
 │   └── futures/                            # BaseFuturesStrategy + 策略
-├── backtest/                               # 先複用既有迴圈概念，平行新增 FuturesBacktester
+├── backtest/                               # 單一 Backtester；期貨只新增 model 實作
+│   ├── backtester.py                       # 市場無關，期貨不動它
+│   ├── factory.py                          # 補 Market.FUTURE 分支（唯一改動點）
+│   ├── models/                             # TaifexInstrumentSpec / FuturesFillModel /
+│   │                                       #   FuturesCostModel / FuturesSettlementModel
+│   └── datafeed/futures_datafeed.py        # futures.db ＋ 期貨交易日曆
 └── utils/
-    ├── market_calendar.py                  # 擴充或拆分 futures calendar
-    ├── instrument.py                       # FuturesUtils（點值、乘數、近月）
     └── constant.py                         # 已有 Market.FUTURE 等鉤子
 ```
 
@@ -252,7 +256,9 @@ core/
 4. **交易時段**：夜盤、結算日休市邏輯
 5. **部位模型**：口數、多空、未平倉（非股數 + 證交稅）
 
-因此應平行建 `BaseFuturesStrategy` + `FuturesPositionManager` + `FuturesBacktester`，而非在 `BaseStockStrategy` / `StockPositionManager` / `Backtester` 上加分支。
+因此應平行建 `BaseFuturesStrategy` + `FuturesPositionManager` + **期貨那一組 model**，而非在 `BaseStockStrategy` / `StockPositionManager` 上加分支。
+
+**注意**：`Backtester` 是唯一例外——它經 [回測引擎多市場抽象.md](回測引擎多市場抽象.md) 重構後已是市場無關的單一引擎，期貨**共用**它，不另建也不加分支（差異走 model 注入）。
 
 ---
 
@@ -499,7 +505,7 @@ core/
 
 ### Phase 1：單商品日 K 最小可跑閉環
 
-#### P1-1. `core/config.py` 新增期貨 DB 與表名常數 ⬜
+#### Phase1-1. `core/config.py` 新增期貨 DB 與表名常數 ⬜
 
 - **目的**：先把路徑與表名收斂成常數，避免後續在程式中散落字串。
 - **做法**：新增 `FUTURES_DB_NAME: str = "futures.db"` 與 `FUTURES_DB_PATH`（沿用 `get_static_resolved_path(base_dir=DATABASE_DIR_PATH, ...)`），並比照 `PRICE_TABLE_NAME` 新增 `FUTURES_*_TABLE_NAME` 常數。
@@ -507,160 +513,173 @@ core/
 - **驗證方式**：`FUTURES_DB_PATH` 可正確解析為 `core/database/futures.db`。
 - **相依**：無。
 
-#### P1-2. `futures_price` 四層 ETL ⬜
+#### Phase1-2. `futures_price` 四層 ETL ⬜
 
 - **目的**：以大台（TX）為起點建立資料真相來源。**這是後續所有工作的前置關卡：DB 沒建起來之前，不要開始寫 API、策略或回測**（理由見 §6.3）。
 - **做法**：`FuturesPriceCrawler`（TAIFEX 日線／結算價）→ `FuturesPriceCleaner` → `FuturesPriceLoader`（`sqlite3` upsert，繼承 `BaseDataLoader`，`setup()` 內 `connect()` → `create_missing_tables()`）→ `FuturesPriceUpdater`；`tasks/update_db.py` 加 `--target futures_price`。增量更新的起訖日判斷共用既有 `SQLiteUtils`，不要另寫一套。
 - **產出**：`core/pipeline/{crawlers,cleaners,loaders,updaters}/futures_price_*.py`、`tasks/update_db.py`。
 - **驗證方式**：跑完能用 `sqlite3 core/database/futures.db` 直接查到資料，且**重跑一次筆數不變（冪等）**。
-- **相依**：P1-1。
+- **相依**：Phase1-1。
 
-#### P1-3. `FuturesPriceAPI` ＋ `FuturesQuoteAdapter` ⬜
+#### Phase1-3. `FuturesPriceAPI` ＋ `FuturesQuoteAdapter` ⬜
 
 - **目的**：提供回測的統一讀取層。
 - **做法**：**只從 `futures.db` 讀，不讀 `downloads/` 下的中繼檔**。
 - **產出**：`core/api/futures_price_api.py`、`core/adapters/futures_quote_adapter.py`。
 - **驗證方式**：查詢結果與 DB 內容一致；程式碼中無任何讀取 CSV／Parquet 的路徑。
-- **相依**：P1-2。
+- **相依**：Phase1-2。
 
-#### P1-4. `models/futures` ＋ `managers/futures` ⬜
+#### Phase1-4. `models/futures` ＋ `managers/futures` ⬜
 
 - **目的**：建立期貨語意的帳戶、訂單、部位模型（口數、多空、未平倉），而非股數 ＋ 證交稅。
-- **做法**：平行新增 `FuturesAccount` / `FuturesOrder` / `FuturesPosition` / `FuturesQuote` 與 `FuturesPositionManager`；保證金先做簡化版即可（完整版在 P2-2）。**不要**在 `Stock*` 類上加分支。
+- **做法**：平行新增 `FuturesAccount` / `FuturesOrder` / `FuturesPosition` / `FuturesQuote` 與 `FuturesPositionManager`；保證金先做簡化版即可（完整版在 Phase2-2）。**不要**在 `Stock*` 類上加分支。
 - **產出**：`core/models/futures/`、`core/managers/futures/`。
 - **驗證方式**：開平倉記帳的 PnL = 價格變動 × 乘數 × 口數，有單元測試。
-- **相依**：P1-3。
+- **相依**：Phase1-3。
 
-#### P1-5. `BaseFuturesStrategy` ＋ 一支示範策略 ⬜
+#### Phase1-5. `BaseFuturesStrategy` ＋ 一支示範策略 ⬜
 
 - **目的**：定義期貨策略契約，對齊既有股票策略介面。
 - **做法**：至少實作 `setup_account` / `setup_apis` / `check_open_signal` / `check_close_signal` / `check_stop_loss_signal` / `calculate_position_size`（改為口數與保證金約束）；載入方式為 `StrategyLoader.load_futures_strategies()`，`run.py` 依 `Market` 分流。
 - **產出**：`core/strategies/futures/base.py` ＋ 一支示範策略。
 - **驗證方式**：策略可被 `load_futures_strategies()` 載入並產生訂單。
-- **相依**：P1-4。
+- **相依**：Phase1-4。
 
-#### P1-6. 平行新增 `FuturesBacktester` ⬜
+#### Phase1-6. 實作期貨 model 組（不新增引擎） ⬜
 
-- **目的**：`core/backtest/backtester.py` 現況是純股票實作，無法直接餵期貨資料，必須平行建一支。
-- **做法**：複用既有事件迴圈概念，**不動既有 `Backtester`**；報表沿用既有 reporter。
-- **產出**：`core/backtest/` 下新增 `FuturesBacktester`。
-- **驗證方式**：台股既有回歸測試逐筆相同；期貨示範策略可跑完並產出報表。
-- **相依**：P1-5。
+- **目的**：讓期貨資料能餵進**既有的單一 `Backtester`**，不新增第二支引擎。
+- **做法**：
+  - **前提**：[回測引擎多市場抽象.md](回測引擎多市場抽象.md) 已完成，`Backtester` 已改為注入式（`InstrumentSpec` / `FillModel` / `CostModel` / `SettlementModel` / `DataFeed` 五個掛點）。
+  - 實作期貨那一組 model：
 
-#### P1-7. 連續合約構建 ⬜
+    | Model | 期貨要做的事 |
+    |-------|--------------|
+    | `TaifexInstrumentSpec` | 契約乘數（TX 200、MTX 50）、跳動點 1 點、無 ±10% 漲跌停（動態價格穩定措施） |
+    | `FuturesFillModel` | 成交價須落在 bar range；跳動點對齊 |
+    | `FuturesCostModel` | 期交稅 ＋ 手續費 per 口（見 Phase2-1，**不可複用證交稅**） |
+    | `FuturesSettlementModel` | 每日結算、保證金追繳、到期換月（見 Phase2-2、Phase2-4） |
+    | `FuturesDataFeed` | `futures.db` 讀取 ＋ 期貨交易日曆（見 Phase2-3） |
+
+  - `core/backtest/factory.py` 的 `build_backtester()` 補上 `Market.FUTURE` 分支——**這是本步驟唯一需要改動的既有檔案**。
+  - **關鍵設計點**：期貨的損益實現語意與股票不同——股票是「開倉→持有→平倉才實現」，期貨是**每日結算**（未實現損益每天變成保證金專戶的實際現金流動，隔日成本基礎重設為結算價）。此差異由 `BasePositionManager.settle_daily()` 掛點承接（該掛點由多市場抽象的 Phase4-2 建立，股票實作為 no-op），**不得改動 FIFO 主幹**。
+- **產出**：`core/backtest/models/`（期貨 4 個 model）、`core/backtest/datafeed/futures_datafeed.py`、`core/managers/futures/position_manager.py`；修改 `core/backtest/factory.py`。
+- **驗證方式**：台股既有回歸雙線（LONG 915 筆 ＋ SHORT 快照）逐筆相同——**期貨的加入不得使既有引擎改動任何一行**；期貨示範策略可跑完並產出報表。
+- **相依**：Phase1-5、[回測引擎多市場抽象.md](回測引擎多市場抽象.md) 全部完成。
+
+#### Phase1-7. 連續合約構建 ⬜
 
 - **目的**：讓回測有一條可跨月的連續價格序列。
 - **做法**：原始各月份契約下載 → 連續合約構建，**先做一種調整方式即可**（逆向調整／比例調整／未調整三擇一），但「調整方式」與「換月規則」須設計為可設定參數，不要寫死。
 - **產出**：`core/pipeline/*/futures_continuous_*.py`、`futures_continuous` 表。
 - **驗證方式**：換月接點的 `roll_flag` 與 `contract_month` 標記正確；展期價差可被還原檢查。
-- **相依**：P1-2。
+- **相依**：Phase1-2。
 
 ### Phase 2：成本模型、保證金與期貨日曆
 
-#### P2-1. 期貨成本模型 ⬜
+#### Phase2-1. 期貨成本模型 ⬜
 
 - **目的**：期貨成本結構與股票完全不同，**不可複用證交稅**。
 - **做法**：加入期交稅（買賣各一次，現行十萬分之二）、手續費（依券商參數化）、滑價（大台與小台流動性不同，需分別設定）。
-- **產出**：`core/backtest/`、`core/utils/`。
+- **產出**：`core/backtest/models/cost_model.py`（`FuturesCostModel`）。
 - **驗證方式**：各項費用有單元測試；稅率以參數化設定，不寫死。
-- **相依**：P1-6。
+- **相依**：Phase1-6。
 
-#### P2-2. 保證金歷史序列與槓桿／部位控管 ⬜
+#### Phase2-2. 保證金歷史序列與槓桿／部位控管 ⬜
 
 - **目的**：保證金調整會直接改變回測槓桿，用當前值回測歷史會失真。
 - **做法**：引入原始／維持保證金歷史序列（含調整公告生效日）；帳戶權益（現金 ＋ 未實現損益）決定保證金充足度，浮動獲利可支撐加碼；權益低於維持保證金時的處理政策（強制平倉或僅標記）須可設定。
 - **產出**：`core/pipeline/*/futures_margin_*.py`、`core/managers/futures/`。
 - **驗證方式**：保證金調整生效日前後的可開口數不同，且與公告一致。
-- **相依**：P2-1。
+- **相依**：Phase2-1。
 
-#### P2-3. 期貨交易日曆 ⬜
+#### Phase2-3. 期貨交易日曆 ⬜
 
 - **目的**：股票 calendar 不涵蓋夜盤與結算日，直接沿用會算錯持倉天數與可交易時段。
 - **做法**：建立期貨日曆——日盤 08:45–13:45、夜盤 15:00–次日 05:00、結算日（每月第三個星期三）與最後交易日邏輯、臨時休市。
-- **產出**：`core/utils/market_calendar.py` 擴充或新增 futures calendar。
+- **產出**：`core/backtest/datafeed/futures_calendar.py`（多市場抽象的 Phase4-1 已把 `market_calendar.py` 移入 `core/backtest/datafeed/`，期貨日曆與其並列，不沿用股票 calendar）。
 - **驗證方式**：抽樣比對 TAIFEX 行事曆；結算日與夜盤標記正確。
-- **相依**：P1-6。
+- **相依**：Phase1-6。
 
-#### P2-4. 換月規則參數化 ⬜
+#### Phase2-4. 換月規則參數化 ⬜
 
 - **目的**：不同策略適用的換月時點不同，寫死會限制研究空間。
 - **做法**：支援三種規則——結算日換月／提前 N 日換月／未平倉量交叉換月。
 - **產出**：`core/backtest/`。
 - **驗證方式**：三種規則可切換，且換月接點與 `roll_flag` 一致。
-- **相依**：P1-7、P2-3。
+- **相依**：Phase1-7、Phase2-3。
 
 ### Phase 3：籌碼訊號
 
-#### P3-1. 籌碼 ETL 與前視偏差對齊 ⬜
+#### Phase3-1. 籌碼 ETL 與前視偏差對齊 ⬜
 
 - **目的**：法人籌碼、未平倉為盤後公布，用當日資料下單即為前視偏差。
 - **做法**：接入三大法人、大額交易人（前五大／前十大、特定法人拆分）、選擇權 PCR；**回測時一律以「隔日可用」對齊**。
 - **產出**：`core/pipeline/*/futures_chip_*.py`、`futures_institutional_chip` 表。
 - **驗證方式**：查詢指定日期只回傳該日之前已公布的籌碼資料。
-- **相依**：P1-2。
+- **相依**：Phase1-2。
 
 ### Phase 4：多商品與夜盤整併
 
-#### P4-1. 多商品擴充 ⬜
+#### Phase4-1. 多商品擴充 ⬜
 
 - **目的**：從大台擴充到小台（MTX）、微台（TMF）與類股期貨（TE／TF）。
 - **做法**：各商品點值／乘數以設定表管理（TX 200、MTX 50、TMF 10、TE 4000、TF 1000 元／點）。
 - **產出**：`core/pipeline/*`、`futures_contract` 表。
 - **驗證方式**：各商品的 PnL 計算使用正確乘數；流動性差異反映在滑價設定上。
-- **相依**：P2-2。
+- **相依**：Phase2-2。
 
-#### P4-2. 日盤／夜盤整併 ⬜
+#### Phase4-2. 日盤／夜盤整併 ⬜
 
 - **目的**：決定是否合併為單一連續序列或分開回測，並保留跨盤別跳空。
 - **做法**：以 `session` 欄位標記 day／night；整併策略設為可設定參數。
 - **產出**：`core/pipeline/*`、期貨日曆。
 - **驗證方式**：跨盤別跳空未被平滑掉；整併前後的日 K OHLC 可對帳。
-- **相依**：P2-3。
+- **相依**：Phase2-3。
 
 ### Phase 5：分 K 與 Tick、前端指標
 
-#### P5-1. 分 K 與 Tick ⬜
+#### Phase5-1. 分 K 與 Tick ⬜
 
 - **目的**：支援日內策略回測。
 - **做法**：引入 Shioaji futures tick（可參考 `StockTickUpdater` 的多 key／執行緒做法）；tick／連續合約快取可用 Parquet 存於 `core/pipeline/downloads/futures/`，但結構化表格資料一律走 `futures.db`。
 - **產出**：`core/pipeline/*/futures_tick_*.py`。
 - **驗證方式**：日內策略可完成一次回測；tick 時間戳為台北時間且 timezone-aware。
-- **相依**：P4-1。
+- **相依**：Phase4-1。
 
-#### P5-2. frontend 期貨專屬指標 ⬜
+#### Phase5-2. frontend 期貨專屬指標 ⬜
 
 - **目的**：期貨的風險視角與股票不同，需要保證金與口數曝險的呈現。
 - **做法**：frontend 新增保證金曲線與口數曝險指標。
 - **產出**：`frontend/`。
 - **驗證方式**：指標可從回測結果讀取並顯示。
-- **相依**：P2-2。
+- **相依**：Phase2-2。
 
-#### P5-3. 目錄收斂至路徑 B ⏸
+#### Phase5-3. 目錄收斂至路徑 B ⏸
 
 - **目的**：把路徑 A（命名平行）收斂為路徑 B（市場維度目錄），與美股 `us/` 對齊。
 - **做法**：收斂至 `tw_stock` / `tw_futures`（見 §三 路徑 B）。
 - **產出**：全專案目錄調整。
 - **驗證方式**：台股回歸測試逐筆相同。
-- **相依**：P1-1~P5-2。
-- **暫緩原因與解除條件**：影響面大且會動到台股既有路徑；應與 [美股ETL與回測架構規劃.md](美股ETL與回測架構規劃.md) 的 P3-3 一起收斂，避免兩次重工。待兩邊的最小閉環都驗證完成後解除。
+- **相依**：Phase1-1~Phase5-2。
+- **暫緩原因與解除條件**：影響面大且會動到台股既有路徑；應與 [美股ETL與回測架構規劃.md](美股ETL與回測架構規劃.md) 的 Phase3-3 一起收斂，避免兩次重工。待兩邊的最小閉環都驗證完成後解除。
 
 ### Phase 6：股票期貨（股期）擴充
 
-#### P6-1. `futures_stock_universe` 標的池 ETL ⬜
+#### Phase6-1. `futures_stock_universe` 標的池 ETL ⬜
 
 - **目的**：股票期貨標的約 250+ 檔且會隨掛牌／下市異動，需獨立維護標的池。
 - **做法**：爬取 TAIFEX 股票期貨商品資訊，記錄 `underlying_stock_id`、掛牌日、下市日、契約乘數異動紀錄；**篩選流動性排名前 N 檔**（例如依日均成交量取前 30–50 檔），不要一次爬全部。標的池需獨立排程更新。
 - **產出**：`core/pipeline/*/futures_stock_universe_*.py`、`futures_stock_universe` 表。
 - **驗證方式**：掛牌／下市與乘數異動可被追蹤；`underlying_stock_id` 與現股 `stock_id` 對得上。
-- **相依**：P1-2。
+- **相依**：Phase1-2。
 
-#### P6-2. 股票期貨行情 ETL 與除權息乘數調整 ⬜
+#### Phase6-2. 股票期貨行情 ETL 與除權息乘數調整 ⬜
 
 - **目的**：股期的除權息處理與現股完全不同，**不可套用現股還原股價的邏輯**，否則會重複調整或漏調。
 - **做法**：比照指數期貨走完整 ETL 垂直切片（universe → price → 可選 chip → backtest）；標的除權息時，交易所以**調整契約乘數**或**發行新契約**因應，回測需比照 TAIFEX 官方公告調整並保存乘數歷史序列。回測預設**只用近月合約**，不建議比照指數期貨做多月份連續合約（遠月流動性極低）。
 - **產出**：`core/pipeline/*/futures_stock_price_*.py`。
 - **驗證方式**：除權息調整邏輯與台股既有除權息處理對照驗證，確認無雙重調整或遺漏。
-- **相依**：P6-1。
+- **相依**：Phase6-1。
 
 ---
 
@@ -691,7 +710,7 @@ core/
 
 ## 十二、最後結論
 
-- 現有台股 ETL + 日線／Tick 回測骨架健康，**不用重寫**，但 `core/backtest/backtester.py` 現況是純股票實作，期貨需平行新增 `FuturesBacktester`，不可直接沿用。
+- 現有台股 ETL + 日線／Tick 回測骨架健康，**不用重寫**。`core/backtest/backtester.py` 現況雖是純股票實作，但經 [回測引擎多市場抽象.md](回測引擎多市場抽象.md) 重構為「單一引擎 ＋ 可插拔 model」後，期貨可直接沿用，只需寫 model 實作——**原規劃的平行 `FuturesBacktester` 已作廢**。
 - 台期貨應以**平行垂直切片**加入：pipeline → DB → API → models/managers → strategies → backtest；其中「DB」這一關不可省略，所有資料一律先用 `sqlite3` 落地到 `core/database/futures.db`，再往下游走（見 §6.3）。
 - 關鍵風險是誤用股票成本與日曆；保證金／換月／結算必須獨立建模。
 - 個股期貨（股期）已納入規劃，但因標的數量大（250+ 檔）、多數流動性偏低，建議分階段以流動性排名篩選後再擴充（見 Phase 6），避免一開始就攤開全部標的拖慢核心指數期貨閉環。

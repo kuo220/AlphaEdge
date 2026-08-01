@@ -2,9 +2,10 @@
 
 ## Abstract
 
-- **背景／問題**：放空框架 Phase 2 原規格是「多空兩條路徑都走 `StockCostModel`」，實作時只有 SHORT 分支照做，LONG 分支仍呼叫舊的 `StockUtils`，形成同一個 `StockPositionManager` 內兩套費用口徑並存（來源見 [放空回測框架建置.md](放空回測框架建置.md) P2-1 的「偏離原規格」）。
+- **背景／問題**：放空框架 Phase 2 原規格是「多空兩條路徑都走 `StockCostModel`」，實作時只有 SHORT 分支照做，LONG 分支仍呼叫舊的 `StockUtils`，形成同一個 `StockPositionManager` 內兩套費用口徑並存（來源見 [放空回測框架建置.md](放空回測框架建置.md) Phase2-1 的「偏離原規格」）。
 - **目標**：LONG 與 SHORT 共用 `StockCostModel` 記帳，`StockUtils` 退回純計算工具函式，不再承擔記帳口徑。
-- **範圍界線**：**只做口徑收斂**，不新增滑價係數（屬 [回測滑價與執行係數.md](回測滑價與執行係數.md)）、不改成本模型的公式定義、不動 SHORT 路徑既有行為、不擴充多市場費率抽象。
+- **範圍界線**：**只做口徑收斂**，不新增滑價係數（屬 [回測滑價與執行係數.md](回測滑價與執行係數.md)）、不改成本模型的公式定義、不動 SHORT 路徑既有行為、不擴充多市場費率抽象（屬 [回測引擎多市場抽象.md](回測引擎多市場抽象.md)）。
+- **與多市場抽象的關係**：本文件是在 `StockCostModel` **內部**統一 LONG／SHORT 口徑，[回測引擎多市場抽象.md](回測引擎多市場抽象.md) Phase2-4 是在其**外部**加上 `BaseCostModel` 介面，兩者互不衝突、可任意先後；但若多市場抽象先做，本文件的檔案路徑須依其 Phase4-1／Phase4-2 更新。
 - **驗收標準**：`position_manager.py` 內不再直接呼叫 `StockUtils.calculate_transaction_*` / `calculate_net_profit` / `calculate_roi`，部分平倉的等比例攤提多空共用同一段程式碼，且既有 61 項單元／整合測試與 `test_long_regression_snapshot` 全數通過。
 
 ---
@@ -15,8 +16,8 @@
 |------|----------|----------|----------|:----:|--------------|
 | S1 | 量化新舊兩套公式的差異分布 | `tests/backtest/compare_cost_formula.py` | 掃描含部分平倉的組合，輸出四項差值分布報告 | ⬜ | 必須先於 S2 完成，不可直接改了再看回歸紅不紅 |
 | S2 | 決定收斂口徑（做法 A／B 二選一） | 本文件（決策紀錄） | 決策與理由寫入本文件，並註明切換日期 | ⬜ | 相依 S1 的差異報告 |
-| S3 | 改造 `position_manager.py` 的 LONG 分支 | `core/managers/stock/position/position_manager.py` | `test_long_regression_snapshot` ＋ 既有 61 項測試 | ⬜ | 相依 S2 |
-| S4 | 收斂 `StockUtils` 對外入口與 docstring | `core/utils/instrument.py`、`core/utils/cost_model.py` | 人工檢視：無語意重疊的雙入口 | ⬜ | 相依 S3 |
+| S3 | 改造 `position_manager.py` 的 LONG 分支 | `core/managers/stock/position_manager.py` | `test_long_regression_snapshot` ＋ 既有測試 | ⬜ | 相依 S2；路徑依 [回測引擎多市場抽象.md](回測引擎多市場抽象.md) Phase4-2 扁平化後為準 |
+| S4 | 收斂 `StockUtils` 對外入口與 docstring | `core/backtest/models/cost_model.py`、`core/backtest/models/instrument_spec.py` | 人工檢視：無語意重疊的雙入口 | ⬜ | 相依 S3；路徑依 [回測引擎多市場抽象.md](回測引擎多市場抽象.md) Phase4-1 搬移後為準 |
 
 ---
 
@@ -90,6 +91,6 @@
 - **優先級**：P1（阻擋滑價係數落地；放著會讓兩套公式的差異持續擴大）
 - **相關程式**：`core/managers/stock/position/position_manager.py`、`core/utils/cost_model.py`、`core/utils/instrument.py`、`tests/backtest/test_long_regression.py`、`tests/backtest/snapshots/`
 - **相關 backlog**：
-  - [放空回測框架建置.md](放空回測框架建置.md)（P2-1 偏離來源、§6.0 取整規則）
+  - [放空回測框架建置.md](放空回測框架建置.md)（Phase2-1 偏離來源、§6.0 取整規則）
   - [回測滑價與執行係數.md](回測滑價與執行係數.md)（滑價須掛在統一口徑上，建議在本項之後做）
   - [放空框架Phase5延伸.md](放空框架Phase5延伸.md)（融資做多槓桿建議排在本項之後，屆時 baseline 本來就要重產）
