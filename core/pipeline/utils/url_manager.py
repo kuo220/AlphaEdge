@@ -28,8 +28,10 @@ class URLManager:
         "TWSE_MARGIN_TDR_URL": "https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN?date={date}&selectType=9299&response=html",
         # 上市信用交易統計（股票）
         "TWSE_MARGIN_STOCK_URL": "https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN?date={date}&selectType=STOCK&response=html",
-        # 上櫃信用交易統計（Summary）
-        "TPEX_MARGIN_SUMMARY_URL": "https://www.tpex.org.tw/web/stock/margin_trading/margin_balance/margin_bal_result.php?l=zh-tw&o=htm&d={roc_year}/{month}/{day}&s=0,asc",
+        # 上市信用交易統計（全部，含股票／ETF／TDR／受益證券，Ex: date = 20260731）
+        "TWSE_MARGIN_ALL_URL": "https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN?date={date}&selectType=ALL&response=html",
+        # 上櫃信用交易統計（全部，Ex: date = 2026/07/31）
+        "TPEX_MARGIN_ALL_URL": "https://www.tpex.org.tw/www/zh-tw/margin/balance?date={date}&id=&response=html",
         # 上市收盤行情（Ex: date = 20250801）
         "TWSE_CLOSING_QUOTE_URL": "https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?date={date}&type=ALLBUT0999&response=html",
         # 上櫃收盤行情（Ex: date = 2025/08/01）

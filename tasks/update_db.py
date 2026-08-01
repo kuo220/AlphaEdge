@@ -12,11 +12,13 @@ from core.pipeline.updaters.monthly_revenue_report_updater import (
     MonthlyRevenueReportUpdater,
 )
 from core.pipeline.updaters.stock_chip_updater import StockChipUpdater
+from core.pipeline.updaters.stock_margin_updater import StockMarginUpdater
 from core.pipeline.updaters.stock_price_updater import StockPriceUpdater
 from core.pipeline.updaters.stock_tick_updater import StockTickUpdater
 from core.config import (
     DEFAULT_CHIP_START_DATE,
     DEFAULT_END_MONTH,
+    DEFAULT_MARGIN_START_DATE,
     DEFAULT_PRICE_START_DATE,
     DEFAULT_START_YEAR,
     FINMIND_BROKER_TRADING_END_DATE,
@@ -61,6 +63,7 @@ Target 對照表
   -------------------------  -----------------------------------------------
   tick                        逐筆成交 (Shioaji ticks)
   chip                        三大法人籌碼
+  margin                      信用交易（融資融券餘額）
   price                       收盤價
   fs                          財報 (Financial Statement)
   mrr                         月營收報表 (Monthly Revenue Report)
@@ -81,6 +84,9 @@ Target 對照表
 
   # 三大法人籌碼
   python -m tasks.update_db --target chip
+
+  # 信用交易（融資融券餘額）
+  python -m tasks.update_db --target margin
 
   # 收盤價
   python -m tasks.update_db --target price
@@ -170,6 +176,11 @@ def get_update_time_config(
             "start_date": DEFAULT_CHIP_START_DATE,
             "end_date": datetime.date.today(),
         }
+    elif data_type == DataType.MARGIN:
+        return {
+            "start_date": DEFAULT_MARGIN_START_DATE,
+            "end_date": datetime.date.today(),
+        }
     elif data_type == DataType.PRICE:
         return {
             "start_date": DEFAULT_PRICE_START_DATE,
@@ -242,6 +253,15 @@ def main() -> None:
         )
         stock_chip_updater: StockChipUpdater = StockChipUpdater()
         stock_chip_updater.update(
+            start_date=time_config["start_date"], end_date=time_config["end_date"]
+        )
+
+    if DataType.MARGIN.name.lower() in targets:
+        time_config: Dict[str, datetime.date | int] = get_update_time_config(
+            DataType.MARGIN
+        )
+        stock_margin_updater: StockMarginUpdater = StockMarginUpdater()
+        stock_margin_updater.update(
             start_date=time_config["start_date"], end_date=time_config["end_date"]
         )
 
