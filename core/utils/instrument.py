@@ -1,10 +1,11 @@
 import datetime
+from decimal import ROUND_CEILING, ROUND_FLOOR, ROUND_HALF_UP, Decimal
 from typing import List, Tuple
 
 import numpy as np
 import shioaji as sj
 
-from .constant import Commission, Units
+from .constant import PRICE_TICK_TABLE, Commission, Units
 from .market_calendar import MarketCalendar
 
 """
@@ -118,7 +119,11 @@ class StockUtils:
         )
 
     @staticmethod
-    def calculate_transaction_tax(price: float = 0.0, volume: int = 0) -> int:
+    def calculate_transaction_tax(
+        price: float = 0.0,
+        volume: int = 0,
+        is_day_trade: bool = False,
+    ) -> int:
         """
         - Description:
             計算股票賣出時的交易稅
@@ -127,16 +132,61 @@ class StockUtils:
                 成交價格
             - volume: int
                 成交張數（Unit: Lots）
+            - is_day_trade: bool
+                是否為現股當沖賣出（稅率減半），預設 False 維持既有行為
         - Return:
             - tax: int
                 交易稅
         - Notes:
-            For long position, the tax cost:
-            - sell tax (券賣證交稅 = 成交價 x 成交股數 x 證交稅率)
+            - 一般賣出證交稅 = 成交價 x 成交股數 x 0.3%
+            - 現股當沖賣出證交稅 = 成交價 x 成交股數 x 0.15%（減半優惠）
+            - 放空的證交稅課在「賣出（開倉）」這端，與做多相反
         """
-        return max(
-            1, int(price * StockUtils.convert_lot_to_share(volume) * Commission.TaxRate)
+
+        tax_rate: float = (
+            Commission.DayTradeTaxRate if is_day_trade else Commission.TaxRate
         )
+        return max(1, int(price * StockUtils.convert_lot_to_share(volume) * tax_rate))
+
+    @staticmethod
+    def round_to_tick(price: float, direction: str = "nearest") -> float:
+        """
+        - Description:
+            將價格對齊台股分段檔位，避免算出不可能成交的價格
+        - Parameters:
+            - price: float
+                原始價格（例如滑價調整後的價格）
+            - direction: str
+                取整方向："up"（進位）、"down"（捨去）、"nearest"（就近）
+                放空情境建議：開倉（賣出）用 "down"、回補（買進）用 "up"，較為保守
+        - Return:
+            - price: float
+                對齊檔位後的價格
+        """
+
+        if price <= 0:
+            return 0.0
+
+        # 找出該價位適用的檔位；邊界值（如 10、50）歸屬較大的檔位級距
+        tick: float = PRICE_TICK_TABLE[-1][1]
+        for upper_bound, tick_size in PRICE_TICK_TABLE:
+            if price < upper_bound:
+                tick = tick_size
+                break
+
+        # 以 Decimal 運算避免浮點誤差（例如 0.05 檔位在二進位下無法精確表示）
+        price_dec: Decimal = Decimal(str(price))
+        tick_dec: Decimal = Decimal(str(tick))
+        units: Decimal = price_dec / tick_dec
+
+        if direction == "up":
+            rounded: Decimal = units.to_integral_value(rounding=ROUND_CEILING)
+        elif direction == "down":
+            rounded = units.to_integral_value(rounding=ROUND_FLOOR)
+        else:
+            rounded = units.to_integral_value(rounding=ROUND_HALF_UP)
+
+        return float(rounded * tick_dec)
 
     @staticmethod
     def calculate_transaction_cost(

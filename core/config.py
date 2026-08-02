@@ -72,6 +72,9 @@ PRICE_DOWNLOADS_PATH: Path = get_static_resolved_path(
 CHIP_DOWNLOADS_PATH: Path = get_static_resolved_path(
     base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="chip"
 )
+MARGIN_DOWNLOADS_PATH: Path = get_static_resolved_path(
+    base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="margin"
+)
 TICK_DOWNLOADS_PATH: Path = get_static_resolved_path(
     base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="tick"
 )
@@ -144,6 +147,7 @@ TICK_DB_PATH: str = f"{os.getenv('DDB_PATH')}{TICK_DB_NAME}"
 #
 PRICE_TABLE_NAME: str = "price"
 CHIP_TABLE_NAME: str = "chip"
+MARGIN_TABLE_NAME: str = "margin"
 TICK_TABLE_NAME: str = "tick"
 MONTHLY_REVENUE_TABLE_NAME: str = "monthly_revenue"
 BALANCE_SHEET_TABLE_NAME: str = "balance_sheet"
@@ -164,6 +168,7 @@ STOCK_TRADING_DAILY_REPORT_TABLE_NAME: str = (
 # -----------------------------------------------------------------------
 #
 DEFAULT_CHIP_START_DATE: datetime.date = datetime.date(2013, 1, 1)
+DEFAULT_MARGIN_START_DATE: datetime.date = datetime.date(2013, 1, 1)
 DEFAULT_PRICE_START_DATE: datetime.date = datetime.date(2013, 1, 1)
 DEFAULT_START_YEAR: int = 2013
 DEFAULT_END_MONTH: int = 12

@@ -1,44 +1,22 @@
-# AlphaEdge — Claude Code 專案規則
-
-本檔案是 Claude Code 在本專案的**常駐規則**，所有對話與變更一律套用。
-
-| 章節 | 適用範圍 | 對應 Cursor Rule |
-|------|----------|------------------|
-| [1. 通用原則](#1-通用原則) | 全專案 | — |
-| [2. Coding Style](#2-coding-style) | `**/*.py` | `.cursor/rules/coding-style-zh.mdc` |
-| [3. Backlog 管理](#3-backlog-管理) | `backlog/**` | — |
-| [4. Commit 與 Push](#4-commit-與-push) | 全專案 | `.cursor/rules/commit-message-zh.mdc`（alwaysApply） |
-| [5. 目錄專屬規則](#5-目錄專屬規則) | 各子目錄 | `.cursor/rules/strategy-lab-layout.mdc` |
-
-情節性的流程規範不放本檔案，改以 `.claude/skills/` 按需載入：
-
-| Skill | 觸發時機 | 對應 Cursor Rule |
-|-------|----------|------------------|
-| [`manage-backlog`](.claude/skills/manage-backlog/SKILL.md) | 新增／更新 `backlog/**` 文件與 `index.md` | — |
-| [`develop-strategy`](.claude/skills/develop-strategy/SKILL.md) | 新增／修改 `core/strategies/stock/` 策略 | `.cursor/rules/strategy-development-sdd.mdc` |
-
+---
+description: Python coding style 與中文註解規範（由 core/、strategy_lab/ 現有程式碼歸納）
+globs: **/*.py
+alwaysApply: false
 ---
 
-## 1. 通用原則
+# Coding Style 與註解規範
 
-1. 除非使用者明確要求英文，**回覆、文件與註解一律使用繁體中文**。
-2. 專有名詞保留英文原詞，不要硬翻（`tick`、`bid/ask`、`ROI`、`OHLC`、`Long/Short`、`API`、`SQLite`）。
-3. 中文標點使用全形（`，`、`：`、`（）`）；同一檔案內標點與空白風格保持一致。
-4. 既有程式碼的風格優先於個人偏好：新增或修改時沿用現有寫法，不要引入新風格。
+> 本檔案對齊 [`CLAUDE.md`](../../CLAUDE.md) 的「Coding Style 與註解規範」章節。
+> 以下規則由現有 `core/`、`strategy_lab/` 程式碼歸納而成，新增或修改程式碼時一律沿用，不要引入新風格。
 
----
+## 1. 註解語言
 
-## 2. Coding Style
+1. **註解一律以繁體中文為主**，除非是本來就以英文表達的專有名詞（例如 `tick`、`bid/ask`、`ROI`、`OHLC`、`Long/Short`、`Ridge`、`API`、`SQLite`）。
+2. 中英夾雜時保留英文原詞，不要硬翻，例如：`# 內外盤別{1: 外盤, 2: 內盤, 0: 無法判定}`、`self.volume: int = volume  # 成交量（Unit: Lot）`。
+3. 中文標點使用全形（`，`、`：`、`（）`），英文專有名詞前後不強制加空白，但同一檔案內保持一致。
+4. 註解說明「為什麼」與業務語意，不要複述程式碼字面行為。
 
-> 以下規則由現有 `core/`、`strategy_lab/` 程式碼歸納而成。
-
-### 2.1 註解語言
-
-1. **註解一律以繁體中文為主**，專有名詞保留英文（見 §1）。
-2. 中英夾雜時保留英文原詞，例如：`# 內外盤別{1: 外盤, 2: 內盤, 0: 無法判定}`、`self.volume: int = volume  # 成交量（Unit: Lot）`。
-3. 註解說明「為什麼」與業務語意，不要複述程式碼字面行為。
-
-### 2.2 Docstring
+## 2. Docstring
 
 1. 每個 class 與 public method 都要有 docstring；單行說明用一行三引號寫完：
 
@@ -81,9 +59,9 @@
        """
    ```
 
-### 2.3 模組層級說明字串
+## 3. 模組層級說明字串
 
-1. 模組總覽說明字串放在 **import 區塊之後、第一個 class/function 之前**（`core/api/`、`core/models/`、`core/pipeline/` 皆如此）：
+1. 模組總覽說明字串放在 **import 區塊之後、第一個 class/function 之前**（本專案主流寫法，`core/api/`、`core/models/`、`core/pipeline/` 皆如此）：
 
    ```python
    from core.api.base import BaseDataAPI
@@ -96,7 +74,7 @@
 
 2. 內容較長時用多行三引號，依序寫「模組用途 → Features 條列 → 使用場景」（見 `core/utils/instrument.py`）。
 
-### 2.4 Type Hints
+## 4. Type Hints
 
 1. **所有函式參數與回傳值都要標註型別**，包含回傳 `None` 的 `-> None`。
 2. **區域變數與 instance 屬性也標註型別**，這是本專案明顯特徵，務必沿用：
@@ -110,7 +88,7 @@
 3. 使用 `typing` 的 `List` / `Dict` / `Optional` / `Tuple` / `Union` 大寫寫法，不要改成 `list[...]` / `X | None`。
 4. 可選欄位一律 `Optional[T]`，並在 `__init__` 給預設值 `None`。
 
-### 2.5 Import 排序
+## 5. Import 排序
 
 依 Ruff/isort 預設分組，組間空一行，組內字母排序：
 
@@ -128,7 +106,7 @@ from core.api.base import BaseDataAPI
 from core.config import DB_PATH, PRICE_TABLE_NAME
 ```
 
-### 2.6 命名
+## 6. 命名
 
 | 對象 | 規則 | 範例 |
 | --- | --- | --- |
@@ -139,12 +117,12 @@ from core.config import DB_PATH, PRICE_TABLE_NAME
 | 常數 | `UPPER_SNAKE_CASE`，策略參數放 class 層級常數並附中文單位註解 | `MIN_VOLUME_LOTS: int = 5000  # 最小成交量（張）` |
 | 策略類別 | 類別名即策略識別名稱，需與 `run.py --strategy` 對應 | `MomentumStrategy1` |
 
-### 2.7 常數與 Enum
+## 7. 常數與 Enum
 
 1. 字串常數先定義模組層級 `UPPER_SNAKE_CASE`，再由 `class XxxEnum(str, Enum)` 引用（見 `core/utils/constant.py`），不要直接在 Enum 內寫字面值。
 2. 分類常數上方加中文分組註解：`# 定義下單類型常量`。
 
-### 2.8 區塊分隔註解
+## 8. 區塊分隔註解
 
 1. 設定檔等長檔案用等寬分隔線標題（見 `core/config.py`）：
 
@@ -156,43 +134,12 @@ from core.config import DB_PATH, PRICE_TABLE_NAME
 
 2. `__init__` 內部屬性分組，可沿用既有的三引號分組標記（`""" === Strategy Setting === """`）或一般 `#` 註解；新程式碼建議用 `#`，不要再新增三引號分組。
 
-### 2.9 日誌
+## 9. 日誌
 
 1. 一律使用 `from loguru import logger`，不要用 `print()`（現存 `print` 屬既有例外，不要擴散）。
 2. 需要落地檔案的模組在 `setup()` 內呼叫 `LogManager.setup_logger("xxx.log")`。
 
-### 2.10 格式化工具
+## 10. 格式化工具
 
 1. 程式碼由 formatter 產生（Ruff/Black 風格，行寬 88、雙引號、magic trailing comma），提交前確保格式一致，不要手動調整成其他排版。
 2. SQL 查詢用三引號多行字串，參數一律走 `params=(...)` 佔位符，不要用 f-string 拼接使用者輸入。
-
----
-
-## 3. Backlog 管理
-
-`backlog/` 存放**尚未實作**的待辦與規劃紀錄；說明文件（API 文檔、教學）放 `docs/`。目錄用途與完成後的處理方式見 [`backlog/README.md`](backlog/README.md)。
-
-完整規範（狀態圖例、文件必要結構、狀態更新方式、`index.md` 索引維護）放在 [`.claude/skills/manage-backlog/SKILL.md`](.claude/skills/manage-backlog/SKILL.md)。**動到 `backlog/` 內容前，一律先載入該 skill**，不要憑記憶撰寫。
-
----
-
-## 4. Commit 與 Push
-
-當使用者要求「commit + push」時：
-
-1. Commit message 使用中文說明（可保留 conventional commit 前綴，例如 `feat(backtest):`）。
-2. Commit 內文用編號條列（`1.`、`2.`、`3.`），逐項描述每個變更。
-3. 多種變更並存時，先依主題分組，再在各組內維持編號條列。
-4. 回覆使用者時，需清楚列出：
-   - 分支名稱
-   - commit hash
-   - push 目標（例如 `origin/main`）
-   - 本次變更檔案清單
-
----
-
-## 5. 目錄專屬規則
-
-| 目錄 | 規則檔 | 說明 |
-|------|--------|------|
-| `strategy_lab/` | [`strategy_lab/CLAUDE.md`](strategy_lab/CLAUDE.md) | 對應 `.cursor/rules/strategy-lab-layout.mdc`，只在該目錄下工作時套用 |
