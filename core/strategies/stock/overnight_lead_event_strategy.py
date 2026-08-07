@@ -49,7 +49,6 @@ class OvernightLeadEventStrategy(BaseStockStrategy):
         self.max_holdings: int = 1
 
         # Backtest range
-        self.is_backtest: bool = True
         self.scale: str = Scale.DAY
         # Align event-driven evaluation window to RAST test period.
         self.start_date: datetime.date = self.TEST_START
