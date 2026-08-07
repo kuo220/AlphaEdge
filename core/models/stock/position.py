@@ -1,10 +1,13 @@
 import datetime
 from typing import Optional
 
+from core.models.base.position import BasePosition
 from core.utils import PositionType, ShortMethod
 
+"""StockPosition: 個股未平倉部位（含信用交易的保證金與借券費）"""
 
-class StockPosition:
+
+class StockPosition(BasePosition):
     """
     庫存未平倉倉位資訊
 
@@ -36,25 +39,20 @@ class StockPosition:
         accrued_borrow_fee: float = 0.0,
         holding_days: int = 0,
     ):
-        # Basic Info
-        self.id: int = id  # 倉位編號（每筆倉位唯一編號）
-        self.stock_id: str = stock_id  # 股票代號
-        self.is_closed: bool = is_closed  # 是否已經平倉
-        self.position_type: PositionType = position_type  # 持倉方向（Long or Short）
-
-        # Position Info
-        self.date: datetime.date = date  # 開倉日期
-        self.price: float = price  # 開倉價位
-        self.volume: int = volume  # 開倉張數
-
-        # Transaction Costs
-        self.commission: float = commission  # 開倉手續費
-        self.tax: float = tax  # 開倉交易稅
-        self.transaction_cost: float = transaction_cost  # 開倉交易成本
-
-        # Transaction Performance （以後再寫更新未實現損益的函數）
-        self.unrealized_pnl: float = unrealized_pnl  # 未實現損益
-        self.unrealized_roi: float = unrealized_roi  # 未實現報酬率
+        super().__init__(
+            id=id,
+            symbol=stock_id,
+            is_closed=is_closed,
+            position_type=position_type,
+            date=date,
+            price=price,
+            volume=volume,
+            commission=commission,
+            tax=tax,
+            transaction_cost=transaction_cost,
+            unrealized_pnl=unrealized_pnl,
+            unrealized_roi=unrealized_roi,
+        )
 
         # Short Info（LONG 部位一律維持預設值，不受影響）
         self.short_method: Optional[ShortMethod] = short_method  # 放空管道
@@ -64,3 +62,9 @@ class StockPosition:
         self.borrow_fee: float = borrow_fee  # 開倉時一次收取的融券手續費
         self.accrued_borrow_fee: float = accrued_borrow_fee  # SBL 逐日計提的借券費
         self.holding_days: int = holding_days  # 已持有曆日數
+
+    @property
+    def stock_id(self) -> str:
+        """symbol 的台股別名：既有策略與報表沿用 stock_id 取值，不需改寫"""
+
+        return self.symbol
