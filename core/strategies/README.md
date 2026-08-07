@@ -184,7 +184,7 @@ def setup_apis(self, feed: BaseDataFeed) -> None:
 **說明**:
 - 根據 `self.scale` 決定要取用哪些 API；目前支援 `Scale.DAY` 與 `Scale.TICK` 兩種
 - **不要在 `__init__` 內呼叫 `setup_apis()`**：它由 `Backtester.load_datasets()` 在建立 `DataFeed` 之後呼叫
-- **不要自行 `StockPriceAPI()`**：那會讓單次回測開出多條互不相干的資料連線（見 backlog 回測引擎多市場抽象 Phase2-7）
+- **不要自行 `StockPriceAPI()`**：那會讓單次回測開出多條互不相干的資料連線（見 [多市場回測引擎架構](../../docs/backtest/multi-market-engine.md)）
 
 ### 3. check_open_signal()
 

@@ -434,7 +434,7 @@ snapshot_daily_equity(date, quotes)
 | 檔案 | 內容 |
 |------|------|
 | `core/backtest/backtester.py` | 方向驅動、訂單驗證與補值、成交價驗證、`execute_bar()`、當沖強制回補、每日部位檢查、逐日權益 |
-| `core/backtest/models/cost_model.py` | `CostConfig`／`ShortConstraint`／`StockCostModel`（2026-08-07 由 `core/utils/` 移入，見 [回測引擎多市場抽象.md](../../backlog/回測引擎多市場抽象.md) Phase4-1） |
+| `core/backtest/models/cost_model.py` | `CostConfig`／`ShortConstraint`／`StockCostModel`（2026-08-07 由 `core/utils/` 移入，見 [多市場回測引擎架構](multi-market-engine.md) Phase4-1） |
 | `core/managers/stock/position_manager.py` | 放空開平倉兩個分支、FIFO 方向篩選 |
 | `core/backtest/report/reporter.py` | 時間軸用 `exit_date`、放空欄位、多空統計、事件報表 |
 | `core/backtest/analysis/analyzer.py` | 多空分開指標 |
