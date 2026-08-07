@@ -5,7 +5,7 @@ from typing import Dict, List, Optional
 from loguru import logger
 
 from core.backtest.models.instrument_spec import InstrumentSpec, TwStockSpec
-from core.managers.stock.position.position_manager import StockPositionManager
+from core.managers.stock.position_manager import StockPositionManager
 from core.models import (
     BaseAccount,
     BasePosition,

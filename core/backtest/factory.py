@@ -5,7 +5,7 @@ from core.backtest.models.cost_model import CostConfig, StockCostModel
 from core.backtest.models.instrument_spec import TwStockSpec
 from core.backtest.models.settlement_model import TwStockSettlementModel
 from core.backtest.report.reporter import StockBacktestReporter
-from core.managers.stock.position.position_manager import StockPositionManager
+from core.managers.stock.position_manager import StockPositionManager
 from core.models import StockAccount
 from core.strategies.base import BaseStrategy
 from core.strategies.stock import BaseStockStrategy

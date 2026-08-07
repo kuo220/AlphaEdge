@@ -12,7 +12,7 @@ from core.backtest.models.instrument_spec import InstrumentSpec
 from core.backtest.models.settlement_model import BaseSettlementModel
 from core.backtest.report.base import BaseBacktestReporter
 from core.config import BACKTEST_RESULT_DIR_PATH
-from core.managers.stock.position.base import BasePositionManager
+from core.managers.base.position_manager import BasePositionManager
 from core.models import (
     BaseAccount,
     BaseOrder,
