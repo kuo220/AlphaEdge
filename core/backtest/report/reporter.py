@@ -291,7 +291,8 @@ class StockBacktestReporter(BaseBacktestReporter):
             cumulative_balance += record.realized_pnl
 
             row: Dict[str, Any] = {
-                "Stock ID": record.stock_id,
+                # 內部一律讀 symbol；輸出欄位名維持 Stock ID（改名會讓 baseline 失效）
+                "Stock ID": record.symbol,
                 "Position Type": record.position_type.value,
                 "Entry Date": record.entry_date,
                 "Entry Price": record.entry_price,
