@@ -4,7 +4,7 @@ from typing import Dict, Type
 from core.backtest.backtester import Backtester
 from core.backtest.factory import build_backtester
 from core.strategies.strategy_loader import StrategyLoader
-from core.strategies.stock import BaseStockStrategy
+from core.strategies.base import BaseStrategy
 
 """Main entry point of the trading system: run backtest or live trading from project root"""
 
@@ -36,9 +36,7 @@ def main() -> None:
     args: argparse.Namespace = parse_arguments()
     strategy_name: str = args.strategy
 
-    strategies: Dict[str, Type[BaseStockStrategy]] = (
-        StrategyLoader.load_stock_strategies()
-    )
+    strategies: Dict[str, Type[BaseStrategy]] = StrategyLoader.load_strategies()
 
     if strategy_name not in strategies:
         print(
@@ -48,7 +46,7 @@ def main() -> None:
         return
 
     # Initialize strategy
-    strategy: BaseStockStrategy = strategies[strategy_name]()
+    strategy: BaseStrategy = strategies[strategy_name]()
 
     # Backtest or Live Trading
     if args.mode == "backtest":
