@@ -170,9 +170,9 @@ from core.config import DB_PATH, PRICE_TABLE_NAME
 
 ## 3. Backlog 管理
 
-`backlog/` 存放**尚未實作**的待辦與規劃紀錄；說明文件（API 文檔、教學）放 `docs/`。目錄用途與完成後的處理方式見 [`backlog/README.md`](backlog/README.md)。
+`backlog/` 存放**尚未實作**的待辦與規劃紀錄；說明文件（API 文檔、教學）放 `docs/`。所有待辦文件的清單、優先級與狀態一律只維護在 [`backlog/index.md`](backlog/index.md)。
 
-完整規範（狀態圖例、文件必要結構、狀態更新方式、`index.md` 索引維護）放在 [`.claude/skills/manage-backlog/SKILL.md`](.claude/skills/manage-backlog/SKILL.md)。**動到 `backlog/` 內容前，一律先載入該 skill**，不要憑記憶撰寫。
+完整規範（狀態圖例、文件必要結構、狀態更新方式、`index.md` 索引維護、完成後的處理方式）放在 [`.claude/skills/manage-backlog/SKILL.md`](.claude/skills/manage-backlog/SKILL.md)。**動到 `backlog/` 內容前，一律先載入該 skill**，不要憑記憶撰寫。
 
 ---
 

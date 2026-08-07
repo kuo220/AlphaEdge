@@ -20,6 +20,7 @@
 | S5 | 並行爬取（遵守 API quota） | `core/pipeline/updaters/finmind_updater.py` | quota 未被超用；結果與序列版本一致 | ⬜ | 相依 S1 的 cache；需與 `_check_and_update_api_quota()` 整合 |
 | S6 | 批次寫入 DB（進階） | `core/pipeline/loaders/finmind_loader.py` | 同 S2 的一致性檢查 | ⬜ | 相依 S5 |
 | S7 | 其他小優化（日誌降頻、移除多餘查詢） | `core/pipeline/updaters/finmind_updater.py` | 人工檢視 log 量下降 | ✅ | 完成於本文件建立進度表之前，未留下當時的驗證紀錄 |
+| S8 | 拆分 `finmind_updater.py`／`finmind_loader.py` | `core/pipeline/updaters/finmind/*.py`、`core/pipeline/loaders/finmind/*.py` | `tests/test_finmind_*.py` 五檔全數通過；行為零改變 | ⬜ | 1102 ＋ 859 行，全專案最大單體；**建議在 S5／S6 之前做**，否則並行邏輯會塞進更大的檔案 |
 
 ---
 
@@ -83,6 +84,22 @@
 - **產出**：`core/pipeline/updaters/finmind_updater.py`。
 - **驗證方式**：人工檢視 log 量下降，且不影響任何寫入行為。
 - **相依**：無。
+
+## S8. 拆分 `finmind_updater.py`／`finmind_loader.py` ⬜
+
+- **目的**：`core/pipeline/updaters/finmind_updater.py`（**1102 行**）與 `core/pipeline/loaders/finmind_loader.py`（**859 行**）是全專案最大的兩個檔案，遠超其他 updater／loader（次大者 574 行）。單一 `FinMindUpdater` 同時處理券商分點、月營收、財報等多種 FinMind 資料集的 metadata 管理、quota 控制、resume 判斷與寫入協調，已明顯超出單一職責。
+  **順序上這步該排在 S5／S6 之前**：並行爬取與批次寫入會再往這兩個檔案加相當份量的程式碼，先拆再加比較省事。
+- **做法**：**行為零改變的純搬移**，先按資料集切分，不要按技術層次切：
+  1. `core/pipeline/updaters/finmind/` 下依資料集拆檔（券商分點、月營收、財報…），共用的 metadata cache 與 quota 控制抽成 `finmind/common.py`。
+  2. `core/pipeline/loaders/finmind/` 同樣處理。
+  3. 保留 `FinMindUpdater` / `FinMindLoader` 作為門面（facade），對外介面與 `tasks/update_db.py` 的呼叫方式完全不變。
+  - **不做**：不改 resume 語意、不改 metadata 格式、不改 SQL、不改任何欄位處理。
+- **產出**：`core/pipeline/updaters/finmind/*.py`、`core/pipeline/loaders/finmind/*.py`。
+- **驗證方式**：
+  1. `tests/test_finmind_updater.py`、`test_finmind_loader_broker_trading.py`、`test_finmind_pipeline.py`、`test_finmind_api.py`、`test_broker_trading_updater.py` 五檔全數通過。
+  2. 拆分前後對同一段日期跑一次增量更新，DB 內容逐筆相同。
+  3. 「中斷 → 重跑」仍不重複爬取已存在的 `(broker_id, stock_id, date)`（本文件的共通驗收標準）。
+- **相依**：無（但建議排在 S5 之前）。
 
 ---
 

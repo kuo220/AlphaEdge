@@ -729,7 +729,7 @@ python run.py --strategy SimpleStrategy
 回測框架支援放空（`PositionType.SHORT`），涵蓋**現股當沖沖賣**與**留倉（融券／借券）**兩種型態。
 成本模型、保證金、借券費、維持率追繳與強制回補全部由引擎處理，策略只需要宣告方向並回傳正確的訂單。
 
-完整規格見 [`backlog/放空回測框架建置.md`](../../backlog/放空回測框架建置.md)。
+完整規格見 [`docs/backtest/short-selling-framework.md`](../../docs/backtest/short-selling-framework.md)。
 
 ### 放空策略的設定欄位
 
