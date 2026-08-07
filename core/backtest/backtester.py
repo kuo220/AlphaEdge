@@ -13,6 +13,8 @@ from core.api.stock_chip_api import StockChipAPI
 from core.api.stock_price_api import StockPriceAPI
 from core.api.stock_tick_api import StockTickAPI
 from core.backtest.analysis.analyzer import StockBacktestAnalyzer
+from core.backtest.models.fill_model import BaseFillModel, TwStockFillModel
+from core.backtest.models.instrument_spec import InstrumentSpec, TwStockSpec
 from core.backtest.report.reporter import StockBacktestReporter
 from core.config import BACKTEST_RESULT_DIR_PATH
 from core.utils.log_manager import LogManager
@@ -82,12 +84,6 @@ class Backtester:
         # 回測結果輸出目錄
         self.strategy_result_dir: Optional[Path] = None  # 策略回測結果資料夾
 
-        # Tick 級別的當日累計高低點（TickQuote 沒有 OHLC，成交價驗證需自行維護）
-        self.intraday_range: Dict[str, Tuple[float, float]] = {}
-
-        # 前一交易日收盤價，作為漲跌停判定基準
-        self.prev_close: Dict[str, float] = {}
-
         # 含未實現損益的每日權益序列（只認已實現損益會低估留倉放空的 MDD）
         self.daily_equity: List[Dict[str, Any]] = []
 
@@ -101,7 +97,25 @@ class Backtester:
             "limit_up_cover_failed": 0,  # 漲停鎖死無法回補
         }
 
+        # 商品規格與成交價模型（Phase3-1 之後改由 factory 注入）
+        self.instrument: InstrumentSpec = TwStockSpec()
+        self.fill_model: BaseFillModel = TwStockFillModel(
+            instrument=self.instrument, event_counts=self.event_counts
+        )
+
         self.setup()
+
+    @property
+    def intraday_range(self) -> Dict[str, Tuple[float, float]]:
+        """Tick 級別的當日累計高低點；狀態由 FillModel 持有"""
+
+        return self.fill_model.intraday_range
+
+    @property
+    def prev_close(self) -> Dict[str, float]:
+        """前一交易日收盤價；狀態由 FillModel 持有"""
+
+        return self.fill_model.prev_close
 
     def setup(self) -> None:
         """Set Up the Config of Backtester"""
@@ -255,86 +269,26 @@ class Backtester:
         return orders
 
     def validate_fill_price(self, order: StockOrder, quote: StockQuote) -> bool:
-        """
-        - Description:
-            成交價合理性檢查（前視偏誤與不可能成交的擋板）
-        - Parameters:
-            - order: StockOrder
-                待驗證的訂單
-            - quote: StockQuote
-                同一標的的當日報價
-        - Return:
-            - is_valid: bool
-                False 時呼叫端應拒單
-        - Notes:
-            - DAY 級別以當日 high/low 為界；TICK 級別以當日「已發生」的累計高低點為界
-            - 漲跌停以前一交易日收盤為基準；尚未取得前收時跳過該項檢查
-            - 檔位未對齊僅記錄警告，不拒單（避免既有資料的價格精度問題擋掉正常回測）
-        """
+        """成交價合理性檢查；規則由 FillModel 實作（見 backlog Phase2-2）"""
 
-        low, high = self.get_price_range(quote)
-        if low is not None and high is not None and not (low <= order.price <= high):
-            logger.warning(
-                f"[Validate Fill] {order.stock_id} 成交價 {order.price} 超出當日區間 "
-                f"[{low}, {high}]，拒單"
-            )
-            self.event_counts["rejected_fill_price"] += 1
-            return False
-
-        prev_close: Optional[float] = self.prev_close.get(order.stock_id)
-        if prev_close:
-            limit_up: float = StockUtils.round_to_tick(
-                prev_close * (1 + PRICE_LIMIT_RATIO), "down"
-            )
-            limit_down: float = StockUtils.round_to_tick(
-                prev_close * (1 - PRICE_LIMIT_RATIO), "up"
-            )
-            if not (limit_down <= order.price <= limit_up):
-                logger.warning(
-                    f"[Validate Fill] {order.stock_id} 成交價 {order.price} 超出漲跌停 "
-                    f"[{limit_down}, {limit_up}]，拒單"
-                )
-                self.event_counts["rejected_fill_price"] += 1
-                return False
-
-        if StockUtils.round_to_tick(order.price, "nearest") != order.price:
-            logger.warning(
-                f"[Validate Fill] {order.stock_id} 成交價 {order.price} 未對齊檔位"
-            )
-
-        return True
+        return self.fill_model.validate(order, quote)
 
     def get_price_range(
         self, quote: StockQuote
     ) -> Tuple[Optional[float], Optional[float]]:
-        """取得該報價可成交的價格區間：日 K 用 OHLC，Tick 用當日累計高低點"""
+        """取得該報價可成交的價格區間；規則由 FillModel 實作"""
 
-        if quote.scale == Scale.TICK:
-            return self.intraday_range.get(quote.stock_id, (None, None))
-
-        if quote.high and quote.low:
-            return (quote.low, quote.high)
-
-        return (None, None)
+        return self.fill_model.get_price_range(quote)
 
     def update_intraday_range(self, stock_quotes: List[StockQuote]) -> None:
-        """更新 Tick 級別的當日累計高低點（只納入已發生的報價，本身即防前視）"""
+        """累計 Tick 級別的當日高低點；狀態由 FillModel 持有"""
 
-        for quote in stock_quotes:
-            price: float = quote.cur_price or quote.close
-            if not price:
-                continue
-
-            low, high = self.intraday_range.get(quote.stock_id, (price, price))
-            self.intraday_range[quote.stock_id] = (min(low, price), max(high, price))
+        self.fill_model.update_intraday_range(stock_quotes)
 
     def update_prev_close(self, stock_quotes: List[StockQuote]) -> None:
-        """收盤後記錄當日收盤價，作為次一交易日的漲跌停基準"""
+        """收盤後記錄當日收盤價；狀態由 FillModel 持有"""
 
-        for quote in stock_quotes:
-            close: float = quote.close or quote.cur_price
-            if close:
-                self.prev_close[quote.stock_id] = close
+        self.fill_model.on_bar_close(stock_quotes)
 
     # === Main Backtest Loop ===
     def run(self) -> None:
@@ -392,8 +346,7 @@ class Backtester:
         if not stock_quotes:
             return
 
-        self.intraday_range = {}
-        self.update_intraday_range(stock_quotes)
+        self.fill_model.on_bar_open(stock_quotes)
         self.execute_bar(date, stock_quotes)
 
     def run_day_backtest(self, date: datetime.date) -> None:

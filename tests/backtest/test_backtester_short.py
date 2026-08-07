@@ -4,6 +4,7 @@ from typing import Callable, List
 import pytest
 
 from core.backtest.backtester import Backtester
+from core.backtest.models.fill_model import TwStockFillModel
 from core.models import StockOrder, StockPosition, StockQuote, StockTradeRecord
 from core.utils import (
     Action,
@@ -144,53 +145,74 @@ def test_allowed_directions_whitelist(
     assert backtester.event_counts["rejected_direction"] == 0
 
 
-# === 成交價驗證 ===
-def test_fill_price_out_of_range_rejected(
-    make_strategy, make_backtester, make_order, make_quote
-) -> None:
+# === 成交價驗證（規則已下沉至 FillModel，故直接打 model）===
+def test_fill_price_out_of_range_rejected(make_order, make_quote) -> None:
     """成交價超出當日高低區間即拒單"""
 
-    backtester: Backtester = make_backtester(short_strategy(make_strategy))
+    fill_model: TwStockFillModel = TwStockFillModel()
     quote: StockQuote = make_quote(cur_price=100.0, high=105.0, low=98.0)
 
-    assert backtester.validate_fill_price(make_order(price=100.0), quote) is True
-    assert backtester.validate_fill_price(make_order(price=110.0), quote) is False
-    assert backtester.validate_fill_price(make_order(price=95.0), quote) is False
-    assert backtester.event_counts["rejected_fill_price"] == 2
+    assert fill_model.validate(make_order(price=100.0), quote) is True
+    assert fill_model.validate(make_order(price=110.0), quote) is False
+    assert fill_model.validate(make_order(price=95.0), quote) is False
+    assert fill_model.event_counts["rejected_fill_price"] == 2
 
 
-def test_fill_price_limit_rejected(
-    make_strategy, make_backtester, make_order, make_quote
-) -> None:
+def test_fill_price_limit_rejected(make_order, make_quote) -> None:
     """超出漲跌停區間即拒單（漲跌停以前一交易日收盤為基準）"""
 
-    backtester: Backtester = make_backtester(short_strategy(make_strategy))
-    backtester.prev_close["2330"] = 100.0
+    fill_model: TwStockFillModel = TwStockFillModel()
+    fill_model.prev_close["2330"] = 100.0
 
     # 漲停 110、跌停 90
     in_range: StockQuote = make_quote(cur_price=112.0, high=130.0, low=90.0)
-    assert backtester.validate_fill_price(make_order(price=112.0), in_range) is False
-    assert backtester.event_counts["rejected_fill_price"] == 1
+    assert fill_model.validate(make_order(price=112.0), in_range) is False
+    assert fill_model.event_counts["rejected_fill_price"] == 1
 
 
-def test_fill_price_tick_scale(
-    make_strategy, make_backtester, make_order, make_quote
-) -> None:
+def test_fill_price_tick_scale(make_order, make_quote) -> None:
     """§7.6：Tick 級別以當日累計高低點為界，且只納入已發生的報價"""
 
-    backtester: Backtester = make_backtester(short_strategy(make_strategy))
+    fill_model: TwStockFillModel = TwStockFillModel()
 
     quotes: List[StockQuote] = [
         make_quote(cur_price=100.0, scale=Scale.TICK),
         make_quote(cur_price=102.0, scale=Scale.TICK),
     ]
-    backtester.update_intraday_range(quotes)
+    fill_model.update_intraday_range(quotes)
 
     tick_quote: StockQuote = make_quote(cur_price=102.0, scale=Scale.TICK)
-    assert backtester.validate_fill_price(make_order(price=101.0), tick_quote) is True
+    assert fill_model.validate(make_order(price=101.0), tick_quote) is True
 
     # 105 尚未出現在當日成交中，不可成交
-    assert backtester.validate_fill_price(make_order(price=105.0), tick_quote) is False
+    assert fill_model.validate(make_order(price=105.0), tick_quote) is False
+
+
+def test_fill_model_wired_into_engine(
+    make_strategy, make_backtester, make_order, make_quote
+) -> None:
+    """引擎的拒單計數必須反映到共用的 event_counts（model 與引擎共用同一個 dict）"""
+
+    backtester: Backtester = make_backtester(short_strategy(make_strategy))
+    quote: StockQuote = make_quote(cur_price=100.0, high=105.0, low=98.0)
+
+    assert backtester.validate_fill_price(make_order(price=110.0), quote) is False
+    assert backtester.event_counts["rejected_fill_price"] == 1
+    assert backtester.fill_model.event_counts is backtester.event_counts
+
+
+def test_fill_model_state_shared_with_engine(
+    make_strategy, make_backtester, make_quote
+) -> None:
+    """引擎的 prev_close／intraday_range 為 FillModel 狀態的視圖，兩邊寫入互通"""
+
+    backtester: Backtester = make_backtester(short_strategy(make_strategy))
+
+    backtester.prev_close["2330"] = 100.0
+    assert backtester.fill_model.prev_close["2330"] == 100.0
+
+    backtester.fill_model.on_bar_close([make_quote(cur_price=105.0, close=105.0)])
+    assert backtester.prev_close["2330"] == 105.0
 
 
 # === 同日開平倉 ===
