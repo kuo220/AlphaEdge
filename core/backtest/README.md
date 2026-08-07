@@ -124,4 +124,3 @@ python run.py --mode live --strategy MomentumStrategy1
 
 - [策略開發指南](../strategies/README.md)
 - [專案 README](../../README.md)
-- [API 文檔](../../docs/README.md)
