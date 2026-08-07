@@ -15,6 +15,10 @@ from core.api.stock_tick_api import StockTickAPI
 from core.backtest.analysis.analyzer import StockBacktestAnalyzer
 from core.backtest.models.fill_model import BaseFillModel, TwStockFillModel
 from core.backtest.models.instrument_spec import InstrumentSpec, TwStockSpec
+from core.backtest.models.settlement_model import (
+    BaseSettlementModel,
+    TwStockSettlementModel,
+)
 from core.backtest.report.reporter import StockBacktestReporter
 from core.config import BACKTEST_RESULT_DIR_PATH
 from core.utils.log_manager import LogManager
@@ -101,6 +105,17 @@ class Backtester:
         self.instrument: InstrumentSpec = TwStockSpec()
         self.fill_model: BaseFillModel = TwStockFillModel(
             instrument=self.instrument, event_counts=self.event_counts
+        )
+
+        # 結算模型：一根 bar 收盤後的市場強制動作（Phase3-1 之後改由 factory 注入）
+        self.settlement: BaseSettlementModel = TwStockSettlementModel(
+            position_manager=self.position_manager,
+            cost_model=self.cost_model,
+            prev_close=self.fill_model.prev_close,
+            instrument=self.instrument,
+            day_trade_uncovered_policy=self.strategy.day_trade_uncovered_policy,
+            margin_call_policy=self.strategy.margin_call_policy,
+            max_holding_days=self.strategy.max_holding_days,
         )
 
         self.setup()
@@ -386,11 +401,12 @@ class Backtester:
             self.execute_close_signal(stock_quotes)
             self.execute_open_signal(stock_quotes)
 
-        # 當沖：日終仍未回補的放空部位
-        self.enforce_day_trade_cover(date, stock_quotes)
-
-        # 留倉：借券費計提與維持率／強制回補檢查
-        self.execute_daily_position_check(date, stock_quotes)
+        # 一根 bar 收盤後由市場規則強制執行的動作
+        # 台股：當沖強制回補 ＋ 借券費計提 ＋ 維持率追繳
+        # 期貨：每日結算 ＋ 保證金追繳 ＋ 到期換月
+        self.settlement.on_bar_close(
+            date, stock_quotes, self.account, self.event_counts
+        )
 
         self.snapshot_daily_equity(date, stock_quotes)
         self.update_prev_close(stock_quotes)
@@ -471,254 +487,6 @@ class Backtester:
 
         return close_records
 
-    # === Daily Position Check ===
-    def enforce_day_trade_cover(
-        self, date: datetime.date, stock_quotes: List[StockQuote]
-    ) -> None:
-        """
-        - Description:
-            當沖放空於日終仍未回補時的處理（見 backlog §7.1）
-
-            現行引擎不會自己發現這件事，若放著不管，回測會出現實務上不存在的
-            「當沖單留倉」；因此一律依 day_trade_uncovered_policy 明確處理並計數。
-        - Parameters:
-            - date: datetime.date
-                當前交易日
-            - stock_quotes: List[StockQuote]
-                當日報價
-        """
-
-        quote_map: Dict[str, StockQuote] = {sq.stock_id: sq for sq in stock_quotes}
-        policy: DayTradeUncoveredPolicy = self.strategy.day_trade_uncovered_policy
-
-        for position in self.account.get_positions(position_type=PositionType.SHORT):
-            if not position.is_day_trade:
-                continue
-
-            quote: Optional[StockQuote] = quote_map.get(position.stock_id)
-            if quote is None:
-                logger.warning(
-                    f"[Day Trade Cover] {position.stock_id} 當日無報價，無法強制回補"
-                )
-                continue
-
-            # 漲停鎖死無法回補：轉為融券留倉，並單獨計數（放空最致命的尾部風險）
-            if self.check_limit_up_locked(quote):
-                logger.warning(
-                    f"[Day Trade Cover] {position.stock_id} 全日鎖漲停無法回補，轉為融券留倉"
-                )
-                self.event_counts["limit_up_cover_failed"] += 1
-                self.convert_to_margin_position(position)
-                continue
-
-            if policy == DayTradeUncoveredPolicy.RAISE:
-                raise ValueError(
-                    f"[Day Trade Cover] {position.stock_id} 當沖放空於 {date} 日終未回補"
-                )
-
-            if policy == DayTradeUncoveredPolicy.CONVERT_TO_MARGIN:
-                logger.warning(
-                    f"[Day Trade Cover] {position.stock_id} 未回補，依政策轉為融券留倉"
-                )
-                self.convert_to_margin_position(position)
-                continue
-
-            logger.warning(
-                f"[Day Trade Cover] {position.stock_id} 未回補，以收盤價 {quote.close} 強制回補"
-            )
-            self.event_counts["forced_cover_day_trade"] += 1
-            self.force_cover_position(position, date, quote.close)
-
-    def check_limit_up_locked(self, quote: StockQuote) -> bool:
-        """判定是否全日鎖漲停（開高低收皆等於漲停價），此時放空無法回補"""
-
-        prev_close: Optional[float] = self.prev_close.get(quote.stock_id)
-        if not prev_close:
-            return False
-
-        limit_up: float = StockUtils.round_to_tick(
-            prev_close * (1 + PRICE_LIMIT_RATIO), "down"
-        )
-        return (
-            quote.close == limit_up
-            and quote.high == limit_up
-            and quote.low == limit_up
-        )
-
-    def convert_to_margin_position(self, position: StockPosition) -> None:
-        """將無法當日回補的當沖空單轉為融券留倉：補收保證金與融券手續費"""
-
-        margin: int = self.cost_model.margin_required(
-            price=position.price,
-            volume=position.volume,
-            short_method=ShortMethod.MARGIN,
-        )
-        borrow_fee: int = self.cost_model.borrow_fee(
-            price=position.price,
-            volume=position.volume,
-            short_method=ShortMethod.MARGIN,
-        )
-
-        position.is_day_trade = False
-        position.short_method = ShortMethod.MARGIN
-        position.margin += margin
-        position.borrow_fee += borrow_fee
-        position.transaction_cost += borrow_fee
-
-        self.account.balance -= margin + borrow_fee
-        self.account.margin_used += margin
-
-    def force_cover_position(
-        self,
-        position: StockPosition,
-        date: datetime.date,
-        price: float,
-    ) -> List[StockTradeRecord]:
-        """以指定價格強制回補放空部位（當沖日終、維持率追繳、超過持有天數共用）"""
-
-        order: StockOrder = StockOrder(
-            stock_id=position.stock_id,
-            date=date,
-            action=Action.BUY,
-            position_type=PositionType.SHORT,
-            price=price,
-            volume=position.volume,
-            short_method=position.short_method,
-            is_day_trade=position.is_day_trade,
-        )
-        return self.position_manager.close_position(order)
-
-    def execute_daily_position_check(
-        self, date: datetime.date, stock_quotes: List[StockQuote]
-    ) -> None:
-        """
-        - Description:
-            每日收盤後對未平倉放空部位的檢查（做多部位直接略過）
-        - Parameters:
-            - date: datetime.date
-                當前交易日
-            - stock_quotes: List[StockQuote]
-                當日報價；停牌無報價時沿用前一交易日收盤價
-        """
-
-        short_positions: List[StockPosition] = self.account.get_positions(
-            position_type=PositionType.SHORT
-        )
-        if not short_positions:
-            return
-
-        quote_map: Dict[str, StockQuote] = {sq.stock_id: sq for sq in stock_quotes}
-
-        self.accrue_holding_cost(date, quote_map)
-        self.check_margin_call(date, quote_map)
-
-    def accrue_holding_cost(
-        self, date: datetime.date, quote_map: Dict[str, StockQuote]
-    ) -> None:
-        """
-        - Description:
-            逐日計提持有成本並更新持有天數
-
-            只有 SBL 借券費在此逐日累加；MARGIN 的融券手續費在開倉時一次收取、
-            融券利息於平倉時依日期差一次計算（見 backlog §4.3 計算時點表），
-            在此重複計算會造成雙重計費。
-        """
-
-        for position in self.account.get_positions(position_type=PositionType.SHORT):
-            position.holding_days += 1
-
-            if position.short_method != ShortMethod.SBL:
-                continue
-
-            price: float = self.get_mark_price(position, quote_map)
-            position.accrued_borrow_fee += self.cost_model.borrow_fee(
-                price=price,
-                volume=position.volume,
-                holding_days=1,
-                short_method=ShortMethod.SBL,
-            )
-
-    def check_margin_call(
-        self, date: datetime.date, quote_map: Dict[str, StockQuote]
-    ) -> None:
-        """
-        - Description:
-            維持率追繳與強制回補檢查
-
-            現行引擎沒有跨日的委託佇列，無法模擬「次一交易日開盤成交」，
-            因此一律以觸發當日收盤價立即回補（見 backlog §7.2）。
-        """
-
-        for position in list(
-            self.account.get_positions(position_type=PositionType.SHORT)
-        ):
-            price: float = self.get_mark_price(position, quote_map)
-
-            # 超過最長持有天數：強制回補
-            if (
-                self.strategy.max_holding_days is not None
-                and position.holding_days >= self.strategy.max_holding_days
-            ):
-                logger.warning(
-                    f"[Force Cover] {position.stock_id} 持有 {position.holding_days} 天"
-                    f"已達上限，以 {price} 強制回補"
-                )
-                self.event_counts["forced_cover_max_holding"] += 1
-                self.force_cover_position(position, date, price)
-                continue
-
-            # 停券強制回補日
-            force_cover_dates: List[datetime.date] = (
-                self.cost_model.config.short_constraint.get_force_cover_dates(
-                    position.stock_id
-                )
-            )
-            if date in force_cover_dates:
-                logger.warning(
-                    f"[Force Cover] {position.stock_id} 於 {date} 停券，以 {price} 強制回補"
-                )
-                self.event_counts["forced_cover_max_holding"] += 1
-                self.force_cover_position(position, date, price)
-                continue
-
-            # 維持率追繳
-            if position.short_method != ShortMethod.MARGIN:
-                continue
-
-            if not self.cost_model.check_margin_call(
-                proceeds=position.short_proceeds,
-                margin=position.margin,
-                cur_price=price,
-                volume=position.volume,
-            ):
-                continue
-
-            if self.strategy.margin_call_policy == MarginCallPolicy.WARN_ONLY:
-                logger.warning(
-                    f"[Margin Call] {position.stock_id} 維持率已低於門檻（僅記錄不回補）"
-                )
-                continue
-
-            logger.warning(
-                f"[Margin Call] {position.stock_id} 維持率不足，以 {price} 強制回補（斷頭）"
-            )
-            self.event_counts["forced_cover_margin_call"] += 1
-            self.force_cover_position(position, date, price)
-
-    def get_mark_price(
-        self, position: StockPosition, quote_map: Dict[str, StockQuote]
-    ) -> float:
-        """取得盯市價格：優先用當日收盤，停牌時沿用前收，再無資料則退回開倉價"""
-
-        quote: Optional[StockQuote] = quote_map.get(position.stock_id)
-        if quote is not None and (quote.close or quote.cur_price):
-            return quote.close or quote.cur_price
-
-        logger.warning(
-            f"[Mark Price] {position.stock_id} 當日無報價，沿用前一交易日收盤價盯市"
-        )
-        return self.prev_close.get(position.stock_id, position.price)
-
     # === Daily Equity ===
     def snapshot_daily_equity(
         self, date: datetime.date, stock_quotes: List[StockQuote]
@@ -743,7 +511,7 @@ class Backtester:
         position_value: float = 0.0
 
         for position in self.account.get_positions():
-            price: float = self.get_mark_price(position, quote_map)
+            price: float = self.settlement.get_mark_price(position, quote_map)
             shares: int = StockUtils.convert_lot_to_share(position.volume)
 
             if position.position_type == PositionType.SHORT:
