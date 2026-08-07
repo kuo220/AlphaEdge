@@ -6,7 +6,7 @@ import numpy as np
 import shioaji as sj
 
 from .constant import PRICE_TICK_TABLE, Commission, Units
-from .market_calendar import MarketCalendar
+from core.backtest.datafeed.market_calendar import MarketCalendar
 
 """
 instrument.py

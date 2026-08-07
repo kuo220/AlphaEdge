@@ -6,7 +6,7 @@ from loguru import logger
 from core.managers.stock.position.base import BasePositionManager
 from core.models import StockAccount, StockOrder, StockPosition, StockTradeRecord
 from core.utils import Action, PositionType, ShortMethod
-from core.utils.cost_model import CostConfig, StockCostModel
+from core.backtest.models.cost_model import CostConfig, StockCostModel
 from core.utils.instrument import StockUtils
 
 

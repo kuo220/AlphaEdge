@@ -13,7 +13,7 @@ from core.backtest.backtester import Backtester
 from core.backtest.factory import build_backtester
 from core.models import StockOrder, StockQuote
 from core.utils import Action, PositionType, Scale, ShortMethod
-from core.utils.cost_model import ShortConstraint
+from core.backtest.models.cost_model import ShortConstraint
 from tests.backtest.conftest import ScriptedStrategy
 
 """

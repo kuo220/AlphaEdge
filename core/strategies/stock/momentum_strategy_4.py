@@ -10,7 +10,7 @@ from core.models import StockAccount, StockOrder, StockPosition, StockQuote
 from core.strategies.stock import BaseStockStrategy
 from core.utils import Action, PositionType, Scale, Units
 from core.utils.instrument import StockUtils
-from core.utils.market_calendar import MarketCalendar
+from core.backtest.datafeed.market_calendar import MarketCalendar
 
 
 class MomentumStrategy4(BaseStockStrategy):

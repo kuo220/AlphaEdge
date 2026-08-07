@@ -1,6 +1,7 @@
 from core.backtest.backtester import Backtester, new_event_counts
 from core.backtest.datafeed.tw_stock_datafeed import TwStockDataFeed
 from core.backtest.models.fill_model import TwStockFillModel
+from core.backtest.models.cost_model import CostConfig, StockCostModel
 from core.backtest.models.instrument_spec import TwStockSpec
 from core.backtest.models.settlement_model import TwStockSettlementModel
 from core.backtest.report.reporter import StockBacktestReporter
@@ -9,7 +10,6 @@ from core.models import StockAccount
 from core.strategies.base import BaseStrategy
 from core.strategies.stock import BaseStockStrategy
 from core.utils import Market, PositionType, ShortMethod
-from core.utils.cost_model import CostConfig, StockCostModel
 
 """Backtester factory: 全專案唯一一處依市場分派的地方"""
 

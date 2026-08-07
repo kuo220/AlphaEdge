@@ -22,7 +22,7 @@ from core.utils import (
     PositionType,
     ShortMethod,
 )
-from core.utils.cost_model import StockCostModel
+from core.backtest.models.cost_model import StockCostModel
 
 """SettlementModel: 一根 bar 收盤後由市場規則強制執行的動作"""
 

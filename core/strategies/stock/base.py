@@ -16,7 +16,7 @@ from core.utils import (
     Market,
     ShortMethod,
 )
-from core.utils.cost_model import CostConfig, ShortConstraint
+from core.backtest.models.cost_model import CostConfig, ShortConstraint
 
 """BaseStockStrategy: 台股策略基底，補上信用交易設定與五個資料集"""
 

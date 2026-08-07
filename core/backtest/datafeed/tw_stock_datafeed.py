@@ -13,7 +13,7 @@ from core.config import DB_PATH
 from core.models import StockQuote
 from core.strategies.base import BaseStrategy
 from core.utils import Scale
-from core.utils.market_calendar import MarketCalendar
+from core.backtest.datafeed.market_calendar import MarketCalendar
 
 """TwStockDataFeed: 台股資料源（五個資料 API ＋ 報價轉換 ＋ 交易日判定）"""
 
