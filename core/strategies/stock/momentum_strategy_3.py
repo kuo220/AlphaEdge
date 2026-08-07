@@ -5,7 +5,7 @@ from typing import List, Optional, Tuple
 import pandas as pd
 from loguru import logger
 
-from core.api.stock_price_api import StockPriceAPI
+from core.backtest.datafeed.base import BaseDataFeed
 from core.models import StockAccount, StockOrder, StockPosition, StockQuote
 from core.strategies.stock import BaseStockStrategy
 from core.utils import Action, Market, PositionType, Scale, Units
@@ -57,16 +57,16 @@ class MomentumStrategy3(BaseStockStrategy):
         self.start_date: datetime.date = self.DEFAULT_BACKTEST_START_DATE
         self.end_date: datetime.date = self.DEFAULT_BACKTEST_END_DATE
 
-        self.setup_apis()
 
     def setup_account(self, account: StockAccount) -> None:
         """設置虛擬帳戶資訊"""
         self.account: StockAccount = account
 
-    def setup_apis(self) -> None:
-        """設置資料 API"""
+    def setup_apis(self, feed: BaseDataFeed) -> None:
+        """宣告本策略要用的資料源；實例由 DataFeed 統一持有"""
+
         if self.scale == Scale.DAY:
-            self.price: StockPriceAPI = StockPriceAPI()
+            self.price = feed.price
 
     def _get_ma_values(
         self, stock_id: str, current_date: datetime.date

@@ -8,11 +8,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
-from core.api.financial_statement_api import FinancialStatementAPI
-from core.api.monthly_revenue_report_api import MonthlyRevenueReportAPI
-from core.api.stock_chip_api import StockChipAPI
-from core.api.stock_price_api import StockPriceAPI
-from core.api.stock_tick_api import StockTickAPI
+from core.backtest.datafeed.base import BaseDataFeed
 from core.models import StockAccount, StockOrder, StockPosition, StockQuote
 from core.strategies.stock import BaseStockStrategy
 from core.utils import Action, Market, PositionType, Scale, Units
@@ -53,26 +49,24 @@ class MomentumStrategy1(BaseStockStrategy):
         self.start_date: datetime.date = self.DEFAULT_BACKTEST_START_DATE
         self.end_date: datetime.date = self.DEFAULT_BACKTEST_END_DATE
 
-        self.setup_apis()
 
     def setup_account(self, account: StockAccount) -> None:
         """設置虛擬帳戶資訊"""
 
         self.account: StockAccount = account
 
-    def setup_apis(self) -> None:
-        """設置資料 API：依 scale 決定要 tick 還是日線價量 API；chip / 月營收 / 財報可先初始化供擴充用"""
+    def setup_apis(self, feed: BaseDataFeed) -> None:
+        """宣告本策略要用的資料源；實例由 DataFeed 統一持有"""
 
-        self.chip: StockChipAPI = StockChipAPI()
-        self.mrr: MonthlyRevenueReportAPI = MonthlyRevenueReportAPI()
-        self.fs: FinancialStatementAPI = FinancialStatementAPI()
+        self.chip = feed.chip
+        self.mrr = feed.mrr
+        self.fs = feed.fs
 
         if self.scale == Scale.TICK:
-            self.tick: StockTickAPI = StockTickAPI()
+            self.tick = feed.tick
 
         elif self.scale == Scale.DAY:
-            self.price: StockPriceAPI = StockPriceAPI()
-
+            self.price = feed.price
 
     def check_open_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
         """開倉策略：昨收基準漲幅達門檻且成交量達門檻，做多；部位數由 calculate_position_size 依 max_holdings 與資金切分"""

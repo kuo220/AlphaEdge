@@ -106,7 +106,7 @@ class ScriptedStrategy(BaseStockStrategy):
 
         self.account: StockAccount = account
 
-    def setup_apis(self) -> None:
+    def setup_apis(self, feed=None) -> None:
         """測試不使用任何資料 API"""
 
         pass

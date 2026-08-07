@@ -41,6 +41,11 @@ class BaseDataFeed(ABC):
         """
         pass
 
+    def close(self) -> None:
+        """關閉所有資料連線；預設為 no-op，有連線的資料源自行覆寫"""
+
+        pass
+
     @abstractmethod
     def get_quotes(self, date: datetime.date, scale: Scale) -> List[BaseQuote]:
         """

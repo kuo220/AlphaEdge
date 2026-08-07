@@ -6,7 +6,7 @@ import pandas as pd
 import yfinance as yf
 from loguru import logger
 
-from core.api.stock_price_api import StockPriceAPI
+from core.backtest.datafeed.base import BaseDataFeed
 from core.models import StockAccount, StockOrder, StockPosition, StockQuote
 from core.strategies.stock import BaseStockStrategy
 from core.utils import Action, Market, PositionType, Scale, Units
@@ -58,15 +58,16 @@ class OvernightLeadEventStrategy(BaseStockStrategy):
         self.signal_by_date: Dict[datetime.date, int] = {}
         self.alpha: float = float("nan")
 
-        self.setup_apis()
         self._build_signals()
 
     def setup_account(self, account: StockAccount) -> None:
         self.account = account
 
-    def setup_apis(self) -> None:
+    def setup_apis(self, feed: BaseDataFeed) -> None:
+        """宣告本策略要用的資料源；實例由 DataFeed 統一持有"""
+
         if self.scale == Scale.DAY:
-            self.price = StockPriceAPI()
+            self.price = feed.price
 
     @staticmethod
     def _ridge_fit_predict(

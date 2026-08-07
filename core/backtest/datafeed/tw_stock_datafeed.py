@@ -1,4 +1,5 @@
 import datetime
+import sqlite3
 from typing import List, Optional
 
 from core.adapters import StockQuoteAdapter
@@ -8,6 +9,7 @@ from core.api.stock_chip_api import StockChipAPI
 from core.api.stock_price_api import StockPriceAPI
 from core.api.stock_tick_api import StockTickAPI
 from core.backtest.datafeed.base import BaseDataFeed
+from core.config import DB_PATH
 from core.models import StockQuote
 from core.strategies.base import BaseStrategy
 from core.utils import Scale
@@ -20,6 +22,10 @@ class TwStockDataFeed(BaseDataFeed):
     """台股資料源：SQLite 的日 K 與籌碼、DolphinDB 的 Tick"""
 
     def __init__(self):
+        # 單次回測共用一條 SQLite 連線：四個 API 查的是同一個 DB 檔，
+        # 各開一條沒有任何好處，只會讓連線數隨 API 數量線性成長
+        self.conn: Optional[sqlite3.Connection] = None
+
         self.tick: Optional[StockTickAPI] = None  # Ticks data
         self.chip: Optional[StockChipAPI] = None  # Chips data
         self.price: Optional[StockPriceAPI] = None  # Price data
@@ -31,10 +37,12 @@ class TwStockDataFeed(BaseDataFeed):
     def setup(self, strategy: BaseStrategy) -> None:
         """從資料庫載入資料；Tick 級別才建立 DolphinDB 連線"""
 
-        self.chip = StockChipAPI()
-        self.mrr = MonthlyRevenueReportAPI()
-        self.fs = FinancialStatementAPI()
-        self.price = StockPriceAPI()
+        self.conn = sqlite3.connect(DB_PATH)
+
+        self.chip = StockChipAPI(conn=self.conn)
+        self.mrr = MonthlyRevenueReportAPI(conn=self.conn)
+        self.fs = FinancialStatementAPI(conn=self.conn)
+        self.price = StockPriceAPI(conn=self.conn)
 
         if strategy.scale == Scale.TICK:
             self.tick = StockTickAPI()
@@ -51,3 +59,14 @@ class TwStockDataFeed(BaseDataFeed):
             return StockQuoteAdapter.convert_to_tick_quotes(self.tick, date)
 
         return StockQuoteAdapter.convert_to_day_quotes(self.price, date)
+
+    def close(self) -> None:
+        """關閉所有資料連線（回測結束時呼叫；原本全專案的 conn 從不 close）"""
+
+        for api in (self.chip, self.mrr, self.fs, self.price, self.tick):
+            if api is not None:
+                api.close()
+
+        if self.conn is not None:
+            self.conn.close()
+            self.conn = None

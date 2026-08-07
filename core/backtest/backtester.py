@@ -134,9 +134,16 @@ class Backtester:
         self.load_datasets()
 
     def load_datasets(self) -> None:
-        """載入回測資料；資料源由 DataFeed 持有（見 backlog Phase2-5）"""
+        """
+        - Description:
+            載入回測資料，並把資料源交給策略
+
+            **API 實例全專案只建一次**：先由 DataFeed 建立，再交給策略取用，
+            策略不自行 new（見 backlog Phase2-7）。
+        """
 
         self.data_feed.setup(self.strategy)
+        self.strategy.setup_apis(self.data_feed)
 
     # === Direction Setting ===
     def get_allowed_directions(self) -> Set[PositionType]:
@@ -289,6 +296,9 @@ class Backtester:
 
         # Generate Backtest Report
         self.generate_backtest_report()
+
+        # 關閉資料連線（原本全專案的 conn 從不 close，見 backlog Phase2-7）
+        self.data_feed.close()
 
     def run_tick_backtest(self, date: datetime.date) -> None:
         """Tick 級別的回測架構"""

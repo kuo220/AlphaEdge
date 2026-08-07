@@ -6,6 +6,7 @@ from core.api.monthly_revenue_report_api import MonthlyRevenueReportAPI
 from core.api.stock_chip_api import StockChipAPI
 from core.api.stock_price_api import StockPriceAPI
 from core.api.stock_tick_api import StockTickAPI
+from core.backtest.datafeed.base import BaseDataFeed
 from core.models import StockAccount, StockOrder, StockQuote
 from core.strategies.base import BaseStrategy
 from core.utils import (
@@ -65,10 +66,17 @@ class BaseStockStrategy(BaseStrategy):
         pass
 
     @abstractmethod
-    def setup_apis(self):
+    def setup_apis(self, feed: BaseDataFeed) -> None:
         """
         - Description:
-            載入資料 API
+            宣告本策略要用的資料源
+
+            實例一律由 DataFeed 統一持有，策略只做取用，不自行建立
+            （見 backlog Phase2-7：原本 6 支策略各自 new 出同一批 API，
+            單次回測會開出 8~10 條互不相干且從不關閉的連線）。
+        - Parameter:
+            - feed: BaseDataFeed
+                引擎持有的資料源
         """
         pass
 

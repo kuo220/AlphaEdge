@@ -3,7 +3,7 @@ from typing import Dict, Type
 
 from core.backtest.backtester import Backtester
 from core.backtest.factory import build_backtester
-from core.strategies import StrategyLoader
+from core.strategies.strategy_loader import StrategyLoader
 from core.strategies.stock import BaseStockStrategy
 
 """Main entry point of the trading system: run backtest or live trading from project root"""
