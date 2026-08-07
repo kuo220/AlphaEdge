@@ -135,7 +135,7 @@ StockUtils (純數學工具：手續費、稅、股數換算)
 
 ⚠️ **型別注意**：`Commission` / `ShortCost` 是 `(float, Enum)`，塞不進 `date` 或 `int` 語意的成員。因此 `DAY_TRADE_TAX_EXPIRY = datetime.date(2027, 12, 31)` 與 `DAYS_PER_YEAR = 365` 一律放 **module-level 常數**。`StockCostModel.__init__` 若回測區間超過 `DAY_TRADE_TAX_EXPIRY`，會 `logger.warning` 提醒「當沖稅率減半假設可能已失效」。
 
-### 4.3 成本模型（`core/utils/cost_model.py`）
+### 4.3 成本模型（`core/backtest/models/cost_model.py`）
 
 `CostConfig` 為一次回測固定的成本參數，`StockCostModel` 為方向感知的成本／損益計算，`PositionManager` 只呼叫這一層。
 
@@ -434,8 +434,8 @@ snapshot_daily_equity(date, quotes)
 | 檔案 | 內容 |
 |------|------|
 | `core/backtest/backtester.py` | 方向驅動、訂單驗證與補值、成交價驗證、`execute_bar()`、當沖強制回補、每日部位檢查、逐日權益 |
-| `core/utils/cost_model.py` | `CostConfig`／`ShortConstraint`／`StockCostModel` |
-| `core/managers/stock/position/position_manager.py` | 放空開平倉兩個分支、FIFO 方向篩選 |
+| `core/backtest/models/cost_model.py` | `CostConfig`／`ShortConstraint`／`StockCostModel`（2026-08-07 由 `core/utils/` 移入，見 [回測引擎多市場抽象.md](../../backlog/回測引擎多市場抽象.md) Phase4-1） |
+| `core/managers/stock/position_manager.py` | 放空開平倉兩個分支、FIFO 方向篩選 |
 | `core/backtest/report/reporter.py` | 時間軸用 `exit_date`、放空欄位、多空統計、事件報表 |
 | `core/backtest/analysis/analyzer.py` | 多空分開指標 |
 | `core/utils/constant.py`／`instrument.py` | enum、費率、檔位表、`round_to_tick` |

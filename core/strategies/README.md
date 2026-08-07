@@ -160,36 +160,31 @@ def setup_account(self, account: StockAccount):
 
 ### 2. setup_apis()
 
-**用途**: 載入所需的資料 API，根據回測級別選擇性載入。
+**用途**: 宣告本策略要用哪些資料源。**API 實例由引擎的 `DataFeed` 統一持有，策略不自行建立**。
 
 **實作範例**:
 
 ```python
-def setup_apis(self):
-    """設置資料 API"""
+def setup_apis(self, feed: BaseDataFeed) -> None:
+    """宣告本策略要用的資料源；實例由 DataFeed 統一持有"""
 
     # 基本資料 API（可選）
-    self.chip = StockChipAPI()  # 籌碼資料
-    self.mrr = MonthlyRevenueReportAPI()  # 月營收資料
-    self.fs = FinancialStatementAPI()  # 財報資料
+    self.chip = feed.chip  # 籌碼資料
+    self.mrr = feed.mrr  # 月營收資料
+    self.fs = feed.fs  # 財報資料
 
-    # 根據回測級別載入對應的價格資料
-    if self.scale in (Scale.TICK, Scale.MIX):
-        self.tick = StockTickAPI()  # 逐筆資料
+    # 根據回測級別取用對應的價格資料
+    if self.scale == Scale.TICK:
+        self.tick = feed.tick  # 逐筆資料
 
-    if self.scale in (Scale.DAY, Scale.MIX):
-        self.price = StockPriceAPI()  # 日線資料
-
-    if self.scale == Scale.ALL:
-        self.tick = StockTickAPI()
-        self.price = StockPriceAPI()
+    elif self.scale == Scale.DAY:
+        self.price = feed.price  # 日線資料
 ```
 
 **說明**:
-- 根據 `self.scale` 決定要載入哪些 API
-- `Scale.DAY`: 只需載入 `StockPriceAPI`
-- `Scale.TICK`: 只需載入 `StockTickAPI`
-- `Scale.MIX` 或 `Scale.ALL`: 需要載入兩者
+- 根據 `self.scale` 決定要取用哪些 API；目前支援 `Scale.DAY` 與 `Scale.TICK` 兩種
+- **不要在 `__init__` 內呼叫 `setup_apis()`**：它由 `Backtester.load_datasets()` 在建立 `DataFeed` 之後呼叫
+- **不要自行 `StockPriceAPI()`**：那會讓單次回測開出多條互不相干的資料連線（見 backlog 回測引擎多市場抽象 Phase2-7）
 
 ### 3. check_open_signal()
 
@@ -461,7 +456,7 @@ def calculate_position_size(
 | 參數 | 類型 | 說明 | 預設值 |
 |------|------|------|--------|
 | `is_backtest` | `bool` | 是否為回測模式 | `True` |
-| `scale` | `str` | 回測級別：`Scale.DAY`、`Scale.TICK`、`Scale.MIX`、`Scale.ALL` | `Scale.DAY` |
+| `scale` | `str` | 回測級別：`Scale.DAY`、`Scale.TICK` | `Scale.DAY` |
 | `start_date` | `datetime.date` | 回測起始日期 | `None` |
 | `end_date` | `datetime.date` | 回測結束日期 | `None` |
 
@@ -469,8 +464,6 @@ def calculate_position_size(
 
 - **`Scale.DAY`**: 日線回測，使用每日收盤價
 - **`Scale.TICK`**: 逐筆回測，使用每筆成交資料
-- **`Scale.MIX`**: 混合回測（目前尚未完全實作）
-- **`Scale.ALL`**: 使用所有可用資料
 
 ## 資料 API 使用方式
 
@@ -647,9 +640,9 @@ class SimpleStrategy(BaseStockStrategy):
     def setup_account(self, account: StockAccount):
         self.account = account
 
-    def setup_apis(self):
-        if self.scale in (Scale.DAY, Scale.MIX):
-            self.price = StockPriceAPI()
+    def setup_apis(self, feed: BaseDataFeed) -> None:
+        if self.scale == Scale.DAY:
+            self.price = feed.price
 
     def check_open_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
         # 簡單策略：隨機選擇前 3 檔股票
@@ -815,10 +808,10 @@ class SimpleShortStrategy(BaseStockStrategy):
 
         self.account: StockAccount = account
 
-    def setup_apis(self) -> None:
+    def setup_apis(self, feed: BaseDataFeed) -> None:
         """設置資料 API"""
 
-        self.price: StockPriceAPI = StockPriceAPI()
+        self.price = feed.price
 
     def check_open_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
         """開倉（賣出）：漲幅達門檻即放空"""

@@ -23,7 +23,7 @@
 
 ## 背景：目前程式碼的實際樣貌
 
-`core/managers/stock/position/position_manager.py`：
+`core/managers/stock/position_manager.py`：
 
 | 路徑 | 開倉 | 平倉 | 損益／ROI |
 |------|------|------|-----------|
@@ -72,7 +72,7 @@
   - `open_position()` 的 LONG 分支改呼叫 `self.cost_model.commission(...)`。
   - `close_position()` 的 LONG 分支改呼叫 `cost_model` 的 `commission` / `tax` / `realized_pnl` / `roi`，並以成本模型的等比例攤提取代 `proportional_buy_commission`。
   - 確認 `position.commission` / `transaction_cost` 的遞減邏輯（324–326 行）與新攤提口徑一致。
-- **產出**：`core/managers/stock/position/position_manager.py`。
+- **產出**：`core/managers/stock/position_manager.py`。
 - **驗證方式**：依做法 A——新 baseline 產生後 `test_long_regression_snapshot` 通過，且 S1 的差異報告附在 commit 說明中；依做法 B——既有 baseline 逐筆相同。兩者皆須通過既有 61 項單元／整合測試。
 - **相依**：S2。
 
@@ -80,7 +80,7 @@
 
 - **目的**：避免留下兩個對外皆可呼叫、語意重疊的記帳入口。
 - **做法**：`calculate_net_profit` / `calculate_roi` / `calculate_transaction_commission` / `calculate_transaction_tax` 若收斂後只剩 `StockCostModel` 內部使用，保留為底層純函式即可，但需在 docstring 明確標註「記帳唯一入口為 `StockCostModel`」。
-- **產出**：`core/utils/instrument.py`、`core/utils/cost_model.py`。
+- **產出**：`core/utils/instrument.py`、`core/backtest/models/cost_model.py`。
 - **驗證方式**：人工檢視——`core/` 內除 `cost_model.py` 外無其他模組直接呼叫這四個函式。
 - **相依**：S3。
 
@@ -89,7 +89,7 @@
 ## 關聯與狀態
 
 - **優先級**：P1（阻擋滑價係數落地；放著會讓兩套公式的差異持續擴大）
-- **相關程式**：`core/managers/stock/position/position_manager.py`、`core/utils/cost_model.py`、`core/utils/instrument.py`、`tests/backtest/test_long_regression.py`、`tests/backtest/snapshots/`
+- **相關程式**：`core/managers/stock/position_manager.py`、`core/backtest/models/cost_model.py`、`core/utils/instrument.py`、`tests/backtest/test_long_regression.py`、`tests/backtest/snapshots/`
 - **相關 backlog**：
   - [放空回測框架規格](../docs/backtest/short-selling-framework.md)（Phase2-1 偏離來源、§6.0 取整規則）
   - [回測滑價與執行係數.md](回測滑價與執行係數.md)（滑價須掛在統一口徑上，建議在本項之後做）
