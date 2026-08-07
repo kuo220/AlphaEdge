@@ -270,18 +270,9 @@ class Backtester:
         return valid_orders
 
     def enrich_orders(self, orders: List[StockOrder]) -> List[StockOrder]:
-        """依成本設定補上放空管道與當沖旗標，策略不需自行填寫（見 backlog §4.6）"""
+        """補上市場專屬的訂單欄位；規則由 CostModel 實作（見 backlog Phase2-4）"""
 
-        for order in orders:
-            if order.position_type != PositionType.SHORT:
-                continue
-
-            if order.short_method is None:
-                order.short_method = self.cost_model.config.short_method
-            if not order.is_day_trade:
-                order.is_day_trade = self.cost_model.config.is_day_trade
-
-        return orders
+        return self.cost_model.enrich_orders(orders)
 
     def validate_fill_price(self, order: StockOrder, quote: StockQuote) -> bool:
         """成交價合理性檢查；規則由 FillModel 實作（見 backlog Phase2-2）"""

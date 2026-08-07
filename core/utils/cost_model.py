@@ -15,6 +15,9 @@ from .constant import (
     ShortCost,
     ShortMethod,
 )
+from core.backtest.models.cost_model import BaseCostModel
+from core.models import StockOrder
+
 from .instrument import StockUtils
 
 """
@@ -112,7 +115,7 @@ class CostConfig:
         return cls(short_method=short_method, is_day_trade=is_day_trade)
 
 
-class StockCostModel:
+class StockCostModel(BaseCostModel):
     """
     方向感知的成本／損益計算；PositionManager 與 Backtester 只呼叫這一層
 
@@ -137,6 +140,20 @@ class StockCostModel:
             )
 
     # === 單邊成本 ===
+    def enrich_orders(self, orders: List[StockOrder]) -> List[StockOrder]:
+        """依成本設定補上放空管道與當沖旗標，策略不需自行填寫（見 backlog §4.6）"""
+
+        for order in orders:
+            if not self.is_short(order):
+                continue
+
+            if order.short_method is None:
+                order.short_method = self.config.short_method
+            if not order.is_day_trade:
+                order.is_day_trade = self.config.is_day_trade
+
+        return orders
+
     def commission(self, price: float, volume: int) -> int:
         """
         - Description: 計算單邊手續費（買賣方向無關，費率相同）

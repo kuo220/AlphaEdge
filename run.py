@@ -1,7 +1,7 @@
 import argparse
 from typing import Dict, Type
 
-from core.backtest import Backtester
+from core.backtest.backtester import Backtester
 from core.strategies import StrategyLoader
 from core.strategies.stock import BaseStockStrategy
 
