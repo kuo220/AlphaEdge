@@ -2,6 +2,7 @@ import argparse
 from typing import Dict, Type
 
 from core.backtest.backtester import Backtester
+from core.backtest.factory import build_backtester
 from core.strategies import StrategyLoader
 from core.strategies.stock import BaseStockStrategy
 
@@ -51,7 +52,7 @@ def main() -> None:
 
     # Backtest or Live Trading
     if args.mode == "backtest":
-        backtester: Backtester = Backtester(strategy)
+        backtester: Backtester = build_backtester(strategy)
         backtester.run()
     elif args.mode == "live":
         pass

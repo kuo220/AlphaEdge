@@ -1,77 +1,90 @@
 import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Type
 
-import numpy as np
 import pandas as pd
 from loguru import logger
 
-from core.adapters import StockQuoteAdapter
-from core.api.financial_statement_api import FinancialStatementAPI
-from core.api.monthly_revenue_report_api import MonthlyRevenueReportAPI
-from core.api.stock_chip_api import StockChipAPI
-from core.api.stock_price_api import StockPriceAPI
-from core.api.stock_tick_api import StockTickAPI
-from core.backtest.analysis.analyzer import StockBacktestAnalyzer
-from core.backtest.datafeed import BaseDataFeed, TwStockDataFeed
-from core.backtest.models.fill_model import BaseFillModel, TwStockFillModel
-from core.backtest.models.instrument_spec import InstrumentSpec, TwStockSpec
-from core.backtest.models.settlement_model import (
-    BaseSettlementModel,
-    TwStockSettlementModel,
-)
-from core.backtest.report.reporter import StockBacktestReporter
+from core.backtest.datafeed.base import BaseDataFeed
+from core.backtest.models.cost_model import BaseCostModel
+from core.backtest.models.fill_model import BaseFillModel
+from core.backtest.models.instrument_spec import InstrumentSpec
+from core.backtest.models.settlement_model import BaseSettlementModel
+from core.backtest.report.base import BaseBacktestReporter
 from core.config import BACKTEST_RESULT_DIR_PATH
-from core.utils.log_manager import LogManager
-from core.managers.stock.position.position_manager import StockPositionManager
+from core.managers.stock.position.base import BasePositionManager
 from core.models import (
-    StockAccount,
-    StockOrder,
-    StockPosition,
-    StockQuote,
-    StockTradeRecord,
-    TickQuote,
+    BaseAccount,
+    BaseOrder,
+    BasePosition,
+    BaseQuote,
+    BaseTradeRecord,
 )
-from core.strategies.stock import BaseStockStrategy
+from core.strategies.base import BaseStrategy
 from core.utils import (
-    PRICE_LIMIT_RATIO,
     Action,
     BarExecutionOrder,
-    DayTradeUncoveredPolicy,
-    MarginCallPolicy,
     PositionType,
     Scale,
-    ShortMethod,
     TimeUtils,
 )
-from core.utils.cost_model import CostConfig, StockCostModel
-from core.utils.instrument import StockUtils
-from core.utils.market_calendar import MarketCalendar
+from core.utils.log_manager import LogManager
 
 """Backtesting engine that simulates trading based on strategy signals"""
 
 
+def new_event_counts() -> Dict[str, int]:
+    """
+    建立事件計數器
+
+    放空策略的尾部風險不能被平均掉，需單獨計數。六個 key 與報表相容，不可更名。
+    由 factory 建立後同時交給引擎與 FillModel，兩邊共用同一個 dict。
+    """
+
+    return {
+        "rejected_direction": 0,  # 方向不合法被剔除的訂單
+        "rejected_fill_price": 0,  # 成交價不合理被拒的訂單
+        "forced_cover_day_trade": 0,  # 當沖日終強制回補
+        "forced_cover_margin_call": 0,  # 維持率追繳強制回補
+        "forced_cover_max_holding": 0,  # 超過最長持有天數強制回補
+        "limit_up_cover_failed": 0,  # 漲停鎖死無法回補
+    }
+
+
 class Backtester:
-    """Backtest Framework: Tick and Daily price intervals"""
+    """
+    Backtest Framework: Tick and Daily price intervals
+
+    **唯一引擎，市場無關，無子類**：市場差異全部由注入的 model 決定
+    （`InstrumentSpec` / `FillModel` / `CostModel` / `SettlementModel` / `DataFeed`）。
+    新增一個市場不需要修改本檔案，只需在 factory 組出另一組 model。
+    """
 
     # === Init & Data Loading ===
-    def __init__(self, strategy: BaseStockStrategy):
-        self.strategy: BaseStockStrategy = strategy  # 要回測的策略
-        self.account: StockAccount = StockAccount(
-            self.strategy.init_capital
-        )  # 虛擬帳戶資訊
-        self.strategy.setup_account(self.account)  # 設置虛擬帳戶資訊
+    def __init__(
+        self,
+        strategy: BaseStrategy,
+        account: BaseAccount,
+        position_manager: BasePositionManager,
+        instrument: InstrumentSpec,
+        fill_model: BaseFillModel,
+        cost_model: BaseCostModel,
+        settlement: BaseSettlementModel,
+        data_feed: BaseDataFeed,
+        reporter_cls: Type[BaseBacktestReporter],
+        event_counts: Optional[Dict[str, int]] = None,
+    ):
+        self.strategy: BaseStrategy = strategy  # 要回測的策略
+        self.account: BaseAccount = account  # 虛擬帳戶資訊
+        self.position_manager: BasePositionManager = position_manager  # 倉位管理器
 
-        # 成本模型：由策略宣告的放空管道與是否當沖決定參數組合
-        self.cost_model: StockCostModel = StockCostModel(self.build_cost_config())
-
-        # 倉位管理器
-        self.position_manager: StockPositionManager = StockPositionManager(
-            self.account, self.cost_model
-        )  # 設置倉位管理器
-
-        # 資料源（Phase3-1 之後改由 factory 注入）
-        self.data_feed: BaseDataFeed = TwStockDataFeed()
+        # 可插拔的市場行為
+        self.instrument: InstrumentSpec = instrument  # 商品規格
+        self.fill_model: BaseFillModel = fill_model  # 成交價可信度
+        self.cost_model: BaseCostModel = cost_model  # 手續費／稅／持有成本
+        self.settlement: BaseSettlementModel = settlement  # 一根 bar 收盤後的強制動作
+        self.data_feed: BaseDataFeed = data_feed  # 資料載入與交易日判定
+        self.reporter_cls: Type[BaseBacktestReporter] = reporter_cls  # 報表產生器
 
         # 回測參數
         self.scale: str = self.strategy.scale  # 回測 KBar 級別
@@ -86,31 +99,9 @@ class Backtester:
         # 含未實現損益的每日權益序列（只認已實現損益會低估留倉放空的 MDD）
         self.daily_equity: List[Dict[str, Any]] = []
 
-        # 事件統計：放空策略的尾部風險不能被平均掉，需單獨計數
-        self.event_counts: Dict[str, int] = {
-            "rejected_direction": 0,  # 方向不合法被剔除的訂單
-            "rejected_fill_price": 0,  # 成交價不合理被拒的訂單
-            "forced_cover_day_trade": 0,  # 當沖日終強制回補
-            "forced_cover_margin_call": 0,  # 維持率追繳強制回補
-            "forced_cover_max_holding": 0,  # 超過最長持有天數強制回補
-            "limit_up_cover_failed": 0,  # 漲停鎖死無法回補
-        }
-
-        # 商品規格與成交價模型（Phase3-1 之後改由 factory 注入）
-        self.instrument: InstrumentSpec = TwStockSpec()
-        self.fill_model: BaseFillModel = TwStockFillModel(
-            instrument=self.instrument, event_counts=self.event_counts
-        )
-
-        # 結算模型：一根 bar 收盤後的市場強制動作（Phase3-1 之後改由 factory 注入）
-        self.settlement: BaseSettlementModel = TwStockSettlementModel(
-            position_manager=self.position_manager,
-            cost_model=self.cost_model,
-            prev_close=self.fill_model.prev_close,
-            instrument=self.instrument,
-            day_trade_uncovered_policy=self.strategy.day_trade_uncovered_policy,
-            margin_call_policy=self.strategy.margin_call_policy,
-            max_holding_days=self.strategy.max_holding_days,
+        # 事件統計：由 factory 傳入時與 FillModel 共用同一個 dict
+        self.event_counts: Dict[str, int] = (
+            event_counts if event_counts is not None else new_event_counts()
         )
 
         self.setup()
@@ -147,45 +138,7 @@ class Backtester:
 
         self.data_feed.setup(self.strategy)
 
-    @property
-    def price(self) -> Optional[StockPriceAPI]:
-        """日 K 資料 API；狀態由 DataFeed 持有"""
-
-        return self.data_feed.price
-
-    @property
-    def tick(self) -> Optional[StockTickAPI]:
-        """Tick 資料 API；狀態由 DataFeed 持有"""
-
-        return self.data_feed.tick
-
-    # === Direction & Cost Setting ===
-    def build_cost_config(self) -> CostConfig:
-        """
-        - Description:
-            依策略宣告推導成本設定：放空且允許當沖時一律走現股當沖沖賣
-        - Return:
-            - config: CostConfig
-                本次回測使用的成本參數
-        """
-
-        is_day_trade: bool = (
-            self.strategy.position_type == PositionType.SHORT
-            and self.strategy.enable_intraday
-        )
-        short_method: ShortMethod = (
-            ShortMethod.DAY_TRADE if is_day_trade else self.strategy.short_method
-        )
-
-        config: CostConfig = self.strategy.cost_config or CostConfig.default(
-            short_method, is_day_trade
-        )
-
-        if self.strategy.short_constraint is not None:
-            config.short_constraint = self.strategy.short_constraint
-
-        return config
-
+    # === Direction Setting ===
     def get_allowed_directions(self) -> Set[PositionType]:
         """取得允許的訂單方向白名單；策略未指定時等同其宣告方向"""
 
@@ -225,29 +178,27 @@ class Backtester:
         return Action.SELL if position_type == PositionType.LONG else Action.BUY
 
     # === Order Validation ===
-    def validate_orders(
-        self, orders: List[StockOrder], stage: str
-    ) -> List[StockOrder]:
+    def validate_orders(self, orders: List[BaseOrder], stage: str) -> List[BaseOrder]:
         """
         - Description:
             檢查訂單方向是否合法，不合法者剔除並記錄，禁止靜默丟棄
         - Parameters:
-            - orders: List[StockOrder]
+            - orders: List[BaseOrder]
                 策略回傳的訂單
             - stage: str
                 "open" 或 "close"，決定期望的動作
         - Return:
-            - valid_orders: List[StockOrder]
+            - valid_orders: List[BaseOrder]
                 通過檢查的訂單
         """
 
         allowed: Set[PositionType] = self.get_allowed_directions()
-        valid_orders: List[StockOrder] = []
+        valid_orders: List[BaseOrder] = []
 
         for order in orders:
             if order.position_type not in allowed:
                 logger.warning(
-                    f"[Validate Order] {order.stock_id} 方向 {order.position_type} "
+                    f"[Validate Order] {order.symbol} 方向 {order.position_type} "
                     f"不在策略允許的 {allowed} 內，已剔除"
                 )
                 self.event_counts["rejected_direction"] += 1
@@ -260,7 +211,7 @@ class Backtester:
             )
             if order.action != expected_action:
                 logger.warning(
-                    f"[Validate Order] {order.stock_id} {stage} 動作應為 {expected_action}，"
+                    f"[Validate Order] {order.symbol} {stage} 動作應為 {expected_action}，"
                     f"實際為 {order.action}，已剔除"
                 )
                 self.event_counts["rejected_direction"] += 1
@@ -270,32 +221,32 @@ class Backtester:
 
         return valid_orders
 
-    def enrich_orders(self, orders: List[StockOrder]) -> List[StockOrder]:
+    def enrich_orders(self, orders: List[BaseOrder]) -> List[BaseOrder]:
         """補上市場專屬的訂單欄位；規則由 CostModel 實作（見 backlog Phase2-4）"""
 
         return self.cost_model.enrich_orders(orders)
 
-    def validate_fill_price(self, order: StockOrder, quote: StockQuote) -> bool:
+    def validate_fill_price(self, order: BaseOrder, quote: BaseQuote) -> bool:
         """成交價合理性檢查；規則由 FillModel 實作（見 backlog Phase2-2）"""
 
         return self.fill_model.validate(order, quote)
 
     def get_price_range(
-        self, quote: StockQuote
+        self, quote: BaseQuote
     ) -> Tuple[Optional[float], Optional[float]]:
         """取得該報價可成交的價格區間；規則由 FillModel 實作"""
 
         return self.fill_model.get_price_range(quote)
 
-    def update_intraday_range(self, stock_quotes: List[StockQuote]) -> None:
+    def update_intraday_range(self, quotes: List[BaseQuote]) -> None:
         """累計 Tick 級別的當日高低點；狀態由 FillModel 持有"""
 
-        self.fill_model.update_intraday_range(stock_quotes)
+        self.fill_model.update_intraday_range(quotes)
 
-    def update_prev_close(self, stock_quotes: List[StockQuote]) -> None:
+    def update_prev_close(self, quotes: List[BaseQuote]) -> None:
         """收盤後記錄當日收盤價；狀態由 FillModel 持有"""
 
-        self.fill_model.on_bar_close(stock_quotes)
+        self.fill_model.on_bar_close(quotes)
 
     # === Main Backtest Loop ===
     def run(self) -> None:
@@ -318,7 +269,7 @@ class Backtester:
             logger.info(f"--- {date.strftime('%Y/%m/%d')} ---")
 
             if not self.data_feed.is_market_open(date):
-                logger.info("* Stock Market Close\n")
+                logger.info("* Market Close\n")
                 continue
 
             if self.scale == Scale.TICK:
@@ -326,9 +277,6 @@ class Backtester:
 
             elif self.scale == Scale.DAY:
                 self.run_day_backtest(date)
-
-            elif self.scale == Scale.MIX:
-                self.run_mix_backtest(date)
 
         self.account.update_account_status()
 
@@ -345,130 +293,116 @@ class Backtester:
     def run_tick_backtest(self, date: datetime.date) -> None:
         """Tick 級別的回測架構"""
 
-        # Stock Quotes
-        stock_quotes: List[StockQuote] = self.data_feed.get_quotes(date, Scale.TICK)
+        quotes: List[BaseQuote] = self.data_feed.get_quotes(date, Scale.TICK)
 
-        if not stock_quotes:
+        if not quotes:
             return
 
-        self.fill_model.on_bar_open(stock_quotes)
-        self.execute_bar(date, stock_quotes)
+        self.fill_model.on_bar_open(quotes)
+        self.execute_bar(date, quotes)
 
     def run_day_backtest(self, date: datetime.date) -> None:
         """日 K 級別的回測架構"""
 
-        # Stock Quotes
-        stock_quotes: List[StockQuote] = self.data_feed.get_quotes(date, Scale.DAY)
+        quotes: List[BaseQuote] = self.data_feed.get_quotes(date, Scale.DAY)
 
-        if not stock_quotes:
+        if not quotes:
             return
 
-        self.execute_bar(date, stock_quotes)
+        self.execute_bar(date, quotes)
 
-    def run_mix_backtest(self, date: datetime.date) -> None:
-        """Tick 與日 K 級別的回測架構"""
-        pass
-
-    def execute_bar(
-        self, date: datetime.date, stock_quotes: List[StockQuote]
-    ) -> None:
+    def execute_bar(self, date: datetime.date, quotes: List[BaseQuote]) -> None:
         """
         - Description:
             單一時間切片的完整流程：依設定的執行順序開平倉，再做收盤後的部位檢查
         - Parameters:
             - date: datetime.date
                 當前交易日
-            - stock_quotes: List[StockQuote]
-                當日報價
+            - quotes: List[BaseQuote]
+                當根 bar 的報價
         """
 
         if self.get_execution_order() == BarExecutionOrder.OPEN_THEN_CLOSE:
-            self.execute_open_signal(stock_quotes)
-            self.execute_close_signal(stock_quotes)
+            self.execute_open_signal(quotes)
+            self.execute_close_signal(quotes)
         else:
-            self.execute_close_signal(stock_quotes)
-            self.execute_open_signal(stock_quotes)
+            self.execute_close_signal(quotes)
+            self.execute_open_signal(quotes)
 
         # 一根 bar 收盤後由市場規則強制執行的動作
         # 台股：當沖強制回補 ＋ 借券費計提 ＋ 維持率追繳
         # 期貨：每日結算 ＋ 保證金追繳 ＋ 到期換月
-        self.settlement.on_bar_close(
-            date, stock_quotes, self.account, self.event_counts
-        )
+        self.settlement.on_bar_close(date, quotes, self.account, self.event_counts)
 
-        self.snapshot_daily_equity(date, stock_quotes)
-        self.update_prev_close(stock_quotes)
+        self.snapshot_daily_equity(date, quotes)
+        self.update_prev_close(quotes)
 
     # === Signal Execution ===
-    def execute_open_signal(
-        self, stock_quotes: List[StockQuote]
-    ) -> List[StockPosition]:
+    def execute_open_signal(self, quotes: List[BaseQuote]) -> List[BasePosition]:
         """若倉位數量未達到限制且有開倉訊號，則執行開倉"""
 
         # Get open orders
-        open_orders: List[StockOrder] = self.strategy.check_open_signal(stock_quotes)
+        open_orders: List[BaseOrder] = self.strategy.check_open_signal(quotes)
 
         # 方向驗證 → 補值 → 成交價驗證，最後才進倉位管理器
         open_orders = self.enrich_orders(self.validate_orders(open_orders, "open"))
-        quote_map: Dict[str, StockQuote] = {sq.stock_id: sq for sq in stock_quotes}
+        quote_map: Dict[str, BaseQuote] = {q.symbol: q for q in quotes}
 
         # Execute open orders
-        open_positions: List[StockPosition] = []
+        open_positions: List[BasePosition] = []
         for order in open_orders:
-            quote: Optional[StockQuote] = quote_map.get(order.stock_id)
+            quote: Optional[BaseQuote] = quote_map.get(order.symbol)
             if quote and not self.validate_fill_price(order, quote):
                 continue
 
-            open_position: Optional[StockPosition] = (
-                self.position_manager.open_position(order)
+            open_position: Optional[BasePosition] = self.position_manager.open_position(
+                order
             )
             if open_position:
                 open_positions.append(open_position)
         return open_positions
 
-    def execute_close_signal(
-        self, stock_quotes: List[StockQuote]
-    ) -> List[StockTradeRecord]:
+    def execute_close_signal(self, quotes: List[BaseQuote]) -> List[BaseTradeRecord]:
         """執行平倉邏輯：先判斷停損訊號，後判斷一般平倉"""
 
-        # Find stocks with existing positions
-        positions: List[StockQuote] = [
-            sq for sq in stock_quotes if self.account.check_has_position(sq.stock_id)
+        # Find symbols with existing positions
+        positions: List[BaseQuote] = [
+            q for q in quotes if self.account.check_has_position(q.symbol)
         ]
 
         if not positions:
             return
 
         # Get stop loss orders
-        stop_loss_orders: List[StockOrder] = self.strategy.check_stop_loss_signal(
+        stop_loss_orders: List[BaseOrder] = self.strategy.check_stop_loss_signal(
             positions
         )
         stop_loss_orders = self.validate_orders(stop_loss_orders, "close")
 
         # Close records
-        close_records: List[StockTradeRecord] = []
+        close_records: List[BaseTradeRecord] = []
 
         # Execute stop loss orders
         for order in stop_loss_orders:
-            close_positions: List[StockTradeRecord] = (
+            close_positions: List[BaseTradeRecord] = (
                 self.position_manager.close_position(order)
             )
             close_records.extend(close_positions)
 
         # After executing stop loss, recheck the remaining positions
-        remaining_positions: List[StockQuote] = [
-            sq for sq in stock_quotes if self.account.check_has_position(sq.stock_id)
+        remaining_positions: List[BaseQuote] = [
+            q for q in quotes if self.account.check_has_position(q.symbol)
         ]
 
         # Get close orders
-        close_orders: List[StockOrder] = self.strategy.check_close_signal(
+        close_orders: List[BaseOrder] = self.strategy.check_close_signal(
             remaining_positions
         )
         close_orders = self.validate_orders(close_orders, "close")
 
         # Execute close orders
         for order in close_orders:
-            close_positions: List[StockTradeRecord] = (
+            close_positions: List[BaseTradeRecord] = (
                 self.position_manager.close_position(order)
             )
             close_records.extend(close_positions)
@@ -477,7 +411,7 @@ class Backtester:
 
     # === Daily Equity ===
     def snapshot_daily_equity(
-        self, date: datetime.date, stock_quotes: List[StockQuote]
+        self, date: datetime.date, quotes: List[BaseQuote]
     ) -> float:
         """
         - Description:
@@ -488,29 +422,29 @@ class Backtester:
         - Parameters:
             - date: datetime.date
                 當前交易日
-            - stock_quotes: List[StockQuote]
-                當日報價
+            - quotes: List[BaseQuote]
+                當根 bar 的報價
         - Return:
             - equity: float
                 當日權益（現金 + 部位價值）
         """
 
-        quote_map: Dict[str, StockQuote] = {sq.stock_id: sq for sq in stock_quotes}
+        quote_map: Dict[str, BaseQuote] = {q.symbol: q for q in quotes}
         position_value: float = 0.0
 
         for position in self.account.get_positions():
             price: float = self.settlement.get_mark_price(position, quote_map)
-            shares: int = StockUtils.convert_lot_to_share(position.volume)
+            units: int = self.instrument.to_units(position.volume)
 
             if position.position_type == PositionType.SHORT:
                 # 開倉時只扣了保證金與成本，賣出價款留作擔保品
-                position.unrealized_pnl = round((position.price - price) * shares, 2)
+                position.unrealized_pnl = round((position.price - price) * units, 2)
                 position_value += position.margin + position.unrealized_pnl
             else:
-                position.unrealized_pnl = round((price - position.price) * shares, 2)
-                position_value += price * shares
+                position.unrealized_pnl = round((price - position.price) * units, 2)
+                position_value += price * units
 
-            cost_basis: float = position.price * shares
+            cost_basis: float = position.price * units
             position.unrealized_roi = (
                 round(position.unrealized_pnl / cost_basis * 100, 2)
                 if cost_basis
@@ -526,7 +460,7 @@ class Backtester:
         """Generate backtest report"""
 
         # Generate Backtest Report (Chart)
-        reporter: StockBacktestReporter = StockBacktestReporter(
+        reporter: BaseBacktestReporter = self.reporter_cls(
             self.strategy, self.strategy_result_dir
         )
         reporter.trading_report = reporter.generate_trading_report()

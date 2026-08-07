@@ -4,17 +4,18 @@ from typing import Optional
 
 import pandas as pd
 
-from core.models import StockAccount
-from core.strategies.stock import BaseStockStrategy
+from core.models import BaseAccount
+from core.strategies.base import BaseStrategy
 
 
 class BaseBacktestReporter(ABC):
     """Backtest Performance Reporter Framework (Base Template)"""
 
-    def __init__(self, strategy: BaseStockStrategy, output_dir: Optional[Path] = None):
-        self.strategy: BaseStockStrategy = strategy  # Backtest strategy
-        self.account: StockAccount = self.strategy.account  # Account
+    def __init__(self, strategy: BaseStrategy, output_dir: Optional[Path] = None):
+        self.strategy: BaseStrategy = strategy  # Backtest strategy
+        self.account: BaseAccount = self.strategy.account  # Account
         self.output_dir: Optional[Path] = output_dir  # Output directory
+        self.trading_report: Optional[pd.DataFrame] = None  # 交易明細表
 
     @abstractmethod
     def setup(self, *args, **kwargs) -> None:
@@ -24,6 +25,16 @@ class BaseBacktestReporter(ABC):
     @abstractmethod
     def generate_trading_report(self) -> pd.DataFrame:
         """生成回測報告 DataFrame"""
+        pass
+
+    @abstractmethod
+    def generate_direction_summary(self) -> pd.DataFrame:
+        """多空分開的績效統計（放空的尾部風險不可被平均掉）"""
+        pass
+
+    @abstractmethod
+    def generate_event_report(self, event_counts: dict) -> pd.DataFrame:
+        """事件計數報表（強制回補、拒單等）"""
         pass
 
     @abstractmethod

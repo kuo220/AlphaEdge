@@ -10,6 +10,7 @@ _PROJECT_ROOT: Path = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
 from core.backtest.backtester import Backtester
+from core.backtest.factory import build_backtester
 from core.models import StockOrder, StockQuote
 from core.utils import Action, PositionType, Scale, ShortMethod
 from core.utils.cost_model import ShortConstraint
@@ -39,13 +40,21 @@ STOCK_ID: str = "2330"
 INIT_CAPITAL: float = 1000000.0
 
 
-class ScriptedBacktester(Backtester):
-    """跳過建立結果目錄與載入資料 API 的 Backtester（SHORT 回歸不連 DB）"""
+def build_scripted_backtester(strategy: ScriptedStrategy) -> Backtester:
+    """
+    以 factory 組出台股 model 組合，但跳過 setup()
 
-    def setup(self) -> None:
-        """本回歸線以腳本驅動，不需要資料集與報表目錄"""
+    setup() 會建立結果目錄、log 檔與五個資料 API 的連線，本回歸線完全以腳本
+    驅動、不連 DB，因此在建構期間暫時停用它。走 factory 而非自行 new，
+    是為了讓快照驗證的是「實際會被 run.py 使用的那組 model 組合」。
+    """
 
-        pass
+    original_setup = Backtester.setup
+    Backtester.setup = lambda self: None
+    try:
+        return build_backtester(strategy)
+    finally:
+        Backtester.setup = original_setup
 
 
 class ShortScenario:
@@ -296,7 +305,7 @@ def build_scenarios() -> List[ShortScenario]:
 def run_scenario(scenario: ShortScenario) -> Backtester:
     """逐 bar 跑完一組情境，回傳跑完的引擎"""
 
-    backtester: Backtester = ScriptedBacktester(scenario.strategy)
+    backtester: Backtester = build_scripted_backtester(scenario.strategy)
 
     for date, stock_quotes in scenario.bars:
         backtester.execute_bar(date, stock_quotes)

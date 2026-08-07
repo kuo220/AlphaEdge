@@ -65,7 +65,7 @@ class MomentumStrategy3(BaseStockStrategy):
 
     def setup_apis(self) -> None:
         """設置資料 API"""
-        if self.scale in (Scale.DAY, Scale.MIX):
+        if self.scale == Scale.DAY:
             self.price: StockPriceAPI = StockPriceAPI()
 
     def _get_ma_values(

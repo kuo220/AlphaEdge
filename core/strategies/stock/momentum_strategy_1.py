@@ -67,15 +67,12 @@ class MomentumStrategy1(BaseStockStrategy):
         self.mrr: MonthlyRevenueReportAPI = MonthlyRevenueReportAPI()
         self.fs: FinancialStatementAPI = FinancialStatementAPI()
 
-        if self.scale in (Scale.TICK, Scale.MIX):
+        if self.scale == Scale.TICK:
             self.tick: StockTickAPI = StockTickAPI()
 
-        elif self.scale in (Scale.DAY, Scale.MIX):
+        elif self.scale == Scale.DAY:
             self.price: StockPriceAPI = StockPriceAPI()
 
-        elif self.scale in (Scale.MIX, Scale.ALL):
-            self.tick: StockTickAPI = StockTickAPI()
-            self.price: StockPriceAPI = StockPriceAPI()
 
     def check_open_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
         """開倉策略：昨收基準漲幅達門檻且成交量達門檻，做多；部位數由 calculate_position_size 依 max_holdings 與資金切分"""

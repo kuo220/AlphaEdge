@@ -63,15 +63,12 @@ class MomentumStrategy4(BaseStockStrategy):
         self.mrr: MonthlyRevenueReportAPI = MonthlyRevenueReportAPI()
         self.fs: FinancialStatementAPI = FinancialStatementAPI()
 
-        if self.scale in (Scale.TICK, Scale.MIX):
+        if self.scale == Scale.TICK:
             self.tick: StockTickAPI = StockTickAPI()
 
-        elif self.scale in (Scale.DAY, Scale.MIX):
+        elif self.scale == Scale.DAY:
             self.price: StockPriceAPI = StockPriceAPI()
 
-        elif self.scale in (Scale.MIX, Scale.ALL):
-            self.tick: StockTickAPI = StockTickAPI()
-            self.price: StockPriceAPI = StockPriceAPI()
 
     @staticmethod
     def _row_close_and_volume_lots(

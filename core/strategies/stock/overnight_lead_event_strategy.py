@@ -65,7 +65,7 @@ class OvernightLeadEventStrategy(BaseStockStrategy):
         self.account = account
 
     def setup_apis(self) -> None:
-        if self.scale in (Scale.DAY, Scale.MIX):
+        if self.scale == Scale.DAY:
             self.price = StockPriceAPI()
 
     @staticmethod

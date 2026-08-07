@@ -1,0 +1,108 @@
+from core.backtest.backtester import Backtester, new_event_counts
+from core.backtest.datafeed.tw_stock_datafeed import TwStockDataFeed
+from core.backtest.models.fill_model import TwStockFillModel
+from core.backtest.models.instrument_spec import TwStockSpec
+from core.backtest.models.settlement_model import TwStockSettlementModel
+from core.backtest.report.reporter import StockBacktestReporter
+from core.managers.stock.position.position_manager import StockPositionManager
+from core.models import StockAccount
+from core.strategies.base import BaseStrategy
+from core.strategies.stock import BaseStockStrategy
+from core.utils import Market, PositionType, ShortMethod
+from core.utils.cost_model import CostConfig, StockCostModel
+
+"""Backtester factory: 全專案唯一一處依市場分派的地方"""
+
+
+def build_backtester(strategy: BaseStrategy) -> Backtester:
+    """
+    - Description:
+        依策略宣告的市場組裝對應的 model 組合
+
+        這是全專案唯一的 `if market ==`。新增一個市場只需在此加一個分支，
+        `Backtester` 本身一行都不用改。
+    - Parameters:
+        - strategy: BaseStrategy
+            要回測的策略；其 `market` 欄位為分派鍵
+    - Return:
+        - Backtester
+            已注入該市場 model 組合的引擎
+    """
+
+    if strategy.market == Market.STOCK:
+        return build_tw_stock_backtester(strategy)
+
+    raise ValueError(f"尚未支援的市場：{strategy.market}")
+
+
+def build_tw_stock_backtester(strategy: BaseStockStrategy) -> Backtester:
+    """組裝台股的 model 組合"""
+
+    account: StockAccount = StockAccount(strategy.init_capital)
+    strategy.setup_account(account)
+
+    cost_model: StockCostModel = StockCostModel(build_cost_config(strategy))
+    position_manager: StockPositionManager = StockPositionManager(account, cost_model)
+
+    instrument: TwStockSpec = TwStockSpec()
+
+    # 事件計數由 factory 建立，引擎與 FillModel 共用同一個 dict
+    event_counts: dict = new_event_counts()
+    fill_model: TwStockFillModel = TwStockFillModel(
+        instrument=instrument, event_counts=event_counts
+    )
+
+    settlement: TwStockSettlementModel = TwStockSettlementModel(
+        position_manager=position_manager,
+        cost_model=cost_model,
+        prev_close=fill_model.prev_close,
+        instrument=instrument,
+        day_trade_uncovered_policy=strategy.day_trade_uncovered_policy,
+        margin_call_policy=strategy.margin_call_policy,
+        max_holding_days=strategy.max_holding_days,
+    )
+
+    return Backtester(
+        strategy=strategy,
+        account=account,
+        position_manager=position_manager,
+        instrument=instrument,
+        fill_model=fill_model,
+        cost_model=cost_model,
+        settlement=settlement,
+        data_feed=TwStockDataFeed(),
+        reporter_cls=StockBacktestReporter,
+        event_counts=event_counts,
+    )
+
+
+def build_cost_config(strategy: BaseStockStrategy) -> CostConfig:
+    """
+    - Description:
+        依策略宣告推導成本設定：放空且允許當沖時一律走現股當沖沖賣
+
+        原本是 `Backtester.build_cost_config()`，但「依策略宣告組裝 model」
+        本來就是 factory 的職責；留在引擎會讓引擎知道台股的信用交易語意。
+    - Parameters:
+        - strategy: BaseStockStrategy
+            要回測的台股策略
+    - Return:
+        - config: CostConfig
+            本次回測使用的成本參數
+    """
+
+    is_day_trade: bool = (
+        strategy.position_type == PositionType.SHORT and strategy.enable_intraday
+    )
+    short_method: ShortMethod = (
+        ShortMethod.DAY_TRADE if is_day_trade else strategy.short_method
+    )
+
+    config: CostConfig = strategy.cost_config or CostConfig.default(
+        short_method, is_day_trade
+    )
+
+    if strategy.short_constraint is not None:
+        config.short_constraint = strategy.short_constraint
+
+    return config

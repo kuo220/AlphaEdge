@@ -36,7 +36,7 @@ class TwStockDataFeed(BaseDataFeed):
         self.fs = FinancialStatementAPI()
         self.price = StockPriceAPI()
 
-        if strategy.scale == Scale.TICK or strategy.scale == Scale.MIX:
+        if strategy.scale == Scale.TICK:
             self.tick = StockTickAPI()
 
     def is_market_open(self, date: datetime.date) -> bool:

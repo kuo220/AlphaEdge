@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from core.models import StockAccount
-from core.strategies.stock import BaseStockStrategy
+from core.models import BaseAccount
+from core.strategies.base import BaseStrategy
 
 
 class BaseBacktestAnalyzer(ABC):
@@ -10,9 +10,9 @@ class BaseBacktestAnalyzer(ABC):
 
     # TODO: 計算 Cumulative Capital (Equity Curve), MDD, ROI, Sharpe Ratio
 
-    def __init__(self, strategy: BaseStockStrategy):
-        self.strategy: BaseStockStrategy = strategy  # Backtest strategy
-        self.account: StockAccount = self.strategy.account  # Account
+    def __init__(self, strategy: BaseStrategy):
+        self.strategy: BaseStrategy = strategy  # Backtest strategy
+        self.account: BaseAccount = self.strategy.account  # Account
 
     @abstractmethod
     def setup(self) -> None:

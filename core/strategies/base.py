@@ -39,7 +39,7 @@ class BaseStrategy(ABC):
         )
 
         """ === Backtest Setting === """
-        self.scale: str = Scale.DAY  # Backtest scale: Day/Tick/ALL
+        self.scale: str = Scale.DAY  # Backtest scale: DAY / TICK
         self.start_date: datetime.date = None  # Optional: 回測起始日
         self.end_date: datetime.date = None  # Optional: 回測結束日
 

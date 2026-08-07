@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 from core.backtest.backtester import Backtester
+from core.backtest.factory import build_backtester
 from core.backtest.report.reporter import StockBacktestReporter
 from core.models import StockAccount, StockOrder, StockTradeRecord
 from core.utils import Action, PositionType, ShortMethod
@@ -22,7 +23,7 @@ def make_backtester(monkeypatch: pytest.MonkeyPatch) -> Callable[..., Backtester
 
     def _make_backtester(strategy) -> Backtester:
         monkeypatch.setattr(Backtester, "setup", lambda self: None)
-        return Backtester(strategy)
+        return build_backtester(strategy)
 
     return _make_backtester
 

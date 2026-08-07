@@ -4,6 +4,7 @@ from typing import Callable, List
 import pytest
 
 from core.backtest.backtester import Backtester
+from core.backtest.factory import build_backtester
 from core.backtest.models.fill_model import TwStockFillModel
 from core.models import StockOrder, StockPosition, StockQuote, StockTradeRecord
 from core.utils import (
@@ -29,7 +30,7 @@ def make_backtester(monkeypatch: pytest.MonkeyPatch) -> Callable[..., Backtester
 
     def _make_backtester(strategy) -> Backtester:
         monkeypatch.setattr(Backtester, "setup", lambda self: None)
-        return Backtester(strategy)
+        return build_backtester(strategy)
 
     return _make_backtester
 
