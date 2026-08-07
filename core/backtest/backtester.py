@@ -13,6 +13,7 @@ from core.api.stock_chip_api import StockChipAPI
 from core.api.stock_price_api import StockPriceAPI
 from core.api.stock_tick_api import StockTickAPI
 from core.backtest.analysis.analyzer import StockBacktestAnalyzer
+from core.backtest.datafeed import BaseDataFeed, TwStockDataFeed
 from core.backtest.models.fill_model import BaseFillModel, TwStockFillModel
 from core.backtest.models.instrument_spec import InstrumentSpec, TwStockSpec
 from core.backtest.models.settlement_model import (
@@ -69,14 +70,8 @@ class Backtester:
             self.account, self.cost_model
         )  # 設置倉位管理器
 
-        # 資料集
-        self.tick: Optional[StockTickAPI] = None  # Ticks data
-        self.chip: Optional[StockChipAPI] = None  # Chips data
-        self.price: Optional[StockPriceAPI] = None  # Price data
-        self.mrr: Optional[MonthlyRevenueReportAPI] = (
-            None  # Monthly Revenue Report data
-        )
-        self.fs: Optional[FinancialStatementAPI] = None  # Financial Statement data
+        # 資料源（Phase3-1 之後改由 factory 注入）
+        self.data_feed: BaseDataFeed = TwStockDataFeed()
 
         # 回測參數
         self.scale: str = self.strategy.scale  # 回測 KBar 級別
@@ -148,15 +143,21 @@ class Backtester:
         self.load_datasets()
 
     def load_datasets(self) -> None:
-        """從資料庫載入資料"""
+        """載入回測資料；資料源由 DataFeed 持有（見 backlog Phase2-5）"""
 
-        self.chip = StockChipAPI()
-        self.mrr = MonthlyRevenueReportAPI()
-        self.fs = FinancialStatementAPI()
-        self.price = StockPriceAPI()
+        self.data_feed.setup(self.strategy)
 
-        if self.scale == Scale.TICK or self.scale == Scale.MIX:
-            self.tick = StockTickAPI()
+    @property
+    def price(self) -> Optional[StockPriceAPI]:
+        """日 K 資料 API；狀態由 DataFeed 持有"""
+
+        return self.data_feed.price
+
+    @property
+    def tick(self) -> Optional[StockTickAPI]:
+        """Tick 資料 API；狀態由 DataFeed 持有"""
+
+        return self.data_feed.tick
 
     # === Direction & Cost Setting ===
     def build_cost_config(self) -> CostConfig:
@@ -316,7 +317,7 @@ class Backtester:
         for date in dates:
             logger.info(f"--- {date.strftime('%Y/%m/%d')} ---")
 
-            if not MarketCalendar.check_stock_market_open(api=self.price, date=date):
+            if not self.data_feed.is_market_open(date):
                 logger.info("* Stock Market Close\n")
                 continue
 
@@ -345,9 +346,7 @@ class Backtester:
         """Tick 級別的回測架構"""
 
         # Stock Quotes
-        stock_quotes: List[StockQuote] = StockQuoteAdapter.convert_to_tick_quotes(
-            self.tick, date
-        )
+        stock_quotes: List[StockQuote] = self.data_feed.get_quotes(date, Scale.TICK)
 
         if not stock_quotes:
             return
@@ -359,9 +358,7 @@ class Backtester:
         """日 K 級別的回測架構"""
 
         # Stock Quotes
-        stock_quotes: List[StockQuote] = StockQuoteAdapter.convert_to_day_quotes(
-            self.price, date
-        )
+        stock_quotes: List[StockQuote] = self.data_feed.get_quotes(date, Scale.DAY)
 
         if not stock_quotes:
             return

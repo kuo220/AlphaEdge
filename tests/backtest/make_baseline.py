@@ -12,7 +12,6 @@ sys.path.insert(0, str(_PROJECT_ROOT))
 from core.backtest.backtester import Backtester
 from core.strategies.stock.momentum_strategy_1 import MomentumStrategy1
 from core.utils import TimeUtils
-from core.utils.market_calendar import MarketCalendar
 
 """產生 LONG 策略的回歸 baseline：放空框架動程式碼前的第一步（見 backlog §9.0）"""
 
@@ -35,7 +34,7 @@ def run_backtest_without_report(strategy: MomentumStrategy1) -> Backtester:
     )
 
     for date in dates:
-        if not MarketCalendar.check_stock_market_open(api=backtester.price, date=date):
+        if not backtester.data_feed.is_market_open(date):
             continue
 
         backtester.run_day_backtest(date)
