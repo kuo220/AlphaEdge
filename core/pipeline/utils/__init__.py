@@ -1,10 +1,12 @@
 from .constant import (
+    ChipColumn,
     DataType,
     FileEncoding,
     FinMindDataType,
     FinancialStatementType,
     InstrumentType,
     MarketType,
+    PriceColumn,
     UpdateStatus,
 )
 from .exceptions import (

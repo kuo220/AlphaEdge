@@ -1,15 +1,13 @@
 # Python standard library
 import datetime
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-import pandas as pd
 from loguru import logger
 
 from core.backtest.datafeed.base import BaseDataFeed
 from core.models import StockAccount, StockOrder, StockPosition, StockQuote
 from core.strategies.stock import BaseStockStrategy
 from core.utils import Action, PositionType, Scale, Units
-from core.utils.instrument import StockUtils
 from core.backtest.datafeed.market_calendar import MarketCalendar
 
 
@@ -65,17 +63,16 @@ class MomentumStrategy4(BaseStockStrategy):
             self.price = feed.price
 
     @staticmethod
-    def _row_close_and_volume_lots(
-        prices_df: pd.DataFrame, stock_id: str
+    def _lookup_close_and_volume_lots(
+        close_map: Dict[str, Any], volume_map: Dict[str, int], stock_id: str
     ) -> Tuple[Optional[float], Optional[int]]:
-        """自單日全市場 DataFrame 取出該股收盤價與成交量（張）。"""
-        mask: pd.Series = prices_df["stock_id"] == stock_id
-        if prices_df.loc[mask, "收盤價"].empty:
+        """自單日全市場對照表取出該股收盤價與成交量（張）。"""
+
+        if stock_id not in close_map:
             return None, None
-        close_px: float = float(prices_df.loc[mask, "收盤價"].iloc[0])
-        shares = prices_df.loc[mask, "成交股數"].iloc[0]
-        volume_lots: int = StockUtils.convert_share_to_lot(int(shares))
-        return close_px, volume_lots
+
+        close_px: float = float(close_map[stock_id])
+        return close_px, volume_map.get(stock_id)
 
     def _get_next_trading_date_after(self, after_date: datetime.date) -> datetime.date:
         """開倉日之後的「下一個交易日」（跳過休市日）。"""
@@ -100,10 +97,11 @@ class MomentumStrategy4(BaseStockStrategy):
             api=self.price, date=d_minus_1
         )
 
-        prices_d1: pd.DataFrame = self.price.get(d_minus_1)
-        prices_d2: pd.DataFrame = self.price.get(d_minus_2)
+        close_map_d1: Dict[str, Any] = self.price.get_close_map(d_minus_1)
+        close_map_d2: Dict[str, Any] = self.price.get_close_map(d_minus_2)
+        volume_map_d1: Dict[str, int] = self.price.get_volume_lots_map(d_minus_1)
 
-        if prices_d1.empty or prices_d2.empty:
+        if not close_map_d1 or not close_map_d2:
             logger.warning(
                 f"{base_date}: T-1 或 T-2 價量資料為空 (d1={d_minus_1}, d2={d_minus_2})"
             )
@@ -113,11 +111,11 @@ class MomentumStrategy4(BaseStockStrategy):
             if self.account.check_has_position(stock_quote.stock_id):
                 continue
 
-            close_d1, vol_d1_lots = self._row_close_and_volume_lots(
-                prices_d1, stock_quote.stock_id
+            close_d1, vol_d1_lots = self._lookup_close_and_volume_lots(
+                close_map_d1, volume_map_d1, stock_quote.stock_id
             )
-            close_d2, _ = self._row_close_and_volume_lots(
-                prices_d2, stock_quote.stock_id
+            close_d2, _ = self._lookup_close_and_volume_lots(
+                close_map_d2, {}, stock_quote.stock_id
             )
 
             if close_d1 is None or close_d2 is None:

@@ -107,17 +107,15 @@ class OvernightLeadEventStrategy(BaseStockStrategy):
     def _build_signals(self) -> None:
         """Train ridge and create date->signal map for backtest dates."""
         # 2330 與 strategy_lab 一致：SQLite 收盤；美股特徵仍用 yfinance。
-        tw_df = self.price.get_stock_price(
+        tw_px = self.price.get_close_series(
             self.TARGET_STOCK_ID, self.MODEL_DATA_START, self.MODEL_DATA_END
         )
-        if tw_df.empty:
+        if tw_px.empty:
             raise RuntimeError(
                 f"No DB price rows for {self.TARGET_STOCK_ID} in "
                 f"{self.MODEL_DATA_START}~{self.MODEL_DATA_END}."
             )
-        tw_df = tw_df.sort_values("date").reset_index(drop=True)
-        tw_df["date"] = pd.to_datetime(tw_df["date"]).dt.normalize()
-        tw_px = tw_df.set_index("date")["收盤價"].astype(float).sort_index()
+        tw_px = tw_px.astype(float).sort_index()
         tw_px.index = pd.to_datetime(tw_px.index).tz_localize(None).normalize()
 
         us_tickers = ["TSM", "^SOX", "TWD=X"]

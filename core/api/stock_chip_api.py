@@ -1,12 +1,13 @@
 import datetime
 import sqlite3
-from typing import Optional
+from typing import Any, Dict, Optional
 
 import pandas as pd
 from loguru import logger
 
 from core.api.base import BaseDataAPI
 from core.config import CHIP_TABLE_NAME, DB_PATH
+from core.pipeline.utils.constant import ChipColumn
 from core.utils.log_manager import LogManager
 
 """Institutional investors chip API: query SQLite chip table"""
@@ -86,6 +87,28 @@ class StockChipAPI(BaseDataAPI):
             params=(stock_id, start_date, end_date),
         )
         return df
+
+    # === 具名查詢：策略層一律走這一組，不要自行操作 DataFrame 欄位 ===
+    def get_trust_net_shares_map(self, date: datetime.date) -> Dict[str, Any]:
+        """
+        - Description:
+            取得單日全市場的投信買賣超股數對照表
+
+            範圍僅限現有策略實際用到的欄位，不預先補齊整張表——沒有呼叫端的
+            方法只會變成下一批死碼。
+
+            取值細節見 `BaseDataAPI.build_column_map()`；值維持資料庫原樣，
+            由呼叫端決定如何轉型與判斷。
+        - Parameters:
+            - date: datetime.date
+                查詢日期
+        - Return:
+            - Dict[str, Any]
+                {stock_id: 投信買賣超股數}
+        """
+
+        df: pd.DataFrame = self.get(date)
+        return self.build_column_map(df, ChipColumn.TRUST_NET_SHARES.value)
 
     def get_net_chip(
         self,

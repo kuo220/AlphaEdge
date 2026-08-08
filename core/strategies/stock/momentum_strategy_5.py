@@ -1,15 +1,13 @@
 # Python standard library
 import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
-import pandas as pd
 from loguru import logger
 
 from core.backtest.datafeed.base import BaseDataFeed
 from core.models import StockAccount, StockOrder, StockPosition, StockQuote
 from core.strategies.stock import BaseStockStrategy
 from core.utils import Action, PositionType, Scale, Units
-from core.utils.instrument import StockUtils
 from core.backtest.datafeed.market_calendar import MarketCalendar
 
 
@@ -76,40 +74,26 @@ class MomentumStrategy5(BaseStockStrategy):
             self.price = feed.price
 
     @staticmethod
-    def _row_volume_lots(prices_df: pd.DataFrame, stock_id: str) -> Optional[int]:
-        """自單日全市場 DataFrame 取出該股成交量（張）。資料缺失時回傳 None。"""
-        mask: pd.Series = prices_df["stock_id"] == stock_id
-        series: pd.Series = prices_df.loc[mask, "成交股數"]
-        if series.empty:
+    def _lookup_close(close_map: Dict[str, Any], stock_id: str) -> Optional[float]:
+        """自單日全市場對照表取出該股收盤價。資料缺失或值異常時回傳 None。"""
+
+        if stock_id not in close_map:
             return None
         try:
-            return StockUtils.convert_share_to_lot(int(series.iloc[0]))
+            return float(close_map[stock_id])
         except (TypeError, ValueError):
             return None
 
     @staticmethod
-    def _row_close(prices_df: pd.DataFrame, stock_id: str) -> Optional[float]:
-        """自單日全市場 DataFrame 取出該股收盤價。資料缺失時回傳 None。"""
-        mask: pd.Series = prices_df["stock_id"] == stock_id
-        series: pd.Series = prices_df.loc[mask, "收盤價"]
-        if series.empty:
-            return None
-        try:
-            return float(series.iloc[0])
-        except (TypeError, ValueError):
-            return None
+    def _lookup_trust_net_buy(
+        chip_map: Dict[str, Any], stock_id: str
+    ) -> Optional[int]:
+        """自單日全市場籌碼對照表取出該股投信買賣超股數；缺資料回傳 None。"""
 
-    @staticmethod
-    def _row_trust_net_buy(chip_df: pd.DataFrame, stock_id: str) -> Optional[int]:
-        """自單日全市場籌碼 DataFrame 取出該股投信買賣超股數；缺資料回傳 None。"""
-        if chip_df.empty:
-            return None
-        mask: pd.Series = chip_df["stock_id"] == stock_id
-        series: pd.Series = chip_df.loc[mask, "投信買賣超股數"]
-        if series.empty:
+        if stock_id not in chip_map:
             return None
         try:
-            return int(series.iloc[0])
+            return int(chip_map[stock_id])
         except (TypeError, ValueError):
             return None
 
@@ -166,19 +150,24 @@ class MomentumStrategy5(BaseStockStrategy):
         d_t_minus_2: datetime.date = prev_dates[1]  # T−2
         chip_dates: List[datetime.date] = prev_dates[: self.TRUST_NET_BUY_LOOKBACK_DAYS]
 
-        prices_t_minus_1: pd.DataFrame = self.price.get(d_t_minus_1)
-        prices_t_minus_2: pd.DataFrame = self.price.get(d_t_minus_2)
+        close_map_t_minus_1: Dict[str, Any] = self.price.get_close_map(d_t_minus_1)
+        close_map_t_minus_2: Dict[str, Any] = self.price.get_close_map(d_t_minus_2)
+        volume_map_t_minus_1: Dict[str, int] = self.price.get_volume_lots_map(
+            d_t_minus_1
+        )
 
-        if prices_t_minus_1.empty or prices_t_minus_2.empty:
+        if not close_map_t_minus_1 or not close_map_t_minus_2:
             logger.warning(
                 f"{base_date}: T-1 或 T-2 價量資料為空 (T-1={d_t_minus_1}, T-2={d_t_minus_2})"
             )
             return []
 
-        chip_frames: List[pd.DataFrame] = [self.chip.get(d) for d in chip_dates]
-        if any(df.empty for df in chip_frames):
+        chip_maps: List[Dict[str, Any]] = [
+            self.chip.get_trust_net_shares_map(d) for d in chip_dates
+        ]
+        if any(not chip_map for chip_map in chip_maps):
             empty_dates: List[str] = [
-                str(d) for d, df in zip(chip_dates, chip_frames) if df.empty
+                str(d) for d, chip_map in zip(chip_dates, chip_maps) if not chip_map
             ]
             logger.warning(f"{base_date}: 籌碼資料為空，缺日 {empty_dates}")
             return []
@@ -187,11 +176,11 @@ class MomentumStrategy5(BaseStockStrategy):
             if self.account.check_has_position(stock_quote.stock_id):
                 continue
 
-            close_t_minus_1: Optional[float] = self._row_close(
-                prices_t_minus_1, stock_quote.stock_id
+            close_t_minus_1: Optional[float] = self._lookup_close(
+                close_map_t_minus_1, stock_quote.stock_id
             )
-            close_t_minus_2: Optional[float] = self._row_close(
-                prices_t_minus_2, stock_quote.stock_id
+            close_t_minus_2: Optional[float] = self._lookup_close(
+                close_map_t_minus_2, stock_quote.stock_id
             )
 
             if close_t_minus_1 is None or close_t_minus_2 is None:
@@ -210,16 +199,16 @@ class MomentumStrategy5(BaseStockStrategy):
             if price_chg <= self.MIN_PRICE_CHANGE_PCT_FOR_SIGNAL:
                 continue
 
-            vol_t_minus_1_lots: Optional[int] = self._row_volume_lots(
-                prices_t_minus_1, stock_quote.stock_id
+            vol_t_minus_1_lots: Optional[int] = volume_map_t_minus_1.get(
+                stock_quote.stock_id
             )
             if vol_t_minus_1_lots is None or vol_t_minus_1_lots < self.MIN_VOLUME_LOTS:
                 continue
 
             # 連續 N 日投信買賣超股數 > 0（T−1, T−2, T−3）
             net_buys: List[Optional[int]] = [
-                self._row_trust_net_buy(df, stock_quote.stock_id)
-                for df in chip_frames
+                self._lookup_trust_net_buy(chip_map, stock_quote.stock_id)
+                for chip_map in chip_maps
             ]
             if any(nb is None for nb in net_buys):
                 logger.debug(

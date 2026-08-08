@@ -53,6 +53,43 @@ class FinMindDataType(str, Enum):
     BROKER_TRADING = "BROKER_TRADING"
 
 
+# 定義 price 資料表欄位常量（schema 的宣告處為 stock_price_loader.py 的 CREATE TABLE）
+PRICE_COL_OPEN: str = "開盤價"
+PRICE_COL_HIGH: str = "最高價"
+PRICE_COL_LOW: str = "最低價"
+PRICE_COL_CLOSE: str = "收盤價"
+PRICE_COL_SHARES: str = "成交股數"
+
+# 定義 chip 資料表欄位常量
+CHIP_COL_FOREIGN_NET_SHARES: str = "外資買賣超股數"
+CHIP_COL_TRUST_NET_SHARES: str = "投信買賣超股數"
+CHIP_COL_DEALER_NET_SHARES: str = "自營商買賣超股數"
+
+
+class PriceColumn(str, Enum):
+    """
+    price 資料表的中文欄位名
+
+    **只有 `core/api/` 可以引用**：欄位名是資料庫 schema 的細節，策略層若直接
+    取用中文字面值，換資料源時會靜默少開倉而非報錯（見
+    `backlog/策略層資料欄位抽象化.md`）。
+    """
+
+    OPEN = PRICE_COL_OPEN
+    HIGH = PRICE_COL_HIGH
+    LOW = PRICE_COL_LOW
+    CLOSE = PRICE_COL_CLOSE
+    SHARES = PRICE_COL_SHARES
+
+
+class ChipColumn(str, Enum):
+    """chip 資料表的中文欄位名；引用規則同 PriceColumn"""
+
+    FOREIGN_NET_SHARES = CHIP_COL_FOREIGN_NET_SHARES
+    TRUST_NET_SHARES = CHIP_COL_TRUST_NET_SHARES
+    DEALER_NET_SHARES = CHIP_COL_DEALER_NET_SHARES
+
+
 class FileEncoding(str, Enum):
     """檔案編碼類型"""
 

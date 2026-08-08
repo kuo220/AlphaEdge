@@ -1,8 +1,7 @@
 # Python standard library
 import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
-import pandas as pd
 from loguru import logger
 
 from core.backtest.datafeed.base import BaseDataFeed
@@ -73,7 +72,7 @@ class MomentumStrategy2(BaseStockStrategy):
             api=self.price, date=base_date
         )
 
-        yesterday_prices: pd.DataFrame = self.price.get(yesterday)
+        yesterday_close_map: Dict[str, Any] = self.price.get_close_map(yesterday)
 
         for stock_quote in stock_quotes:
             if stock_quote.tick_quote is None:
@@ -82,12 +81,11 @@ class MomentumStrategy2(BaseStockStrategy):
             tick = stock_quote.tick_quote
 
             # Condition 1: 當前漲幅 > 9%
-            mask: pd.Series = yesterday_prices["stock_id"] == tick.stock_id
-            if yesterday_prices.loc[mask, "收盤價"].empty:
+            if tick.stock_id not in yesterday_close_map:
                 logger.warning(f"股票 {tick.stock_id} {yesterday} 收盤價為空")
                 continue
 
-            yesterday_close_price: float = yesterday_prices.loc[mask, "收盤價"].iloc[0]
+            yesterday_close_price: float = yesterday_close_map[tick.stock_id]
 
             if yesterday_close_price == 0:
                 logger.warning(f"股票 {tick.stock_id} {yesterday} 收盤價為 0 或 None")

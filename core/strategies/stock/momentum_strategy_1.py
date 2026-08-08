@@ -81,15 +81,14 @@ class MomentumStrategy1(BaseStockStrategy):
             api=self.price, date=stock_quotes[0].date
         )
 
-        yesterday_prices: pd.DataFrame = self.price.get(yesterday)
+        yesterday_close_map: Dict[str, Any] = self.price.get_close_map(yesterday)
 
         for stock_quote in stock_quotes:
             # a. 對齊該股在昨交易日的收盤價；缺資料或價格無效則跳過
-            mask: pd.Series = yesterday_prices["stock_id"] == stock_quote.stock_id
-            if yesterday_prices.loc[mask, "收盤價"].empty:
+            if stock_quote.stock_id not in yesterday_close_map:
                 logger.warning(f"股票 {stock_quote.stock_id} {yesterday} 收盤價為空")
                 continue
-            yesterday_close_price: float = yesterday_prices.loc[mask, "收盤價"].iloc[0]
+            yesterday_close_price: float = yesterday_close_map[stock_quote.stock_id]
 
             if yesterday_close_price == 0:
                 logger.warning(

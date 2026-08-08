@@ -80,18 +80,17 @@ class MomentumStrategy3(BaseStockStrategy):
         # 取足夠範圍以涵蓋 20 個交易日（約 30 個日曆日）
         start_date: datetime.date = current_date - datetime.timedelta(days=45)
 
-        prices_df: pd.DataFrame = self.price.get_stock_price(
+        close_series: pd.Series = self.price.get_close_series(
             stock_id=stock_id,
             start_date=start_date,
             end_date=current_date,
         )
 
-        if prices_df.empty or len(prices_df) < 20:
+        if len(close_series) < 20:
             return None
 
-        # 依日期排序，取最後 20 筆
-        prices_df = prices_df.sort_values("date").tail(20)
-        close_series = prices_df["收盤價"]
+        # 依日期排序（API 已排序），取最後 20 筆
+        close_series = close_series.tail(20)
 
         ma5: float = close_series.tail(5).mean()
         ma10: float = close_series.tail(10).mean()

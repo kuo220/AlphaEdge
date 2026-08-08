@@ -129,8 +129,8 @@ sequenceDiagram
 
 | 檔案 | 職責 |
 |------|------|
-| `core/api/base.py` | `BaseDataAPI`：`owns_conn` 決定 `close()` 是否真的關連線（共用連線由 `DataFeed` 負責關） |
-| `core/api/stock_price_api.py` | 日 K 查詢（`get`／`get_range`／`get_stock_price`） |
+| `core/api/base.py` | `BaseDataAPI`：`owns_conn` 決定 `close()` 是否真的關連線（共用連線由 `DataFeed` 負責關）；`build_column_map()` 為具名查詢的共用底座 |
+| `core/api/stock_price_api.py` | 日 K 查詢（`get`／`get_range`／`get_stock_price` ＋ 具名查詢） |
 | `core/api/stock_tick_api.py` | 逐筆成交（DolphinDB） |
 | `core/api/stock_chip_api.py`／`stock_margin_api.py` | 三大法人籌碼、融資融券餘額 |
 | `core/api/monthly_revenue_report_api.py`／`financial_statement_api.py` | 月營收、財報 |
@@ -198,11 +198,22 @@ sequenceDiagram
 
 ## 六、動這些模組前要知道的事
 
-1. **不要在 `core/backtest/__init__.py` 與 `core/strategies/__init__.py` 加 re-export。** 兩處都曾因套件層 eager import 造成循環，已刻意移除；呼叫端一律用完整模組路徑。
+1. **不要在 `core/backtest/__init__.py`、`core/strategies/__init__.py` 與 `core/backtest/datafeed/__init__.py` 加 re-export。** 三處都會因套件層 eager import 造成循環，已刻意移除；呼叫端一律用完整模組路徑。
 2. **策略不要自己 `StockPriceAPI()`。** API 實例由 `DataFeed` 統一持有，`setup_apis(feed)` 只是取用；自行建立會讓單次回測開出多條互不相干的連線。
-3. **回歸雙線不經過 reporter。** `tests/backtest/make_baseline.py` 直接從 `account.trade_records` 組 `DataFrame`，改壞報表欄位兩條線都一樣綠——動 `reporter.py` 時要靠 `test_reporting.py` 與 `test_reporter_timeline.py`。
-4. **報表層另開一條連線且未關閉。** `StockBacktestReporter.setup()` 自行 `StockPriceAPI()` 取 benchmark（`0050`）價格，`owns_conn=True` 但流程中沒有 `close()`。`DataFeed` 那條共用連線與它無關。
-5. **任何動到 `core/backtest/`、`core/managers/`、`core/models/` 的改動，先跑 `./scripts/run_regression.sh`。**
+3. **策略層不得出現資料庫欄位字面值。** 資料表欄位是中文（`"收盤價"`、`"成交股數"`），只有 `core/api/` 可以引用（常數定義在 `core/pipeline/utils/constant.py` 的 `PriceColumn`／`ChipColumn`）。策略一律呼叫具名查詢方法：
+
+   | 方法 | 用途 |
+   |------|------|
+   | `StockPriceAPI.get_close_map(date)` | 單日全市場收盤價對照表 |
+   | `StockPriceAPI.get_volume_lots_map(date)` | 單日全市場成交量（張）對照表 |
+   | `StockPriceAPI.get_close_series(stock_id, start, end)` | 個股區間收盤序列 |
+   | `StockChipAPI.get_trust_net_shares_map(date)` | 單日全市場投信買賣超股數對照表 |
+
+   `tests/test_strategy_data_access.py` 會在策略層出現欄位字面值時失敗——這類錯誤原本是**靜默**的（換資料源後策略會安靜地不開倉，報表上只表現為訊號變少）。
+4. **`core/api/` 不可 import `core/utils/instrument.py`。** `StockUtils` 相依 `MarketCalendar`，而後者相依 `StockPriceAPI`；API 層位於其下，反向相依會直接循環。
+5. **回歸雙線不經過 reporter。** `tests/backtest/make_baseline.py` 直接從 `account.trade_records` 組 `DataFrame`，改壞報表欄位兩條線都一樣綠——動 `reporter.py` 時要靠 `test_reporting.py` 與 `test_reporter_timeline.py`。
+6. **報表層另開一條連線且未關閉。** `StockBacktestReporter.setup()` 自行 `StockPriceAPI()` 取 benchmark（`0050`）價格，`owns_conn=True` 但流程中沒有 `close()`。`DataFeed` 那條共用連線與它無關。
+7. **任何動到 `core/backtest/`、`core/managers/`、`core/models/` 的改動，先跑 `./scripts/run_regression.sh`。**
 
 ---
 
