@@ -2,7 +2,7 @@ import datetime
 import math
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from loguru import logger
 
@@ -103,16 +103,30 @@ class BaseCostModel(ABC):
 
 @dataclass
 class ShortConstraint:
-    """放空的可成交限制；全部可選，未提供資料時該項檢查自動跳過"""
+    """
+    放空的可成交限制；全部可選，未提供資料時該項檢查自動跳過
 
-    allow_below_reference: bool = True  # 是否允許平盤下放空
-    day_trade_whitelist: Optional[Dict[datetime.date, Set[str]]] = None  # 每日可當沖清單
-    check_borrowable: bool = False  # 是否檢核券源（需籌碼資料）
+    **三個欄位目前有定義、無呼叫端**（`allow_below_reference`、
+    `day_trade_whitelist`、`check_borrowable`）。設了限制卻不生效比功能沒做
+    更危險，故由 `StockCostModel` 在建構時逐一檢查並發出警告，
+    見 `check_unimplemented_constraints()`。實作進度見
+    `backlog/回測引擎執行真實度補強.md`。
+    """
+
+    allow_below_reference: bool = True  # 是否允許平盤下放空（**尚未實作**）
+    day_trade_whitelist: Optional[Dict[datetime.date, Set[str]]] = None  # 每日可當沖清單（**尚未實作**）
+    check_borrowable: bool = False  # 是否檢核券源，需籌碼資料（**尚未實作**）
     force_cover_dates: Optional[Dict[str, List[datetime.date]]] = None  # 停券強制回補日
     max_short_exposure_ratio: Optional[float] = None  # 單一空單曝險上限（佔初始本金比例）
 
     def check_day_tradable(self, stock_id: str, date: datetime.date) -> bool:
-        """檢查該股票當日是否可當沖；未提供清單時一律視為可當沖"""
+        """
+        檢查該股票當日是否可當沖；未提供清單時一律視為可當沖
+
+        **目前未被任何路徑呼叫**：引擎的下單流程不會走到這裡，設定
+        `day_trade_whitelist` 不會影響任何回測結果。接上呼叫端前不要
+        以為它已生效（見 `backlog/回測引擎執行真實度補強.md` S1）。
+        """
 
         if self.day_trade_whitelist is None:
             return True
@@ -192,10 +206,51 @@ class StockCostModel(BaseCostModel):
     - 損益與報酬率 round 至小數點後 2 位
     """
 
+    # 尚未接上呼叫端的 ShortConstraint 欄位：{欄位名: (預設值, 未實作的原因)}
+    # 檢查放在建構時，任何建立路徑（factory、測試、未來的實盤）都會經過
+    UNIMPLEMENTED_CONSTRAINTS: Dict[str, Tuple[Any, str]] = {
+        "allow_below_reference": (True, "平盤下放空限制需要警示／處置股清單，尚無資料源"),
+        "day_trade_whitelist": (None, "每日可當沖清單需要證交所每日公告，尚無資料源"),
+    }
+
     def __init__(self, config: Optional[CostConfig] = None):
         self.config: CostConfig = config or CostConfig.default()
 
         self.check_day_trade_tax_expiry()
+        self.check_unimplemented_constraints()
+
+    def check_unimplemented_constraints(self) -> None:
+        """
+        - Description:
+            檢查「設了限制卻不生效」的 ShortConstraint 欄位
+
+            這三個欄位有定義、無呼叫端。使用者設了限制卻完全不生效、也收不到
+            任何提示，會讓回測結果被誤讀為「已考慮該限制」——這比功能沒做更
+            危險，直接違反放空框架設計原則的「不可靜默失敗」。
+
+            取捨：一律 `warning` 而非 `raise`，避免既有已設定這些欄位的策略
+            直接壞掉。唯一例外是 `check_borrowable=True`——它會讓使用者以為
+            開倉機會數已被券源修正，錯誤信心最大，故升級為 `raise`，
+            直到 `放空回測市場約束補齊.md` S2 接上券源檢核為止。
+        """
+
+        constraint: Optional[ShortConstraint] = self.config.short_constraint
+        if constraint is None:
+            return
+
+        for field_name, (default_value, reason) in self.UNIMPLEMENTED_CONSTRAINTS.items():
+            if getattr(constraint, field_name) != default_value:
+                logger.warning(
+                    f"[CostModel] ShortConstraint.{field_name} 尚未實作，"
+                    f"本次回測不會生效（{reason}）"
+                )
+
+        if constraint.check_borrowable:
+            raise NotImplementedError(
+                "ShortConstraint.check_borrowable 尚未實作：券源檢核沒有呼叫端，"
+                "設為 True 不會擋掉任何一張無券可空的訂單，會讓開倉機會數被高估。"
+                "請設回 False，或先完成 backlog/放空回測市場約束補齊.md S2"
+            )
 
     def check_day_trade_tax_expiry(self) -> None:
         """當沖證交稅減半有落日期限，超過即提醒稅率假設可能失效"""
