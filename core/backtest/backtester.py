@@ -475,6 +475,9 @@ class Backtester:
         )
         reporter.trading_report = reporter.generate_trading_report()
 
+        # 逐日權益交給 reporter，四張圖才有辦法用盯市口徑（否則 MDD 被低估）
+        reporter.daily_equity = self.daily_equity
+
         # 多空分開統計與事件計數（放空的尾部風險不可被平均掉）
         reporter.generate_direction_summary()
         reporter.generate_event_report(self.event_counts)
@@ -489,3 +492,4 @@ class Backtester:
         reporter.plot_balance_and_benchmark_curve()
         reporter.plot_balance_mdd()
         reporter.plot_everyday_profit()
+        reporter.plot_everyday_equity_change()

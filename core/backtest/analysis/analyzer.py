@@ -42,18 +42,24 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
             優先使用 Backtester 產出的每日權益（含未實現損益）；
             未提供時退回「初始資金 + 累積已實現損益」，此時留倉部位的
             帳面波動看不見，放空的回撤會被低估（見 backlog §7.7）。
+
+            兩條路徑都以**初始資金**為第一個節點，與
+            `StockBacktestReporter.get_equity_series()` 的口徑一致——
+            否則 analyzer 算出的 MDD 會與 `plot_balance_mdd` 的圖對不上。
         - Parameters:
             - daily_equity: Optional[List[Dict]]
                 Backtester.daily_equity
         - Return:
             - curve: List[float]
-                權益序列
+                權益序列，第一筆為初始資金
         """
 
-        if daily_equity:
-            return [row["Equity"] for row in daily_equity]
+        curve: List[float] = [round(float(self.account.init_capital), 2)]
 
-        curve: List[float] = []
+        if daily_equity:
+            curve.extend(float(row["Equity"]) for row in daily_equity)
+            return curve
+
         equity: float = self.account.init_capital
         for record in sorted(
             self.trade_records,

@@ -49,27 +49,35 @@
 
 ## 策略架構概述
 
-AlphaEdge 的策略系統採用物件導向設計，所有策略都必須繼承 `BaseStockStrategy` 抽象類別。這個架構提供了：
+AlphaEdge 的策略系統採用物件導向設計，台股策略一律繼承 `BaseStockStrategy`（其上游為市場無關的 `BaseStrategy`）。這個架構提供了：
 
 - **統一的介面**: 所有策略都實作相同的方法，確保一致性
-- **自動載入機制**: 策略會自動從 `core/strategies/stock/` 目錄載入
-- **完整的資料存取**: 提供多種資料 API 供策略使用
-- **靈活的回測設定**: 支援不同級別的回測（TICK、DAY、MIX）
+- **自動載入機制**: `StrategyLoader` 自動掃描 `core/strategies/` 下的**所有市場子套件**
+- **完整的資料存取**: 資料 API 由引擎的 `DataFeed` 統一建立，策略只需宣告要用哪幾個
+- **市場由策略自己宣告**: `self.market` 是 `core/backtest/factory.py` 組裝 model 組合的分派鍵，CLI 不需要 `--market`
+- **靈活的回測設定**: 支援 `Scale.DAY` 與 `Scale.TICK` 兩種級別
+
+> 引擎如何依 `market` 組裝、單根 bar 的執行順序、訂單要通過哪幾道關卡，見
+> [多市場回測引擎架構](../../docs/backtest/multi-market-engine.md) 與
+> [模組使用關係](../../docs/backtest/module-map.md)。
 
 ### 目錄結構
 
 ```
 core/strategies/
-├── __init__.py              # 匯出 StrategyLoader
-├── README.md                # 本文件
-├── strategy_loader.py       # 策略自動載入器
-└── stock/                   # 股票策略目錄
+├── __init__.py                    # 刻意不做套件層 eager import（避免循環 import）
+├── README.md                      # 本文件
+├── base.py                        # BaseStrategy：市場無關的策略骨架
+├── strategy_loader.py             # 策略自動載入器（掃描所有市場子套件）
+└── stock/                         # 台股策略目錄
     ├── __init__.py
-    ├── base.py              # BaseStockStrategy 基類
-    ├── momentum_strategy_1.py # 動能策略 1（日線）
-    ├── momentum_strategy_2.py # 動能策略 2（Tick）
-    ├── momentum_strategy_3.py # 動能策略 3（均線動能）
-    └── momentum_strategy_4.py # 動能策略 4（日線：T−1/T−2 收盤動能，開盤進出）
+    ├── base.py                    # BaseStockStrategy（設定 self.market = Market.STOCK）
+    ├── momentum_strategy_1.py     # 動能策略 1（日線）
+    ├── momentum_strategy_2.py     # 動能策略 2（Tick）
+    ├── momentum_strategy_3.py     # 動能策略 3（均線動能）
+    ├── momentum_strategy_4.py     # 動能策略 4（日線：T−1/T−2 收盤動能，開盤進出）
+    ├── momentum_strategy_5.py     # 動能策略 5
+    └── overnight_lead_event_strategy.py  # 隔夜領先事件策略
 ```
 
 #### 動能策略 4（`MomentumStrategy4`）
@@ -114,7 +122,6 @@ def __init__(self):
 
     # === 策略基本資訊 ===
     self.strategy_name: str = "MyStrategy"
-    self.market: str = Market.STOCK
     self.position_type: str = PositionType.LONG
     self.enable_intraday: bool = True
 
@@ -127,10 +134,12 @@ def __init__(self):
     self.scale: str = Scale.DAY  # 使用日線回測
     self.start_date: datetime.date = datetime.date(2020, 1, 1)
     self.end_date: datetime.date = datetime.date(2025, 5, 31)
-
-    # 載入資料 API
-    self.setup_apis()
 ```
+
+> `self.market` **不需要自己設**：`BaseStockStrategy` 已填入 `Market.STOCK`。
+>
+> **`__init__` 內不要呼叫 `setup_apis()`**：它需要引擎傳入的 `DataFeed`，由
+> `Backtester.load_datasets()` 在建立 `DataFeed` 之後呼叫。
 
 ### 步驟 4: 實作必須的方法
 
@@ -440,7 +449,7 @@ def calculate_position_size(
 | 參數 | 類型 | 說明 | 預設值 |
 |------|------|------|--------|
 | `strategy_name` | `str` | 策略名稱，用於識別和報告 | `""` |
-| `market` | `str` | 市場類型，目前僅支援 `Market.STOCK` | `Market.STOCK` |
+| `market` | `str` | 市場別，**由 `BaseStockStrategy` 填入，策略不需自己設**；是 `factory` 組裝 model 組合的分派鍵 | `Market.STOCK` |
 | `position_type` | `str` | 部位方向，`PositionType.LONG`（做多）或 `PositionType.SHORT`（做空） | `PositionType.LONG` |
 | `enable_intraday` | `bool` | 是否允許當沖交易 | `True` |
 
@@ -467,7 +476,7 @@ def calculate_position_size(
 
 ## 資料 API 使用方式
 
-策略中可以透過以下 API 取得各種資料。所有 API 都已經在 `setup_apis()` 中初始化，直接使用 `self.price`、`self.tick` 等即可。
+策略中可以透過以下 API 取得各種資料。API 實例由引擎的 `DataFeed` 建立，策略在 `setup_apis(feed)` 中取用後，直接使用 `self.price`、`self.tick` 等即可。
 
 ### StockPriceAPI - 日線價格資料
 
@@ -593,15 +602,21 @@ python run.py --mode live --strategy MomentumStrategy1
 
 ### 回測結果
 
-回測完成後，結果會儲存在 `core/backtest/results/<StrategyName>/` 目錄，包含：
+回測完成後，結果會儲存在 `core/backtest/results/<StrategyName>/` 目錄（檔名一律以策略名稱為前綴）：
 
-1. **交易報告** (`trading_report.csv`) - 所有交易記錄和損益統計
+1. **報表 CSV**:
+   - `<StrategyName>_trading_report.csv` - 已平倉交易的逐筆明細與損益統計
+   - `<StrategyName>_direction_summary.csv` - 多空分開的勝率、損益與成本統計
+   - `<StrategyName>_event_report.csv` - 強制回補、斷頭、拒單等事件計數
+   - `<StrategyName>_daily_equity.csv` - **含未實現損益**的逐日權益序列
 2. **圖表分析**:
-   - `balance_curve.png` - 資產曲線圖
-   - `balance_and_benchmark_curve.png` - 資產與基準比較圖
-   - `balance_mdd.png` - 最大回撤圖
-   - `everyday_profit.png` - 每日損益圖
-3. **日誌檔案** (`<StrategyName>.log`) - 回測過程的詳細日誌
+   - `<StrategyName>_balance_curve.png` - 資產曲線圖
+   - `<StrategyName>_networth.png` - 策略與 benchmark（`0050`）淨值比較圖
+   - `<StrategyName>_mdd.png` - 最大回撤圖
+   - `<StrategyName>_everyday_profit.png` - 每日損益圖
+3. **日誌檔案** - 落在 `core/backtest/results/logs/`
+
+各檔案由哪個方法產生，見[模組使用關係 §4](../../docs/backtest/module-map.md)。
 
 ## 完整範例
 
@@ -620,9 +635,10 @@ python run.py --mode live --strategy MomentumStrategy1
 import datetime
 from typing import List
 
+from core.backtest.datafeed.base import BaseDataFeed
 from core.models import StockAccount, StockOrder, StockQuote
 from core.strategies.stock import BaseStockStrategy
-from core.utils import Action, Market, PositionType, Scale, Units
+from core.utils import Action, PositionType, Scale, Units
 
 class SimpleStrategy(BaseStockStrategy):
     """簡單策略範例"""
@@ -635,7 +651,6 @@ class SimpleStrategy(BaseStockStrategy):
         self.scale = Scale.DAY
         self.start_date = datetime.date(2020, 1, 1)
         self.end_date = datetime.date(2025, 5, 31)
-        self.setup_apis()
 
     def setup_account(self, account: StockAccount):
         self.account = account
@@ -761,7 +776,7 @@ python run.py --strategy SimpleStrategy
 import datetime
 from typing import List
 
-from core.api.stock_price_api import StockPriceAPI
+from core.backtest.datafeed.base import BaseDataFeed
 from core.models import StockAccount, StockOrder, StockQuote
 from core.strategies.stock import BaseStockStrategy
 from core.utils import Action, PositionType, Scale, ShortMethod
@@ -800,8 +815,6 @@ class SimpleShortStrategy(BaseStockStrategy):
 
         self.start_date: datetime.date = datetime.date(2024, 1, 1)
         self.end_date: datetime.date = datetime.date(2024, 12, 31)
-
-        self.setup_apis()
 
     def setup_account(self, account: StockAccount) -> None:
         """設置虛擬帳戶資訊"""

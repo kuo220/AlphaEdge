@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
@@ -16,6 +16,10 @@ class BaseBacktestReporter(ABC):
         self.account: BaseAccount = self.strategy.account  # Account
         self.output_dir: Optional[Path] = output_dir  # Output directory
         self.trading_report: Optional[pd.DataFrame] = None  # 交易明細表
+
+        # 逐日權益（含未實現損益）；由 Backtester.generate_backtest_report() 注入
+        # 只認已實現損益的曲線會把持倉期間的逆勢整段抹平，MDD 因此被低估
+        self.daily_equity: Optional[List[Dict[str, Any]]] = None
 
     @abstractmethod
     def setup(self, *args, **kwargs) -> None:
@@ -54,7 +58,12 @@ class BaseBacktestReporter(ABC):
 
     @abstractmethod
     def plot_everyday_profit(self) -> None:
-        """計算並繪製每天的利潤"""
+        """計算並繪製每天的利潤（已實現口徑）"""
+        pass
+
+    @abstractmethod
+    def plot_everyday_equity_change(self) -> None:
+        """計算並繪製每日權益變化（盯市口徑，含未實現損益）"""
         pass
 
     @abstractmethod

@@ -22,6 +22,10 @@ class StockBacktestReporter(BaseBacktestReporter):
     SPLIT_ADJUSTMENT_WARNING_PCT: float = 5.0  # 分割調整差異超過此 % 發出警告
     CHART_FONT_SIZE: int = 15
 
+    # 權益曲線的兩種口徑，標註在圖上避免不同期報表被混著看
+    EQUITY_BASIS_MARK_TO_MARKET: str = "Mark-to-market"  # 逐日盯市（含未實現損益）
+    EQUITY_BASIS_REALIZED_ONLY: str = "Realized only"  # 只認已實現損益（MDD 會被低估）
+
     # 股票分割配置：{股票代號: [(分割日期, 分割比例), ...]}
     # 分割比例格式：1:4 表示 1 拆 4（1 股變成 4 股，調整因子為 4）
     # 範例：{"0050": [(datetime.date(2025, 6, 18), 4)]}
@@ -385,32 +389,70 @@ class StockBacktestReporter(BaseBacktestReporter):
         self.save_report(df, f"{self.strategy.strategy_name}_event_report.csv")
         return df
 
+    def get_equity_series(self) -> Tuple[pd.Series, str]:
+        """
+        - Description:
+            權益序列的唯一入口：三張權益圖與 MDD 都吃這一條
+
+            `daily_equity` 有值時採**逐日盯市**（含未實現損益）；沒有時退回
+            「已實現損益的累積餘額」。後者只在平倉那天才有節點，持倉期間的
+            逆勢會被整段抹平——那正是留倉放空最大的風險來源，MDD 因此被低估。
+
+            把口徑判斷收斂在這裡，避免四張圖各判一次而彼此不一致。
+        - Return:
+            - series: pd.Series
+                index 為 `datetime.date`、值為權益；起點補上 `origin_date` → 初始資金
+            - basis: str
+                本次採用的口徑，供圖上標註
+        """
+
+        basis: str
+        series: pd.Series
+
+        if self.daily_equity:
+            equity_df: pd.DataFrame = pd.DataFrame(self.daily_equity)
+            series = (
+                equity_df.groupby(pd.to_datetime(equity_df["Date"]).dt.date)["Equity"]
+                .last()
+                .astype(float)
+            )
+            basis = self.EQUITY_BASIS_MARK_TO_MARKET
+
+        else:
+            balance_df: pd.DataFrame = self.trading_report[
+                ["Exit Date", "Cumulative Balance"]
+            ].copy()
+            # 依日期取每日最後一筆，避免一天多筆交易造成重複節點
+            series = (
+                balance_df.groupby(pd.to_datetime(balance_df["Exit Date"]).dt.date)[
+                    "Cumulative Balance"
+                ]
+                .last()
+                .astype(float)
+            )
+            basis = self.EQUITY_BASIS_REALIZED_ONLY
+
+        # 加入初始資金節點，讓曲線從回測起始前一天開始
+        init_row: pd.Series = pd.Series(
+            float(self.account.init_capital), index=[self.origin_date]
+        )
+        series = pd.concat([init_row, series]).sort_index()
+
+        return series, basis
+
     def plot_balance_curve(self) -> None:
         """繪製總資金曲線圖（總資金隨時間變化）"""
 
-        df: pd.DataFrame = self.trading_report.copy()
-
-        # Add a row for the initial capital
-        init_row: pd.DataFrame = pd.DataFrame(
-            [
-                {
-                    "Exit Date": self.origin_date,
-                    "Cumulative PnL": 0.0,
-                    "Cumulative Balance": self.account.init_capital,
-                }
-            ]
-        )
-
-        # Concatenate initial row
-        df: pd.DataFrame = pd.concat([init_row, df], ignore_index=True)
+        equity: pd.Series
+        basis: str
+        equity, basis = self.get_equity_series()
 
         # Plot Balance Curve
-        fig_title: str = "Balance Curve"
         fig: go.Figure = go.Figure()
         fig.add_trace(
             go.Scatter(
-                x=df["Exit Date"],
-                y=df["Cumulative Balance"],
+                x=list(equity.index),
+                y=equity.values,
                 mode="lines",
                 line=dict(color="blue", width=2),
             )
@@ -418,9 +460,9 @@ class StockBacktestReporter(BaseBacktestReporter):
 
         self.set_figure_config(
             fig,
-            title=fig_title,
-            xaxis_title="Exit Date",
-            yaxis_title="Cumulative Balance",
+            title=f"Balance Curve ({basis})",
+            xaxis_title="Date",
+            yaxis_title="Equity",
         )
         self.save_figure(fig, f"{self.strategy.strategy_name}_balance_curve.png")
 
@@ -462,22 +504,10 @@ class StockBacktestReporter(BaseBacktestReporter):
             ]
         )
 
-        # === 策略累積資金資料 ===
-        balance_df: pd.DataFrame = self.trading_report[
-            ["Exit Date", "Cumulative Balance"]
-        ].copy()
-        balance_df["Exit Date"] = pd.to_datetime(balance_df["Exit Date"])
-
-        cumulative_balance: pd.Series = (
-            balance_df.groupby(balance_df["Exit Date"].dt.date)["Cumulative Balance"]
-            .last()
-            .astype(float)
-        )
-        init_row: pd.Series = pd.Series(
-            self.account.init_capital, index=[self.origin_date]
-        )
-        # 加入初始資金節點
-        cumulative_balance = pd.concat([init_row, cumulative_balance])
+        # === 策略權益資料（口徑由 get_equity_series 統一決定）===
+        cumulative_balance: pd.Series
+        basis: str
+        cumulative_balance, basis = self.get_equity_series()
 
         # === 整理 DataFrame 用來繪圖 ===
         # 使用 benchmark 的所有交易日作為基準日期（確保日期對齊正確）
@@ -517,7 +547,8 @@ class StockBacktestReporter(BaseBacktestReporter):
 
         roi_text: str = (
             f"Strategy Total ROI(%): {strategy_roi}%\n"
-            f"{self.benchmark} Total ROI(%): {benchmark_roi}%"
+            f"{self.benchmark} Total ROI(%): {benchmark_roi}%\n"
+            f"Equity basis: {basis}"
         )
 
         # === 繪製圖表 ===
@@ -586,23 +617,10 @@ class StockBacktestReporter(BaseBacktestReporter):
             [pd.Series(0.0, index=[self.origin_date]), mdd_benchmark]  # 起點 MDD 為 0%
         )
 
-        # === 累積資金資料 ===
-        balance_df: pd.DataFrame = self.trading_report[
-            ["Exit Date", "Cumulative Balance"]
-        ].copy()
-        balance_df["Exit Date"] = pd.to_datetime(balance_df["Exit Date"])
-
-        # 依日期取每日最後一筆 balance（避免一天多筆交易造成重複）
-        cumulative_balance: pd.Series = (
-            balance_df.groupby(balance_df["Exit Date"].dt.date)["Cumulative Balance"]
-            .last()
-            .astype(float)
-        )
-        init_row: pd.Series = pd.Series(
-            self.account.init_capital, index=[self.origin_date]
-        )
-        # 加入初始資金節點
-        cumulative_balance = pd.concat([init_row, cumulative_balance])
+        # === 策略權益資料（口徑由 get_equity_series 統一決定）===
+        cumulative_balance: pd.Series
+        basis: str
+        cumulative_balance, basis = self.get_equity_series()
 
         # === 整理 DataFrame 用來繪圖 ===
         # 使用 benchmark 的所有交易日作為基準日期（確保日期對齊正確）
@@ -662,11 +680,17 @@ class StockBacktestReporter(BaseBacktestReporter):
             title=f"MDD ({self.start_date.strftime('%Y/%m/%d')} ~ {self.end_date.strftime('%Y/%m/%d')})",
             xaxis_title="Date",
             yaxis_title="MDD (%)",
+            fig_text=f"Equity basis: {basis}",
         )
         self.save_figure(fig, f"{self.strategy.strategy_name}_mdd.png")
 
     def plot_everyday_profit(self) -> None:
-        """繪製每天的利潤"""
+        """
+        繪製每天的利潤（已實現口徑：依平倉日分組的 Realized PnL）
+
+        與 `plot_everyday_equity_change()` 的語意不同，兩張圖並存不可互相取代：
+        本圖只在平倉當天有數值，持倉期間一律為 0。
+        """
 
         # 轉換 Exit Date 為 datetime 格式
         profit_df: pd.DataFrame = self.trading_report[
@@ -696,11 +720,54 @@ class StockBacktestReporter(BaseBacktestReporter):
         # 設置圖表配置
         self.set_figure_config(
             fig,
-            title="Everyday Profit",
+            title=f"Everyday Profit ({self.EQUITY_BASIS_REALIZED_ONLY})",
             xaxis_title="Date",
             yaxis_title="Daily PnL",
         )
         self.save_figure(fig, f"{self.strategy.strategy_name}_everyday_profit.png")
+
+    def plot_everyday_equity_change(self) -> None:
+        """
+        - Description:
+            繪製每日權益變化（盯市口徑）
+
+            逐日權益的**差分**是「含未實現變動的當日損益」，與
+            `plot_everyday_profit()` 的「已實現損益依平倉日分組」語意不同：
+            持倉期間被軋的那幾天，本圖會有負值，那張圖是 0。
+
+            沒有 `daily_equity` 時本圖會退化成與已實現口徑那張完全重複，
+            故直接跳過而非畫一張誤導的圖。
+        """
+
+        if not self.daily_equity:
+            logger.info("* 無 daily_equity，跳過每日權益變化圖（盯市口徑）")
+            return
+
+        equity: pd.Series
+        equity, _ = self.get_equity_series()
+
+        # 差分：第一筆是相對初始資金的變化，故 dropna 之後長度等於交易日數
+        equity_change: pd.Series = equity.diff().dropna()
+
+        fig: go.Figure = go.Figure()
+        fig.add_trace(
+            go.Bar(
+                x=list(equity_change.index),
+                y=equity_change.values,
+                marker_color="steelblue",
+                name="Daily Equity Change",
+            )
+        )
+
+        self.set_figure_config(
+            fig,
+            title=f"Everyday Equity Change ({self.EQUITY_BASIS_MARK_TO_MARKET})",
+            xaxis_title="Date",
+            yaxis_title="Daily Equity Change",
+        )
+        self.save_figure(
+            fig, f"{self.strategy.strategy_name}_everyday_equity_change.png"
+        )
 
     def set_figure_config(
         self,

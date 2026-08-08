@@ -13,10 +13,22 @@ graph TB
         Tasks["tasks/update_db.py"]
     end
 
-    subgraph trading_core ["Trading Core"]
-        Strategies["core/strategies"]
+    subgraph strategy_layer ["Strategy Layer"]
+        Strategies["core/strategies<br/>(declares market)"]
+        Loader["strategy_loader.py"]
+    end
+
+    subgraph engine_layer ["Backtest Engine (market-agnostic)"]
+        Factory["core/backtest/factory.py<br/>(only 'if market ==' in repo)"]
+        Backtester["core/backtest/backtester.py"]
+        BTModels["core/backtest/models<br/>InstrumentSpec / FillModel<br/>CostModel / SettlementModel"]
+        Feed["core/backtest/datafeed"]
         Managers["core/managers"]
-        Models["core/models"]
+        Report["core/backtest/report"]
+    end
+
+    subgraph domain_layer ["Domain & Shared"]
+        Models["core/models<br/>(base/ + stock/)"]
         Utils["core/utils"]
     end
 
@@ -29,7 +41,7 @@ graph TB
     end
 
     subgraph output_layer ["Backtest Outputs"]
-        Backtest["core/backtest/results"]
+        Results["core/backtest/results"]
     end
 
     subgraph frontend_layer ["Frontend (Streamlit)"]
@@ -39,26 +51,35 @@ graph TB
         FrontendDocker["frontend/Dockerfile"]
     end
 
-    subgraph docs_layer ["Docs"]
-        Readme["README.md / README_zh.md"]
-        Docs["docs/"]
-    end
-
-    RunPy --> Strategies
-    Tasks --> Pipeline
-    Strategies --> Managers
+    RunPy --> Loader
+    Loader --> Strategies
+    RunPy --> Factory
+    Factory --> Backtester
+    Factory --> BTModels
+    Factory --> Feed
+    Factory --> Managers
+    Backtester --> Strategies
+    Backtester --> BTModels
+    Backtester --> Feed
+    Backtester --> Managers
+    Backtester --> Report
     Managers --> Models
-    Strategies --> API
-    API --> Adapters
-    Adapters --> DB
+    BTModels --> Models
+    Feed --> API
+    Feed --> Adapters
+    API --> DB
+    Adapters --> API
+    Tasks --> Pipeline
     Pipeline --> DB
-    DB --> Backtest
-    Backtest --> FrontendService
+    Pipeline --> Data
+    Report --> Results
+    Results --> FrontendService
     FrontendConfig --> FrontendService
     FrontendService --> FrontendApp
     FrontendDocker --> FrontendApp
-    Readme --> Docs
 ```
+
+`Backtester` is the **only** backtest engine: market-agnostic, no subclasses. All market-specific behavior is injected as five pluggable models (`InstrumentSpec`, `FillModel`, `CostModel`, `SettlementModel`, `DataFeed`) assembled by `factory.py` from the `market` a strategy declares. Adding a market does not require changing `backtester.py`. See [Multi-Market Engine](docs/backtest/multi-market-engine.md) and [Module Map](docs/backtest/module-map.md).
 
 
 
@@ -90,6 +111,9 @@ graph TB
 | [Data Coverage](docs/exchanges/data_coverage.md)        | Data source and API coverage in current platform              |
 | [Command Usage](docs/commands/command-usage.md)         | Full `update_db` target reference and runnable examples       |
 | [Strategy Development Guide](core/strategies/README.md) | How to implement strategies in this project                   |
+| [Multi-Market Engine](docs/backtest/multi-market-engine.md) | Backtest engine architecture: one engine, five pluggable models |
+| [Module Map](docs/backtest/module-map.md)               | Who calls whom on the backtest path, per-file responsibilities |
+| [Short-Selling Framework](docs/backtest/short-selling-framework.md) | Direction-driven accounting, costs, margin call, forced cover |
 
 
 ---
@@ -224,15 +248,25 @@ python run.py --strategy <StrategyClassName>
 AlphaEdge/
 ├── core/                    # trading domain modules
 │   ├── strategies/            # strategy implementations
-│   ├── api/                   # data access APIs
+│   │   ├── base.py            # BaseStrategy (market-agnostic)
+│   │   ├── strategy_loader.py # auto-scans every market sub-package
+│   │   └── stock/             # BaseStockStrategy + concrete stock strategies
+│   ├── api/                   # data access APIs (SQLite / DolphinDB)
 │   ├── adapters/              # data adapters / integrations
 │   │   └── stock_quote_adapter.py  # StockQuoteAdapter (day/tick → StockQuote)
-│   ├── managers/              # account / order / flow managers
-│   ├── models/                # domain models
-│   ├── utils/                 # shared helpers (paths, calendar, logging, etc.)
+│   ├── managers/              # position managers (base/ + per-market)
+│   ├── models/                # domain models (base/ + stock/)
+│   ├── utils/                 # shared helpers (enums, paths, time, logging)
 │   ├── pipeline/              # ETL/update pipeline
 │   ├── database/              # sqlite database files (stock.db)
-│   ├── backtest/              # backtest engine and outputs
+│   ├── backtest/              # backtest engine
+│   │   ├── backtester.py      # the only engine: market-agnostic, no subclasses
+│   │   ├── factory.py         # assembles the model set from strategy.market
+│   │   ├── models/            # InstrumentSpec / FillModel / CostModel / SettlementModel
+│   │   ├── datafeed/          # data loading, quote conversion, trading calendar
+│   │   ├── report/            # trading report, direction summary, charts
+│   │   ├── analysis/          # performance metrics (not yet wired into run())
+│   │   └── results/           # per-strategy outputs (csv / png / logs)
 │   └── data/                  # downloaded/raw data
 ├── frontend/                  # Streamlit docker image
 │   ├── app.py                 # Streamlit entrypoint
@@ -248,10 +282,13 @@ AlphaEdge/
 ├── dev/                       # optional conda envs and dev scripts
 ├── backlog/                   # internal planning notes
 ├── docs/                      # project docs
+│   ├── backtest/              # engine architecture, module map, short-selling spec
 │   ├── setup/
 │   ├── deployment/
 │   ├── exchanges/
 │   └── commands/
+├── scripts/
+│   └── run_regression.sh      # SHORT + LONG regression guardrail (run before/after engine changes)
 ├── docker-compose.yml         # compose: core + frontend + shared results volume
 ├── run.py
 ├── README.md

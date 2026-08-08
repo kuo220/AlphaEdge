@@ -13,10 +13,22 @@ graph TB
         Tasks["tasks/update_db.py"]
     end
 
-    subgraph trading_core ["交易核心"]
-        Strategies["core/strategies"]
+    subgraph strategy_layer ["策略層"]
+        Strategies["core/strategies<br/>（宣告 market）"]
+        Loader["strategy_loader.py"]
+    end
+
+    subgraph engine_layer ["回測引擎層（市場無關）"]
+        Factory["core/backtest/factory.py<br/>（全專案唯一 if market ==）"]
+        Backtester["core/backtest/backtester.py"]
+        BTModels["core/backtest/models<br/>InstrumentSpec／FillModel<br/>CostModel／SettlementModel"]
+        Feed["core/backtest/datafeed"]
         Managers["core/managers"]
-        Models["core/models"]
+        Report["core/backtest/report"]
+    end
+
+    subgraph domain_layer ["領域與共用層"]
+        Models["core/models<br/>（base/ ＋ stock/）"]
         Utils["core/utils"]
     end
 
@@ -29,7 +41,7 @@ graph TB
     end
 
     subgraph output_layer ["回測輸出層"]
-        Backtest["core/backtest/results"]
+        Results["core/backtest/results"]
     end
 
     subgraph frontend_layer ["前端層（Streamlit）"]
@@ -39,26 +51,35 @@ graph TB
         FrontendDocker["frontend/Dockerfile"]
     end
 
-    subgraph docs_layer ["文件層"]
-        Readme["README.md / README_zh.md"]
-        Docs["docs/"]
-    end
-
-    RunPy --> Strategies
-    Tasks --> Pipeline
-    Strategies --> Managers
+    RunPy --> Loader
+    Loader --> Strategies
+    RunPy --> Factory
+    Factory --> Backtester
+    Factory --> BTModels
+    Factory --> Feed
+    Factory --> Managers
+    Backtester --> Strategies
+    Backtester --> BTModels
+    Backtester --> Feed
+    Backtester --> Managers
+    Backtester --> Report
     Managers --> Models
-    Strategies --> API
-    API --> Adapters
-    Adapters --> DB
+    BTModels --> Models
+    Feed --> API
+    Feed --> Adapters
+    API --> DB
+    Adapters --> API
+    Tasks --> Pipeline
     Pipeline --> DB
-    DB --> Backtest
-    Backtest --> FrontendService
+    Pipeline --> Data
+    Report --> Results
+    Results --> FrontendService
     FrontendConfig --> FrontendService
     FrontendService --> FrontendApp
     FrontendDocker --> FrontendApp
-    Readme --> Docs
 ```
+
+`Backtester` 是**唯一的回測引擎，市場無關、沒有子類**。市場差異全部下沉為五個可插拔的 model（`InstrumentSpec`、`FillModel`、`CostModel`、`SettlementModel`、`DataFeed`），由 `factory.py` 依策略宣告的 `market` 組裝。新增一個市場不需要修改 `backtester.py` 一行。詳見[多市場回測引擎架構](docs/backtest/multi-market-engine.md)與[模組使用關係](docs/backtest/module-map.md)。
 
 ## 模組說明
 
@@ -85,6 +106,9 @@ graph TB
 | [資料覆蓋範圍](docs/exchanges/data_coverage.md)    | 目前平台資料來源與 API 覆蓋範圍                 |
 | [指令教學](docs/commands/command-usage.zh-TW.md)   | `update_db` target 對照與完整執行範例           |
 | [策略開發指南](core/strategies/README.md)          | 本專案策略實作方式                              |
+| [多市場回測引擎架構](docs/backtest/multi-market-engine.md) | 單一引擎 ＋ 五個可插拔 model 的設計與已知簡化 |
+| [模組使用關係](docs/backtest/module-map.md)        | 回測路徑上誰呼叫誰、逐檔案職責與輸出檔案        |
+| [放空回測框架規格](docs/backtest/short-selling-framework.md) | 方向驅動的記帳、成本、維持率追繳與強制回補 |
 
 ---
 
@@ -241,15 +265,25 @@ python run.py --strategy <StrategyClassName>
 AlphaEdge/
 ├── core/                    # 交易領域模組
 │   ├── strategies/            # 策略實作
-│   ├── api/                   # 資料存取 API
+│   │   ├── base.py            # BaseStrategy（市場無關）
+│   │   ├── strategy_loader.py # 自動掃描所有市場子套件
+│   │   └── stock/             # BaseStockStrategy ＋ 各支台股策略
+│   ├── api/                   # 資料存取 API（SQLite／DolphinDB）
 │   ├── adapters/              # 資料介接 / 整合層
 │   │   └── stock_quote_adapter.py  # StockQuoteAdapter（日線/Tick → StockQuote）
-│   ├── managers/              # 帳務 / 訂單 / 流程管理
-│   ├── models/                # 領域模型
-│   ├── utils/                 # 共用工具（路徑、交易日曆、日誌等）
+│   ├── managers/              # 倉位管理器（base/ ＋ 各市場）
+│   ├── models/                # 領域模型（base/ ＋ stock/）
+│   ├── utils/                 # 共用工具（enum、路徑、時間、日誌）
 │   ├── pipeline/              # ETL / 更新流程
 │   ├── database/              # sqlite 資料庫檔案（stock.db）
-│   ├── backtest/              # 回測引擎與輸出
+│   ├── backtest/              # 回測引擎
+│   │   ├── backtester.py      # 唯一引擎：市場無關、無子類
+│   │   ├── factory.py         # 依 strategy.market 組裝 model 組合
+│   │   ├── models/            # InstrumentSpec／FillModel／CostModel／SettlementModel
+│   │   ├── datafeed/          # 資料載入、報價轉換、交易日判定
+│   │   ├── report/            # 交易報表、多空統計、圖表
+│   │   ├── analysis/          # 績效指標（尚未接進 run() 主流程）
+│   │   └── results/           # 各策略輸出（csv／png／logs）
 │   └── data/                  # 下載 / 原始資料
 ├── frontend/                  # Streamlit Docker 映像
 │   ├── app.py                 # Streamlit 入口
@@ -265,10 +299,13 @@ AlphaEdge/
 ├── dev/                       # 選用 conda 環境與開發腳本
 ├── backlog/                   # 內部規劃筆記
 ├── docs/                      # 專案文件
+│   ├── backtest/              # 引擎架構、模組使用關係、放空框架規格
 │   ├── setup/
 │   ├── deployment/
 │   ├── exchanges/
 │   └── commands/
+├── scripts/
+│   └── run_regression.sh      # 回歸雙線護欄（動回測引擎前後都要跑）
 ├── docker-compose.yml         # compose：core + frontend + 共用 results volume
 ├── run.py
 ├── README.md
