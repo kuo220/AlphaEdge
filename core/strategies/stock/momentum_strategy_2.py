@@ -5,15 +5,11 @@ from typing import List, Optional
 import pandas as pd
 from loguru import logger
 
-from core.api.financial_statement_api import FinancialStatementAPI
-from core.api.monthly_revenue_report_api import MonthlyRevenueReportAPI
-from core.api.stock_chip_api import StockChipAPI
-from core.api.stock_price_api import StockPriceAPI
-from core.api.stock_tick_api import StockTickAPI
+from core.backtest.datafeed.base import BaseDataFeed
 from core.models import StockAccount, StockOrder, StockPosition, StockQuote
 from core.strategies.stock import BaseStockStrategy
 from core.utils import Action, PositionType, Scale, Units
-from core.utils.market_calendar import MarketCalendar
+from core.backtest.datafeed.market_calendar import MarketCalendar
 
 
 class MomentumStrategy2(BaseStockStrategy):
@@ -38,26 +34,21 @@ class MomentumStrategy2(BaseStockStrategy):
         self.start_date: datetime.date = self.DEFAULT_BACKTEST_START_DATE
         self.end_date: datetime.date = self.DEFAULT_BACKTEST_END_DATE
 
-        self.setup_apis()
 
     def setup_account(self, account: StockAccount):
         """設置虛擬帳戶資訊"""
 
         self.account = account
 
-    def setup_apis(self):
-        """設置資料 API
+    def setup_apis(self, feed: BaseDataFeed) -> None:
+        """宣告本策略要用的資料源；實例由 DataFeed 統一持有"""
 
-        - Tick 級別回測仍會使用日 K 價格來取得昨日收盤價
-        """
+        self.chip = feed.chip
+        self.mrr = feed.mrr
+        self.fs = feed.fs
 
-        self.chip = StockChipAPI()
-        self.mrr = MonthlyRevenueReportAPI()
-        self.fs = FinancialStatementAPI()
-
-        # Tick & Day 都載，方便同時使用
-        self.tick: StockTickAPI = StockTickAPI()
-        self.price: StockPriceAPI = StockPriceAPI()
+        self.tick = feed.tick
+        self.price = feed.price
 
     def check_open_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
         """開倉策略（Tick 級別）

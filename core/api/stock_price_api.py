@@ -15,15 +15,18 @@ from core.utils.log_manager import LogManager
 class StockPriceAPI(BaseDataAPI):
     """Stock Price API"""
 
-    def __init__(self):
-        self.conn: Optional[sqlite3.Connection] = None
+    def __init__(self, conn: Optional[sqlite3.Connection] = None):
+        # 由 DataFeed 傳入共用連線；未指定時自行建立（見 backlog Phase2-7）
+        self.conn: Optional[sqlite3.Connection] = conn
+        self.owns_conn: bool = conn is None
 
         self.setup()
 
     def setup(self) -> None:
         """Set Up the Config of Data API"""
 
-        self.conn: sqlite3.Connection = sqlite3.connect(DB_PATH)
+        if self.owns_conn:
+            self.conn = sqlite3.connect(DB_PATH)
         LogManager.setup_logger("stock_price_api.log")
 
     def get(self, date: datetime.date) -> pd.DataFrame:

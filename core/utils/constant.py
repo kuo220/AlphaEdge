@@ -158,7 +158,6 @@ class Scale(str, Enum):
 
     TICK = "TICK"
     DAY = "DAY"
-    MIX = "MIX"
 
 
 class PositionType(str, Enum):

@@ -17,6 +17,9 @@ shioaji.log
 *.png
 *.log
 
+# 回歸 baseline 例外：這是引擎重構期間唯一的行為護欄，不進版控等於沒有護欄
+!tests/backtest/snapshots/*.csv
+
 # Downloads Content
 Downloads/*
 

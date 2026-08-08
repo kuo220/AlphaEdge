@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 from core.backtest.backtester import Backtester
+from core.backtest.factory import build_backtester
 from core.backtest.report.reporter import StockBacktestReporter
 from core.models import StockAccount, StockOrder, StockTradeRecord
 from core.utils import Action, PositionType, ShortMethod
@@ -22,7 +23,7 @@ def make_backtester(monkeypatch: pytest.MonkeyPatch) -> Callable[..., Backtester
 
     def _make_backtester(strategy) -> Backtester:
         monkeypatch.setattr(Backtester, "setup", lambda self: None)
-        return Backtester(strategy)
+        return build_backtester(strategy)
 
     return _make_backtester
 
@@ -67,6 +68,55 @@ def test_snapshot_daily_equity_includes_unrealized(
     assert backtester.account.get_positions()[0].unrealized_pnl == -5000.0
     assert backtester.daily_equity[1]["Equity"] == 994578.0
     assert backtester.account.realized_pnl == 0.0  # 尚未平倉，已實現損益仍為 0
+
+
+def test_trading_report_columns_and_symbol(
+    make_strategy, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """
+    報表的欄位名與識別欄位取值
+
+    引擎內部改用 symbol 之後，輸出欄位名必須維持 `Stock ID`（見 backlog Phase1-2）——
+    改名會讓 915 筆 LONG baseline 失效。但回歸雙線是自行從 trade_records 組表的，
+    完全不經過 reporter，故欄位名與取值只能靠本測試把關。
+    """
+
+    monkeypatch.setattr(StockBacktestReporter, "setup", lambda self: None)
+
+    strategy = make_strategy(
+        start_date=datetime.date(2024, 1, 1), end_date=datetime.date(2024, 3, 31)
+    )
+    account: StockAccount = StockAccount(1000000.0)
+    strategy.setup_account(account)
+
+    account.trade_records.append(
+        StockTradeRecord(
+            id=1,
+            stock_id="2330",
+            is_closed=True,
+            position_type=PositionType.LONG,
+            buy_date=DAY_1,
+            buy_price=100.0,
+            buy_volume=1,
+            sell_date=datetime.date(2024, 1, 5),
+            sell_price=105.0,
+            sell_volume=1,
+            realized_pnl=4548.0,
+            roi=4.53,
+        )
+    )
+
+    reporter: StockBacktestReporter = StockBacktestReporter(strategy, tmp_path)
+    reporter.account = account
+    report: pd.DataFrame = reporter.generate_trading_report()
+
+    # 欄位名維持台股語意，且順序不變（baseline 逐欄比對依賴此順序）
+    assert list(report.columns)[:3] == ["Stock ID", "Position Type", "Entry Date"]
+    assert "Symbol" not in report.columns
+
+    # 取值來自 model 的 symbol，不是空字串
+    assert report.loc[0, "Stock ID"] == "2330"
+    assert report.loc[0, "Stock ID"] == account.trade_records[0].symbol
 
 
 def test_direction_summary_and_event_report(

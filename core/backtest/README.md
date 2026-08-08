@@ -37,7 +37,7 @@ AlphaEdge 支援四種回測級別（KBar 級別）：
 在策略中設定回測級別：
 
 ```python
-self.scale: str = Scale.DAY  # 或 Scale.TICK, Scale.MIX, Scale.ALL
+self.scale: str = Scale.DAY  # 或 Scale.TICK
 ```
 
 ## 回測流程
@@ -124,4 +124,3 @@ python run.py --mode live --strategy MomentumStrategy1
 
 - [策略開發指南](../strategies/README.md)
 - [專案 README](../../README.md)
-- [API 文檔](../../docs/README.md)

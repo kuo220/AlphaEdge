@@ -1,9 +1,9 @@
 import datetime
-from typing import Dict, List, Optional, Union
 
 import pandas as pd
 
-from core.utils import Commission, PositionType, Scale
+from core.models.base.quote import BaseQuote
+from core.utils import Scale
 
 """Quote structures: tick-level and daily-level pricing in backtesting"""
 
@@ -41,7 +41,7 @@ class TickQuote:
         self.tick_type: int = tick_type  # 內外盤別{1: 外盤, 2: 內盤, 0: 無法判定}
 
 
-class StockQuote:
+class StockQuote(BaseQuote):
     """個股報價資訊"""
 
     def __init__(
@@ -57,20 +57,23 @@ class StockQuote:
         close: float = 0.0,
         tick: TickQuote = None,
     ):
-        # Basic Info
-        self.stock_id: str = stock_id  # Stock ID
-        self.scale: Scale = scale  # Quote scale (DAY or TICK or ALL)
-        self.date: Union[datetime.date, datetime.datetime] = date  # Current date
-
-        # Current Price & Volume
-        self.cur_price: float = cur_price  # Current price
-        self.volume: int = volume  # order's volume (Unit: Lot)
-
-        # OHLC Info
-        self.open: float = open  # Open price
-        self.high: float = high  # High price
-        self.low: float = low  # Low price
-        self.close: float = close  # Close price
+        super().__init__(
+            symbol=stock_id,
+            scale=scale,
+            date=date,
+            cur_price=cur_price,
+            volume=volume,
+            open=open,
+            high=high,
+            low=low,
+            close=close,
+        )
 
         # Tick Data
         self.tick_quote: TickQuote = tick  # tick quote data
+
+    @property
+    def stock_id(self) -> str:
+        """symbol 的台股別名：既有策略與報表沿用 stock_id 取值，不需改寫"""
+
+        return self.symbol

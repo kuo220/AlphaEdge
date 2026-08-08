@@ -10,9 +10,9 @@ _PROJECT_ROOT: Path = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
 from core.backtest.backtester import Backtester
+from core.backtest.factory import build_backtester
 from core.strategies.stock.momentum_strategy_1 import MomentumStrategy1
 from core.utils import TimeUtils
-from core.utils.market_calendar import MarketCalendar
 
 """產生 LONG 策略的回歸 baseline：放空框架動程式碼前的第一步（見 backlog §9.0）"""
 
@@ -28,14 +28,14 @@ BASELINE_END_DATE: datetime.date = datetime.date(2024, 6, 30)
 def run_backtest_without_report(strategy: MomentumStrategy1) -> Backtester:
     """跑完回測主迴圈但不產生圖表報告（繪圖與回歸比對無關且耗時）"""
 
-    backtester: Backtester = Backtester(strategy)
+    backtester: Backtester = build_backtester(strategy)
 
     dates: List[datetime.date] = TimeUtils.generate_date_range(
         start_date=backtester.start_date, end_date=backtester.end_date
     )
 
     for date in dates:
-        if not MarketCalendar.check_stock_market_open(api=backtester.price, date=date):
+        if not backtester.data_feed.is_market_open(date):
             continue
 
         backtester.run_day_backtest(date)

@@ -16,12 +16,12 @@
 | Phase1-1 | 建立 `us/` 目錄骨架與 provider 介面 | `core/pipeline/us/`、`core/api/us/`、`core/strategies/us/` | 骨架可 import，`base.py` 介面定義完成 | ⬜ | 目錄結構見「建議目錄調整」 |
 | Phase1-2 | `us_universe` ＋ `us_price_daily` ETL（含 checkpoint、upsert） | `core/pipeline/us/*`、`core/api/us/price_api.py` | 中斷後可 resume；重跑不產生重複資料 | ⬜ | 相依 Phase1-1 |
 | Phase1-3 | `USMomentumStrategy`（日線）跑通回測 | `core/strategies/us/momentum_us_strategy.py` | 產出資產曲線與交易明細 | ⬜ | 相依 Phase1-2；報表沿用既有 `reporter` |
-| Phase2-1 | `us_corporate_actions` ＋ raw/adjusted 回測切換 | `core/pipeline/us/*`、`core/backtest/datafeed/us_datafeed.py` | 同一策略在兩種模式下結果可解釋 | ⬜ | 相依 Phase1-2；`BaseDataFeed` 介面由 [回測引擎多市場抽象.md](回測引擎多市場抽象.md) Phase2-5 提供 |
-| Phase2-2 | 美股成本模型（手續費 ＋ SEC fee ＋ 滑價） | `core/backtest/models/cost_model.py` | 費用計算有單元測試 | ⬜ | 相依 Phase1-3；路徑對齊 [回測引擎多市場抽象.md](回測引擎多市場抽象.md) 的 `BaseCostModel` |
+| Phase2-1 | `us_corporate_actions` ＋ raw/adjusted 回測切換 | `core/pipeline/us/*`、`core/backtest/datafeed/us_datafeed.py` | 同一策略在兩種模式下結果可解釋 | ⬜ | 相依 Phase1-2；`BaseDataFeed` 介面由 [多市場回測引擎架構](../docs/backtest/multi-market-engine.md) Phase2-5 提供 |
+| Phase2-2 | 美股成本模型（手續費 ＋ SEC fee ＋ 滑價） | `core/backtest/models/cost_model.py` | 費用計算有單元測試 | ⬜ | 相依 Phase1-3；路徑對齊 [多市場回測引擎架構](../docs/backtest/multi-market-engine.md) 的 `BaseCostModel` |
 | Phase2-3 | 資料品質檢核與異常告警 | `core/pipeline/us/*` | 缺洞天數、成交量異常可被偵測 | ⬜ | 相依 Phase1-2 |
 | Phase3-1 | `us_fundamentals` ETL 支援因子策略 | `core/pipeline/us/*`、`core/api/us/fundamentals_api.py` | 財報欄位可查詢且無未來資料污染 | ⬜ | 相依 Phase2-1 |
 | Phase3-2 | 參數掃描框架（walk-forward / grid search） | `core/backtest/` | 可批次產出參數組合的績效比較 | ⬜ | 相依 Phase2-2 |
-| Phase3-3 | 多市場共用介面，台股逐步歸位 `tw/` | 全專案 | 台股回歸測試逐筆相同 | ⏸ | 暫緩：影響面大，等美股閉環驗證後再啟動。**引擎層的共用介面已由 [回測引擎多市場抽象.md](回測引擎多市場抽象.md) 提前完成**，本步驟只剩目錄歸位 |
+| Phase3-3 | 多市場共用介面，台股逐步歸位 `tw/` | 全專案 | 台股回歸測試逐筆相同 | ⏸ | 暫緩：影響面大，等美股閉環驗證後再啟動。**引擎層的共用介面已由 [多市場回測引擎架構](../docs/backtest/multi-market-engine.md) 提前完成**，本步驟只剩目錄歸位 |
 
 ---
 
