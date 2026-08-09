@@ -17,6 +17,7 @@ from core.utils import (
     ShortMethod,
 )
 from core.backtest.models.cost_model import CostConfig, ShortConstraint
+from core.backtest.models.sizing import BasePositionSizer, EqualWeightSizer
 
 """BaseStockStrategy: 台股策略基底，補上信用交易設定與五個資料集"""
 
@@ -45,6 +46,14 @@ class BaseStockStrategy(BaseStrategy):
         self.margin_call_policy: MarginCallPolicy = (
             MarginCallPolicy.FORCE_COVER  # 維持率追繳的處理
         )
+
+        """
+        === Position Sizing ===
+
+        等權資金切分原本在五支策略內各寫一遍且已經漂移，收成單一實作。
+        要換配置演算法（波動度加權等）時，在策略的 __init__ 覆寫本欄位即可。
+        """
+        self.sizer: BasePositionSizer = EqualWeightSizer()  # 部位大小模型
 
         """ === Datasets Setting=== """
         self.tick: Optional[StockTickAPI] = None  # Ticks data (Optional)

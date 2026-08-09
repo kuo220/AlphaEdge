@@ -8,7 +8,7 @@ from loguru import logger
 from core.backtest.datafeed.base import BaseDataFeed
 from core.models import StockAccount, StockOrder, StockPosition, StockQuote
 from core.strategies.stock import BaseStockStrategy
-from core.utils import Action, Market, PositionType, Scale, Units
+from core.utils import Action, Market, PositionType, Scale
 from core.backtest.datafeed.market_calendar import MarketCalendar
 
 
@@ -209,37 +209,24 @@ class MomentumStrategy3(BaseStockStrategy):
         orders: List[StockOrder] = []
 
         if action == Action.BUY:
-            available_position_cnt: int = (
-                max(0, self.max_holdings - self.account.get_position_count())
-                if self.max_holdings is not None
-                else len(stock_quotes)
-            )
+            # 張數由 EqualWeightSizer 統一計算；本策略以當日收盤價為參考價
+            candidates: List[Tuple[StockQuote, float]] = [
+                (stock_quote, stock_quote.close) for stock_quote in stock_quotes
+            ]
 
-            if available_position_cnt > 0:
-                per_position_size: float = (
-                    self.account.balance / available_position_cnt
-                )
-
-                for stock_quote in stock_quotes:
-                    if available_position_cnt == 0:
-                        break
-
-                    open_volume: int = int(
-                        per_position_size / (stock_quote.close * Units.LOT)
+            for stock_quote, _, open_volume in self.sizer.size(
+                self.account, candidates, self.max_holdings
+            ):
+                orders.append(
+                    StockOrder(
+                        stock_id=stock_quote.stock_id,
+                        date=stock_quote.date,
+                        action=action,
+                        position_type=PositionType.LONG,
+                        price=stock_quote.cur_price,
+                        volume=open_volume,
                     )
-
-                    if open_volume >= 1:
-                        orders.append(
-                            StockOrder(
-                                stock_id=stock_quote.stock_id,
-                                date=stock_quote.date,
-                                action=action,
-                                position_type=PositionType.LONG,
-                                price=stock_quote.cur_price,
-                                volume=open_volume,
-                            )
-                        )
-                        available_position_cnt -= 1
+                )
 
         elif action == Action.SELL:
             for stock_quote in stock_quotes:

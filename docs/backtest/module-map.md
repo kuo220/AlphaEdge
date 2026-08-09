@@ -79,13 +79,16 @@ sequenceDiagram
 
 訂單從策略回傳到真正成交，中間有**三道關卡**，任何一關被擋都會計數，不會靜默丟棄：
 
+訂單從策略回傳到真正成交，中間有**四道關卡**，任何一關被擋都會計數，不會靜默丟棄：
+
 | 順序 | 關卡 | 實作位置 | 擋掉時計入 |
 |:----:|------|----------|------------|
 | 1 | 方向白名單（`allowed_directions`、開平倉動作是否相符） | `Backtester.validate_orders()` | `rejected_direction` |
 | 2 | 市場專屬欄位補值（`short_method`、`is_day_trade`） | `CostModel.enrich_orders()` | —（只補值不擋） |
-| 3 | 成交價可信度（OHLC 區間、漲跌停、檔位） | `FillModel.validate()` | `rejected_fill_price` |
+| 3 | 持倉檔數硬上限（`max_holdings`） | `Backtester.check_max_holdings()` | `rejected_max_holdings` |
+| 4 | 成交價可信度（OHLC 區間、漲跌停、檔位） | `FillModel.validate()` | `rejected_fill_price` |
 
-通過三關後才交給 `PositionManager.open_position()`。
+通過四關後才交給 `PositionManager.open_position()`。
 
 ---
 

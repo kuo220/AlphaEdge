@@ -1,13 +1,13 @@
 # Python standard library
 import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from loguru import logger
 
 from core.backtest.datafeed.base import BaseDataFeed
 from core.models import StockAccount, StockOrder, StockPosition, StockQuote
 from core.strategies.stock import BaseStockStrategy
-from core.utils import Action, PositionType, Scale, Units
+from core.utils import Action, PositionType, Scale
 from core.backtest.datafeed.market_calendar import MarketCalendar
 
 
@@ -152,42 +152,30 @@ class MomentumStrategy2(BaseStockStrategy):
         orders: List[StockOrder] = []
 
         if action == Action.BUY:
-            if self.max_holdings is not None:
-                available_position_cnt: int = max(
-                    0, self.max_holdings - self.account.get_position_count()
+            # 張數由 EqualWeightSizer 統一計算；本策略以當筆 tick 成交價為參考價
+            #
+            # 語意變更：原本 `max_holdings is None` 時走 `available = 0`（完全不開倉），
+            # 與其餘四支的「不限制」恰好相反。統一取多數派語意（見 backlog S1 決策）；
+            # 本策略在 __init__ 已明確設定 max_holdings，此分支跑不到。
+            candidates: List[Tuple[StockQuote, float]] = [
+                (stock_quote, stock_quote.tick_quote.close)
+                for stock_quote in stock_quotes
+                if stock_quote.tick_quote is not None
+            ]
+
+            for stock_quote, price, open_volume in self.sizer.size(
+                self.account, candidates, self.max_holdings
+            ):
+                orders.append(
+                    StockOrder(
+                        stock_id=stock_quote.stock_id,
+                        date=stock_quote.date,
+                        action=action,
+                        position_type=PositionType.LONG,
+                        price=price,
+                        volume=open_volume,
+                    )
                 )
-            else:
-                available_position_cnt = 0
-
-            if available_position_cnt > 0:
-                per_position_size: float = self.account.balance / available_position_cnt
-
-                for stock_quote in stock_quotes:
-                    if stock_quote.tick_quote is None:
-                        continue
-
-                    price: float = stock_quote.tick_quote.close
-                    if price <= 0:
-                        continue
-
-                    # 計算可買張數：可用資金 / 每張價格
-                    open_volume: int = int(per_position_size / (price * Units.LOT))
-
-                    if open_volume >= 1:
-                        orders.append(
-                            StockOrder(
-                                stock_id=stock_quote.stock_id,
-                                date=stock_quote.date,
-                                action=action,
-                                position_type=PositionType.LONG,
-                                price=price,
-                                volume=open_volume,
-                            )
-                        )
-                        available_position_cnt -= 1
-
-                    if available_position_cnt == 0:
-                        break
         elif action == Action.SELL:
             for stock_quote in stock_quotes:
                 position: Optional[StockPosition] = (

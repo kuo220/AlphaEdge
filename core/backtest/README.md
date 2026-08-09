@@ -55,6 +55,57 @@ self.scale: str = Scale.DAY  # 或 Scale.TICK
    - 執行訂單
 6. **生成報告**: 計算績效指標並生成視覺化圖表
 
+## 部位大小與檔數上限
+
+「這一單買幾張」與「總共可以持有幾檔」是**兩層把關**，責任分工如下：
+
+| 層級 | 由誰負責 | 做什麼 |
+|------|----------|--------|
+| 策略 | `check_open_signal()` | 選標的、決定**參考價**（`close`／`open`／tick 價皆可） |
+| 部位大小模型 | `EqualWeightSizer`（`core/backtest/models/sizing.py`） | 依剩餘名額均分餘額、換算張數 |
+| 引擎 | `Backtester.check_max_holdings()` | **硬上限**：超過 `max_holdings` 的開倉單一律剔除並計數 |
+
+### 策略要寫的部分
+
+`calculate_position_size()` 的 `BUY` 分支**不需要自己算張數**，交給 `self.sizer`：
+
+```python
+candidates: List[Tuple[StockQuote, float]] = [
+    (stock_quote, stock_quote.close) for stock_quote in stock_quotes  # 參考價由策略決定
+]
+
+for stock_quote, ref_price, open_volume in self.sizer.size(
+    self.account, candidates, self.max_holdings
+):
+    orders.append(StockOrder(..., price=ref_price, volume=open_volume))
+```
+
+`self.sizer` 由 `BaseStockStrategy` 預設為 `EqualWeightSizer()`；要換配置演算法（波動度加權等），在策略的 `__init__` 覆寫該欄位即可，呼叫端不動。
+
+### 預設的等權公式
+
+```
+可開檔數 = max(0, max_holdings - 現有持倉檔數)   # max_holdings 為 None 時不限制
+每檔資金 = account.balance / 可開檔數
+張數     = int(每檔資金 / (參考價 × Units.LOT))   # 無條件捨去
+下單條件 = 張數 >= 1；參考價 <= 0 者跳過
+```
+
+**`int()` 的無條件捨去與「至少 1 張」的門檻不可改動**——它們直接決定 LONG 回歸 baseline 的 915 筆結果。
+
+這段公式原本在五支策略內各寫一遍，收斂時發現兩處已經漂移，一併定案（2026-08-09）：
+
+| 項目 | 收斂前 | 收斂後 |
+|------|--------|--------|
+| `max_holdings is None` | `momentum_strategy_2` 為「不開倉」，其餘四支為「不限制」 | 一律**不限制**（多數派 4:1，且與 `Optional[int]` 的直覺一致） |
+| 參考價 `<= 0` | `_1`／`_3` 無檢查，遇收盤價為 0 會 `ZeroDivisionError` **中斷整場回測** | 一律**跳過該檔**，不影響其他候選 |
+
+兩者都不改變既有回測結果：前者的分支在五支策略上皆跑不到（都在 `__init__` 明確設了 `max_holdings`），後者只在資料異常時觸發。
+
+### 引擎側硬上限
+
+`max_holdings` 是真正的風控，不是「策略願意遵守才生效」的建議值。策略即使不呼叫 sizer，超額的開倉單仍會在 `execute_open_signal()` 內被剔除，並以 `logger.warning` ＋ `event_counts["rejected_max_holdings"]` 留痕——**禁止靜默丟棄**。`max_holdings` 為 `None` 時不做任何截斷。
+
 ## 回測結果
 
 回測完成後，系統會自動產生以下內容：

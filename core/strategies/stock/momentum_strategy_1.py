@@ -11,7 +11,7 @@ from loguru import logger
 from core.backtest.datafeed.base import BaseDataFeed
 from core.models import StockAccount, StockOrder, StockPosition, StockQuote
 from core.strategies.stock import BaseStockStrategy
-from core.utils import Action, Market, PositionType, Scale, Units
+from core.utils import Action, Market, PositionType, Scale
 from core.utils.instrument import StockUtils
 from core.backtest.datafeed.market_calendar import MarketCalendar
 
@@ -144,37 +144,24 @@ class MomentumStrategy1(BaseStockStrategy):
         orders: List[StockOrder] = []
 
         if action == Action.BUY:
-            # 尚可開新倉的「檔數」上限；每檔先均分一份餘額再換算張數（max_holdings 未設則以候選檔數為上限）
-            available_position_cnt: int = (
-                max(0, self.max_holdings - self.account.get_position_count())
-                if self.max_holdings is not None
-                else len(stock_quotes)
-            )
+            # 張數由 EqualWeightSizer 統一計算；本策略只負責選參考價（當日收盤）
+            candidates: List[Tuple[StockQuote, float]] = [
+                (stock_quote, stock_quote.close) for stock_quote in stock_quotes
+            ]
 
-            if available_position_cnt > 0:
-                per_position_size: float = self.account.balance / available_position_cnt
-
-                for stock_quote in stock_quotes:
-                    # 每張 = 股價 × 每張股數（Units.LOT）；張數取下整，至少 1 張才下單
-                    open_volume: int = int(
-                        per_position_size / (stock_quote.close * Units.LOT)
+            for stock_quote, _, open_volume in self.sizer.size(
+                self.account, candidates, self.max_holdings
+            ):
+                orders.append(
+                    StockOrder(
+                        stock_id=stock_quote.stock_id,
+                        date=stock_quote.date,
+                        action=action,
+                        position_type=PositionType.LONG,
+                        price=stock_quote.cur_price,
+                        volume=open_volume,
                     )
-
-                    if open_volume >= 1:
-                        orders.append(
-                            StockOrder(
-                                stock_id=stock_quote.stock_id,
-                                date=stock_quote.date,
-                                action=action,
-                                position_type=PositionType.LONG,
-                                price=stock_quote.cur_price,
-                                volume=open_volume,
-                            )
-                        )
-                        available_position_cnt -= 1
-
-                    if available_position_cnt == 0:
-                        break
+                )
         elif action == Action.SELL:
             # 平倉：依該股第一筆開倉部位的張數與多空類型全數賣出
             for stock_quote in stock_quotes:

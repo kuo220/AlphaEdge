@@ -48,6 +48,7 @@ def new_event_counts() -> Dict[str, int]:
         "forced_cover_margin_call": 0,  # 維持率追繳強制回補
         "forced_cover_max_holding": 0,  # 超過最長持有天數強制回補
         "limit_up_cover_failed": 0,  # 漲停鎖死無法回補
+        "rejected_max_holdings": 0,  # 超過最大持倉檔數被引擎剔除的開倉單
     }
 
 
@@ -361,6 +362,9 @@ class Backtester:
         # Execute open orders
         open_positions: List[BasePosition] = []
         for order in open_orders:
+            if not self.check_max_holdings(order):
+                continue
+
             quote: Optional[BaseQuote] = quote_map.get(order.symbol)
             if quote and not self.validate_fill_price(order, quote):
                 continue
@@ -371,6 +375,39 @@ class Backtester:
             if open_position:
                 open_positions.append(open_position)
         return open_positions
+
+    def check_max_holdings(self, order: BaseOrder) -> bool:
+        """
+        - Description:
+            引擎側的持倉檔數硬上限
+
+            `max_holdings` 原本只是「策略願意遵守才生效」的建議值——引擎讀進來
+            卻從未使用，實際上限由每支策略自己在 `calculate_position_size()` 內
+            把關。一支新策略只要不呼叫 sizer 就能無限開倉，且不會有任何警告。
+
+            本檢查讓它成為真正的風控。既有策略本來就自我約束，此處不應觸發；
+            **若 LONG 回歸因此破線，代表現有策略確實有超額開倉，屬實錯**。
+        - Parameters:
+            - order: BaseOrder
+                待執行的開倉單
+        - Return:
+            - bool
+                True 表示可以開倉
+        """
+
+        # None 表示不限制（與 EqualWeightSizer 的語意一致）
+        if self.max_holdings is None:
+            return True
+
+        if self.account.get_position_count() < self.max_holdings:
+            return True
+
+        logger.warning(
+            f"[Max Holdings] {order.symbol} 開倉單超過持倉檔數上限 "
+            f"{self.max_holdings}，已剔除"
+        )
+        self.event_counts["rejected_max_holdings"] += 1
+        return False
 
     def execute_close_signal(self, quotes: List[BaseQuote]) -> List[BaseTradeRecord]:
         """執行平倉邏輯：先判斷停損訊號，後判斷一般平倉"""
