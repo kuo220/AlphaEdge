@@ -1,5 +1,6 @@
+import datetime
 from abc import abstractmethod
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from core.api.financial_statement_api import FinancialStatementAPI
 from core.api.monthly_revenue_report_api import MonthlyRevenueReportAPI
@@ -88,6 +89,47 @@ class BaseStockStrategy(BaseStrategy):
                 引擎持有的資料源
         """
         pass
+
+    def get_signal_close_map(
+        self,
+        stock_quotes: List[StockQuote],
+        date: datetime.date,
+    ) -> Dict[str, Any]:
+        """
+        - Description:
+            取得**訊號用**的收盤價對照表，與 `StockQuote.signal_close` 成對使用
+
+            為什麼要有這個方法：策略算漲跌幅時，「今日價格」來自 `StockQuote`、
+            「昨日價格」來自 `StockPriceAPI`，是兩條不同的路徑。若只有一邊套用還原，
+            比值會同時混用還原價與原始價，**比完全不還原更糟，而且不會報錯**。
+
+            本方法讓兩邊由**同一個來源**（引擎傳進來的報價）決定要不要還原，
+            呼叫端不需要、也不應該自己判斷目前是不是還原模式。
+
+            用法固定成對：
+
+            ```python
+            close_map = self.get_signal_close_map(stock_quotes, yesterday)
+            price_chg = quote.signal_close / close_map[quote.stock_id] - 1
+            ```
+
+            成交價、手續費、證交稅、漲跌停與檔位判定**一律走原始價**
+            （`quote.close` 與 `self.price.get_close_map()`），不要用本方法。
+        - Parameters:
+            - stock_quotes: List[StockQuote]
+                引擎傳入的當日報價；由其 `adj_close` 判定是否為還原模式
+            - date: datetime.date
+                要查詢的日期
+        - Return:
+            - Dict[str, Any]
+                {stock_id: 收盤價}；還原模式下為還原價，否則為原始價
+        """
+
+        adjusted: bool = bool(stock_quotes) and stock_quotes[0].adj_close is not None
+
+        if adjusted:
+            return self.price.get_adjusted_close_map(date)
+        return self.price.get_close_map(date)
 
     @abstractmethod
     def check_open_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:

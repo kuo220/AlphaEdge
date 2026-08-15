@@ -1,11 +1,12 @@
 import datetime
 import sqlite3
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from core.adapters import StockQuoteAdapter
 from core.api.financial_statement_api import FinancialStatementAPI
 from core.api.monthly_revenue_report_api import MonthlyRevenueReportAPI
 from core.api.stock_chip_api import StockChipAPI
+from core.api.stock_dividend_api import StockDividendAPI
 from core.api.stock_price_api import StockPriceAPI
 from core.api.stock_tick_api import StockTickAPI
 from core.backtest.datafeed.base import BaseDataFeed
@@ -29,6 +30,7 @@ class TwStockDataFeed(BaseDataFeed):
         self.tick: Optional[StockTickAPI] = None  # Ticks data
         self.chip: Optional[StockChipAPI] = None  # Chips data
         self.price: Optional[StockPriceAPI] = None  # Price data
+        self.dividend: Optional[StockDividendAPI] = None  # Ex-rights/dividend data
         self.mrr: Optional[MonthlyRevenueReportAPI] = (
             None  # Monthly Revenue Report data
         )
@@ -42,7 +44,8 @@ class TwStockDataFeed(BaseDataFeed):
         self.chip = StockChipAPI(conn=self.conn)
         self.mrr = MonthlyRevenueReportAPI(conn=self.conn)
         self.fs = FinancialStatementAPI(conn=self.conn)
-        self.price = StockPriceAPI(conn=self.conn)
+        self.dividend = StockDividendAPI(conn=self.conn)
+        self.price = StockPriceAPI(conn=self.conn, dividend_api=self.dividend)
 
         if strategy.scale == Scale.TICK:
             self.tick = StockTickAPI()
@@ -52,18 +55,42 @@ class TwStockDataFeed(BaseDataFeed):
 
         return MarketCalendar.check_stock_market_open(api=self.price, date=date)
 
-    def get_quotes(self, date: datetime.date, scale: Scale) -> List[StockQuote]:
-        """依級別取得當日報價"""
+    def get_quotes(
+        self,
+        date: datetime.date,
+        scale: Scale,
+        adjusted: bool = False,
+    ) -> List[StockQuote]:
+        """
+        依級別取得當日報價
+
+        tick 不做還原：tick 為當日盤中資料，跨日還原無意義
+        （見 `backlog/股價還原與除權息調整.md` 範圍界線）
+        """
 
         if scale == Scale.TICK:
             return StockQuoteAdapter.convert_to_tick_quotes(self.tick, date)
 
-        return StockQuoteAdapter.convert_to_day_quotes(self.price, date)
+        return StockQuoteAdapter.convert_to_day_quotes(self.price, date, adjusted)
+
+    def get_price_limit_basis(self, date: datetime.date) -> Dict[str, float]:
+        """
+        除權息日的漲跌停基準：交易所另行公告的開盤競價基準
+
+        非除權息日回傳空 dict，`FillModel` 維持沿用前一交易日收盤。
+        `setup()` 未執行時（純記憶體測試會跳過）同樣回傳空 dict，
+        此時本來就沒有資料源可查，不是「查不到資料」
+        """
+
+        if self.dividend is None:
+            return {}
+
+        return self.dividend.get_opening_reference_price_map(date)
 
     def close(self) -> None:
         """關閉所有資料連線（回測結束時呼叫；原本全專案的 conn 從不 close）"""
 
-        for api in (self.chip, self.mrr, self.fs, self.price, self.tick):
+        for api in (self.chip, self.mrr, self.fs, self.price, self.dividend, self.tick):
             if api is not None:
                 api.close()
 

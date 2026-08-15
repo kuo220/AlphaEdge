@@ -1,4 +1,5 @@
 import datetime
+from typing import Optional
 
 import pandas as pd
 
@@ -55,6 +56,7 @@ class StockQuote(BaseQuote):
         high: float = 0.0,
         low: float = 0.0,
         close: float = 0.0,
+        adj_close: Optional[float] = None,
         tick: TickQuote = None,
     ):
         super().__init__(
@@ -67,6 +69,7 @@ class StockQuote(BaseQuote):
             high=high,
             low=low,
             close=close,
+            adj_close=adj_close,
         )
 
         # Tick Data

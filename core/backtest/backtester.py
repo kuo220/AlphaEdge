@@ -74,6 +74,7 @@ class Backtester:
         data_feed: BaseDataFeed,
         reporter_cls: Type[BaseBacktestReporter],
         event_counts: Optional[Dict[str, int]] = None,
+        adjusted_price: bool = False,
     ):
         self.strategy: BaseStrategy = strategy  # 要回測的策略
         self.account: BaseAccount = account  # 虛擬帳戶資訊
@@ -104,6 +105,11 @@ class Backtester:
         self.event_counts: Dict[str, int] = (
             event_counts if event_counts is not None else new_event_counts()
         )
+
+        # 是否以還原價（後復權）計算訊號。
+        # **預設關閉**：開啟會改變所有策略的訊號，LONG baseline 必然失效，
+        # 須依 `backlog/股價還原與除權息調整.md` S4 的順序單獨重產
+        self.adjusted_price: bool = adjusted_price
 
         self.setup()
 
@@ -315,7 +321,9 @@ class Backtester:
     def run_day_backtest(self, date: datetime.date) -> None:
         """日 K 級別的回測架構"""
 
-        quotes: List[BaseQuote] = self.data_feed.get_quotes(date, Scale.DAY)
+        quotes: List[BaseQuote] = self.data_feed.get_quotes(
+            date, Scale.DAY, adjusted=self.adjusted_price
+        )
 
         if not quotes:
             return
@@ -332,6 +340,12 @@ class Backtester:
             - quotes: List[BaseQuote]
                 當根 bar 的報價
         """
+
+        # 除權息日的漲跌停基準由交易所另行公告，須在下任何單之前覆寫，
+        # 否則整段漲跌停區間會沿用偏高的前一交易日收盤而失準
+        self.fill_model.apply_price_limit_basis(
+            self.data_feed.get_price_limit_basis(date)
+        )
 
         if self.get_execution_order() == BarExecutionOrder.OPEN_THEN_CLOSE:
             self.execute_open_signal(quotes)

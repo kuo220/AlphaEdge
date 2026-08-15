@@ -78,11 +78,16 @@ class StockPositionManager(BasePositionManager):
             )
 
             # Calculate open commission & tax & total open cost
-            open_commission: int = StockUtils.calculate_transaction_commission(
+            open_commission: int = self.cost_model.commission(
                 price=stock_order.price,
                 volume=stock_order.volume,
             )
-            open_tax: int = 0
+            # 做多的證交稅課在賣出端，開倉恆為 0（由成本模型依 action 判定）
+            open_tax: int = self.cost_model.tax(
+                price=stock_order.price,
+                volume=stock_order.volume,
+                action=Action.BUY,
+            )
             open_cost: int = open_commission + open_tax
 
             # Check if the account has enough balance
@@ -260,16 +265,20 @@ class StockPositionManager(BasePositionManager):
         )
 
         # Calculate sell commission & tax & total close cost
-        sell_commission: int = StockUtils.calculate_transaction_commission(
+        sell_commission: int = self.cost_model.commission(
             price=stock_order.price,
             volume=close_volume,
         )
-        sell_tax: int = StockUtils.calculate_transaction_tax(
-            stock_order.price,
-            close_volume,
+        sell_tax: int = self.cost_model.tax(
+            price=stock_order.price,
+            volume=close_volume,
+            action=Action.SELL,
         )
 
-        # Calculate proportional buy commission & total_transaction_cost
+        # 開倉成本依平倉張數等比例攤提。
+        # **不可改為「以平倉張數重算手續費」**：那會讓最低手續費在部分平倉時被重複套用，
+        # 使同一筆交易的 record.commission 與 realized_pnl 用到兩個不同的開倉手續費
+        # （舊 StockUtils 路徑的既有瑕疵，見 tests/backtest/compare_cost_formula.py）
         proportional_buy_commission: int = int(
             position.commission * (close_volume / position.volume)
         )
@@ -292,15 +301,21 @@ class StockPositionManager(BasePositionManager):
             commission=proportional_buy_commission + sell_commission,
             tax=sell_tax,
             transaction_cost=total_transaction_cost,
-            realized_pnl=StockUtils.calculate_net_profit(
-                buy_price=position.price,
-                sell_price=stock_order.price,
+            realized_pnl=self.cost_model.realized_pnl(
+                position_type=PositionType.LONG,
+                entry_price=position.price,
+                exit_price=stock_order.price,
                 volume=close_volume,
+                entry_cost=proportional_buy_commission,
+                exit_cost=sell_commission + sell_tax,
             ),
-            roi=StockUtils.calculate_roi(
-                buy_price=position.price,
-                sell_price=stock_order.price,
+            roi=self.cost_model.roi(
+                position_type=PositionType.LONG,
+                entry_price=position.price,
+                exit_price=stock_order.price,
                 volume=close_volume,
+                entry_cost=proportional_buy_commission,
+                exit_cost=sell_commission + sell_tax,
             ),
         )
 

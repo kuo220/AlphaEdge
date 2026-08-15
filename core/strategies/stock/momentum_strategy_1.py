@@ -81,7 +81,10 @@ class MomentumStrategy1(BaseStockStrategy):
             api=self.price, date=stock_quotes[0].date
         )
 
-        yesterday_close_map: Dict[str, Any] = self.price.get_close_map(yesterday)
+        # 訊號用收盤價：與下方的 signal_close 成對，由引擎的還原模式統一決定
+        yesterday_close_map: Dict[str, Any] = self.get_signal_close_map(
+            stock_quotes, yesterday
+        )
 
         for stock_quote in stock_quotes:
             # a. 對齊該股在昨交易日的收盤價；缺資料或價格無效則跳過
@@ -97,7 +100,9 @@ class MomentumStrategy1(BaseStockStrategy):
                 continue
 
             # b. 當日收盤相對昨收之漲幅（%）≥ MIN_PRICE_CHANGE_PCT_FOR_SIGNAL
-            price_chg: float = (stock_quote.close / yesterday_close_price - 1) * 100
+            price_chg: float = (
+                stock_quote.signal_close / yesterday_close_price - 1
+            ) * 100
 
             if price_chg < self.MIN_PRICE_CHANGE_PCT_FOR_SIGNAL:
                 continue

@@ -15,6 +15,7 @@ class DataType(str, Enum):
     PRICE = "Price"
     CHIP = "Chip"
     MARGIN = "Margin"  # 信用交易（融資融券餘額）
+    DIVIDEND = "Dividend"  # 除權除息計算結果表
     TICK = "Tick"
     MRR = "MONTHLY_REVENUE_REPORT"
     FS = "FINANCIAL_STATEMENT"

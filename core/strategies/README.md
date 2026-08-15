@@ -73,23 +73,10 @@ core/strategies/
     ├── __init__.py
     ├── base.py                    # BaseStockStrategy（設定 self.market = Market.STOCK）
     ├── momentum_strategy_1.py     # 動能策略 1（日線）
-    ├── momentum_strategy_2.py     # 動能策略 2（Tick）
-    ├── momentum_strategy_3.py     # 動能策略 3（均線動能）
-    ├── momentum_strategy_4.py     # 動能策略 4（日線：T−1/T−2 收盤動能，開盤進出）
-    ├── momentum_strategy_5.py     # 動能策略 5
     └── overnight_lead_event_strategy.py  # 隔夜領先事件策略
 ```
 
-#### 動能策略 4（`MomentumStrategy4`）
-
-- **篩選（T 日開盤前已知）**：T−1 收盤相對 T−2 收盤漲幅 ≥ 9%（可調 `MIN_PRICE_CHANGE_PCT_FOR_SIGNAL`）；成交量採 **T−1 全日量**（張）≥ 門檻（可調 `MIN_VOLUME_LOTS`）。
-- **買進**：T 日以 **`open`** 作為 `StockOrder.price`。
-- **賣出**：**開倉日的下一個交易日**（依 `StockPriceAPI` 有資料的交易日跳過休市，非僅日曆 +1 日）以 **`open`** 全數賣出。
-- **回測**：須使用日線流程（`Scale.DAY`）；與框架一致，每日先執行平倉再開倉，故隔日開盤賣出會在出場日先平倉後再評估新進場。
-
-```bash
-python run.py --strategy MomentumStrategy4
-```
+> **2026-08-15：動能策略 2~5 已刪除。** 四者皆為 `MomentumStrategy1` 的變形（Tick 級別、均線動能、開盤進出等），維護成本高於價值，且 `MomentumStrategy1` 是 LONG 回歸 baseline 的唯一來源。台股策略目前保留 `MomentumStrategy1` 與 `OvernightLeadEventStrategy` 兩支。
 
 ## 如何撰寫新策略
 
@@ -592,9 +579,6 @@ python run.py --strategy <StrategyName>
 ```bash
 # 執行回測模式，使用名為 "MomentumStrategy1" 的策略（動能 1 日線）
 python run.py --strategy MomentumStrategy1
-
-# 動能策略 4：T−1/T−2 收盤篩選、T 開盤買、次一交易日開盤賣
-python run.py --strategy MomentumStrategy4
 
 # 執行實盤模式（目前尚未實作）
 python run.py --mode live --strategy MomentumStrategy1

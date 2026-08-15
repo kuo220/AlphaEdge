@@ -1,6 +1,6 @@
 import datetime
 from abc import ABC, abstractmethod
-from typing import List
+from typing import Dict, List
 
 from core.models import BaseQuote
 from core.strategies.base import BaseStrategy
@@ -46,8 +46,31 @@ class BaseDataFeed(ABC):
 
         pass
 
+    def get_price_limit_basis(self, date: datetime.date) -> Dict[str, float]:
+        """
+        - Description:
+            取得當日「漲跌停基準價」與前一交易日收盤不同的標的
+
+            一般日子的基準就是前收盤，由 `FillModel` 自行累積即可；
+            但除權息日的基準是交易所另行公告的**開盤競價基準**，沿用前收會讓
+            整段漲跌停區間偏移。有這類公告的市場覆寫本方法即可。
+        - Parameters:
+            - date: datetime.date
+                交易日
+        - Return:
+            - Dict[str, float]
+                `{symbol: 基準價}`；沒有這種公告的市場回傳空 dict（預設）
+        """
+
+        return {}
+
     @abstractmethod
-    def get_quotes(self, date: datetime.date, scale: Scale) -> List[BaseQuote]:
+    def get_quotes(
+        self,
+        date: datetime.date,
+        scale: Scale,
+        adjusted: bool = False,
+    ) -> List[BaseQuote]:
         """
         - Description:
             取得指定日期、指定級別的報價
@@ -56,6 +79,9 @@ class BaseDataFeed(ABC):
                 交易日
             - scale: Scale
                 報價級別（DAY / TICK）
+            - adjusted: bool
+                是否附上還原價（掛在 `BaseQuote.adj_close`，OHLC 一律維持原始價）。
+                不支援還原的市場忽略此參數即可
         - Return:
             - List[BaseQuote]
                 該日報價；無資料時回傳空 list

@@ -7,8 +7,9 @@ from core.utils import Units
 """
 部位大小模型：把「檔數上限 ＋ 等權資金切分 ＋ 張數換算」收成單一實作
 
-原本這段公式在五支策略的 `calculate_position_size()` 內各寫一遍，且已經開始
-漂移（`max_holdings is None` 的語意在 `momentum_strategy_2` 與其餘四支完全相反）。
+原本這段公式在五支動能策略的 `calculate_position_size()` 內各寫一遍，且已經開始
+漂移（`max_holdings is None` 的語意在其中一支與其餘四支完全相反）。
+（那五支策略已於 2026-08-15 收斂為 `momentum_strategy_1` 一支，其餘刪除。）
 
 責任邊界（新增策略時請遵守）：
 - **策略決定**：選哪些標的、用什麼參考價、訂單的方向與動作

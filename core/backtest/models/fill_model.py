@@ -44,6 +44,11 @@ class BaseFillModel(ABC):
         """一根 bar 收盤：記錄收盤價，作為次一根 bar 的漲跌停基準"""
         pass
 
+    def apply_price_limit_basis(self, basis: Dict[str, float]) -> None:
+        """一根 bar 開始：以交易所公告的基準價覆寫漲跌停基準；預設不處理"""
+
+        pass
+
 
 class TwStockFillModel(BaseFillModel):
     """
@@ -139,3 +144,22 @@ class TwStockFillModel(BaseFillModel):
             close: float = quote.close or quote.cur_price
             if close:
                 self.prev_close[quote.symbol] = close
+
+    def apply_price_limit_basis(self, basis: Dict[str, float]) -> None:
+        """
+        - Description:
+            以交易所公告的開盤競價基準覆寫當日的漲跌停基準
+
+            除權息日的漲跌停不是以前一交易日收盤計算，而是以除權息參考價換算的
+            **開盤競價基準**。沿用前收會讓整段區間偏移——除息日前收偏高，
+            上下界一起偏高，`validate()` 的第二道檢查因此失準。
+
+            **只覆寫有公告的標的**，其餘維持 `on_bar_close()` 累積的前收盤價。
+        - Parameters:
+            - basis: Dict[str, float]
+                `{stock_id: 開盤競價基準}`，由 DataFeed 依當日除權息公告提供
+        """
+
+        for symbol, price in basis.items():
+            if price:
+                self.prev_close[symbol] = price

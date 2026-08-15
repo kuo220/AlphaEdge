@@ -32,6 +32,11 @@ class URLManager:
         "TWSE_MARGIN_ALL_URL": "https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN?date={date}&selectType=ALL&response=html",
         # 上櫃信用交易統計（全部，Ex: date = 2026/07/31）
         "TPEX_MARGIN_ALL_URL": "https://www.tpex.org.tw/www/zh-tw/margin/balance?date={date}&id=&response=html",
+        # 上市除權除息計算結果表（支援日期區間，一次可取整年，Ex: 20240101 / 20241231）
+        "TWSE_EX_RIGHT_URL": "https://www.twse.com.tw/rwd/zh/exRight/TWT49U?startDate={start_date}&endDate={end_date}&response=html",
+        # 上櫃除權除息計算結果表（支援日期區間，一次可取整年，Ex: 2024/01/01 ~ 2024/12/31）
+        # 日期**必須**用斜線格式：傳 20240101 不會報錯，會靜默退回「近三日」的預設區間
+        "TPEX_EX_RIGHT_URL": "https://www.tpex.org.tw/www/zh-tw/bulletin/exDailyQ?startDate={start_date}&endDate={end_date}&response=json",
         # 上市收盤行情（Ex: date = 20250801）
         "TWSE_CLOSING_QUOTE_URL": "https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?date={date}&type=ALLBUT0999&response=html",
         # 上櫃收盤行情（Ex: date = 2025/08/01）

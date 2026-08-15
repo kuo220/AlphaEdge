@@ -19,7 +19,7 @@ AlphaEdge 支援四種回測級別（KBar 級別）：
 1. **TICK**: 逐筆成交資料回測
    - 使用 `StockTickAPI` 取得逐筆成交資料
    - 適合需要精確價格和時間的策略
-   - 可參考 `core/strategies/stock/momentum_strategy_2.py` 範例
+   - 可參考 `core/strategies/stock/momentum_strategy_1.py` 範例
 
 2. **DAY**: 日線資料回測
    - 使用 `StockPriceAPI` 取得日線收盤價資料
@@ -97,7 +97,7 @@ for stock_quote, ref_price, open_volume in self.sizer.size(
 
 | 項目 | 收斂前 | 收斂後 |
 |------|--------|--------|
-| `max_holdings is None` | `momentum_strategy_2` 為「不開倉」，其餘四支為「不限制」 | 一律**不限制**（多數派 4:1，且與 `Optional[int]` 的直覺一致） |
+| `max_holdings is None` | 收斂前五支動能策略中有一支為「不開倉」，其餘四支為「不限制」 | 一律**不限制**（多數派 4:1，且與 `Optional[int]` 的直覺一致） |
 | 參考價 `<= 0` | `_1`／`_3` 無檢查，遇收盤價為 0 會 `ZeroDivisionError` **中斷整場回測** | 一律**跳過該檔**，不影響其他候選 |
 
 兩者都不改變既有回測結果：前者的分支在五支策略上皆跑不到（都在 `__init__` 明確設了 `max_holdings`），後者只在資料異常時觸發。

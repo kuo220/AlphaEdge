@@ -1,5 +1,5 @@
 import datetime
-from typing import Union
+from typing import Optional, Union
 
 from core.utils import Scale
 
@@ -25,6 +25,7 @@ class BaseQuote:
         high: float = 0.0,
         low: float = 0.0,
         close: float = 0.0,
+        adj_close: Optional[float] = None,
     ):
         # Basic Info
         self.symbol: str = symbol  # 商品代號（台股為股票代號、期貨為契約代號）
@@ -35,8 +36,30 @@ class BaseQuote:
         self.cur_price: float = cur_price  # Current price
         self.volume: int = volume  # order's volume (Unit: Lot)
 
-        # OHLC Info
+        # OHLC Info（一律為原始成交價：成交、成本、漲跌停與檔位判定都用這一組）
         self.open: float = open  # Open price
         self.high: float = high  # High price
         self.low: float = low  # Low price
         self.close: float = close  # Close price
+
+        # 還原收盤價（後復權）；None 代表未啟用還原，取值時退回 close
+        self.adj_close: Optional[float] = adj_close
+
+    @property
+    def signal_close(self) -> float:
+        """
+        - Description:
+            訊號計算專用的收盤價：啟用還原時為還原價，否則退回原始收盤價
+
+            **策略算漲跌幅／均線／動能一律用這個 property**，不要直接用 `close`——
+            除權息造成的跳空會被當成真實漲跌（見 `backlog/股價還原與除權息調整.md`）。
+            反過來，成交價、手續費、證交稅、漲跌停與檔位判定**一律用 `close`**，
+            因為稅費是對實際成交金額課徵的。
+
+            未啟用還原時本 property 等於 `close`，既有策略行為完全不變。
+        - Return:
+            - float
+                訊號用收盤價
+        """
+
+        return self.close if self.adj_close is None else self.adj_close

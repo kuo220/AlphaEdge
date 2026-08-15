@@ -1,5 +1,5 @@
 import datetime
-from typing import Any, List
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
@@ -44,7 +44,9 @@ class StockQuoteAdapter:
 
     @staticmethod
     def convert_to_day_quotes(
-        data_api: StockPriceAPI, date: datetime.date
+        data_api: StockPriceAPI,
+        date: datetime.date,
+        adjusted: bool = False,
     ) -> List[StockQuote]:
         """
         - Description:
@@ -62,17 +64,26 @@ class StockQuoteAdapter:
 
         price_df: pd.DataFrame = data_api.get(date)
 
+        # 還原價只掛在 adj_close，OHLC 一律維持原始成交價；
+        # 未啟用時 adj_close 為 None，StockQuote.signal_close 會退回 close，行為零改變
+        adjusted_close_map: Dict[str, Any] = (
+            data_api.get_adjusted_close_map(date) if adjusted else {}
+        )
+
         # Type: Pandas(date='2025-07-01', stock_id='0050', 證券名稱='元大台灣50', 開盤價=48.38, 最高價=49.15, 最低價=48.38, 收盤價=48.64, 漲跌價差=0.28, 成交股數=77081298, 成交金額=3767256390, 成交筆數=50311, 最後揭示買價=48.63, 最後揭示買量=89, 最後揭示賣價=48.64, 最後揭示賣量=104, 本益比=0.0)
         # Ex: [Pandas(date='2025-07-01', stock_id='0050',...), Pandas(date='2025-07-01', stock_id='0051',...), ...]
         price_rows: List[Any] = [row for row in price_df.itertuples(index=False)]
 
-        return StockQuoteAdapter.generate_stock_quotes(price_rows, date, Scale.DAY)
+        return StockQuoteAdapter.generate_stock_quotes(
+            price_rows, date, Scale.DAY, adjusted_close_map
+        )
 
     @staticmethod
     def generate_stock_quotes(
         data: pd.DataFrame | List[Any],
         date: datetime.date,
         scale: Scale,
+        adjusted_close_map: Optional[Dict[str, Any]] = None,
     ) -> List[StockQuote]:
         """
         - Description:
@@ -109,9 +120,15 @@ class StockQuoteAdapter:
                 all_stock_ids
             )
 
+            adjusted_close_map = adjusted_close_map or {}
+
             return [
                 StockQuoteAdapter.generate_stock_quote(
-                    stock, stock.stock_id, date, scale
+                    stock,
+                    stock.stock_id,
+                    date,
+                    scale,
+                    adjusted_close_map.get(stock.stock_id),
                 )
                 for stock in data
                 if stock.stock_id in filtered_stock_ids
@@ -123,6 +140,7 @@ class StockQuoteAdapter:
         stock_id: str,
         date: datetime.date,
         scale: Scale,
+        adj_close: Optional[float] = None,
     ) -> StockQuote:
         """
         - Description:
@@ -172,6 +190,7 @@ class StockQuoteAdapter:
                 high=data.最高價,
                 low=data.最低價,
                 close=data.收盤價,
+                adj_close=adj_close,
             )
 
         raise ValueError(f"Unsupported scale: {scale.name}")

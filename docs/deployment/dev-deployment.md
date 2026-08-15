@@ -44,7 +44,7 @@ python run.py --strategy MomentumStrategy1
 
 ```bash
 python run.py --strategy SimpleLongStrategy
-python run.py --strategy MomentumStrategy2
+python run.py --strategy MomentumStrategy1
 ```
 
 ## 4) 檢視結果

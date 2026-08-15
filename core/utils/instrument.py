@@ -104,6 +104,10 @@ class StockUtils:
             - commission: int
                 手續費
         - Notes:
+        - ⚠️ **記帳的唯一入口是 `StockCostModel`**，不要從 `core/managers/`、
+          `core/backtest/` 或策略層直接呼叫本函式。本函式保留為底層純計算，
+          僅供 `StockCostModel` 與研究腳本使用（見
+          `backlog/LONG成本模型口徑收斂.md` S4）。
             For long position, the commission costs:
             - buy fee (券買手續費 = 成交價 x 成交股數 x 手續費率 x discount)
             - sell fee (券賣手續費 = 成交價 x 成交股數 x 手續費率 x discount)
@@ -138,6 +142,10 @@ class StockUtils:
             - tax: int
                 交易稅
         - Notes:
+        - ⚠️ **記帳的唯一入口是 `StockCostModel`**，不要從 `core/managers/`、
+          `core/backtest/` 或策略層直接呼叫本函式。本函式保留為底層純計算，
+          僅供 `StockCostModel` 與研究腳本使用（見
+          `backlog/LONG成本模型口徑收斂.md` S4）。
             - 一般賣出證交稅 = 成交價 x 成交股數 x 0.3%
             - 現股當沖賣出證交稅 = 成交價 x 成交股數 x 0.15%（減半優惠）
             - 放空的證交稅課在「賣出（開倉）」這端，與做多相反
@@ -233,6 +241,11 @@ class StockUtils:
     ) -> float:
         """
         - Description: 計算股票交易的淨收益（扣除手續費和交易稅）（目前只有做多）
+
+            ⚠️ **記帳的唯一入口是 `StockCostModel.realized_pnl()`**：本函式以「傳入張數」
+            重算開倉手續費，部分平倉時最低手續費會被重複套用，與 `record.commission`
+            的等比例攤提不一致（差異量化見 `tests/backtest/compare_cost_formula.py`）。
+            2026-08-15 起生產路徑已不再呼叫，保留僅供研究腳本比對用。
         - Parameters:
             - buy_price: float
                 股票買入價格
@@ -265,6 +278,8 @@ class StockUtils:
     ) -> float:
         """
         - Description: 計算股票投資報酬率（ROI）（目前只有做多）
+
+            ⚠️ **記帳的唯一入口是 `StockCostModel.roi()`**，理由同 `calculate_net_profit`。
         - Parameters:
             - buy_price: float
                 股票買入價格

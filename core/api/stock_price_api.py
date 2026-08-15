@@ -6,6 +6,7 @@ import pandas as pd
 from loguru import logger
 
 from core.api.base import BaseDataAPI
+from core.api.stock_dividend_api import StockDividendAPI
 from core.config import DB_PATH, PRICE_TABLE_NAME
 from core.pipeline.utils.constant import PriceColumn
 from core.utils.constant import Units
@@ -17,10 +18,17 @@ from core.utils.log_manager import LogManager
 class StockPriceAPI(BaseDataAPI):
     """Stock Price API"""
 
-    def __init__(self, conn: Optional[sqlite3.Connection] = None):
+    def __init__(
+        self,
+        conn: Optional[sqlite3.Connection] = None,
+        dividend_api: Optional[StockDividendAPI] = None,
+    ):
         # 由 DataFeed 傳入共用連線；未指定時自行建立（見 backlog Phase2-7）
         self.conn: Optional[sqlite3.Connection] = conn
         self.owns_conn: bool = conn is None
+
+        # 還原價專用；只有 get_adjusted_* 系列會用到，故延遲建立
+        self.dividend_api: Optional[StockDividendAPI] = dividend_api
 
         self.setup()
 
@@ -30,6 +38,13 @@ class StockPriceAPI(BaseDataAPI):
         if self.owns_conn:
             self.conn = sqlite3.connect(DB_PATH)
         LogManager.setup_logger("stock_price_api.log")
+
+    def get_dividend_api(self) -> StockDividendAPI:
+        """取得除權息 API（延遲建立，與本 API 共用同一條連線）"""
+
+        if self.dividend_api is None:
+            self.dividend_api = StockDividendAPI(conn=self.conn)
+        return self.dividend_api
 
     def get(self, date: datetime.date) -> pd.DataFrame:
         """取得所有股票指定日期的 Price"""
@@ -172,3 +187,95 @@ class StockPriceAPI(BaseDataAPI):
         series: pd.Series = df[PriceColumn.CLOSE.value]
         series.index = df["date"]
         return series
+
+    # === 還原價（後復權）：僅供訊號計算，成交與成本一律走上面的原始價 ===
+    def get_adjusted_close_map(self, date: datetime.date) -> Dict[str, Any]:
+        """
+        - Description:
+            取得單日全市場的**還原**收盤價對照表，與 `get_close_map()` 一一對應
+
+            **用途界線（取錯會直接算錯錢）**：
+            - 訊號計算（漲跌幅、均線、動能）→ 本方法
+            - 成交價、手續費、證交稅 → `get_close_map()`（原始價，稅費對實際成交金額課徵）
+            - 漲跌停與檔位判定 → 原始價
+
+            刻意不做成 `get_close_map(adjusted=True)`：同一個方法回傳兩種語意的價格，
+            呼叫端很容易拿錯而且不會有任何錯誤訊息
+            （見 `backlog/股價還原與除權息調整.md` S2 決策）。
+
+            無除權息紀錄的股票其係數為 1，回傳值與 `get_close_map()` 相同。
+        - Parameters:
+            - date: datetime.date
+                查詢日期
+        - Return:
+            - adjusted_close_map: Dict[str, Any]
+                {stock_id: 還原收盤價}；無法轉為數值的價格維持原值不還原
+        """
+
+        close_map: Dict[str, Any] = self.get_close_map(date)
+        factor_map: Dict[str, float] = self.get_dividend_api().get_cumulative_factor_map(
+            date
+        )
+
+        adjusted_close_map: Dict[str, Any] = {}
+        for stock_id, close in close_map.items():
+            factor: float = factor_map.get(stock_id, 1.0)
+            if factor == 1.0:
+                adjusted_close_map[stock_id] = close
+                continue
+            try:
+                adjusted_close_map[stock_id] = float(close) * factor
+            except (TypeError, ValueError):
+                # 價格本身無法轉為數值時維持原樣，讓缺資料仍以原本的形式往下傳
+                adjusted_close_map[stock_id] = close
+
+        return adjusted_close_map
+
+    def get_adjusted_close_series(
+        self,
+        stock_id: str,
+        start_date: datetime.date,
+        end_date: datetime.date,
+    ) -> pd.Series:
+        """
+        - Description:
+            取得指定個股在區間內的**還原**收盤價序列，與 `get_close_series()` 一一對應
+
+            區間內若跨過除權息日，序列在該日不再出現虛假跳空——這正是本系列方法要解的問題。
+        - Parameters:
+            - stock_id: str
+                股票代號
+            - start_date: datetime.date
+                起始日（含）
+            - end_date: datetime.date
+                結束日（含）
+        - Return:
+            - series: pd.Series
+                index 為原始 date 欄位、已依日期排序；查無資料時為空 Series
+        """
+
+        series: pd.Series = self.get_close_series(stock_id, start_date, end_date)
+
+        if series.empty:
+            return series
+
+        dividend_api: StockDividendAPI = self.get_dividend_api()
+        factors: pd.Series = pd.Series(
+            [
+                dividend_api.get_cumulative_factor(stock_id, self.to_date(index_value))
+                for index_value in series.index
+            ],
+            index=series.index,
+            dtype=float,
+        )
+        return pd.to_numeric(series, errors="coerce") * factors
+
+    @staticmethod
+    def to_date(value: Any) -> datetime.date:
+        """把 price 表的 date 欄位（字串或 datetime）統一轉為 `datetime.date`"""
+
+        if isinstance(value, datetime.date) and not isinstance(
+            value, datetime.datetime
+        ):
+            return value
+        return pd.to_datetime(value).date()
