@@ -530,3 +530,159 @@ def test_max_holding_days_force_cover(
 
     assert backtester.event_counts["forced_cover_max_holding"] == 1
     assert backtester.account.positions == []
+
+
+# === 停牌／下市部位的出場（真實度 S3）===
+def test_no_quote_days_force_exit(make_strategy, make_backtester, make_quote) -> None:
+    """連續無報價達門檻時強制出場，避免停牌部位盯市到回測結束"""
+
+    strategy = short_strategy(
+        make_strategy,
+        max_no_quote_days=2,
+        open_script={
+            DAY_1: [
+                StockOrder(
+                    stock_id="2330",
+                    date=DAY_1,
+                    action=Action.SELL,
+                    position_type=PositionType.SHORT,
+                    price=100.0,
+                    volume=1,
+                )
+            ]
+        },
+    )
+    backtester: Backtester = make_backtester(strategy)
+
+    # 第 1 日有報價開倉
+    backtester.execute_bar(
+        DAY_1, [make_quote(date=DAY_1, cur_price=100.0, high=101.0, low=99.0)]
+    )
+    assert len(backtester.account.positions) == 1
+
+    # 接下來兩日完全無報價（停牌）：報價清單為空
+    for offset in (1, 2):
+        backtester.execute_bar(DAY_1 + datetime.timedelta(days=offset), [])
+
+    assert backtester.event_counts["forced_cover_no_quote"] == 1
+    assert backtester.account.positions == []
+
+
+def test_no_quote_days_reset_when_quote_returns(
+    make_strategy, make_backtester, make_quote
+) -> None:
+    """恢復交易後計數歸零，不可累加到門檻誤觸出場"""
+
+    strategy = short_strategy(
+        make_strategy,
+        max_no_quote_days=2,
+        open_script={
+            DAY_1: [
+                StockOrder(
+                    stock_id="2330",
+                    date=DAY_1,
+                    action=Action.SELL,
+                    position_type=PositionType.SHORT,
+                    price=100.0,
+                    volume=1,
+                )
+            ]
+        },
+    )
+    backtester: Backtester = make_backtester(strategy)
+
+    backtester.execute_bar(
+        DAY_1, [make_quote(date=DAY_1, cur_price=100.0, high=101.0, low=99.0)]
+    )
+    # 停牌一日 → 恢復一日 → 再停牌一日：計數被歸零過，不應觸發
+    backtester.execute_bar(DAY_1 + datetime.timedelta(days=1), [])
+    backtester.execute_bar(
+        DAY_1 + datetime.timedelta(days=2),
+        [make_quote(date=DAY_1 + datetime.timedelta(days=2), cur_price=100.0,
+                    high=101.0, low=99.0)],
+    )
+    backtester.execute_bar(DAY_1 + datetime.timedelta(days=3), [])
+
+    assert backtester.event_counts["forced_cover_no_quote"] == 0
+    assert len(backtester.account.positions) == 1
+
+
+def test_no_quote_exit_disabled_by_default(
+    make_strategy, make_backtester, make_quote
+) -> None:
+    """未設門檻時維持現況：停牌部位持續以最後可得價格盯市，不出場"""
+
+    strategy = short_strategy(
+        make_strategy,
+        open_script={
+            DAY_1: [
+                StockOrder(
+                    stock_id="2330",
+                    date=DAY_1,
+                    action=Action.SELL,
+                    position_type=PositionType.SHORT,
+                    price=100.0,
+                    volume=1,
+                )
+            ]
+        },
+    )
+    backtester: Backtester = make_backtester(strategy)
+
+    backtester.execute_bar(
+        DAY_1, [make_quote(date=DAY_1, cur_price=100.0, high=101.0, low=99.0)]
+    )
+    for offset in range(1, 6):
+        backtester.execute_bar(DAY_1 + datetime.timedelta(days=offset), [])
+
+    assert backtester.event_counts["forced_cover_no_quote"] == 0
+    assert len(backtester.account.positions) == 1
+
+
+# === 當沖轉留倉的證交稅差額（真實度 S7）===
+def test_convert_to_margin_tops_up_tax(
+    make_strategy, make_backtester, make_quote
+) -> None:
+    """
+    當沖轉融券留倉時須補徵證交稅差額
+
+    開倉當下以當沖減半稅率課稅，轉為留倉後該筆賣出已非當沖，應適用全額稅率。
+    漏收會讓「漲停鎖死轉留倉」這種放空最痛的情境成本被系統性低估
+    """
+
+    strategy = short_strategy(
+        make_strategy,
+        enable_intraday=True,
+        open_script={
+            DAY_2: [
+                StockOrder(
+                    stock_id="2330",
+                    date=DAY_2,
+                    action=Action.SELL,
+                    position_type=PositionType.SHORT,
+                    price=110.0,
+                    volume=1,
+                )
+            ]
+        },
+    )
+    backtester: Backtester = make_backtester(strategy)
+
+    # 第一根 bar 不下單，只為了讓引擎記下前收 100——漲停價才會是 110
+    backtester.execute_bar(DAY_1, [make_quote(date=DAY_1, cur_price=100.0)])
+    # 第二根 bar 全日鎖漲停 → 無法當日回補 → 轉為融券留倉
+    backtester.execute_bar(DAY_2, [make_quote(date=DAY_2, cur_price=110.0)])
+
+    positions: List[StockPosition] = backtester.account.positions
+    assert len(positions) == 1
+
+    position: StockPosition = positions[0]
+    cost_model = backtester.cost_model
+    full_tax: int = cost_model.tax(
+        price=position.price, volume=position.volume,
+        action=Action.SELL, is_day_trade=False,
+    )
+
+    # 轉換後的稅應等於全額稅率的結果，而非開倉時的減半稅
+    assert position.tax == full_tax
+    assert not position.is_day_trade

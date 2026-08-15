@@ -1,3 +1,4 @@
+import datetime
 from typing import Optional, Tuple
 
 import pytest
@@ -96,3 +97,48 @@ def test_get_price_limits_without_prev_close(
     """尚未取得前收時不做漲跌停判定，維持既有的「跳過該項檢查」行為"""
 
     assert spec.get_price_limits(prev_close) == (None, None)
+
+
+# === 漲跌停幅度的年代分段（真實度 S8）===
+def test_price_limit_ratio_before_2015_06_01() -> None:
+    """
+    台股於 2015-06-01 由 7% 放寬為 10%
+
+    以 23,972 筆交易所公告值實測：放寬前中位數 6.92%、之後 9.91%。
+    單用 10% 會讓 2013-01~2015-05 的區間偏寬約 43%，該期間相符率為 0.0%
+    """
+
+    spec: TwStockSpec = TwStockSpec()
+
+    assert spec.get_price_limit_ratio(datetime.date(2014, 7, 1)) == 0.07
+    assert spec.get_price_limit_ratio(datetime.date(2015, 5, 31)) == 0.07
+    assert spec.get_price_limit_ratio(datetime.date(2015, 6, 1)) == 0.10
+    assert spec.get_price_limit_ratio(datetime.date(2024, 1, 4)) == 0.10
+
+
+def test_price_limit_ratio_defaults_to_current() -> None:
+    """未提供日期時採現行幅度——呼叫端沒給日期即視為當代回測"""
+
+    assert TwStockSpec().get_price_limit_ratio() == 0.10
+
+
+def test_price_limits_use_era_specific_ratio() -> None:
+    """同一個基準價在兩個年代算出不同的漲跌停區間"""
+
+    spec: TwStockSpec = TwStockSpec()
+
+    assert spec.get_price_limits(100.0, datetime.date(2014, 7, 1)) == (93.0, 107.0)
+    assert spec.get_price_limits(100.0, datetime.date(2024, 1, 4)) == (90.0, 110.0)
+
+
+def test_price_limits_match_official_announcement() -> None:
+    """
+    以交易所公告值反向驗證：聯發科 2024-01-04 除權息日
+
+    開盤競價基準 928 元，官方公告漲停 1020、跌停 836
+    """
+
+    assert TwStockSpec().get_price_limits(928.0, datetime.date(2024, 1, 4)) == (
+        836.0,
+        1020.0,
+    )

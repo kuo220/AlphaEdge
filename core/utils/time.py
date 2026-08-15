@@ -1,6 +1,7 @@
 import datetime
-from typing import List
+from typing import Any, List, Optional
 
+import pandas as pd
 from dateutil.rrule import DAILY, MONTHLY, rrule
 
 
@@ -90,6 +91,35 @@ class TimeUtils:
     ) -> List[int]:
         """產生從 start_season 到 end_season 的所有季度"""
         return [season for season in range(start_season, end_season + 1)]
+
+    @staticmethod
+    def to_date(value: Any) -> Optional[datetime.date]:
+        """
+        - Description:
+            把各處來源的日期欄位統一轉為 `datetime.date`
+
+            報價的 `date` 可能是 `date`（日 K）或 `datetime`／`Timestamp`（tick），
+            資料表讀出來則可能是字串。需要以日期做判斷的地方（例如依年代選取
+            漲跌停幅度）不應各自處理這些型別差異。
+        - Parameters:
+            - value: Any
+                日期值；可為 `date`、`datetime`、字串或 `pd.Timestamp`
+        - Return:
+            - Optional[datetime.date]
+                轉換後的日期；無法解析時為 None
+        """
+
+        if isinstance(value, datetime.datetime):
+            return value.date()
+        if isinstance(value, datetime.date):
+            return value
+        if value is None:
+            return None
+
+        try:
+            return pd.to_datetime(value).date()
+        except (TypeError, ValueError):
+            return None
 
     @staticmethod
     def format_date(date: datetime.date, sep: str = "") -> str:

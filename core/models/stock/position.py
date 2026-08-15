@@ -62,6 +62,8 @@ class StockPosition(BasePosition):
         self.borrow_fee: float = borrow_fee  # 開倉時一次收取的融券手續費
         self.accrued_borrow_fee: float = accrued_borrow_fee  # SBL 逐日計提的借券費
         self.holding_days: int = holding_days  # 已持有曆日數
+        # 連續無報價天數；停牌／下市的部位靠它才有出場依據，見真實度 S3
+        self.no_quote_days: int = 0
 
     @property
     def stock_id(self) -> str:

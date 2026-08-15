@@ -8,7 +8,7 @@ from loguru import logger
 
 from core.backtest.models.instrument_spec import InstrumentSpec, TwStockSpec
 from core.models import BaseOrder, BaseQuote
-from core.utils import Action, PositionType, Scale
+from core.utils import Action, PositionType, Scale, TimeUtils
 
 """
 FillModel: 這張單成不成交、以什麼價量成交
@@ -175,7 +175,10 @@ class TwStockFillModel(BaseFillModel):
 
         prev_close: Optional[float] = self.prev_close.get(order.symbol)
         if prev_close:
-            limit_down, limit_up = self.instrument.get_price_limits(prev_close)
+            # 帶入報價日期：2015-06-01 前的漲跌停幅度為 7%，非現行的 10%
+            limit_down, limit_up = self.instrument.get_price_limits(
+                prev_close, TimeUtils.to_date(quote.date)
+            )
             if not (limit_down <= order.price <= limit_up):
                 logger.warning(
                     f"[Validate Fill] {order.symbol} 成交價 {order.price} 超出漲跌停 "

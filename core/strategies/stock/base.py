@@ -44,6 +44,8 @@ class BaseStockStrategy(BaseStrategy):
         # 成交假設（滑價、成交量上限）；None 用預設（全部關閉）
         self.fill_config: Optional[FillConfig] = None
         self.max_holding_days: Optional[int] = None  # 留倉放空的最長持有曆日數
+        # 連續無報價幾天後強制出場（停牌／下市）；None 為不處理，維持現況
+        self.max_no_quote_days: Optional[int] = None
         self.day_trade_uncovered_policy: DayTradeUncoveredPolicy = (
             DayTradeUncoveredPolicy.FORCE_COVER_AT_CLOSE  # 當沖日終未回補的處理
         )

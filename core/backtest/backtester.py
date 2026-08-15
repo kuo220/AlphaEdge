@@ -47,6 +47,8 @@ def new_event_counts() -> Dict[str, int]:
         "forced_cover_day_trade": 0,  # 當沖日終強制回補
         "forced_cover_margin_call": 0,  # 維持率追繳強制回補
         "forced_cover_max_holding": 0,  # 超過最長持有天數強制回補
+        "forced_cover_suspended": 0,  # 停券日強制回補
+        "forced_cover_no_quote": 0,  # 連續無報價（停牌／下市）強制出場
         "limit_up_cover_failed": 0,  # 漲停鎖死無法回補
         "rejected_max_holdings": 0,  # 超過最大持倉檔數被引擎剔除的開倉單
         "rejected_no_borrow": 0,  # 融券餘額不足被拒的放空開倉單

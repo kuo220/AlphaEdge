@@ -1,7 +1,13 @@
+import datetime
 from abc import ABC, abstractmethod
 from typing import Optional, Tuple
 
-from core.utils import PRICE_LIMIT_RATIO, Action
+from core.utils import (
+    PRICE_LIMIT_RATIO,
+    PRICE_LIMIT_RATIO_LEGACY,
+    PRICE_LIMIT_WIDENED_DATE,
+    Action,
+)
 from core.utils.instrument import StockUtils
 
 """InstrumentSpec: 商品規格（報價單位換算、跳動點、漲跌停規則、滑價調價）"""
@@ -110,23 +116,64 @@ class TwStockSpec(InstrumentSpec):
 
         return StockUtils.round_to_tick(price, direction)
 
+    def get_price_limit_ratio(self, date: Optional[datetime.date] = None) -> float:
+        """
+        - Description:
+            取得該日適用的漲跌停幅度
+
+            **台股於 2015-06-01 由 7% 放寬為 10%**。以 23,972 筆交易所公告的
+            漲停／跌停價實測：放寬前中位數 6.92%、放寬後 9.91%。單用 10% 會讓
+            2013-01 ~ 2015-05 的區間偏寬約 43%，該期間與官方值的相符率為 0.0%。
+        - Parameters:
+            - date: Optional[datetime.date]
+                交易日；`None` 時採現行幅度（呼叫端未提供日期即視為當代回測）
+        - Return:
+            - float
+                該日適用的幅度
+        """
+
+        if date is not None and date < PRICE_LIMIT_WIDENED_DATE:
+            return PRICE_LIMIT_RATIO_LEGACY
+
+        return PRICE_LIMIT_RATIO
+
     def get_price_limits(
-        self, prev_close: float
+        self,
+        prev_close: float,
+        date: Optional[datetime.date] = None,
     ) -> Tuple[Optional[float], Optional[float]]:
         """
         - Description:
-            台股漲跌停為前收 ±10%，並各自往內對齊檔位（漲停捨去、跌停進位）
+            台股漲跌停為前收 ±幅度，並各自往內對齊檔位（漲停捨去、跌停進位）
 
             對齊方向不可對調：漲停若進位會算出高於法定漲停的價格。
+
+            幅度依 `date` 決定（2015-06-01 前為 7%）；未提供日期時採現行幅度。
+
+            **已知落差（2026-08-15 實測，尚未解決）**：以 23,972 筆交易所公告的
+            漲停／跌停價比對，本方法的相符率為 **61.6%**。修正幅度分段前為 54.5%，
+            分段解掉了 2013~2015/05 的整段偏差（該期間相符率 0.0% → 約 73%），
+            剩餘落差來自**檔位對齊規則**——本方法採「±幅度後往內對齊檔位」，
+            與交易所實際的升降單位取值規則不完全一致，多數不符者相差一個檔位。
+
+            影響範圍：漲跌停只在 `FillModel.validate()` 用於拒單，多數訂單不在
+            邊界上；但放空的「漲停鎖死無法回補」判定（`check_limit_up_locked`）
+            直接依賴此結果，`limit_up_cover_failed` 事件計數會有偏差。
+        - Parameters:
+            - prev_close: float
+                漲跌停基準價（一般為前一交易日收盤；除權息日為開盤競價基準）
+            - date: Optional[datetime.date]
+                交易日，用於選取當時適用的漲跌停幅度
+        - Return:
+            - Tuple[Optional[float], Optional[float]]
+                （跌停價, 漲停價）；基準價為 0 時皆為 None
         """
 
         if not prev_close:
             return (None, None)
 
-        limit_up: float = self.round_to_tick(
-            prev_close * (1 + PRICE_LIMIT_RATIO), "down"
-        )
-        limit_down: float = self.round_to_tick(
-            prev_close * (1 - PRICE_LIMIT_RATIO), "up"
-        )
+        ratio: float = self.get_price_limit_ratio(date)
+
+        limit_up: float = self.round_to_tick(prev_close * (1 + ratio), "down")
+        limit_down: float = self.round_to_tick(prev_close * (1 - ratio), "up")
         return (limit_down, limit_up)

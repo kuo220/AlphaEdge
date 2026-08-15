@@ -75,6 +75,7 @@ def build_tw_stock_backtester(
         day_trade_uncovered_policy=strategy.day_trade_uncovered_policy,
         margin_call_policy=strategy.margin_call_policy,
         max_holding_days=strategy.max_holding_days,
+        max_no_quote_days=strategy.max_no_quote_days,
     )
 
     return Backtester(

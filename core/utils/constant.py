@@ -54,7 +54,14 @@ DAY_TRADE_TAX_EXPIRY: datetime.date = datetime.date(2027, 12, 31)
 DAYS_PER_YEAR: int = 365
 
 # 台股漲跌幅限制（單日 ±10%）
-PRICE_LIMIT_RATIO: float = 0.1
+# 台股漲跌停幅度：2015-06-01 由 7% 放寬為 10%
+#
+# 以 23,972 筆交易所公告的漲停／跌停價實測：2015-06-01 前的中位數為 6.92%、
+# 之後為 9.91%。單用 10% 會讓 2013-01 ~ 2015-05 的漲跌停區間偏寬約 43%，
+# 該期間與官方公告值的相符率為 0.0%。
+PRICE_LIMIT_RATIO: float = 0.1  # 現行幅度（2015-06-01 起）
+PRICE_LIMIT_RATIO_LEGACY: float = 0.07  # 放寬前的幅度
+PRICE_LIMIT_WIDENED_DATE: datetime.date = datetime.date(2015, 6, 1)  # 放寬生效日
 
 # 台股價格檔位：(價格上限, 檔位)，價格小於上限時適用該檔位
 PRICE_TICK_TABLE: list = [

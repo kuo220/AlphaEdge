@@ -21,6 +21,7 @@ from core.utils import (
     MarginCallPolicy,
     PositionType,
     ShortMethod,
+    TimeUtils,
 )
 from core.backtest.models.cost_model import StockCostModel
 
@@ -60,6 +61,31 @@ class BaseSettlementModel(ABC):
         pass
 
     @abstractmethod
+    def update_no_quote_days(
+        self,
+        quote_map: Dict[str, StockQuote],
+        positions: List[StockPosition],
+    ) -> None:
+        """
+        - Description:
+            更新每個部位的連續無報價天數
+
+            有報價即歸零，無報價則累加。長期停牌或已下市的標的會持續累加，
+            成為 `check_no_quote_exit()` 的出場依據。
+        - Parameters:
+            - quote_map: Dict[str, StockQuote]
+                當日報價對照表
+            - positions: List[StockPosition]
+                要更新的部位
+        """
+
+        for position in positions:
+            quote: Optional[StockQuote] = quote_map.get(position.symbol)
+            if quote is not None and (quote.close or quote.cur_price):
+                position.no_quote_days = 0
+            else:
+                position.no_quote_days += 1
+
     def get_mark_price(
         self, position: BasePosition, quote_map: Dict[str, BaseQuote]
     ) -> float:
@@ -100,6 +126,7 @@ class TwStockSettlementModel(BaseSettlementModel):
         ),
         margin_call_policy: MarginCallPolicy = MarginCallPolicy.FORCE_COVER,
         max_holding_days: Optional[int] = None,
+        max_no_quote_days: Optional[int] = None,
     ):
         self.position_manager: StockPositionManager = position_manager
         self.cost_model: StockCostModel = cost_model
@@ -115,6 +142,7 @@ class TwStockSettlementModel(BaseSettlementModel):
         )
         self.margin_call_policy: MarginCallPolicy = margin_call_policy
         self.max_holding_days: Optional[int] = max_holding_days
+        self.max_no_quote_days: Optional[int] = max_no_quote_days
 
     def on_bar_close(
         self,
@@ -200,7 +228,10 @@ class TwStockSettlementModel(BaseSettlementModel):
         if not prev_close:
             return False
 
-        _, limit_up = self.instrument.get_price_limits(prev_close)
+        # 帶入報價日期：2015-06-01 前的漲跌停幅度為 7%，非現行的 10%
+        _, limit_up = self.instrument.get_price_limits(
+            prev_close, TimeUtils.to_date(quote.date)
+        )
         return (
             quote.close == limit_up
             and quote.high == limit_up
@@ -210,7 +241,22 @@ class TwStockSettlementModel(BaseSettlementModel):
     def convert_to_margin_position(
         self, position: StockPosition, account: BaseAccount
     ) -> None:
-        """將無法當日回補的當沖空單轉為融券留倉：補收保證金與融券手續費"""
+        """
+        - Description:
+            將無法當日回補的當沖空單轉為融券留倉
+
+            補收三項：保證金、融券手續費，以及**證交稅差額**。
+
+            稅差額不可漏收：開倉當下該筆賣出是以現股當沖的減半稅率課稅，
+            一旦轉為留倉，這筆賣出在現實中就不是當沖，應適用全額稅率。
+            漏收會讓「漲停鎖死轉留倉」這種放空最痛的情境成本被系統性低估——
+            低估恰好發生在最不該樂觀的地方。
+        - Parameters:
+            - position: StockPosition
+                要轉為留倉的當沖空單
+            - account: BaseAccount
+                虛擬帳戶
+        """
 
         margin: int = self.cost_model.margin_required(
             price=position.price,
@@ -222,15 +268,46 @@ class TwStockSettlementModel(BaseSettlementModel):
             volume=position.volume,
             short_method=ShortMethod.MARGIN,
         )
+        tax_diff: int = self.get_day_trade_tax_top_up(position)
 
         position.is_day_trade = False
         position.short_method = ShortMethod.MARGIN
         position.margin += margin
         position.borrow_fee += borrow_fee
-        position.transaction_cost += borrow_fee
+        position.tax += tax_diff
+        position.transaction_cost += borrow_fee + tax_diff
 
-        account.balance -= margin + borrow_fee
+        account.balance -= margin + borrow_fee + tax_diff
         account.margin_used += margin
+
+    def get_day_trade_tax_top_up(self, position: StockPosition) -> int:
+        """
+        - Description:
+            計算當沖轉留倉時應補徵的證交稅差額
+
+            稅率一律取自 `CostConfig`，**不寫死 0.3% 與 0.15%**——落日條款或費率
+            調整時只需改設定，不必回頭找散落在各處的字面值。
+        - Parameters:
+            - position: StockPosition
+                轉換前的當沖空單
+        - Return:
+            - int
+                應補徵的稅額（全額稅 − 已收的當沖減半稅）
+        """
+
+        full_tax: int = self.cost_model.tax(
+            price=position.price,
+            volume=position.volume,
+            action=Action.SELL,
+            is_day_trade=False,
+        )
+        day_trade_tax: int = self.cost_model.tax(
+            price=position.price,
+            volume=position.volume,
+            action=Action.SELL,
+            is_day_trade=True,
+        )
+        return max(0, full_tax - day_trade_tax)
 
     def force_cover_position(
         self,
@@ -281,6 +358,7 @@ class TwStockSettlementModel(BaseSettlementModel):
 
         quote_map: Dict[str, StockQuote] = {sq.symbol: sq for sq in stock_quotes}
 
+        self.update_no_quote_days(quote_map, short_positions)
         self.accrue_holding_cost(date, quote_map, account)
         self.check_margin_call(date, quote_map, account, event_counts)
 
@@ -331,6 +409,23 @@ class TwStockSettlementModel(BaseSettlementModel):
         for position in list(account.get_positions(position_type=PositionType.SHORT)):
             price: float = self.get_mark_price(position, quote_map)
 
+            # 連續無報價（停牌／下市）：強制出場
+            #
+            # 出場價採「最後可得價格」而非歸零：下市清算實務上多為部分償還，
+            # 回測無法精確模擬，歸零會系統性高估放空獲利。保守估計者可另行
+            # 以報表的本事件計數自行調整。
+            if (
+                self.max_no_quote_days is not None
+                and position.no_quote_days >= self.max_no_quote_days
+            ):
+                logger.warning(
+                    f"[Force Cover] {position.symbol} 連續 {position.no_quote_days} 日"
+                    f"無報價（停牌／下市），以最後可得價格 {price} 強制出場"
+                )
+                event_counts["forced_cover_no_quote"] += 1
+                self.force_cover_position(position, date, price)
+                continue
+
             # 超過最長持有天數：強制回補
             if (
                 self.max_holding_days is not None
@@ -354,7 +449,9 @@ class TwStockSettlementModel(BaseSettlementModel):
                 logger.warning(
                     f"[Force Cover] {position.symbol} 於 {date} 停券，以 {price} 強制回補"
                 )
-                event_counts["forced_cover_max_holding"] += 1
+                # 停券與持有天數到期是兩種成因，記到同一個桶會讓「策略設定的持有上限
+                # 太短」與「標的停券」無法區分，兩者的因應方式完全不同
+                event_counts["forced_cover_suspended"] += 1
                 self.force_cover_position(position, date, price)
                 continue
 
@@ -381,6 +478,31 @@ class TwStockSettlementModel(BaseSettlementModel):
             )
             event_counts["forced_cover_margin_call"] += 1
             self.force_cover_position(position, date, price)
+
+    def update_no_quote_days(
+        self,
+        quote_map: Dict[str, StockQuote],
+        positions: List[StockPosition],
+    ) -> None:
+        """
+        - Description:
+            更新每個部位的連續無報價天數
+
+            有報價即歸零，無報價則累加。長期停牌或已下市的標的會持續累加，
+            成為 `check_no_quote_exit()` 的出場依據。
+        - Parameters:
+            - quote_map: Dict[str, StockQuote]
+                當日報價對照表
+            - positions: List[StockPosition]
+                要更新的部位
+        """
+
+        for position in positions:
+            quote: Optional[StockQuote] = quote_map.get(position.symbol)
+            if quote is not None and (quote.close or quote.cur_price):
+                position.no_quote_days = 0
+            else:
+                position.no_quote_days += 1
 
     def get_mark_price(
         self, position: StockPosition, quote_map: Dict[str, StockQuote]
