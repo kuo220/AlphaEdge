@@ -27,6 +27,10 @@ from core.utils.log_manager import LogManager
 """
 
 
+# 週六的 weekday() 值；用於濾掉必不開市的日子
+SATURDAY: int = 5
+
+
 class StockMarginUpdater(BaseDataUpdater):
     """Stock Margin Updater"""
 
@@ -71,7 +75,16 @@ class StockMarginUpdater(BaseDataUpdater):
         )
         logger.info(f"Latest data date in database: {start_date}")
         # Set Up Update Period
-        dates: List[datetime.date] = TimeUtils.generate_date_range(start_date, end_date)
+        #
+        # **先濾掉週末**：台股週六日必不開市，送出請求只會換回「is a Holiday」，
+        # 但一樣要付兩次 HTTP ＋ 節流時間。2013 起的回補約 4,975 個日曆天中有
+        # 1,420 天是週末，濾掉可省下約三成的執行時間。
+        # 國定假日無法純靠日曆判斷，仍維持「送出請求後由回應判定」。
+        dates: List[datetime.date] = [
+            date
+            for date in TimeUtils.generate_date_range(start_date, end_date)
+            if date.weekday() < SATURDAY
+        ]
         file_cnt: int = 0
 
         for date in dates:
