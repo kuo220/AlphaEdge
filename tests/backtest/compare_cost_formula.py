@@ -8,7 +8,8 @@ from core.utils.constant import Action, PositionType
 from core.utils.instrument import StockUtils
 
 """
-LONG 成本口徑差異比對（`backlog/LONG成本模型口徑收斂.md` S1）
+LONG 成本口徑差異比對（「LONG成本模型口徑收斂」S1 的分析工具；
+該工作已於 2026-08-15 完成並移出 `backlog/`，本腳本保留作研究用）
 
 用途：在動生產程式碼**之前**量化「舊 `StockUtils` 路徑」與「新 `StockCostModel` 路徑」
 的差異分布，避免拿回歸測試的紅燈當探索工具。

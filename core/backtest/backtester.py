@@ -113,7 +113,7 @@ class Backtester:
 
         # 是否以還原價（後復權）計算訊號。
         # **預設關閉**：開啟會改變所有策略的訊號，LONG baseline 必然失效，
-        # 須依 `backlog/股價還原與除權息調整.md` S4 的順序單獨重產
+        # 須單獨重產（重產的代價見 `docs/backtest/multi-market-engine.md`〈回歸護欄〉）
         self.adjusted_price: bool = adjusted_price
 
         self.setup()

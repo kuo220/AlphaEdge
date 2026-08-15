@@ -9,6 +9,7 @@
 | 股票日線         | 台股資料來源（由 pipeline 更新） | `StockPriceAPI`           | SQLite `price`           | 2013-01-01                                                                                            | 回測常用；對應 `DEFAULT_PRICE_START_DATE`   |
 | 三大法人籌碼       | 台股資料來源（由 pipeline 更新） | `StockChipAPI`            | SQLite `chip`            | 2013-01-01                                                                                            | 回測/選股可用；對應 `DEFAULT_CHIP_START_DATE` |
 | 除權除息          | **上市**：證交所 `TWT49U`；**上櫃**：櫃買中心 `bulletin/exDailyQ` | `StockDividendAPI`        | SQLite `dividend`        | 2013-01-01（`DEFAULT_DIVIDEND_START_DATE`）                                                             | 股價還原係數、現金股利、開盤競價基準       |
+| 融資融券餘額       | **上市**：證交所 `MI_MARGN`；**上櫃**：櫃買中心 `margin/balance` | `StockMarginAPI`          | SQLite `margin`          | 2013-01-01（`DEFAULT_MARGIN_START_DATE`）                                                              | 券源檢核（`check_borrowable`）、券資比；歷史回補進行中（見 [`backlog/爬蟲入庫時序與中斷風險改善.md`](../../backlog/爬蟲入庫時序與中斷風險改善.md) S1） |
 | 月營收          | 台股資料來源（由 pipeline 更新） | `MonthlyRevenueReportAPI` | SQLite `monthly_revenue` | 2013-01（`DEFAULT_START_YEAR` 起、1 月）                                                                   | 基本面可用                                |
 | 財報           | 台股資料來源（由 pipeline 更新） | `FinancialStatementAPI`   | SQLite 各財報表              | 2013 年第 1 季（`DEFAULT_START_YEAR`）                                                                     | 基本面可用                                |
 | FinMind 參考資料 | FinMind API           | `FinMindAPI`              | SQLite FinMind 相關表       | 券商分點：`2021-06-30`（`FINMIND_BROKER_TRADING_START_DATE`）；台股總覽／證券商為 API 快照，更新流程未帶歷史起日                    | 股票、券商、分點                             |
@@ -21,6 +22,7 @@
 | `StockPriceAPI`           | `core/api/stock_price_api.py`            | SQLite    | `price`                                                                                              | 2013-01-01                                                                        |
 | `StockChipAPI`            | `core/api/stock_chip_api.py`             | SQLite    | `chip`                                                                                               | 2013-01-01                                                                        |
 | `StockDividendAPI`        | `core/api/stock_dividend_api.py`         | SQLite    | `dividend`                                                                                           | 2013-01-01                                                                        |
+| `StockMarginAPI`          | `core/api/stock_margin_api.py`           | SQLite    | `margin`                                                                                             | 2013-01-01                                                                        |
 | `MonthlyRevenueReportAPI` | `core/api/monthly_revenue_report_api.py` | SQLite    | `monthly_revenue`                                                                                    | 2013-01                                                                           |
 | `FinancialStatementAPI`   | `core/api/financial_statement_api.py`    | SQLite    | 財報相關表                                                                                                | 2013 Q1                                                                           |
 | `FinMindAPI`              | `core/api/finmind_api.py`                | SQLite    | `taiwan_stock_info`、`taiwan_stock_info_with_warrant`、`taiwan_securities_trader_info`、`taiwan_stock_trading_daily_report_secid_agg` | `finmind`／`broker_trading`：`2021-06-30`；`stock_info`／`broker_info` 等為快照，無程式內建歷史起日 |
@@ -41,6 +43,7 @@ python -m tasks.update_db --target <targets...>
 | `price`                   | 2013-01-01                                                   |
 | `chip`                    | 2013-01-01                                                   |
 | `dividend`                | 2013-01-01                                                   |
+| `margin`                  | 2013-01-01（`DEFAULT_MARGIN_START_DATE`）                    |
 | `fs`                      | 2013 年第 1 季                                                  |
 | `mrr`                     | 2013 年 1 月                                                   |
 | `tick`                    | 2024-05-10（`TICK_UPDATE_START_DATE`）；Shioaji 可查約自 2020-03-02 |

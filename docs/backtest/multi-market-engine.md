@@ -158,7 +158,7 @@ model 之間刻意**不互相依賴**，需要共享的狀態以 dict 參照傳�
 | **per-instrument 粒度的 model 掛載** | 無法在同一次回測同時持有台股與台指期（跨市場組合／避險） | 業界（Lean 掛在 `Security`、Nautilus 掛在 `Instrument`）確實是這個粒度，本次採 per-run 簡化。升級路徑乾淨：把 model 從 `Backtester` 移到 `InstrumentSpec` 物件上，引擎迴圈不動 |
 | 事件驅動 order queue（T+1 延遲成交、限價單未成交、部分成交） | 追繳仍只能以觸發當日收盤價回補 | 本質是引擎典範轉移。既有紀錄見 [放空回測框架規格](short-selling-framework.md) §7.2 與 `backlog/回測引擎當沖執行順序重構.md` S4 |
 | 報表輸出欄位仍為 `Stock ID` 而非 `Symbol` | 期貨報表的欄位名會是股票語意 | 改名會讓 915 筆 LONG baseline 失效。等期貨真的要出報表時再處理，屆時 baseline 本來就要重產 |
-| `core/utils/instrument.py` 未移出 | `core/utils/` 仍留一個領域模組 | `StockUtils` 有 4 個 `core/backtest/` 以外的使用者（pipeline、adapters、`strategy_lab`）。移進 `core/backtest/` 會讓資料管線反過來相依於回測引擎，是更嚴重的層級問題。其 11 個函式的歸屬需先拆解，見 `backlog/LONG成本模型口徑收斂.md` |
+| `core/utils/instrument.py` 未移出 | `core/utils/` 仍留一個領域模組 | `StockUtils` 有 4 個 `core/backtest/` 以外的使用者（pipeline、adapters、`strategy_lab`）。移進 `core/backtest/` 會讓資料管線反過來相依於回測引擎，是更嚴重的層級問題。其 11 個函式的歸屬需先拆解——「LONG成本模型口徑收斂」（2026-08-15 完成並移出 `backlog/`）未處理此項，**本表即其目前唯一的追蹤位置** |
 | `--mode live` 實盤路徑 | 實盤仍是空實作 | `run.py` 的 live 分支目前是 `pass`；factory 已預留讓實盤共用同一組 model |
 
 ---
@@ -203,11 +203,11 @@ model 之間刻意**不互相依賴**，需要共享的狀態以 dict 參照傳�
 
 `.gitignore` 的 `*.csv` 規則使 `tests/backtest/snapshots/` 從未被提交——全專案反覆引用的「LONG 915 筆 baseline」在 2026-08-07 之前只存在於單一台開發機。已加入例外規則 `!tests/backtest/snapshots/*.csv`。
 
-### 6.6 一個未修的口徑缺陷
+### 6.6 一個曾未修的口徑缺陷（2026-08-15 已修復）
 
 `convert_to_margin_position()` 把當沖空單轉為融券留倉時，補收了保證金與融券手續費，但**未補徵證交稅差額**（開倉時課的是當沖減半的 0.15%，轉留倉後應為全額 0.3%）。漲停鎖死轉留倉的部位成本因此被系統性低估。
 
-依「行為零改變」的紅線未於重構中修改，已立案為 `backlog/回測引擎執行真實度補強.md` **S7**。
+依「行為零改變」的紅線未於重構中修改，後由「回測引擎執行真實度補強」S7 於 2026-08-15 修復：`SettlementModel.get_day_trade_tax_top_up()` 補徵稅差（稅率取自 `CostConfig` 不寫死），SHORT 快照同批重產，測試見 `tests/backtest/test_backtester_short.py::test_convert_to_margin_tops_up_tax`。
 
 ---
 
@@ -250,5 +250,4 @@ SHORT 的 8 組情境刻意各只動一個變因，任一情境快照有變即�
 - [放空回測框架規格](short-selling-framework.md)——方向驅動的記帳原則，是本架構的基礎
 - `backlog/台期貨ETL與回測架構規劃.md`——期貨 model 組的實作（阻塞已解除）
 - `backlog/美股ETL與回測架構規劃.md`——美股 model 組的實作（阻塞已解除）
-- `backlog/回測引擎執行真實度補強.md`——引擎的誠實度缺口，含本次發現的 S7
-- `backlog/回測滑價與執行係數.md`——滑價係數，掛點為 `FillModel`
+- [`core/backtest/README.md`](../../core/backtest/README.md)〈成交假設〉——滑價、成交量上限與券源檢核的使用說明（「回測引擎執行真實度補強」與「回測滑價與執行係數」均已於 2026-08-15 完成並移出 `backlog/`）

@@ -30,7 +30,7 @@ def build_backtester(
         - adjusted_price: bool
             訊號是否使用還原價（後復權）。**預設 True**：未還原時除權息跳空會被
             當成真實漲跌，是資料正確性問題而非可選功能
-            （見 `backlog/股價還原與除權息調整.md`）。
+            （見 `docs/exchanges/data_coverage.md`〈股價還原〉）。
             `Backtester` 那一層的預設維持 False——引擎不預設任何政策，
             要用哪種價格由 factory 這個「政策層」決定
     - Return:

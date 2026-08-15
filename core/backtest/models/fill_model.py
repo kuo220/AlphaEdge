@@ -35,7 +35,8 @@ class FillConfig:
     """
     成交假設設定
 
-    **落點與 `backlog/回測滑價與執行係數.md` S1 的原規劃不同**：原文件寫
+    **落點與「回測滑價與執行係數」S1 的原規劃不同**（該工作已於 2026-08-15
+    完成並移出 `backlog/`，使用說明見 `core/backtest/README.md`〈成交假設〉）：原規劃寫
     `core/utils/backtest_execution.py`，但多市場重構已把 `cost_model.py` 由
     `core/utils/` 搬到 `core/backtest/models/`，回測假設一律與其 model 同檔
     （`CostConfig` 之於 `CostModel`）。再放回 `core/utils/` 會與該結構相衝突，
@@ -345,7 +346,8 @@ class TwStockFillModel(BaseFillModel):
 
             **`quote.volume` 的語意依級別不同**：DAY 為當日總量、TICK 為單筆成交量。
             TICK 級別下以單筆量當分母沒有意義，故本檢查只在 DAY 級別生效
-            （TICK 的累計量檢查屬 `backlog/回測引擎執行真實度補強.md` S5 的後續）。
+            （TICK 的累計量檢查尚未實作，見 `core/backtest/README.md`
+            〈成交假設〉的已知限制）。
         - Parameters:
             - order: BaseOrder
                 待檢查的訂單

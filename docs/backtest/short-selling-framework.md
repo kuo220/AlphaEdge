@@ -88,7 +88,7 @@
 | 漲停無法回補 | 當沖放空無法平倉，實務轉借券 | 見 §7.1 |
 | 券資比／單一標的空單上限 | 風控 | `max_short_exposure_ratio` 部位上限檢查 |
 
-> ⚠️ **實作現況**：本表六項中，`allow_below_reference`、`day_trade_whitelist`、`check_borrowable` 三個欄位目前**只有定義沒有呼叫端**，設定後不會生效且不會報錯。修補與券源資料接入分別見 [`backlog/回測引擎執行真實度補強.md`](../../backlog/回測引擎執行真實度補強.md) 與 [`backlog/放空回測市場約束補齊.md`](../../backlog/放空回測市場約束補齊.md)。
+> ⚠️ **實作現況（2026-08-15 更新）**：`check_borrowable` 已接上呼叫端（`TwStockFillModel.check_short_borrowable()`，資料來自 `margin` 表，拒單計入 `rejected_no_borrow`）。本表僅剩 `allow_below_reference`、`day_trade_whitelist` 兩個欄位**只有定義沒有呼叫端**——設定後不會生效，但 `StockCostModel` 建構時會發出警告（`check_unimplemented_constraints()`），不會靜默。接上呼叫端的追蹤見 [`backlog/放空回測市場約束補齊.md`](../../backlog/放空回測市場約束補齊.md) S7。
 
 ### 3.5 價格檔位（tick size）
 
@@ -397,12 +397,12 @@ snapshot_daily_equity(date, quotes)
 |------|------|--------------------|
 | T+2 交割（Lean 的 `SettlementModel`） | 資金可用時點被高估；現股當沖實際是淨額交割不需全額現金 | 對日頻策略影響小，實作成本高 |
 | 股利補償現金流 | 長天期放空績效被高估 | 以強制回補／`max_holding_days` 近似規避；見[市場約束補齊](../../backlog/放空回測市場約束補齊.md) S3 |
-| 券源可得性（融券餘額檢核） | 高估可放空的機會數 | 資料已於 2026-08 補齊，檢核尚未接上；見[市場約束補齊](../../backlog/放空回測市場約束補齊.md) S2 |
-| 未實現損益的每日權益曲線 | **留倉放空的 MDD 被低估** | `snapshot_daily_equity` 已產出逐日權益，但報表四張圖仍走已實現損益；見 [`backlog/回測權益曲線改用逐日權益.md`](../../backlog/回測權益曲線改用逐日權益.md) |
+| ~~券源可得性（融券餘額檢核）~~ | ~~高估可放空的機會數~~ | ✅ 已於 2026-08-15 接上 `FillModel`（拒單計入 `rejected_no_borrow`）；`margin` 表歷史回補見 [`backlog/爬蟲入庫時序與中斷風險改善.md`](../../backlog/爬蟲入庫時序與中斷風險改善.md) S1 |
+| ~~未實現損益的每日權益曲線~~ | ~~留倉放空的 MDD 被低估~~ | ✅ 已於 2026-08 完成：報表已改用逐日盯市權益 |
 | `SBL` 議定費率的個股差異 | 熱門空方標的實際費率遠高於 3% | 需借券成交資料；見[市場約束補齊](../../backlog/放空回測市場約束補齊.md) S6 |
-| 流動性上限與部分成交 | 下單張數不受當日成交量約束，小型股成交假設過於樂觀 | 見 [`backlog/回測引擎執行真實度補強.md`](../../backlog/回測引擎執行真實度補強.md) |
-| 除權息價格還原 | `price` 表為原始成交價，除息跳空被當成真實漲跌（SHORT 憑空獲利、LONG 憑空虧損） | 見 [`backlog/股價還原與除權息調整.md`](../../backlog/股價還原與除權息調整.md) |
-| 滑價 | 成交價即策略填入價 | 見 [`backlog/回測滑價與執行係數.md`](../../backlog/回測滑價與執行係數.md) |
+| 流動性上限與部分成交 | 下單張數不受當日成交量約束，小型股成交假設過於樂觀 | 日 K 已於 2026-08-15 完成（`FillConfig.max_volume_share`）；TICK 累計量未做，見 [`core/backtest/README.md`](../../core/backtest/README.md)〈成交假設〉 |
+| ~~除權息價格還原~~ | ~~除息跳空被當成真實漲跌~~ | ✅ 已於 2026-08-15 完成（訊號預設用還原價），見 [`docs/exchanges/data_coverage.md`](../exchanges/data_coverage.md)〈股價還原〉 |
+| ~~滑價~~ | ~~成交價即策略填入價~~ | ✅ 已於 2026-08-15 完成（`FillConfig.slippage_bps_*`），見 [`core/backtest/README.md`](../../core/backtest/README.md)〈成交假設〉 |
 
 > **註**：既然 `execute_daily_position_check` 每天都要取當日收盤價算維持率，順手產出「含未實現損益的每日權益快照」成本極低但價值很高——放空最大的風險就是持倉期間的逆勢，只認已實現損益的權益曲線會把這段完全抹平。`snapshot_daily_equity()` 即為此而生。
 
@@ -416,7 +416,7 @@ snapshot_daily_equity(date, quotes)
 |------------|----------|----------|
 | `StockCostModel` + `CostConfig` | Lean `FeeModel`；Backtrader `CommissionInfo`；Zipline `CommissionModel` | ✅ 一致。Lean 另把 `BuyingPowerModel`／`MarginInterestRateModel` 拆開，本專案單一市場故合併，需留意 `CostConfig` 不要膨脹成 god object |
 | `execute_daily_position_check` | Lean `MarginCallModel` + `MarginInterestRateModel`；Backtrader `interest_long`；Nautilus 每日 mark-to-market | ✅ 一致（本框架把兩者合成薄殼再拆兩個子函式） |
-| `ShortConstraint.check_borrowable` | Lean `IShortableProvider` | ✅ 概念一致（尚未接上資料） |
+| `ShortConstraint.check_borrowable` | Lean `IShortableProvider` | ✅ 概念一致（2026-08-15 已接上 `margin` 表資料） |
 | `validate_fill_price` | 各框架的 fill model 都限制成交價於 bar range 內 | ✅ 一致 |
 | `round_to_tick` | Lean `SymbolProperties.MinimumPriceVariation` | ✅ 一致 |
 | 方向來自 order（§1 原則 2） | 業界一律 signed quantity（`order(-100)` 即放空），方向屬於部位 | ✅ 一致；若把方向綁在策略層則會偏離 |
@@ -444,7 +444,7 @@ snapshot_daily_equity(date, quotes)
 
 **時間軸的重要約定**：`StockTradeRecord` 的 `buy_*` / `sell_*` 以「動作」對應（SHORT 的 `sell_*` 是**開倉**），因此**報表時間軸一律使用 `exit_date`，不可用 `sell_date`**，否則 3 月放空、5 月回補的交易會被畫在 3 月。`entry_date`／`entry_price`／`exit_date`／`exit_price` 是實體欄位而非 property——reporter 以 `pd.DataFrame` 組報表，property 取值會被繞過。
 
-**已知偏離**：`StockPositionManager` 的 LONG 分支仍走舊 `StockUtils` 而非 `StockCostModel`，形成兩套費用口徑並存。原因是舊公式在部分平倉時以「平倉張數」重算開倉手續費，與新模型的等比例攤提口徑不同，改動會破壞 LONG 回歸。收斂規劃見 [`backlog/LONG成本模型口徑收斂.md`](../../backlog/LONG成本模型口徑收斂.md)。
+**已知偏離（已於 2026-08-15 解除）**：`StockPositionManager` 的 LONG 分支曾走舊 `StockUtils` 而非 `StockCostModel`，形成兩套費用口徑並存。「LONG成本模型口徑收斂」完成後，多空記帳已共用 `StockCostModel`，LONG baseline 同批重產為 2024 全年。
 
 **策略撰寫指南**：`core/strategies/README.md` 的放空策略章節（設定欄位表、訊號方向對照、完整範例）。
 

@@ -68,7 +68,7 @@ class TwStockDataFeed(BaseDataFeed):
         依級別取得當日報價
 
         tick 不做還原：tick 為當日盤中資料，跨日還原無意義
-        （見 `backlog/股價還原與除權息調整.md` 範圍界線）
+        （見 `docs/exchanges/data_coverage.md`〈股價還原的已知限制〉）
         """
 
         if scale == Scale.TICK:

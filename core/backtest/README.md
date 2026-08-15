@@ -238,6 +238,11 @@ for stock_quote, ref_price, open_volume in self.sizer.size(
 
 ## 績效指標
 
+**計算路徑有兩條，職責不同**：正式回測輸出（報表 CSV 與四張圖）由
+`report/reporter.py` 產生；`analysis/analyzer.py`（`StockBacktestAnalyzer`）
+則供測試與研究驗算指標使用，不在 `Backtester.run()` 的輸出路徑上。
+兩者指標定義應保持一致，修改任一邊的公式時須同步檢查另一邊。
+
 回測系統會自動計算以下績效指標：
 
 - **總報酬率**: 策略的總收益

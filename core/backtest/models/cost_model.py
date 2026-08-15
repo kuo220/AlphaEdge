@@ -109,7 +109,7 @@ class ShortConstraint:
     **兩個欄位目前有定義、無呼叫端**（`allow_below_reference`、`day_trade_whitelist`）。
     設了限制卻不生效比功能沒做更危險，故由 `StockCostModel` 在建構時逐一檢查並發出警告，
     見 `check_unimplemented_constraints()`。實作進度見
-    `backlog/回測引擎執行真實度補強.md`。
+    `backlog/放空回測市場約束補齊.md` S7。
 
     `check_borrowable` 已於 2026-08-15 接上呼叫端（`TwStockFillModel.check_short_borrowable()`），
     不再是死碼。
@@ -127,7 +127,7 @@ class ShortConstraint:
 
         **目前未被任何路徑呼叫**：引擎的下單流程不會走到這裡，設定
         `day_trade_whitelist` 不會影響任何回測結果。接上呼叫端前不要
-        以為它已生效（見 `backlog/回測引擎執行真實度補強.md` S1）。
+        以為它已生效（見 `backlog/放空回測市場約束補齊.md` S7）。
         """
 
         if self.day_trade_whitelist is None:
