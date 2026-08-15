@@ -5,14 +5,19 @@ alwaysApply: false
 
 # AlphaEdge 策略開發（SDD）
 
-`core/strategies/README.md` 是本專案策略開發的唯一權威文件,完整定義了 SDD 流程:目錄結構、`BaseStockStrategy` 的六個必實作方法（`setup_account`、`setup_apis`、`check_open_signal`、`check_close_signal`、`check_stop_loss_signal`、`calculate_position_size`）、策略參數表、資料 API 用法、自動載入規則與回測執行方式。
+[`.claude/skills/develop-strategy/SKILL.md`](../../.claude/skills/develop-strategy/SKILL.md)
+是本專案策略開發流程的**唯一權威來源**，它定義了完整執行步驟，並指向
+`core/strategies/README.md`（SDD 流程、`BaseStockStrategy` 六個必實作方法、
+策略參數表、資料 API 用法、自動載入規則與回測執行方式）。
+
+本檔只是指標，**不重複任何規則內容**——策略開發的邊界條件會隨引擎重構調整，
+兩邊各存一份必然漂移（本檔先前就曾落後，漏掉資料取用與部位大小兩條收斂規則）。
 
 ## 執行步驟
 
-1. 一律先完整讀取 `core/strategies/README.md`,再開始撰寫或修改策略程式碼,不要只憑記憶或猜測介面。
-2. 新策略檔案放在 `core/strategies/stock/`,繼承 `BaseStockStrategy`,類別名稱即為 `python run.py --strategy <ClassName>` 使用的識別名稱。
-3. 依 README 的方法簽章與範例實作全部必要方法;不要自創介面或跳過任一必實作方法。
-4. 若需求涉及尚未在 README 涵蓋的資料源或功能（例如期貨）,先確認是否該複用既有台股 API/管理器慣例,或需要參考 `backlog/` 下的其他架構規劃文件。
-5. 完成後提醒使用者可用 `python run.py --strategy <ClassName>` 執行回測,結果會落在 `core/backtest/results/<ClassName>/`。
+1. 一律先完整讀取 [`.claude/skills/develop-strategy/SKILL.md`](../../.claude/skills/develop-strategy/SKILL.md)，
+   再依其指示讀取 `core/strategies/README.md`，然後才開始撰寫或修改策略程式碼。
+2. 不要向使用者要求先手動貼上文件內容——讀取是套用此規則後的第一步，自動完成。
 
-不要要求使用者先手動貼上 README 內容——讀取這份文件是套用此規則後的第一步,自動完成。
+> 規則需要修改時，改 `.claude/skills/develop-strategy/SKILL.md`，不要改本檔。
+> 本檔僅在指標失效（例如權威文件搬家）時才需要更新。

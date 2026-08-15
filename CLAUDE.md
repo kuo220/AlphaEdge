@@ -17,12 +17,16 @@
 | [`manage-backlog`](.claude/skills/manage-backlog/SKILL.md) | 新增／更新 `backlog/**` 文件與 `index.md` | — |
 | [`develop-strategy`](.claude/skills/develop-strategy/SKILL.md) | 新增／修改 `core/strategies/stock/` 策略 | `.cursor/rules/strategy-development-sdd.mdc` |
 
+> **上表「對應 Cursor Rule」欄一律是指標，不是副本。** 規則內容只維護在本檔、`.claude/skills/`
+> 或 `strategy_lab/CLAUDE.md`；`.cursor/` 底下的檔案只寫「去讀哪一份」，不重複規則本文。
+> 要改規則就改權威檔，不要改 `.cursor/` 的指標檔——兩邊各存一份必然漂移。
+
 ---
 
 ## 1. 通用原則
 
 1. 除非使用者明確要求英文，**回覆、文件與註解一律使用繁體中文**。
-2. 專有名詞保留英文原詞，不要硬翻（`tick`、`bid/ask`、`ROI`、`OHLC`、`Long/Short`、`API`、`SQLite`）。
+2. 專有名詞保留英文原詞，不要硬翻（`tick`、`bid/ask`、`ROI`、`OHLC`、`Long/Short`、`Ridge`、`API`、`SQLite`）。
 3. 中文標點使用全形（`，`、`：`、`（）`）；同一檔案內標點與空白風格保持一致。
 4. 既有程式碼的風格優先於個人偏好：新增或修改時沿用現有寫法，不要引入新風格。
 
