@@ -75,11 +75,17 @@ def test_day_trade_whitelist_warns(warnings: List[str]) -> None:
     assert "尚未實作" in "".join(warnings)
 
 
-def test_check_borrowable_raises() -> None:
-    """券源檢核會讓使用者以為開倉機會數已被修正，錯誤信心最大，直接擋下"""
+def test_check_borrowable_no_longer_blocked(warnings: List[str]) -> None:
+    """
+    券源檢核已於 2026-08-15 接上呼叫端，不再擋下也不再被標為未實作
 
-    with pytest.raises(NotImplementedError, match="check_borrowable"):
-        StockCostModel(make_config(ShortConstraint(check_borrowable=True)))
+    呼叫端為 `TwStockFillModel.check_short_borrowable()`；本測試只確認
+    「建構不再拋錯、也不再警告未實作」，實際檢核行為見 `test_fill_model.py`
+    """
+
+    StockCostModel(make_config(ShortConstraint(check_borrowable=True)))
+
+    assert not any("check_borrowable" in w for w in warnings)
 
 
 def test_implemented_constraints_are_not_flagged(warnings: List[str]) -> None:

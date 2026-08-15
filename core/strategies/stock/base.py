@@ -18,6 +18,7 @@ from core.utils import (
     ShortMethod,
 )
 from core.backtest.models.cost_model import CostConfig, ShortConstraint
+from core.backtest.models.fill_model import FillConfig
 from core.backtest.models.sizing import BasePositionSizer, EqualWeightSizer
 
 """BaseStockStrategy: 台股策略基底，補上信用交易設定與五個資料集"""
@@ -40,6 +41,8 @@ class BaseStockStrategy(BaseStrategy):
         self.short_method: ShortMethod = ShortMethod.MARGIN  # 放空管道
         self.cost_config: Optional[CostConfig] = None  # 成本參數（None 用預設）
         self.short_constraint: Optional[ShortConstraint] = None  # 放空可成交限制
+        # 成交假設（滑價、成交量上限）；None 用預設（全部關閉）
+        self.fill_config: Optional[FillConfig] = None
         self.max_holding_days: Optional[int] = None  # 留倉放空的最長持有曆日數
         self.day_trade_uncovered_policy: DayTradeUncoveredPolicy = (
             DayTradeUncoveredPolicy.FORCE_COVER_AT_CLOSE  # 當沖日終未回補的處理

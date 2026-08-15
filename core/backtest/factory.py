@@ -1,6 +1,6 @@
 from core.backtest.backtester import Backtester, new_event_counts
 from core.backtest.datafeed.tw_stock_datafeed import TwStockDataFeed
-from core.backtest.models.fill_model import TwStockFillModel
+from core.backtest.models.fill_model import FillConfig, TwStockFillModel
 from core.backtest.models.cost_model import CostConfig, StockCostModel
 from core.backtest.models.instrument_spec import TwStockSpec
 from core.backtest.models.settlement_model import TwStockSettlementModel
@@ -61,7 +61,10 @@ def build_tw_stock_backtester(
     # 事件計數由 factory 建立，引擎與 FillModel 共用同一個 dict
     event_counts: dict = new_event_counts()
     fill_model: TwStockFillModel = TwStockFillModel(
-        instrument=instrument, event_counts=event_counts
+        instrument=instrument,
+        event_counts=event_counts,
+        config=strategy.fill_config or FillConfig(),
+        check_borrowable=cost_model.config.short_constraint.check_borrowable,
     )
 
     settlement: TwStockSettlementModel = TwStockSettlementModel(

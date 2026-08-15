@@ -7,6 +7,7 @@ from core.api.financial_statement_api import FinancialStatementAPI
 from core.api.monthly_revenue_report_api import MonthlyRevenueReportAPI
 from core.api.stock_chip_api import StockChipAPI
 from core.api.stock_dividend_api import StockDividendAPI
+from core.api.stock_margin_api import StockMarginAPI
 from core.api.stock_price_api import StockPriceAPI
 from core.api.stock_tick_api import StockTickAPI
 from core.backtest.datafeed.base import BaseDataFeed
@@ -31,6 +32,7 @@ class TwStockDataFeed(BaseDataFeed):
         self.chip: Optional[StockChipAPI] = None  # Chips data
         self.price: Optional[StockPriceAPI] = None  # Price data
         self.dividend: Optional[StockDividendAPI] = None  # Ex-rights/dividend data
+        self.margin: Optional[StockMarginAPI] = None  # Margin/short balance data
         self.mrr: Optional[MonthlyRevenueReportAPI] = (
             None  # Monthly Revenue Report data
         )
@@ -45,6 +47,7 @@ class TwStockDataFeed(BaseDataFeed):
         self.mrr = MonthlyRevenueReportAPI(conn=self.conn)
         self.fs = FinancialStatementAPI(conn=self.conn)
         self.dividend = StockDividendAPI(conn=self.conn)
+        self.margin = StockMarginAPI(conn=self.conn)
         self.price = StockPriceAPI(conn=self.conn, dividend_api=self.dividend)
 
         if strategy.scale == Scale.TICK:
@@ -87,10 +90,23 @@ class TwStockDataFeed(BaseDataFeed):
 
         return self.dividend.get_opening_reference_price_map(date)
 
+    def get_short_balance(self, date: datetime.date) -> Dict[str, int]:
+        """
+        當日融券今日餘額（張），供券源檢核使用
+
+        `margin` 表尚未建立或該日無資料時回傳空 dict——`FillModel` 會據此放行並記錄，
+        不會把「查無資料」當成「借不到券」
+        """
+
+        if self.margin is None:
+            return {}
+
+        return self.margin.get_short_balance_map(date)
+
     def close(self) -> None:
         """關閉所有資料連線（回測結束時呼叫；原本全專案的 conn 從不 close）"""
 
-        for api in (self.chip, self.mrr, self.fs, self.price, self.dividend, self.tick):
+        for api in (self.chip, self.mrr, self.fs, self.price, self.dividend, self.margin, self.tick):
             if api is not None:
                 api.close()
 

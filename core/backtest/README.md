@@ -9,6 +9,7 @@ AlphaEdge 的回測系統提供了完整的策略回測功能，支援多種回�
   - [回測級別](#回測級別)
   - [回測流程](#回測流程)
   - [價格口徑：訊號用還原價、成交用原始價](#價格口徑訊號用還原價成交用原始價)
+  - [成交假設：滑價、成交量上限、券源](#成交假設滑價成交量上限券源)
   - [回測結果](#回測結果)
   - [績效指標](#績效指標)
   - [使用方式](#使用方式)
@@ -89,6 +90,66 @@ price_chg = quote.signal_close / self.price.get_close_map(yesterday)[...] - 1
 
 還原方式、涵蓋範圍與已知限制（tick 不還原、不處理減資／合併／代號變更）見
 [`docs/exchanges/data_coverage.md`](../../docs/exchanges/data_coverage.md)。
+
+## 成交假設：滑價、成交量上限、券源
+
+`FillModel` 回答「這張單成不成交、以什麼價量成交」。三項假設**預設全部關閉**，
+未啟用時回測結果與導入前逐筆相同。
+
+設定在 `FillConfig`（`core/backtest/models/fill_model.py`），由策略的 `fill_config` 帶入：
+
+```python
+from core.backtest.models.fill_model import FillConfig, VolumeCapPolicy
+
+class MyStrategy(BaseStockStrategy):
+    def __init__(self):
+        super().__init__()
+        self.fill_config = FillConfig(
+            slippage_bps_buy=10.0,      # 買進滑價 10 bps（0.1%）
+            slippage_bps_sell=10.0,     # 賣出滑價 10 bps
+            max_volume_share=0.1,       # 單筆不超過當日成交量 10%
+            volume_cap_policy=VolumeCapPolicy.TRUNCATE,
+        )
+```
+
+| 參數 | 預設 | 說明 |
+|------|------|------|
+| `slippage_bps_buy` / `slippage_bps_sell` | `0.0` | 滑價基點（1 bps = 0.01%）。**買進加價、賣出減價**，方向寫死不可由呼叫端指定符號 |
+| `max_volume_share` | `None` | 單筆訂單張數上限＝當日成交量 × 此比例。`None` 為關閉 |
+| `volume_cap_policy` | `TRUNCATE` | 超量時縮量（預設）或整張拒單（`REJECT`） |
+
+券源檢核另由 `ShortConstraint.check_borrowable` 開啟（預設 `False`），資料來自
+`margin` 表的融券今日餘額。
+
+### 計算順序：先滑價，再算費用
+
+```
+策略委託價 → 滑價調整 → 對齊檔位 → 成交價
+                                    └→ 手續費、證交稅皆以此價計算
+```
+
+手續費與證交稅一律以**含滑價的成交價**計算，兩者的假設因此一致。
+
+### 兩個容易誤解的地方
+
+1. **檔位會吸收小額 bps**：調整後必須對齊台股升降單位，且取對下單者不利的一側。
+   100 元的股票（檔位 0.5）設 10 bps 與 50 bps 都會得到 100.5——**低於半個檔位的
+   滑價設定不會有額外效果**。要讓 bps 精細生效，標的價格需落在較小的檔位級距。
+2. **成交量上限只在日 K 生效**：`quote.volume` 在日 K 是當日總量、在 tick 是單筆成交量，
+   以單筆量當分母沒有意義。tick 級別的累計量檢查尚未實作。
+
+### 事件計數
+
+三項假設觸發時皆計入 `*_event_report.csv`，不會靜默發生：
+
+| 事件 | 意義 |
+|------|------|
+| `rejected_no_borrow` | 融券餘額不足，放空開倉被拒 |
+| `rejected_volume_cap` | 超過成交量上限且政策為拒單（或上限不足一張） |
+| `truncated_by_volume` | 超過成交量上限被縮量 |
+
+**查無融券資料時一律放行並 warning**，不會把「查不到」當成「借不到」——
+`margin` 表的歷史回補是獨立作業，尚未執行時整場回測都會查無資料。
 
 ## 部位大小與檔數上限
 

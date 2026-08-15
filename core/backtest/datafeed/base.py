@@ -64,6 +64,23 @@ class BaseDataFeed(ABC):
 
         return {}
 
+    def get_short_balance(self, date: datetime.date) -> Dict[str, int]:
+        """
+        - Description:
+            取得當日可放空的券源餘額
+
+            台股為融券今日餘額（張）。**空 dict 代表「查無資料」而非「都借不到」**，
+            `FillModel` 查不到時一律放行。沒有券源概念的市場沿用預設即可。
+        - Parameters:
+            - date: datetime.date
+                交易日
+        - Return:
+            - Dict[str, int]
+                `{symbol: 可借券張數}`；預設為空 dict
+        """
+
+        return {}
+
     @abstractmethod
     def get_quotes(
         self,

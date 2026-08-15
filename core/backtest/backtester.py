@@ -49,6 +49,9 @@ def new_event_counts() -> Dict[str, int]:
         "forced_cover_max_holding": 0,  # 超過最長持有天數強制回補
         "limit_up_cover_failed": 0,  # 漲停鎖死無法回補
         "rejected_max_holdings": 0,  # 超過最大持倉檔數被引擎剔除的開倉單
+        "rejected_no_borrow": 0,  # 融券餘額不足被拒的放空開倉單
+        "rejected_volume_cap": 0,  # 超過當日成交量上限被拒的訂單
+        "truncated_by_volume": 0,  # 超過當日成交量上限被縮量的訂單
     }
 
 
@@ -245,6 +248,30 @@ class Backtester:
 
         return self.fill_model.validate(order, quote)
 
+    def apply_fill_model(
+        self, order: BaseOrder, quote: Optional[BaseQuote]
+    ) -> Optional[BaseOrder]:
+        """
+        - Description:
+            套用市場執行假設（券源、滑價、成交量上限），回傳實際可成交的訂單
+
+            未啟用任何假設時回傳原物件本身，行為與導入前逐筆相同。
+            查無報價時直接放行——那是資料缺口，不是成交假設該處理的事。
+        - Parameters:
+            - order: BaseOrder
+                策略產生的訂單
+            - quote: Optional[BaseQuote]
+                同一標的的當根 bar 報價
+        - Return:
+            - Optional[BaseOrder]
+                可成交的訂單；不可成交時為 None
+        """
+
+        if quote is None:
+            return order
+
+        return self.fill_model.fill(order, quote)
+
     def get_price_range(
         self, quote: BaseQuote
     ) -> Tuple[Optional[float], Optional[float]]:
@@ -346,6 +373,7 @@ class Backtester:
         self.fill_model.apply_price_limit_basis(
             self.data_feed.get_price_limit_basis(date)
         )
+        self.fill_model.apply_short_balance(self.data_feed.get_short_balance(date))
 
         if self.get_execution_order() == BarExecutionOrder.OPEN_THEN_CLOSE:
             self.execute_open_signal(quotes)
@@ -383,8 +411,12 @@ class Backtester:
             if quote and not self.validate_fill_price(order, quote):
                 continue
 
+            filled_order: Optional[BaseOrder] = self.apply_fill_model(order, quote)
+            if filled_order is None:
+                continue
+
             open_position: Optional[BasePosition] = self.position_manager.open_position(
-                order
+                filled_order
             )
             if open_position:
                 open_positions.append(open_position)
@@ -434,6 +466,8 @@ class Backtester:
         if not positions:
             return
 
+        quote_map: Dict[str, BaseQuote] = {q.symbol: q for q in quotes}
+
         # Get stop loss orders
         stop_loss_orders: List[BaseOrder] = self.strategy.check_stop_loss_signal(
             positions
@@ -445,8 +479,17 @@ class Backtester:
 
         # Execute stop loss orders
         for order in stop_loss_orders:
+            # 平倉同樣套用市場執行假設（滑價、成交量上限）；
+            # 但**不做**價格合理性檢查——那是既有的開倉專屬擋板，
+            # 若在此新增會讓原本必定成交的平倉單可能被拒，改變既有行為
+            filled_order: Optional[BaseOrder] = self.apply_fill_model(
+                order, quote_map.get(order.symbol)
+            )
+            if filled_order is None:
+                continue
+
             close_positions: List[BaseTradeRecord] = (
-                self.position_manager.close_position(order)
+                self.position_manager.close_position(filled_order)
             )
             close_records.extend(close_positions)
 
@@ -463,8 +506,14 @@ class Backtester:
 
         # Execute close orders
         for order in close_orders:
+            filled_order: Optional[BaseOrder] = self.apply_fill_model(
+                order, quote_map.get(order.symbol)
+            )
+            if filled_order is None:
+                continue
+
             close_positions: List[BaseTradeRecord] = (
-                self.position_manager.close_position(order)
+                self.position_manager.close_position(filled_order)
             )
             close_records.extend(close_positions)
 

@@ -1,11 +1,12 @@
 import datetime
 import sqlite3
-from typing import Optional
+from typing import Any, Dict, Optional
 
 import pandas as pd
 
 from core.api.base import BaseDataAPI
 from core.config import DB_PATH, MARGIN_TABLE_NAME
+from core.pipeline.utils.sqlite_utils import SQLiteUtils
 from core.utils.log_manager import LogManager
 
 """Stock margin trading API: query SQLite margin table（融資融券餘額，單位：張）"""
@@ -14,15 +15,18 @@ from core.utils.log_manager import LogManager
 class StockMarginAPI(BaseDataAPI):
     """Stock margin trading API"""
 
-    def __init__(self):
-        self.conn: Optional[sqlite3.Connection] = None
+    def __init__(self, conn: Optional[sqlite3.Connection] = None):
+        # 由 DataFeed 傳入共用連線；未指定時自行建立
+        self.conn: Optional[sqlite3.Connection] = conn
+        self.owns_conn: bool = conn is None
 
         self.setup()
 
     def setup(self):
         """Set Up the Config of Data API"""
 
-        self.conn: sqlite3.Connection = sqlite3.connect(DB_PATH)
+        if self.owns_conn:
+            self.conn = sqlite3.connect(DB_PATH)
         LogManager.setup_logger("stock_margin_api.log")
 
     def get(self, date: datetime.date) -> pd.DataFrame:
@@ -97,6 +101,39 @@ class StockMarginAPI(BaseDataAPI):
             params=(date,),
         )
         return df
+
+    def get_short_balance_map(self, date: datetime.date) -> Dict[str, int]:
+        """
+        - Description:
+            取得單日全市場的融券今日餘額對照表（張），供回測的券源檢核使用
+
+            **`margin` 表不存在時回傳空 dict 而非拋錯**：該表的歷史回補是獨立作業，
+            尚未執行時回測仍應能跑，由呼叫端（`FillModel`）以 warning 表明
+            「查無資料，本次跳過檢核」，而不是靜默地把所有標的都當成借不到券。
+        - Parameters:
+            - date: datetime.date
+                查詢日期
+        - Return:
+            - Dict[str, int]
+                `{stock_id: 融券今日餘額（張）}`；查無資料時為空 dict
+        """
+
+        if not SQLiteUtils.check_table_exist(
+            conn=self.conn, table_name=MARGIN_TABLE_NAME
+        ):
+            return {}
+
+        df: pd.DataFrame = self.get_short_balance(date)
+        balance_map: Dict[str, Any] = self.build_column_map(df, "融券今日餘額")
+
+        result: Dict[str, int] = {}
+        for stock_id, balance in balance_map.items():
+            try:
+                result[stock_id] = int(balance)
+            except (TypeError, ValueError):
+                continue
+
+        return result
 
     def get_stock_short_balance(
         self,
