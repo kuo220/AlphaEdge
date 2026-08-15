@@ -25,6 +25,7 @@
     - [帳戶設定](#帳戶設定)
     - [回測設定](#回測設定)
     - [回測級別說明](#回測級別說明)
+    - [單根 bar 的執行順序](#單根-bar-的執行順序)
   - [資料 API 使用方式](#資料-api-使用方式)
     - [StockPriceAPI - 日線價格資料](#stockpriceapi---日線價格資料)
     - [StockTickAPI - 逐筆成交資料](#stocktickapi---逐筆成交資料)
@@ -90,6 +91,7 @@ core/strategies/
 from core.strategies.stock import BaseStockStrategy
 from core.models import StockAccount, StockOrder, StockQuote
 from core.utils import Action, Scale, PositionType
+
 
 class MyStrategy(BaseStockStrategy):
     """我的交易策略"""
@@ -204,11 +206,15 @@ def check_open_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
     if self.max_holdings > 0 and self.account.get_position_count() >= self.max_holdings:
         return []
 
-    # 取得前一個交易日的價格資料
-    yesterday = MarketCalendar.get_last_trading_date(
+    # 取得前一個交易日（非日曆昨日）
+    yesterday: datetime.date = MarketCalendar.get_last_trading_date(
         api=self.price, date=stock_quotes[0].date
     )
-    yesterday_prices = self.price.get(yesterday)
+
+    # 訊號用收盤價：與下方的 signal_close 成對，由引擎的還原模式統一決定
+    yesterday_close_map: Dict[str, Any] = self.get_signal_close_map(
+        stock_quotes, yesterday
+    )
 
     for stock_quote in stock_quotes:
         # 檢查是否已經持有該股票
@@ -217,15 +223,14 @@ def check_open_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
 
         # 你的開倉條件判斷
         # 範例：當日漲幅 > 5% 且成交量 > 1000 張
-        mask = yesterday_prices["stock_id"] == stock_quote.stock_id
-        if yesterday_prices.loc[mask, "收盤價"].empty:
+        if stock_quote.stock_id not in yesterday_close_map:
             continue
 
-        yesterday_close = yesterday_prices.loc[mask, "收盤價"].iloc[0]
+        yesterday_close: float = yesterday_close_map[stock_quote.stock_id]
         if yesterday_close == 0:
             continue
 
-        price_chg = (stock_quote.close / yesterday_close - 1) * 100
+        price_chg: float = (stock_quote.signal_close / yesterday_close - 1) * 100
 
         if price_chg > 5 and stock_quote.volume > 1000:
             open_positions.append(stock_quote)
@@ -239,6 +244,18 @@ def check_open_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
 - 需要根據策略邏輯篩選出符合條件的股票
 - 最後呼叫 `calculate_position_size()` 來計算下單數量
 - 回傳的訂單列表會被自動執行
+
+> **⚠️ 資料取用的硬性規則**
+>
+> 策略層**不得直接對 raw `DataFrame` 取資料庫欄位字面值**（`"收盤價"`、`"成交股數"`、
+> `"投信買賣超"` 等），一律走 `core/api/` 的具名查詢方法。
+> `tests/test_strategy_data_access.py` 會掃描 `core/strategies/` 全部原始碼並在 CI 擋下違規，
+> 例外清單刻意留空。詳見〈[資料 API 使用方式](#資料-api-使用方式)〉。
+>
+> **算漲跌幅時務必用 `self.get_signal_close_map()` 搭配 `quote.signal_close`**：
+> 「今日價格」來自 `StockQuote`、「昨日價格」來自 `StockPriceAPI` 是兩條不同路徑，
+> 若只有一邊套用股價還原，比值會混用還原價與原始價——**比完全不還原更糟，而且不會報錯**。
+> 成交價、手續費、證交稅、漲跌停與檔位判定則一律走原始價（`quote.close`）。
 
 ### 4. check_close_signal()
 
@@ -301,9 +318,7 @@ def check_close_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]
 **實作範例**:
 
 ```python
-def check_stop_loss_signal(
-    self, stock_quotes: List[StockQuote]
-) -> List[StockOrder]:
+def check_stop_loss_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
     """停損策略"""
 
     stop_loss_orders: List[StockQuote] = []
@@ -325,8 +340,7 @@ def check_stop_loss_signal(
         if loss_rate < -5:
             stop_loss_orders.append(stock_quote)
             logger.warning(
-                f"股票 {stock_quote.stock_id} 觸發停損，"
-                f"虧損 {round(loss_rate, 2)}%"
+                f"股票 {stock_quote.stock_id} 觸發停損，虧損 {round(loss_rate, 2)}%"
             )
 
     return self.calculate_position_size(stop_loss_orders, Action.SELL)
@@ -359,41 +373,24 @@ def calculate_position_size(
     orders: List[StockOrder] = []
 
     if action == Action.BUY:
-        # 計算可用的持倉檔數
-        if self.max_holdings is not None:
-            available_position_cnt = max(
-                0, self.max_holdings - self.account.get_position_count()
-            )
-        else:
-            available_position_cnt = len(stock_quotes)
+        # 張數由 sizer 統一計算；策略只負責選標的與參考價（此例用當日收盤）
+        candidates: List[Tuple[StockQuote, float]] = [
+            (stock_quote, stock_quote.close) for stock_quote in stock_quotes
+        ]
 
-        if available_position_cnt > 0:
-            # 平均分配資金到每個部位
-            per_position_size = self.account.balance / available_position_cnt
-
-            for stock_quote in stock_quotes:
-                if available_position_cnt == 0:
-                    break
-
-                # 計算可買張數：可用資金 / 每張價格
-                # Units.LOT = 1000（1 張 = 1000 股）
-                open_volume = int(
-                    per_position_size / (stock_quote.close * Units.LOT)
+        for stock_quote, _, open_volume in self.sizer.size(
+            self.account, candidates, self.max_holdings
+        ):
+            orders.append(
+                StockOrder(
+                    stock_id=stock_quote.stock_id,
+                    date=stock_quote.date,
+                    action=action,
+                    position_type=PositionType.LONG,
+                    price=stock_quote.cur_price,  # 使用當前價格
+                    volume=open_volume,
                 )
-
-                # 至少買 1 張
-                if open_volume >= 1:
-                    orders.append(
-                        StockOrder(
-                            stock_id=stock_quote.stock_id,
-                            date=stock_quote.date,
-                            action=action,
-                            position_type=PositionType.LONG,
-                            price=stock_quote.cur_price,  # 使用當前價格
-                            volume=open_volume,
-                        )
-                    )
-                    available_position_cnt -= 1
+            )
 
     elif action == Action.SELL:
         # 平倉時使用持倉的全部股數
@@ -419,13 +416,19 @@ def calculate_position_size(
 
 **說明**:
 - **開倉時（Action.BUY）**:
-  - 根據可用資金和最大持倉數計算每個部位的資金
-  - 計算可買張數（1 張 = 1000 股）
-  - 確保至少買 1 張才下單
+  - **張數一律交給 `self.sizer.size(account, candidates, max_holdings)` 計算**，
+    策略只負責挑標的與提供參考價；不要自己算「可開檔數 ÷ 餘額 ÷ 張數」
+  - `sizer` 由 `BaseStockStrategy.__init__()` 預設為 `EqualWeightSizer`（等權切分），
+    回傳 `(報價, 參考價, 張數)`，張數不足 1 張者不回傳
+  - 換模型只需在子類覆寫 `self.sizer`，公式集中在 `core/backtest/models/sizing.py`
 
 - **平倉時（Action.SELL）**:
   - 使用持倉的全部股數進行平倉
   - 從 `position.volume` 取得持倉股數
+
+> **⚠️ `max_holdings` 另有引擎側硬上限**：即使策略回傳超額開倉單，引擎也會剔除超出
+> `max_holdings` 的部分並計數，所以 `max_holdings` 是真正的硬上限而非建議值。
+> 詳見 `core/backtest/README.md`〈部位大小與檔數上限〉。
 
 ## 策略設定參數說明
 
@@ -438,7 +441,8 @@ def calculate_position_size(
 | `strategy_name` | `str` | 策略名稱，用於識別和報告 | `""` |
 | `market` | `str` | 市場別，**由 `BaseStockStrategy` 填入，策略不需自己設**；是 `factory` 組裝 model 組合的分派鍵 | `Market.STOCK` |
 | `position_type` | `str` | 部位方向，`PositionType.LONG`（做多）或 `PositionType.SHORT`（做空） | `PositionType.LONG` |
-| `enable_intraday` | `bool` | 是否允許當沖交易 | `True` |
+| `enable_intraday` | `bool` | 是否為當沖策略；**只是推導預設執行順序與台股當沖成本的輸入，不是硬性開關**（見[單根 bar 的執行順序](#單根-bar-的執行順序)） | `True` |
+| `bar_execution_order` | `Optional[BarExecutionOrder]` | 單根 bar 內開平倉的先後，`None` 由引擎推導 | `None` |
 
 ### 帳戶設定
 
@@ -461,13 +465,95 @@ def calculate_position_size(
 - **`Scale.DAY`**: 日線回測，使用每日收盤價
 - **`Scale.TICK`**: 逐筆回測，使用每筆成交資料
 
+### 單根 bar 的執行順序
+
+同一根 K 棒（或同一批 tick）內，引擎要先跑平倉還是先跑開倉，由 `bar_execution_order` 決定：
+
+| 值 | 行為 | 典型用途 |
+|----|------|----------|
+| `BarExecutionOrder.CLOSE_THEN_OPEN` | 先平倉、再開倉 | 日頻再平衡、換股（先釋放資金） |
+| `BarExecutionOrder.OPEN_THEN_CLOSE` | 先開倉、再平倉 | 當沖／日內反手（同一根 bar 內開平同一標的） |
+
+策略沒填時（`None`），引擎依下表推導：
+
+| `position_type` | `enable_intraday` | 推導出的預設 |
+|-----------------|-------------------|--------------|
+| LONG | 任意 | `CLOSE_THEN_OPEN` |
+| SHORT | `True` | `OPEN_THEN_CLOSE` |
+| SHORT | `False` | `CLOSE_THEN_OPEN` |
+
+> **推導出的只是預設建議，仍以策略宣告為準。** 只要策略在 `__init__` 填了
+> `bar_execution_order`，上表就完全不參與判斷。
+>
+> **做多當沖必須自己宣告 `OPEN_THEN_CLOSE`**：`enable_intraday` 的預設值就是 `True`，
+> 既有做多策略沒有一支是刻意宣告當沖的，若讓 LONG 也自動切換，等於在無人宣告的情況下
+> 改掉每一支做多策略的成交順序與回測結果。
+
+```python
+from core.utils import BarExecutionOrder, PositionType
+
+
+class MyDayTradeLongStrategy(BaseStockStrategy):
+    def __init__(self):
+        super().__init__()
+        self.position_type: PositionType = PositionType.LONG
+        self.enable_intraday: bool = True
+        # 做多當沖：不宣告就走 CLOSE_THEN_OPEN，同一根 bar 內無法開完再平
+        self.bar_execution_order: BarExecutionOrder = BarExecutionOrder.OPEN_THEN_CLOSE
+```
+
+同一根 bar 內多筆委託的處理順序（決定性排序）與同標的開平倉並存的規則，
+見[多市場回測引擎架構 §2.2.1 單根 bar 的委託順序](../../docs/backtest/multi-market-engine.md#221-單根-bar-的委託順序)。
+
 ## 資料 API 使用方式
 
 策略中可以透過以下 API 取得各種資料。API 實例由引擎的 `DataFeed` 建立，策略在 `setup_apis(feed)` 中取用後，直接使用 `self.price`、`self.tick` 等即可。
 
+> **⚠️ 策略層一律使用「具名查詢方法」，不要自己拆 `DataFrame` 欄位**
+>
+> 回傳 `DataFrame` 的方法（`get()`／`get_range()`／`get_stock_price()`）保留給
+> `strategy_lab/` 的研究用途。在 `core/strategies/` 底下寫策略時，**禁止**出現
+> `df["收盤價"]`、`df["成交股數"]`、`df["投信買賣超"]` 這類資料庫欄位字面值。
+>
+> 原因是失效模式**靜默**：欄位一旦更名，策略會走進既有的 `continue` 分支而安靜地不開倉，
+> 回測報表上只表現為「訊號變少」，極難察覺。`tests/test_strategy_data_access.py`
+> 會掃描 `core/strategies/` 全部原始碼並在 CI 擋下，例外清單刻意留空。
+
 ### StockPriceAPI - 日線價格資料
 
-**取得指定日期的所有股票價格**:
+**具名查詢（策略層請用這些）**:
+
+```python
+# {stock_id: 收盤價}，原始價
+close_map: Dict[str, Any] = self.price.get_close_map(date)
+
+# {stock_id: 成交量（張）}
+volume_map: Dict[str, int] = self.price.get_volume_lots_map(date)
+
+# 單一個股的收盤價序列
+close_series = self.price.get_close_series(
+    stock_id="2330",
+    start_date=datetime.date(2024, 1, 1),
+    end_date=datetime.date(2024, 1, 31),
+)
+
+# 還原價版本（一般不直接呼叫，改用下方的 get_signal_close_map）
+adj_close_map: Dict[str, Any] = self.price.get_adjusted_close_map(date)
+adj_close_series = self.price.get_adjusted_close_series(...)
+```
+
+**訊號用收盤價（算漲跌幅時的唯一正確入口）**:
+
+```python
+# 由引擎傳入的報價決定要不要還原，呼叫端不需自己判斷還原模式
+close_map = self.get_signal_close_map(stock_quotes, yesterday)
+price_chg = quote.signal_close / close_map[quote.stock_id] - 1
+```
+
+`get_signal_close_map()` 與 `quote.signal_close` **必須成對使用**。成交價、手續費、
+證交稅、漲跌停與檔位判定則一律走原始價（`quote.close`、`get_close_map()`）。
+
+**取得指定日期的所有股票價格（研究用，策略層勿直接取欄位）**:
 
 ```python
 # 取得 2024/1/1 的所有股票價格
@@ -479,8 +565,7 @@ prices = self.price.get(date=datetime.date(2024, 1, 1))
 
 ```python
 prices = self.price.get_range(
-    start_date=datetime.date(2024, 1, 1),
-    end_date=datetime.date(2024, 1, 31)
+    start_date=datetime.date(2024, 1, 1), end_date=datetime.date(2024, 1, 31)
 )
 ```
 
@@ -490,7 +575,7 @@ prices = self.price.get_range(
 stock_prices = self.price.get_stock_price(
     stock_id="2330",
     start_date=datetime.date(2024, 1, 1),
-    end_date=datetime.date(2024, 1, 31)
+    end_date=datetime.date(2024, 1, 31),
 )
 ```
 
@@ -506,15 +591,19 @@ ticks = self.tick.get(date=datetime.date(2024, 1, 1))
 **取得指定個股的逐筆資料**:
 
 ```python
-stock_ticks = self.tick.get_stock_tick(
-    stock_id="2330",
-    date=datetime.date(2024, 1, 1)
-)
+stock_ticks = self.tick.get_stock_tick(stock_id="2330", date=datetime.date(2024, 1, 1))
 ```
 
 ### StockChipAPI - 籌碼資料
 
-**取得指定日期的籌碼資料**:
+**具名查詢（策略層請用這個）**:
+
+```python
+# {stock_id: 投信買賣超股數}
+trust_map: Dict[str, Any] = self.chip.get_trust_net_shares_map(date)
+```
+
+**取得指定日期的籌碼資料（研究用，策略層勿直接取欄位）**:
 
 ```python
 # 取得 2024/1/1 的三大法人籌碼資料
@@ -624,6 +713,7 @@ from core.models import StockAccount, StockOrder, StockQuote
 from core.strategies.stock import BaseStockStrategy
 from core.utils import Action, PositionType, Scale, Units
 
+
 class SimpleStrategy(BaseStockStrategy):
     """簡單策略範例"""
 
@@ -658,7 +748,9 @@ class SimpleStrategy(BaseStockStrategy):
                     close_positions.append(stock_quote)
         return self.calculate_position_size(close_positions, Action.SELL)
 
-    def check_stop_loss_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
+    def check_stop_loss_signal(
+        self, stock_quotes: List[StockQuote]
+    ) -> List[StockOrder]:
         return []
 
     def calculate_position_size(
@@ -666,22 +758,21 @@ class SimpleStrategy(BaseStockStrategy):
     ) -> List[StockOrder]:
         orders = []
         if action == Action.BUY:
-            available = max(0, self.max_holdings - self.account.get_position_count())
-            if available > 0:
-                per_position = self.account.balance / available
-                for stock_quote in stock_quotes[:available]:
-                    volume = int(per_position / (stock_quote.close * Units.LOT))
-                    if volume >= 1:
-                        orders.append(
-                            StockOrder(
-                                stock_id=stock_quote.stock_id,
-                                date=stock_quote.date,
-                                action=action,
-                                position_type=PositionType.LONG,
-                                price=stock_quote.cur_price,
-                                volume=volume,
-                            )
-                        )
+            # 張數交給 sizer，策略只提供 (報價, 參考價)
+            candidates = [(stock_quote, stock_quote.close) for stock_quote in stock_quotes]
+            for stock_quote, _, volume in self.sizer.size(
+                self.account, candidates, self.max_holdings
+            ):
+                orders.append(
+                    StockOrder(
+                        stock_id=stock_quote.stock_id,
+                        date=stock_quote.date,
+                        action=action,
+                        position_type=PositionType.LONG,
+                        price=stock_quote.cur_price,
+                        volume=volume,
+                    )
+                )
         elif action == Action.SELL:
             for stock_quote in stock_quotes:
                 position = self.account.get_first_open_position(stock_quote.stock_id)
@@ -738,7 +829,7 @@ python run.py --strategy SimpleStrategy
 | `short_constraint` | `Optional[ShortConstraint]` | `None` | 可成交限制：可當沖清單、券源檢核、停券日、單一標的曝險上限 |
 | `day_trade_uncovered_policy` | `DayTradeUncoveredPolicy` | `FORCE_COVER_AT_CLOSE` | 當沖日終未回補的處理 |
 | `margin_call_policy` | `MarginCallPolicy` | `FORCE_COVER` | 維持率跌破 130% 的處理 |
-| `bar_execution_order` | `Optional[BarExecutionOrder]` | `None` | 單根 K 棒內的執行順序，`None` 由引擎依方向推導 |
+| `bar_execution_order` | `Optional[BarExecutionOrder]` | `None` | 單根 K 棒內的執行順序，`None` 由引擎依方向推導；非 `None` 時一律以策略為準（見[單根 bar 的執行順序](#單根-bar-的執行順序)） |
 
 ### 訊號方向對照
 
@@ -860,7 +951,9 @@ class SimpleShortStrategy(BaseStockStrategy):
                 )
         return orders
 
-    def check_stop_loss_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
+    def check_stop_loss_signal(
+        self, stock_quotes: List[StockQuote]
+    ) -> List[StockOrder]:
         """停損：放空是「價格上漲」才虧損，方向與做多相反"""
 
         orders: List[StockOrder] = []
