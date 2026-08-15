@@ -1,3 +1,4 @@
+import datetime
 import random
 import time
 from io import StringIO
@@ -23,8 +24,9 @@ from core.utils import TimeUtils
 class FinancialStatementCrawler(BaseDataCrawler):
     """Crawler for quarterly financial Statement"""
 
+    # 起始年份為資料源下界（MOPS 只供得出民國 102 年以後），故寫死；
+    # 結束年份不設常數，改由呼叫端取當年——MOPS 一路供到當季，寫死會逐年落後
     DEFAULT_START_YEAR: int = 2013
-    DEFAULT_END_YEAR: int = 2025
     CRAWL_DELAY_MIN: float = 1.0
     CRAWL_DELAY_MAX: float = 3.0
 
@@ -264,7 +266,12 @@ class FinancialStatementCrawler(BaseDataCrawler):
         self,
         start_year: Optional[int] = None,
         end_year: Optional[int] = None,
-        seasons: List[int] = [1, 2, 3, 4],
+        seasons: List[int] = [
+            1,
+            2,
+            3,
+            4,
+        ],
         stock_id: str = "2330",
         report_type: FinancialStatementType = FinancialStatementType.BALANCE_SHEET,
     ) -> List[str]:
@@ -277,7 +284,9 @@ class FinancialStatementCrawler(BaseDataCrawler):
         _start_year: int = (
             start_year if start_year is not None else self.DEFAULT_START_YEAR
         )
-        _end_year: int = end_year if end_year is not None else self.DEFAULT_END_YEAR
+        _end_year: int = (
+            end_year if end_year is not None else datetime.date.today().year
+        )
 
         year_list: List[int] = list(range(_start_year, _end_year + 1))
         all_columns: List[str] = []

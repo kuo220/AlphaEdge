@@ -4,6 +4,16 @@ from typing import Dict, Set, Union
 
 from loguru import logger
 
+from core.config import (
+    DEFAULT_CHIP_START_DATE,
+    DEFAULT_DIVIDEND_START_DATE,
+    DEFAULT_END_MONTH,
+    DEFAULT_MARGIN_START_DATE,
+    DEFAULT_PRICE_START_DATE,
+    DEFAULT_START_YEAR,
+    FINMIND_BROKER_TRADING_START_DATE,
+    TICK_UPDATE_START_DATE,
+)
 from core.pipeline.updaters.financial_statement_updater import (
     FinancialStatementUpdater,
 )
@@ -16,17 +26,6 @@ from core.pipeline.updaters.stock_dividend_updater import StockDividendUpdater
 from core.pipeline.updaters.stock_margin_updater import StockMarginUpdater
 from core.pipeline.updaters.stock_price_updater import StockPriceUpdater
 from core.pipeline.updaters.stock_tick_updater import StockTickUpdater
-from core.config import (
-    DEFAULT_CHIP_START_DATE,
-    DEFAULT_DIVIDEND_START_DATE,
-    DEFAULT_END_MONTH,
-    DEFAULT_MARGIN_START_DATE,
-    DEFAULT_PRICE_START_DATE,
-    DEFAULT_START_YEAR,
-    FINMIND_BROKER_TRADING_END_DATE,
-    FINMIND_BROKER_TRADING_START_DATE,
-    TICK_UPDATE_START_DATE,
-)
 from core.pipeline.utils import DataType, FinMindDataType
 
 """
@@ -214,7 +213,7 @@ def get_update_time_config(
     elif data_type == DataType.FINMIND:
         return {
             "start_date": FINMIND_BROKER_TRADING_START_DATE,
-            "end_date": FINMIND_BROKER_TRADING_END_DATE,
+            "end_date": datetime.date.today(),
         }
     elif data_type == FinMindDataType.BROKER_TRADING or (
         isinstance(data_type, str)
@@ -222,7 +221,7 @@ def get_update_time_config(
     ):
         return {
             "start_date": FINMIND_BROKER_TRADING_START_DATE,
-            "end_date": FINMIND_BROKER_TRADING_END_DATE,
+            "end_date": datetime.date.today(),
         }
     else:
         return {
