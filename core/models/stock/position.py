@@ -58,7 +58,9 @@ class StockPosition(BasePosition):
         self.short_method: Optional[ShortMethod] = short_method  # 放空管道
         self.is_day_trade: bool = is_day_trade  # 是否為現股當沖
         self.margin: float = margin  # 已繳保證金
-        self.short_proceeds: float = short_proceeds  # 融券賣出擔保價款（不計入可用餘額）
+        self.short_proceeds: float = (
+            short_proceeds  # 融券賣出擔保價款（不計入可用餘額）
+        )
         self.borrow_fee: float = borrow_fee  # 開倉時一次收取的融券手續費
         self.accrued_borrow_fee: float = accrued_borrow_fee  # SBL 逐日計提的借券費
         self.holding_days: int = holding_days  # 已持有曆日數

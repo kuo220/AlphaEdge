@@ -449,8 +449,8 @@ class FinMindLoader(BaseDataLoader):
 
             # 過濾出新資料
             if existing_broker_ids:
-                mask: pd.Series = (
-                    ~df["securities_trader_id"].astype(str).isin(existing_broker_ids)
+                mask: pd.Series = ~df["securities_trader_id"].astype(str).isin(
+                    existing_broker_ids
                 )
                 new_df: pd.DataFrame = df[mask]
 

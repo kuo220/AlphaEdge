@@ -49,8 +49,9 @@ def test_load_broker_trading_from_dataframe_optimization():
     timestamp: str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     temp_db_path: str = str(temp_dir / f"test_finmind_loader_opt_{timestamp}.db")
 
-    with patch("core.config.DB_PATH", temp_db_path), patch(
-        "core.pipeline.loaders.finmind_loader.DB_PATH", temp_db_path
+    with (
+        patch("core.config.DB_PATH", temp_db_path),
+        patch("core.pipeline.loaders.finmind_loader.DB_PATH", temp_db_path),
     ):
         from core.pipeline.loaders.finmind_loader import FinMindLoader
 
@@ -138,9 +139,9 @@ def test_load_broker_trading_from_dataframe_optimization():
                 ("2317", "1020"),
             )
             count_2317_after = cur.fetchone()[0]
-            assert (
-                count_2317_after == 1
-            ), "另一組合 (2317, 1020) 筆數不應被改動，證明查詢只限本批"
+            assert count_2317_after == 1, (
+                "另一組合 (2317, 1020) 筆數不應被改動，證明查詢只限本批"
+            )
 
         finally:
             loader.disconnect()

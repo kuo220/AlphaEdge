@@ -129,9 +129,15 @@ class OvernightLeadEventStrategy(BaseStockStrategy):
             threads=True,
         )
         if df.empty:
-            raise RuntimeError("yfinance returned empty dataset for US tickers (OvernightLeadEvent).")
+            raise RuntimeError(
+                "yfinance returned empty dataset for US tickers (OvernightLeadEvent)."
+            )
 
-        close = df["Close"].copy() if isinstance(df.columns, pd.MultiIndex) else df[["Close"]]
+        close = (
+            df["Close"].copy()
+            if isinstance(df.columns, pd.MultiIndex)
+            else df[["Close"]]
+        )
         if not isinstance(df.columns, pd.MultiIndex):
             close.columns = us_tickers[:1]
         close = close.sort_index()
@@ -184,7 +190,9 @@ class OvernightLeadEventStrategy(BaseStockStrategy):
         train = panel[panel["date"] <= self.TRAIN_END]
         val = panel[(panel["date"] >= self.VAL_START) & (panel["date"] <= self.VAL_END)]
         if train.empty or val.empty:
-            raise RuntimeError("Training/validation split is empty for OvernightLeadEvent.")
+            raise RuntimeError(
+                "Training/validation split is empty for OvernightLeadEvent."
+            )
 
         X_tr = train[x_cols].values.astype(float)
         y_tr = train["r_2330"].values.astype(float)
@@ -202,7 +210,9 @@ class OvernightLeadEventStrategy(BaseStockStrategy):
         pred = np.c_[np.ones(len(panel)), panel[x_cols].values.astype(float)] @ coef
         panel = panel.copy()
         panel["signal"] = (pred > 0.0).astype(int)
-        self.signal_by_date = {d: int(s) for d, s in zip(panel["date"], panel["signal"])}
+        self.signal_by_date = {
+            d: int(s) for d, s in zip(panel["date"], panel["signal"])
+        }
 
         logger.info(
             f"[OvernightLeadEvent] signals ready, rows={len(panel)}, alpha={self.alpha:.6f}"
@@ -242,7 +252,9 @@ class OvernightLeadEventStrategy(BaseStockStrategy):
             return []
         return self.calculate_position_size([quote], Action.SELL)
 
-    def check_stop_loss_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
+    def check_stop_loss_signal(
+        self, stock_quotes: List[StockQuote]
+    ) -> List[StockOrder]:
         # Keep stop-loss out of this baseline signal model.
         return []
 
@@ -289,4 +301,3 @@ class OvernightLeadEventStrategy(BaseStockStrategy):
                 )
             )
         return orders
-

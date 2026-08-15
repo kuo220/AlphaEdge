@@ -12,7 +12,6 @@ from core.config import (
     MONTHLY_REVENUE_REPORT_DOWNLOADS_PATH,
     MONTHLY_REVENUE_TABLE_NAME,
 )
-from core.utils.log_manager import LogManager
 from core.pipeline.cleaners.monthly_revenue_report_cleaner import (
     MonthlyRevenueReportCleaner,
 )
@@ -25,6 +24,7 @@ from core.pipeline.loaders.monthly_revenue_report_loader import (
 from core.pipeline.updaters.base import BaseDataUpdater
 from core.pipeline.utils.sqlite_utils import SQLiteUtils
 from core.utils import TimeUtils
+from core.utils.log_manager import LogManager
 
 """
 資料區間

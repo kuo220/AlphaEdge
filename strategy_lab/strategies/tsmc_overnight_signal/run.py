@@ -23,7 +23,6 @@ if str(_ROOT) not in sys.path:
 
 from strategy_lab.strategies.tsmc_overnight_signal.pipeline import main  # noqa: E402
 
-
 if __name__ == "__main__":
     output_path = main(
         data_start=dt.date(2020, 1, 1),

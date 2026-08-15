@@ -4,6 +4,7 @@ from typing import Dict, List, Optional
 
 from loguru import logger
 
+from core.backtest.models.cost_model import StockCostModel
 from core.backtest.models.instrument_spec import InstrumentSpec, TwStockSpec
 from core.managers.stock.position_manager import StockPositionManager
 from core.models import (
@@ -23,7 +24,6 @@ from core.utils import (
     ShortMethod,
     TimeUtils,
 )
-from core.backtest.models.cost_model import StockCostModel
 
 """SettlementModel: 一根 bar 收盤後由市場規則強制執行的動作"""
 
@@ -233,9 +233,7 @@ class TwStockSettlementModel(BaseSettlementModel):
             prev_close, TimeUtils.to_date(quote.date)
         )
         return (
-            quote.close == limit_up
-            and quote.high == limit_up
-            and quote.low == limit_up
+            quote.close == limit_up and quote.high == limit_up and quote.low == limit_up
         )
 
     def convert_to_margin_position(

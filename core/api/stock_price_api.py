@@ -3,7 +3,6 @@ import sqlite3
 from typing import Any, Dict, Optional
 
 import pandas as pd
-from loguru import logger
 
 from core.api.base import BaseDataAPI
 from core.api.stock_dividend_api import StockDividendAPI
@@ -144,9 +143,7 @@ class StockPriceAPI(BaseDataAPI):
         """
 
         df: pd.DataFrame = self.get(date)
-        share_map: Dict[str, Any] = self.build_column_map(
-            df, PriceColumn.SHARES.value
-        )
+        share_map: Dict[str, Any] = self.build_column_map(df, PriceColumn.SHARES.value)
 
         volume_map: Dict[str, int] = {}
         for stock_id, shares in share_map.items():
@@ -213,8 +210,8 @@ class StockPriceAPI(BaseDataAPI):
         """
 
         close_map: Dict[str, Any] = self.get_close_map(date)
-        factor_map: Dict[str, float] = self.get_dividend_api().get_cumulative_factor_map(
-            date
+        factor_map: Dict[str, float] = (
+            self.get_dividend_api().get_cumulative_factor_map(date)
         )
 
         adjusted_close_map: Dict[str, Any] = {}

@@ -3,7 +3,6 @@ import sqlite3
 from typing import Any, Dict, Optional
 
 import pandas as pd
-from loguru import logger
 
 from core.api.base import BaseDataAPI
 from core.config import CHIP_TABLE_NAME, DB_PATH

@@ -1,0 +1,30 @@
+# 讓 S2 的格式成果在本機就被維持，而不是等到 CI 才發現。
+#
+# 啟用方式（只需做一次）：
+#     pip install pre-commit
+#     pre-commit install
+#
+# 手動全專案執行：
+#     pre-commit run --all-files
+#
+# 規則設定一律讀 pyproject.toml 的 [tool.ruff]，此處不重複定義，
+# 避免本機與 CI 兩套設定漂移。
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.3  # 與開發環境實測版本一致；升版時一併更新 pyproject 的 ruff>=
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      # tick.png 有 512KB，雖已被 .gitignore 排除，但此掛鉤能防止類似檔案再進來
+      - id: check-added-large-files
+        args: [--maxkb=256]
+      - id: check-yaml
+      - id: check-toml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace

@@ -184,7 +184,9 @@ def aggregate_probabilities_by_stock(
         }
         for n in horizons:
             col = f"continued_up_{n}d"
-            row[f"prob_{n}d"] = group[col].mean() if col in group.columns else float("nan")
+            row[f"prob_{n}d"] = (
+                group[col].mean() if col in group.columns else float("nan")
+            )
         row["low_sample"] = row["event_count"] < MIN_EVENT_COUNT
         rows.append(row)
 
@@ -199,7 +201,9 @@ def aggregate_probabilities_by_stock(
         *_prob_columns(horizons),
         "low_sample",
     ]
-    return by_stock[col_order].sort_values(["event_count", "stock_id"], ascending=[False, True])
+    return by_stock[col_order].sort_values(
+        ["event_count", "stock_id"], ascending=[False, True]
+    )
 
 
 def aggregate_probabilities_summary(
@@ -328,7 +332,9 @@ def write_outputs(
 
     non_overlap_summary = summary[summary["event_mode"] == "non_overlap"]
     if not non_overlap_summary.empty:
-        overall = non_overlap_summary[non_overlap_summary["scope"] == "all_tech"].iloc[0]
+        overall = non_overlap_summary[non_overlap_summary["scope"] == "all_tech"].iloc[
+            0
+        ]
         logger.info(
             "整體 non_overlap 機率 — "
             f"5d={overall['prob_5d']:.2%}, "

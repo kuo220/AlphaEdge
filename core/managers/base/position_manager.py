@@ -76,9 +76,7 @@ class BasePositionManager(ABC):
     def resolve_target_position_type(self, order: BaseOrder) -> PositionType:
         """平倉動作反推目標部位方向：賣出平多單、買進回補空單"""
 
-        return (
-            PositionType.LONG if order.action == Action.SELL else PositionType.SHORT
-        )
+        return PositionType.LONG if order.action == Action.SELL else PositionType.SHORT
 
     def close_position(self, order: BaseOrder) -> List[BaseTradeRecord]:
         """

@@ -1,19 +1,15 @@
 import argparse
 import datetime
-import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
-_PROJECT_ROOT: Path = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(_PROJECT_ROOT))
-
 from core.backtest.backtester import Backtester
 from core.backtest.factory import build_backtester
+from core.backtest.models.cost_model import ShortConstraint
 from core.models import StockOrder, StockQuote
 from core.utils import Action, PositionType, Scale, ShortMethod
-from core.backtest.models.cost_model import ShortConstraint
 from tests.backtest.conftest import ScriptedStrategy
 
 """
@@ -158,12 +154,8 @@ def build_scenarios() -> List[ShortScenario]:
             verifies="DAY_TRADE 稅率減半、OPEN_THEN_CLOSE 同 bar 開平倉",
             strategy=make_short_strategy(
                 enable_intraday=True,
-                open_script={
-                    day(0): [make_short_order(day(0), Action.SELL, 100.0, 2)]
-                },
-                close_script={
-                    day(0): [make_short_order(day(0), Action.BUY, 95.0, 2)]
-                },
+                open_script={day(0): [make_short_order(day(0), Action.SELL, 100.0, 2)]},
+                close_script={day(0): [make_short_order(day(0), Action.BUY, 95.0, 2)]},
             ),
             bars=[(day(0), [make_quote(day(0), 97.0, high=101.0, low=94.0)])],
         )
@@ -182,9 +174,7 @@ def build_scenarios() -> List[ShortScenario]:
             name="margin_swing_10_days",
             verifies="保證金佔用、融券利息於平倉一次計算、holding_days 累計",
             strategy=make_short_strategy(
-                open_script={
-                    day(0): [make_short_order(day(0), Action.SELL, 100.0, 2)]
-                },
+                open_script={day(0): [make_short_order(day(0), Action.SELL, 100.0, 2)]},
                 close_script={
                     day(10): [make_short_order(day(10), Action.BUY, 95.0, 2)]
                 },
@@ -203,9 +193,7 @@ def build_scenarios() -> List[ShortScenario]:
                     day(0): [make_short_order(day(0), Action.SELL, 100.0, 3)],
                     day(1): [make_short_order(day(1), Action.SELL, 105.0, 2)],
                 },
-                close_script={
-                    day(2): [make_short_order(day(2), Action.BUY, 95.0, 4)]
-                },
+                close_script={day(2): [make_short_order(day(2), Action.BUY, 95.0, 4)]},
             ),
             bars=[
                 (day(0), [make_quote(day(0), 100.0, high=101.0, low=99.0)]),
@@ -221,9 +209,7 @@ def build_scenarios() -> List[ShortScenario]:
             name="margin_call_force_cover",
             verifies="維持率跌破門檻的強制回補與事件計數",
             strategy=make_short_strategy(
-                open_script={
-                    day(0): [make_short_order(day(0), Action.SELL, 100.0, 2)]
-                },
+                open_script={day(0): [make_short_order(day(0), Action.SELL, 100.0, 2)]},
             ),
             bars=[
                 (day(0), [make_quote(day(0), 100.0, high=101.0, low=99.0)]),
@@ -240,9 +226,7 @@ def build_scenarios() -> List[ShortScenario]:
             verifies="漲停鎖死無法回補 → 轉融券留倉、補收保證金與券費",
             strategy=make_short_strategy(
                 enable_intraday=True,
-                open_script={
-                    day(1): [make_short_order(day(1), Action.SELL, 110.0, 1)]
-                },
+                open_script={day(1): [make_short_order(day(1), Action.SELL, 110.0, 1)]},
             ),
             bars=[
                 # 第一根 bar 不下單，只為了讓引擎記下前收 100（漲停價才會是 110）
@@ -268,9 +252,7 @@ def build_scenarios() -> List[ShortScenario]:
                 short_constraint=ShortConstraint(
                     force_cover_dates={STOCK_ID: [day(0)]}
                 ),
-                open_script={
-                    day(0): [make_short_order(day(0), Action.SELL, 100.0, 1)]
-                },
+                open_script={day(0): [make_short_order(day(0), Action.SELL, 100.0, 1)]},
             ),
             bars=[(day(0), [make_quote(day(0), 98.0, high=101.0, low=97.0)])],
         )
@@ -314,7 +296,9 @@ def run_scenario(scenario: ShortScenario) -> Backtester:
     return backtester
 
 
-def collect_trade_rows(scenario_name: str, backtester: Backtester) -> List[Dict[str, Any]]:
+def collect_trade_rows(
+    scenario_name: str, backtester: Backtester
+) -> List[Dict[str, Any]]:
     """取出已平倉的交易紀錄全欄位（放空記帳的主要驗收對象）"""
 
     rows: List[Dict[str, Any]] = []

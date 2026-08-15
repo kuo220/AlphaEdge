@@ -43,7 +43,18 @@ LONG baseline 的 915 筆全部是全額平倉，故該次切換**未改變 base
 
 # 涵蓋各檔位級距的邊界價（台股升降單位在 10／50／100／500／1000 換檔）
 PRICES: List[float] = [
-    5.0, 9.99, 10.0, 49.95, 50.0, 99.5, 100.0, 499.0, 500.0, 999.0, 1000.0, 2000.0,
+    5.0,
+    9.99,
+    10.0,
+    49.95,
+    50.0,
+    99.5,
+    100.0,
+    499.0,
+    500.0,
+    999.0,
+    1000.0,
+    2000.0,
 ]
 
 # 開倉張數；含 1 張（最低手續費必然觸發）與大額（最低手續費不觸發）
@@ -167,7 +178,9 @@ def report(df: pd.DataFrame) -> None:
 
     print(f"組合總數：{len(df):,}（其中部分平倉 {int(df['is_partial'].sum()):,}）")
     print()
-    print(f"{'項目':<14}{'有差異筆數':>12}{'占比':>9}{'最大差':>12}{'全額平倉差異':>14}")
+    print(
+        f"{'項目':<14}{'有差異筆數':>12}{'占比':>9}{'最大差':>12}{'全額平倉差異':>14}"
+    )
     print("-" * 62)
 
     for key in ("commission", "tax", "realized_pnl", "roi"):
@@ -202,8 +215,13 @@ def report(df: pd.DataFrame) -> None:
         print(
             top[
                 [
-                    "buy_price", "sell_price", "open_volume", "close_volume",
-                    "old_realized_pnl", "new_realized_pnl", "diff_realized_pnl",
+                    "buy_price",
+                    "sell_price",
+                    "open_volume",
+                    "close_volume",
+                    "old_realized_pnl",
+                    "new_realized_pnl",
+                    "diff_realized_pnl",
                 ]
             ].to_string(index=False)
         )

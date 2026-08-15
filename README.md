@@ -154,6 +154,42 @@ To exit the virtualenv in the current shell:
 deactivate
 ```
 
+`requirements.txt` is now a one-liner (`-e .`) that installs the project itself from
+`pyproject.toml`, so `core` / `tasks` / `tests` become importable from **any** working
+directory. Fully pinned versions are kept in `requirements-lock.txt` (used by the Docker
+build and the conda env files).
+
+For development work, install the dev extras as well:
+
+```bash
+python -m pip install -e ".[dev]"   # pytest, pytest-timeout, pytest-cov, ruff
+```
+
+Optional extras: `frontend` (Streamlit UI), `tick` (DolphinDB tick storage), `lab`
+(`strategy_lab` report output). They are deliberately **not** part of the base install —
+the backtest and ETL paths run without them.
+
+#### Lint, format and tests
+
+```bash
+ruff check .            # CLAUDE.md §2.5 / §2.10, configured in pyproject.toml
+ruff format .
+pytest -m "not slow"    # skips tests needing stock.db or API credentials
+pytest                  # full suite (needs core/database/stock.db)
+./scripts/run_regression.sh   # LONG + SHORT regression, must stay row-identical
+```
+
+To have the same checks run automatically before each commit:
+
+```bash
+pip install pre-commit
+pre-commit install       # one-time; installs the git hook
+pre-commit run --all-files
+```
+
+GitHub Actions runs `ruff check`, `ruff format --check` and `pytest -m "not slow"` on
+every push (see `.github/workflows/ci.yml`).
+
 If you switch to **Option 2 (Docker)** for this project, you do not need a local venv: the container image already provides an isolated Python environment.
 
 Copy and fill credentials / paths: `cp .env.example .env` (details in [Dev Setup](docs/setup/dev-setup.md)).

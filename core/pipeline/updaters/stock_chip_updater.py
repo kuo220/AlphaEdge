@@ -8,13 +8,13 @@ import pandas as pd
 from loguru import logger
 
 from core.config import CHIP_TABLE_NAME, DB_PATH
-from core.utils.log_manager import LogManager
 from core.pipeline.cleaners.stock_chip_cleaner import StockChipCleaner
 from core.pipeline.crawlers.stock_chip_crawler import StockChipCrawler
 from core.pipeline.loaders.stock_chip_loader import StockChipLoader
 from core.pipeline.updaters.base import BaseDataUpdater
 from core.pipeline.utils.sqlite_utils import SQLiteUtils
 from core.utils import TimeUtils
+from core.utils.log_manager import LogManager
 
 """
 三大法人爬蟲資料時間表：

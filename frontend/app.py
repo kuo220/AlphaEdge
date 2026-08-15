@@ -276,8 +276,18 @@ def _extract_starting_capital(df: pd.DataFrame) -> tuple[float | None, bool]:
     return None, False
 
 
-def _extract_backtest_date_range(df: pd.DataFrame) -> tuple[pd.Timestamp | None, pd.Timestamp | None]:
-    date_columns = ["Buy Date", "Sell Date", "Date", "Trade Date", "交易日期", "買進日期", "賣出日期"]
+def _extract_backtest_date_range(
+    df: pd.DataFrame,
+) -> tuple[pd.Timestamp | None, pd.Timestamp | None]:
+    date_columns = [
+        "Buy Date",
+        "Sell Date",
+        "Date",
+        "Trade Date",
+        "交易日期",
+        "買進日期",
+        "賣出日期",
+    ]
     parsed_dates: list[pd.Series] = []
     for column in date_columns:
         if column in df.columns:
@@ -344,7 +354,9 @@ def _render_metrics(df: pd.DataFrame) -> None:
     win_rate = (win_count / trade_count * 100) if trade_count > 0 else 0.0
     total_pnl = float(realized_pnl.sum()) if not realized_pnl.empty else 0.0
     avg_roi = float(roi.mean() * 100) if not roi.empty else 0.0
-    last_balance = float(cumulative_balance.iloc[-1]) if not cumulative_balance.empty else 0.0
+    last_balance = (
+        float(cumulative_balance.iloc[-1]) if not cumulative_balance.empty else 0.0
+    )
     sharpe_ratio = _calc_sharpe_ratio(daily_returns)
     sortino_ratio = _calc_sortino_ratio(daily_returns)
     information_ratio = _calc_information_ratio(daily_returns, benchmark_returns)
@@ -418,7 +430,9 @@ def _render_interactive_charts(df: pd.DataFrame) -> None:
         st.plotly_chart(line_fig, use_container_width=True)
 
     if "Realized PnL" in chart_df.columns and "Sell Date" in chart_df.columns:
-        chart_df["Realized PnL"] = pd.to_numeric(chart_df["Realized PnL"], errors="coerce")
+        chart_df["Realized PnL"] = pd.to_numeric(
+            chart_df["Realized PnL"], errors="coerce"
+        )
         daily = (
             chart_df.dropna(subset=["Sell Date"])
             .groupby(chart_df["Sell Date"].dt.date)["Realized PnL"]

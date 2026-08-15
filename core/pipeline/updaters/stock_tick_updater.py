@@ -9,7 +9,6 @@ import shioaji as sj
 from loguru import logger
 
 from core.config import TICK_DOWNLOADS_PATH
-from core.utils.log_manager import LogManager
 from core.pipeline.cleaners.stock_tick_cleaner import StockTickCleaner
 from core.pipeline.crawlers.stock_info_crawler import StockInfoCrawler
 from core.pipeline.crawlers.stock_tick_crawler import StockTickCrawler
@@ -17,6 +16,7 @@ from core.pipeline.loaders.stock_tick_loader import StockTickLoader
 from core.pipeline.updaters.base import BaseDataUpdater
 from core.pipeline.utils.stock_tick_utils import StockTickUtils
 from core.utils import ShioajiAccount, ShioajiAPI, TimeUtils
+from core.utils.log_manager import LogManager
 
 """
 Shioaji 台股 ticks 資料時間表：
@@ -299,9 +299,9 @@ class StockTickUpdater(BaseDataUpdater):
             logger.info(f"Start crawling stock: {stock_id}")
 
             df_list: List[pd.DataFrame] = []
-            stock_successful_dates: List[datetime.date] = (
-                []
-            )  # 追蹤當前股票成功爬取的日期
+            stock_successful_dates: List[
+                datetime.date
+            ] = []  # 追蹤當前股票成功爬取的日期
             skipped_dates: List[datetime.date] = []  # 追蹤被跳過的日期
             failed_dates: List[datetime.date] = []  # 追蹤爬取失敗的日期
 
@@ -505,7 +505,7 @@ class StockTickUpdater(BaseDataUpdater):
         total_file: int = len(list(TICK_DOWNLOADS_PATH.glob("*.csv")))
         logger.info(
             f"All crawling tasks completed. Total CSV files: {total_file}, "
-            f"Total time: {total_time:.2f} seconds ({total_time/60:.2f} minutes)"
+            f"Total time: {total_time:.2f} seconds ({total_time / 60:.2f} minutes)"
         )
 
     def split_list(
@@ -557,7 +557,7 @@ class StockTickUpdater(BaseDataUpdater):
         logger.info("=" * 80)
         logger.info(f"Date Range: {start_date.isoformat()} ~ {end_date.isoformat()}")
         logger.info(
-            f"Total Time: {total_time:.2f} seconds ({total_time/60:.2f} minutes)"
+            f"Total Time: {total_time:.2f} seconds ({total_time / 60:.2f} minutes)"
         )
         logger.info("")
         logger.info("Stock Statistics:")

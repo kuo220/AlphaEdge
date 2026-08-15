@@ -4,7 +4,7 @@ import os
 import sqlite3
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, List, Optional
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -135,9 +135,9 @@ def test_broker_trading_updater():
     """
     測試 broker trading daily report 更新功能
     """
-    print(f"\n{'='*60}")
-    print(f"測試 Broker Trading Daily Report Updater")
-    print(f"{'='*60}")
+    print(f"\n{'=' * 60}")
+    print("測試 Broker Trading Daily Report Updater")
+    print(f"{'=' * 60}")
 
     # 測試參數
     start_date = datetime.date(2021, 6, 30)
@@ -145,7 +145,7 @@ def test_broker_trading_updater():
     test_stock_list = ["2330", "2317", "2454"]  # 3 檔股票
     test_trader_list = ["1020", "1021"]  # 2 間券商
 
-    print(f"\n測試參數:")
+    print("\n測試參數:")
     print(f"  - 起始日期: {start_date}")
     print(f"  - 結束日期: {end_date}")
     print(f"  - 股票列表: {test_stock_list}")
@@ -229,9 +229,11 @@ def test_broker_trading_updater():
             sys.modules["FinMind.data"] = finmind_data_mock
 
         # 使用 patch 替換配置（在導入前 patch）
-        with patch("core.config.DB_PATH", temp_db_path), patch(
-            "core.config.FINMIND_DOWNLOADS_PATH", temp_downloads_path
-        ), patch("core.config.BROKER_TRADING_METADATA_PATH", temp_metadata_file):
+        with (
+            patch("core.config.DB_PATH", temp_db_path),
+            patch("core.config.FINMIND_DOWNLOADS_PATH", temp_downloads_path),
+            patch("core.config.BROKER_TRADING_METADATA_PATH", temp_metadata_file),
+        ):
             # 導入 updater（在 patch 後導入，這樣會使用 patch 後的值）
             from core.pipeline.updaters.finmind_updater import FinMindUpdater
 
@@ -243,14 +245,14 @@ def test_broker_trading_updater():
             )
 
             # ===== 測試 1: 測試單一組合更新 (update_broker_trading_daily_report) =====
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print("測試 1: update_broker_trading_daily_report() - 單一組合更新")
-            print(f"{'='*60}")
+            print(f"{'=' * 60}")
 
             test_stock_id = test_stock_list[0]
             test_trader_id = test_trader_list[0]
 
-            print(f"\n測試參數:")
+            print("\n測試參數:")
             print(f"  - 股票代碼: {test_stock_id}")
             print(f"  - 券商代碼: {test_trader_id}")
             print(f"  - 日期範圍: {start_date} ~ {end_date}")
@@ -277,7 +279,7 @@ def test_broker_trading_updater():
 
             # 讀取 CSV 檔案
             df_csv = pd.read_csv(csv_path, encoding="utf-8-sig")
-            print(f"\n✅ CSV 檔案驗證通過:")
+            print("\n✅ CSV 檔案驗證通過:")
             print(f"  - 路徑: {csv_path}")
             print(f"  - 資料筆數: {len(df_csv)}")
             print(f"  - 欄位: {list(df_csv.columns)}")
@@ -292,7 +294,7 @@ def test_broker_trading_updater():
             cursor.execute(query, (test_stock_id, test_trader_id))
             db_count = cursor.fetchone()[0]
 
-            print(f"\n✅ 資料庫驗證:")
+            print("\n✅ 資料庫驗證:")
             print(f"  - 資料筆數: {db_count}")
 
             # 驗證資料一致性
@@ -302,9 +304,9 @@ def test_broker_trading_updater():
             conn.close()
 
             # ===== 測試 2: 測試批量更新 (update_broker_trading_daily_report) =====
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print("測試 2: update_broker_trading_daily_report() - 批量更新")
-            print(f"{'='*60}")
+            print(f"{'=' * 60}")
 
             # 測試 2 使用相同的資料庫和目錄（清空資料庫重新開始）
             # 先刪除現有資料庫以確保乾淨的測試環境
@@ -324,9 +326,11 @@ def test_broker_trading_updater():
                 if module_name in sys.modules:
                     del sys.modules[module_name]
 
-            with patch("core.config.DB_PATH", temp_db_path), patch(
-                "core.config.FINMIND_DOWNLOADS_PATH", temp_downloads_path
-            ), patch("core.config.BROKER_TRADING_METADATA_PATH", temp_metadata_file):
+            with (
+                patch("core.config.DB_PATH", temp_db_path),
+                patch("core.config.FINMIND_DOWNLOADS_PATH", temp_downloads_path),
+                patch("core.config.BROKER_TRADING_METADATA_PATH", temp_metadata_file),
+            ):
                 from core.pipeline.updaters.finmind_updater import FinMindUpdater
 
                 updater2 = FinMindUpdater()
@@ -338,18 +342,18 @@ def test_broker_trading_updater():
                 updater2.api_call_count = 0
                 updater2.api_quota_limit = 100  # 設置較小的 quota 以便測試耗盡情況
 
-                print(f"\nAPI Quota 設定:")
+                print("\nAPI Quota 設定:")
                 print(f"  - 限制: {updater2.api_quota_limit}")
                 print(f"  - 當前使用: {updater2.api_call_count}")
 
                 # 執行批量更新
-                print(f"\n🔄 執行批量更新...")
+                print("\n🔄 執行批量更新...")
                 updater2.update_broker_trading_daily_report(
                     start_date=start_date, end_date=end_date
                 )
 
                 # 驗證所有組合的 CSV 檔案
-                print(f"\n✅ CSV 檔案結構驗證:")
+                print("\n✅ CSV 檔案結構驗證:")
                 broker_trading_dir = temp_downloads_path / "broker_trading"
                 assert broker_trading_dir.exists(), "broker_trading 目錄不存在"
 
@@ -393,9 +397,9 @@ def test_broker_trading_updater():
                 conn.close()
 
             # ===== 測試 3: 模擬 API 耗盡的情況 =====
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print("測試 3: 模擬 API 耗盡的情況")
-            print(f"{'='*60}")
+            print(f"{'=' * 60}")
 
             # 測試 3 使用相同的資料庫和目錄（清空資料庫重新開始）
             # 先刪除現有資料庫以確保乾淨的測試環境
@@ -415,9 +419,11 @@ def test_broker_trading_updater():
                 if module_name in sys.modules:
                     del sys.modules[module_name]
 
-            with patch("core.config.DB_PATH", temp_db_path), patch(
-                "core.config.FINMIND_DOWNLOADS_PATH", temp_downloads_path
-            ), patch("core.config.BROKER_TRADING_METADATA_PATH", temp_metadata_file):
+            with (
+                patch("core.config.DB_PATH", temp_db_path),
+                patch("core.config.FINMIND_DOWNLOADS_PATH", temp_downloads_path),
+                patch("core.config.BROKER_TRADING_METADATA_PATH", temp_metadata_file),
+            ):
                 # 重新導入 updater
                 from core.pipeline.updaters.finmind_updater import FinMindUpdater
 
@@ -451,10 +457,10 @@ def test_broker_trading_updater():
                 updater2.api_quota_limit = 100
                 updater2.api_call_count = 0
 
-                print(f"\nAPI Quota 設定:")
+                print("\nAPI Quota 設定:")
                 print(f"  - 限制: {updater2.api_quota_limit}")
                 print(f"  - 當前使用: {updater2.api_call_count}")
-                print(f"  - 測試策略: 處理 2 個組合後觸發 quota 耗盡")
+                print("  - 測試策略: 處理 2 個組合後觸發 quota 耗盡")
 
                 # Mock _wait_for_quota_reset 來避免真的等待
                 def mock_wait_for_quota_reset(self) -> bool:
@@ -465,7 +471,7 @@ def test_broker_trading_updater():
                 updater2._wait_for_quota_reset = mock_wait_for_quota_reset
 
                 # 執行批量更新（應該會在處理 2 個組合後停止）
-                print(f"\n🔄 執行批量更新（預期處理 2 個組合後耗盡 quota）...")
+                print("\n🔄 執行批量更新（預期處理 2 個組合後耗盡 quota）...")
                 updater2.update_broker_trading_daily_report(
                     start_date=start_date, end_date=end_date
                 )
@@ -473,15 +479,15 @@ def test_broker_trading_updater():
                 print(f"  ✅ 批量更新已停止（已處理 {processed_count[0]} 個組合）")
 
                 # 驗證 metadata JSON 檔案是否存在且有記錄
-                assert (
-                    temp_metadata_file.exists()
-                ), "Metadata JSON 檔案不存在（應該在 quota 耗盡前保存）"
+                assert temp_metadata_file.exists(), (
+                    "Metadata JSON 檔案不存在（應該在 quota 耗盡前保存）"
+                )
 
                 # 讀取 metadata
-                with open(temp_metadata_file, "r", encoding="utf-8") as f:
+                with open(temp_metadata_file, encoding="utf-8") as f:
                     metadata = json.load(f)
 
-                print(f"\n✅ Metadata JSON 檔案驗證:")
+                print("\n✅ Metadata JSON 檔案驗證:")
                 print(f"  - 路徑: {temp_metadata_file}")
                 print(f"  - 記錄的組合數: {len(metadata)}")
 
@@ -503,16 +509,16 @@ def test_broker_trading_updater():
                 # 驗證 metadata 結構正確（每個組合都應該有 earliest_date 和 latest_date）
                 for broker_id, stocks in metadata.items():
                     for stock_id, date_range in stocks.items():
-                        assert (
-                            "earliest_date" in date_range
-                        ), f"缺少 earliest_date: {broker_id}/{stock_id}"
-                        assert (
-                            "latest_date" in date_range
-                        ), f"缺少 latest_date: {broker_id}/{stock_id}"
+                        assert "earliest_date" in date_range, (
+                            f"缺少 earliest_date: {broker_id}/{stock_id}"
+                        )
+                        assert "latest_date" in date_range, (
+                            f"缺少 latest_date: {broker_id}/{stock_id}"
+                        )
                         print(f"  ✅ {broker_id}/{stock_id}: 日期範圍完整")
 
                 # 驗證 CSV 檔案（檢查已處理的組合是否有 CSV 檔案）
-                print(f"\n✅ CSV 檔案驗證（quota 耗盡前處理的資料）:")
+                print("\n✅ CSV 檔案驗證（quota 耗盡前處理的資料）:")
                 broker_trading_dir = temp_downloads_path / "broker_trading"
                 if broker_trading_dir.exists():
                     csv_count = 0
@@ -529,7 +535,7 @@ def test_broker_trading_updater():
                     print("  ⚠️  broker_trading 目錄不存在（可能沒有處理任何組合）")
 
                 # 驗證資料庫中的資料
-                print(f"\n✅ 資料庫驗證（quota 耗盡前處理的資料）:")
+                print("\n✅ 資料庫驗證（quota 耗盡前處理的資料）:")
                 conn = sqlite3.connect(temp_db_path)
                 query = f"SELECT COUNT(*) FROM {STOCK_TRADING_DAILY_REPORT_TABLE_NAME}"
                 cursor = conn.cursor()
@@ -538,18 +544,18 @@ def test_broker_trading_updater():
                 print(f"  - 資料庫總資料筆數: {db_count}")
                 conn.close()
 
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print("✅ 所有測試通過！")
-            print(f"{'='*60}")
-            print(f"\n📁 測試結果:")
+            print(f"{'=' * 60}")
+            print("\n📁 測試結果:")
             print(f"  - 測試資料目錄: {test_root}")
-            print(f"  - CSV 檔案結構: ✅ 正確")
-            print(f"  - 資料庫資料: ✅ 正確")
-            print(f"  - Metadata JSON: ✅ 正確記錄")
-            print(f"\n💡 提示:")
+            print("  - CSV 檔案結構: ✅ 正確")
+            print("  - 資料庫資料: ✅ 正確")
+            print("  - Metadata JSON: ✅ 正確記錄")
+            print("\n💡 提示:")
             print(f"  - 所有測試資料已保存在: {test_root}")
-            print(f"  - CSV 檔案已保留，可以手動檢查")
-            print(f"  - 測試資料庫位置: tests/database/test.db")
+            print("  - CSV 檔案已保留，可以手動檢查")
+            print("  - 測試資料庫位置: tests/database/test.db")
             print(f"  - 下載資料位置: {test_root}/finmind/broker_trading/")
             print(f"  - Metadata 位置: {test_root}/meta/broker_trading/")
 

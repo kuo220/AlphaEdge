@@ -2,7 +2,6 @@ import sqlite3
 from typing import Optional
 
 import pandas as pd
-from loguru import logger
 
 from core.api.base import BaseDataAPI
 from core.config import DB_PATH

@@ -11,7 +11,6 @@ from core.backtest.report.base import BaseBacktestReporter
 from core.models.stock.record import StockTradeRecord
 from core.pipeline.utils import FileEncoding
 from core.strategies.stock import BaseStockStrategy
-from core.utils.time import TimeUtils
 
 """Generates performance reports based on backtest results"""
 
@@ -482,7 +481,7 @@ class StockBacktestReporter(BaseBacktestReporter):
         ]
 
         if len(benchmark_price_clean) == 0:
-            logger.warning(f"benchmark_price 數據異常，無法繪製 benchmark 曲線")
+            logger.warning("benchmark_price 數據異常，無法繪製 benchmark 曲線")
             return
 
         # === 計算調整後價格（處理股票分割） ===
@@ -598,7 +597,7 @@ class StockBacktestReporter(BaseBacktestReporter):
         ]
 
         if len(benchmark_price_clean) == 0:
-            logger.warning(f"benchmark_price 數據異常，無法繪製 benchmark MDD")
+            logger.warning("benchmark_price 數據異常，無法繪製 benchmark MDD")
             return
 
         # === 計算調整後價格（處理股票分割） ===

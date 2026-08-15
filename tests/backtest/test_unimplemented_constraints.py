@@ -65,9 +65,7 @@ def test_day_trade_whitelist_warns(warnings: List[str]) -> None:
 
     StockCostModel(
         make_config(
-            ShortConstraint(
-                day_trade_whitelist={datetime.date(2024, 1, 2): {"2330"}}
-            )
+            ShortConstraint(day_trade_whitelist={datetime.date(2024, 1, 2): {"2330"}})
         )
     )
 

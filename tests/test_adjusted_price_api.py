@@ -261,9 +261,7 @@ def test_quote_with_adjustment_uses_adj_close() -> None:
     from core.models import StockQuote
 
     adjusted: float = 900.0 * FIRST_FACTOR
-    quote: StockQuote = StockQuote(
-        stock_id=STOCK_ID, close=900.0, adj_close=adjusted
-    )
+    quote: StockQuote = StockQuote(stock_id=STOCK_ID, close=900.0, adj_close=adjusted)
 
     assert quote.signal_close == pytest.approx(adjusted)
     assert quote.close == pytest.approx(900.0)
@@ -311,9 +309,7 @@ def test_price_limit_basis_overrides_prev_close() -> None:
     fill_model: TwStockFillModel = TwStockFillModel()
     spec: TwStockSpec = TwStockSpec()
 
-    fill_model.on_bar_close(
-        [StockQuoteStub(symbol="2454", close=953.0)]
-    )
+    fill_model.on_bar_close([StockQuoteStub(symbol="2454", close=953.0)])
     assert fill_model.prev_close["2454"] == pytest.approx(953.0)
 
     # 除權息日：以開盤競價基準覆寫

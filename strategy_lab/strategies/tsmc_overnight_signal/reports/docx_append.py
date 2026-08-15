@@ -6,7 +6,6 @@ Called from generate_quant_report_docx.build_report with document helper callbac
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
@@ -55,9 +54,23 @@ def _baseline_numeric_rows(lang: Lang) -> Tuple[List[str], List[List[str]]]:
             ]
         )
     if lang == "zh":
-        hdr = ["模型", "測試集 IC", "向量化累積報酬", "實務累積報酬", "向量化 Sharpe", "實務 Sharpe"]
+        hdr = [
+            "模型",
+            "測試集 IC",
+            "向量化累積報酬",
+            "實務累積報酬",
+            "向量化 Sharpe",
+            "實務 Sharpe",
+        ]
     else:
-        hdr = ["Model", "Test IC", "Vectorized cum. return", "Realistic cum. return", "Vectorized Sharpe", "Realistic Sharpe"]
+        hdr = [
+            "Model",
+            "Test IC",
+            "Vectorized cum. return",
+            "Realistic cum. return",
+            "Vectorized Sharpe",
+            "Realistic Sharpe",
+        ]
     return hdr, rows
 
 
@@ -67,7 +80,10 @@ def _coef_rows() -> List[List[str]]:
     if not p.exists():
         return [["(run run_overnight_signal.py)", "—"]]
     df = pd.read_csv(p)
-    return [[g.sanitize_for_word(str(r["feature"])), f"{float(r['coefficient']):.6f}"] for _, r in df.iterrows()]
+    return [
+        [g.sanitize_for_word(str(r["feature"])), f"{float(r['coefficient']):.6f}"]
+        for _, r in df.iterrows()
+    ]
 
 
 def _ic_test_rows(lang: Lang) -> List[List[str]]:
@@ -106,7 +122,9 @@ def _ic_consistency_footnote(lang: Lang) -> str:
     df_ic = pd.read_csv(p_ic)
     df_pb = pd.read_csv(p_pb)
     try:
-        ic_diag = float(df_ic.loc[df_ic["metric"] == "test_IC_pearson", "value"].iloc[0])
+        ic_diag = float(
+            df_ic.loc[df_ic["metric"] == "test_IC_pearson", "value"].iloc[0]
+        )
         row0 = df_pb.loc[df_pb["variant"] == "baseline_correct_alignment", "IC_pearson"]
         ic_pb = float(row0.iloc[0]) if len(row0) else float("nan")
     except (KeyError, IndexError):
@@ -165,9 +183,23 @@ def _yearly_rows(lang: Lang) -> Tuple[List[str], List[List[str]]]:
             ]
         )
     if lang == "zh":
-        hdr = ["年度", "IC", "策略累積報酬", "2330 B&H 累積報酬", "約略往返次數", "策略 MDD（%）"]
+        hdr = [
+            "年度",
+            "IC",
+            "策略累積報酬",
+            "2330 B&H 累積報酬",
+            "約略往返次數",
+            "策略 MDD（%）",
+        ]
     else:
-        hdr = ["Year", "IC", "Strategy cum.", "2330 B&H cum.", "Approx. round trips", "Strategy MDD"]
+        hdr = [
+            "Year",
+            "IC",
+            "Strategy cum.",
+            "2330 B&H cum.",
+            "Approx. round trips",
+            "Strategy MDD",
+        ]
     return hdr, rows
 
 
@@ -195,7 +227,11 @@ def _threshold_rows(lang: Lang) -> Tuple[List[str], List[List[str]]]:
     for _, r in df.iterrows():
         tau = float(r["threshold_tau"])
         bp = tau * 10000.0
-        lab = f"{bp:.0f} bp" if tau > 0 else ("0 (baseline)" if lang == "en" else "0（基線）")
+        lab = (
+            f"{bp:.0f} bp"
+            if tau > 0
+            else ("0 (baseline)" if lang == "en" else "0（基線）")
+        )
         rows.append(
             [
                 lab,
@@ -205,9 +241,19 @@ def _threshold_rows(lang: Lang) -> Tuple[List[str], List[List[str]]]:
             ]
         )
     if lang == "zh":
-        hdr = ["門檻 τ（預測報酬須超過 τ 才做多）", "實務累積報酬", "實務 Sharpe", "實務 MDD"]
+        hdr = [
+            "門檻 τ（預測報酬須超過 τ 才做多）",
+            "實務累積報酬",
+            "實務 Sharpe",
+            "實務 MDD",
+        ]
     else:
-        hdr = ["Threshold τ on forecast return", "Realistic cum. return", "Realistic Sharpe", "Realistic MDD"]
+        hdr = [
+            "Threshold τ on forecast return",
+            "Realistic cum. return",
+            "Realistic Sharpe",
+            "Realistic MDD",
+        ]
     return hdr, rows
 
 
@@ -234,7 +280,11 @@ def _placebo_ic_rows(lang: Lang) -> Tuple[List[str], List[List[str]]]:
         ic = float(r["IC_pearson"])
         lab = (label_zh if lang == "zh" else label_en).get(var, var)
         rows.append([lab, f"{ic:.4f}"])
-    hdr = ["對齊情境", "Pearson IC"] if lang == "zh" else ["Alignment variant", "Pearson IC"]
+    hdr = (
+        ["對齊情境", "Pearson IC"]
+        if lang == "zh"
+        else ["Alignment variant", "Pearson IC"]
+    )
     return hdr, rows
 
 
@@ -257,7 +307,11 @@ def _capital_sensitivity_rows(lang: Lang) -> Tuple[List[str], List[List[str]]]:
         cr = float(r["realistic_cum_return"])
         sh = float(r["realistic_sharpe"])
         mdd = float(r["realistic_mdd_pct"])
-        cap_lab = f"{fmt_million(cap)} TWD" if lang == "en" else f"{fmt_million(cap)} 新台幣（初資）"
+        cap_lab = (
+            f"{fmt_million(cap)} TWD"
+            if lang == "en"
+            else f"{fmt_million(cap)} 新台幣（初資）"
+        )
         rows.append(
             [
                 cap_lab,
@@ -269,7 +323,12 @@ def _capital_sensitivity_rows(lang: Lang) -> Tuple[List[str], List[List[str]]]:
     if lang == "zh":
         hdr = ["初始資金（敏感度）", "實務累積報酬", "實務 Sharpe", "實務 MDD（%）"]
     else:
-        hdr = ["Initial capital (sensitivity)", "Realistic cum. return", "Realistic Sharpe", "Realistic MDD"]
+        hdr = [
+            "Initial capital (sensitivity)",
+            "Realistic cum. return",
+            "Realistic Sharpe",
+            "Realistic MDD",
+        ]
     return hdr, rows
 
 
@@ -287,10 +346,18 @@ def _passive_benchmark_rows(lang: Lang) -> Tuple[List[str], List[List[str]]]:
     for _, r in df.iterrows():
         name = str(r["benchmark"])
         if lang == "zh":
-            name = name.replace("2330.TW buy-and-hold (test window)", "2330.TW 買入持有（測試集）")
-            name = name.replace("Cash (flat, zero daily return)", "現金（空手，日報酬 0）")
+            name = name.replace(
+                "2330.TW buy-and-hold (test window)", "2330.TW 買入持有（測試集）"
+            )
+            name = name.replace(
+                "Cash (flat, zero daily return)", "現金（空手，日報酬 0）"
+            )
         rows.append([name, fmt(float(r["test_cumulative_return"]))])
-    hdr = ["基準（測試集）", "累積報酬"] if lang == "zh" else ["Benchmark (test window)", "Cumulative return"]
+    hdr = (
+        ["基準（測試集）", "累積報酬"]
+        if lang == "zh"
+        else ["Benchmark (test window)", "Cumulative return"]
+    )
     return hdr, rows
 
 
@@ -302,14 +369,32 @@ def _sanity_check_rows(lang: Lang) -> Tuple[List[str], List[List[str]]]:
     df = pd.read_csv(p)
     if lang == "zh":
         hdr = ["檢查項目", "狀態", "結果摘要", "剩餘風險"]
-        rows = [[str(r["check"]), str(r["status"]), str(r["result"]), str(r["remaining_risk"])] for _, r in df.iterrows()]
+        rows = [
+            [
+                str(r["check"]),
+                str(r["status"]),
+                str(r["result"]),
+                str(r["remaining_risk"]),
+            ]
+            for _, r in df.iterrows()
+        ]
     else:
         hdr = ["Check", "Status", "Result", "Remaining risk"]
-        rows = [[str(r["check"]), str(r["status"]), str(r["result"]), str(r["remaining_risk"])] for _, r in df.iterrows()]
+        rows = [
+            [
+                str(r["check"]),
+                str(r["status"]),
+                str(r["result"]),
+                str(r["remaining_risk"]),
+            ]
+            for _, r in df.iterrows()
+        ]
     return hdr, rows
 
 
-def _reconciliation_rows(m_vec: Dict[str, str], m_real: Dict[str, str], lang: Lang) -> List[List[str]]:
+def _reconciliation_rows(
+    m_vec: Dict[str, str], m_real: Dict[str, str], lang: Lang
+) -> List[List[str]]:
     g = _g()
     san = g.sanitize_for_word
 
@@ -317,12 +402,12 @@ def _reconciliation_rows(m_vec: Dict[str, str], m_real: Dict[str, str], lang: La
         if "策略累積報酬" not in m:
             return "N/A"
         cr = float(m["策略累積報酬"])
-        return san(f"{cr:.4f} (wealth ~{1+cr:.2f}x)")
+        return san(f"{cr:.4f} (wealth ~{1 + cr:.2f}x)")
 
     def fmt_cagr(m: Dict[str, str]) -> str:
         if "策略年化報酬" not in m:
             return "N/A"
-        return f"{100*float(m['策略年化報酬']):.2f}%"
+        return f"{100 * float(m['策略年化報酬']):.2f}%"
 
     def fmt_mdd(m: Dict[str, str]) -> str:
         if "策略最大回撤%" not in m:
@@ -362,8 +447,20 @@ def _reconciliation_rows(m_vec: Dict[str, str], m_real: Dict[str, str], lang: La
             ],
             [
                 "主要指標（累積／CAGR／Sharpe／MDD）",
-                fmt_cr(m_vec) + " / " + fmt_cagr(m_vec) + " / " + fmt_sh(m_vec) + " / " + fmt_mdd(m_vec),
-                fmt_cr(m_real) + " / " + fmt_cagr(m_real) + " / " + fmt_sh(m_real) + " / " + fmt_mdd(m_real),
+                fmt_cr(m_vec)
+                + " / "
+                + fmt_cagr(m_vec)
+                + " / "
+                + fmt_sh(m_vec)
+                + " / "
+                + fmt_mdd(m_vec),
+                fmt_cr(m_real)
+                + " / "
+                + fmt_cagr(m_real)
+                + " / "
+                + fmt_sh(m_real)
+                + " / "
+                + fmt_mdd(m_real),
                 "兩者方向相反時，應優先採信貼近交易規則之版本並解釋差異來源",
             ],
         ]
@@ -402,7 +499,9 @@ def _reconciliation_rows(m_vec: Dict[str, str], m_real: Dict[str, str], lang: La
     ]
 
 
-def append_zh_report(document, meta: Dict[str, str], m_real: Dict[str, str], m_vec: Dict[str, str]) -> None:
+def append_zh_report(
+    document, meta: Dict[str, str], m_real: Dict[str, str], m_vec: Dict[str, str]
+) -> None:
     g = _g()
     _paragraph = g._paragraph
     _add_table_from_rows = g._add_table_from_rows
@@ -453,10 +552,16 @@ def append_zh_report(document, meta: Dict[str, str], m_real: Dict[str, str], m_v
         doc,
         ["資料集欄位", "內容"],
         [
-            ["資料下載／請求上界", sanitize_for_word(f"見 run_meta：data_end_requested = {dr}")],
+            [
+                "資料下載／請求上界",
+                sanitize_for_word(f"見 run_meta：data_end_requested = {dr}"),
+            ],
             ["訓練集", "2020-01-01 ~ 2020-12-31"],
             ["驗證集", "2021-01-01 ~ 2021-12-31"],
-            ["測試集（OOS）", sanitize_for_word(f"2022-01-01 ~ {te}（最後有效台股收盤）")],
+            [
+                "測試集（OOS）",
+                sanitize_for_word(f"2022-01-01 ~ {te}（最後有效台股收盤）"),
+            ],
             ["資料來源", "台股：專案 SQLite；美股／匯率：yfinance 日線、auto_adjust"],
             ["基準", "主基準：2330.TW buy-and-hold；0050 為可選大盤代理"],
         ],
@@ -521,7 +626,9 @@ def append_zh_report(document, meta: Dict[str, str], m_real: Dict[str, str], m_v
             "此對照顯示：訊號可能較適合用於方向分類（搭配簡單多／空規則），而不必然優於以連續報酬預測再 pred>0 之映射。",
         )
     else:
-        _paragraph(doc, "（尚無 baseline_comparison.csv，請先執行 run_overnight_signal.py）")
+        _paragraph(
+            doc, "（尚無 baseline_comparison.csv，請先執行 run_overnight_signal.py）"
+        )
     doc.add_heading("（二）被動基準（測試集）", level=2)
     pb_h, pb_r = _passive_benchmark_rows("zh")
     if pb_r:
@@ -567,14 +674,21 @@ def append_zh_report(document, meta: Dict[str, str], m_real: Dict[str, str], m_v
     doc.add_heading("六、向量化理想化回測（診斷對照，非主結果）", level=1)
     rows_v = _format_metrics_rows(meta, m_vec, "zh")
     if rows_v:
-        _add_table_from_rows(doc, ["指標", "向量化（理想化）"], rows_v, col_widths_cm=[5.5, 11])
+        _add_table_from_rows(
+            doc, ["指標", "向量化（理想化）"], rows_v, col_widths_cm=[5.5, 11]
+        )
     else:
-        _paragraph(doc, "（缺少 metrics_vectorized_summary.csv，請先執行 run_overnight_signal.py）")
+        _paragraph(
+            doc,
+            "（缺少 metrics_vectorized_summary.csv，請先執行 run_overnight_signal.py）",
+        )
 
     doc.add_heading("七、貼近實務之回測（整數張數，主結果）", level=1)
     rows_r = _format_metrics_rows(meta, m_real, "zh")
     if rows_r:
-        _add_table_from_rows(doc, ["指標", "貼近實務／整數張數"], rows_r, col_widths_cm=[5.5, 11])
+        _add_table_from_rows(
+            doc, ["指標", "貼近實務／整數張數"], rows_r, col_widths_cm=[5.5, 11]
+        )
     else:
         _paragraph(doc, "（缺少 metrics_summary.csv）")
 
@@ -592,7 +706,9 @@ def append_zh_report(document, meta: Dict[str, str], m_real: Dict[str, str], m_v
     )
 
     doc.add_heading("九、訊號診斷：IC、係數與年度穩定性", level=1)
-    _add_table_from_rows(doc, ["診斷", "數值"], _ic_test_rows("zh"), col_widths_cm=[6, 9])
+    _add_table_from_rows(
+        doc, ["診斷", "數值"], _ic_test_rows("zh"), col_widths_cm=[6, 9]
+    )
     _ic_note_zh = _ic_consistency_footnote("zh")
     if _ic_note_zh:
         _paragraph(doc, sanitize_for_word(_ic_note_zh))
@@ -614,7 +730,9 @@ def append_zh_report(document, meta: Dict[str, str], m_real: Dict[str, str], m_v
         )
 
     doc.add_heading(
-        "（二）IC 與實務損益落差（IC–PnL gap）" if ph_r else "（一）IC 與實務損益落差（IC–PnL gap）",
+        "（二）IC 與實務損益落差（IC–PnL gap）"
+        if ph_r
+        else "（一）IC 與實務損益落差（IC–PnL gap）",
         level=2,
     )
     sh_gap = _gap_kv("share_days_signal_long_but_flat_cash_gap")
@@ -659,10 +777,15 @@ def append_zh_report(document, meta: Dict[str, str], m_real: Dict[str, str], m_v
     th_h, th_r = _threshold_rows("zh")
     if th_r:
         doc.add_heading(
-            "（三）門檻敏感度（Ridge 預測值）" if ph_r else "（二）門檻敏感度（Ridge 預測值）",
+            "（三）門檻敏感度（Ridge 預測值）"
+            if ph_r
+            else "（二）門檻敏感度（Ridge 預測值）",
             level=2,
         )
-        _paragraph(doc, "τ 為預測報酬須超過之最小值才做多（bps 為每日報酬之萬分之一分位，5 bp = 0.05% = 0.0005）。")
+        _paragraph(
+            doc,
+            "τ 為預測報酬須超過之最小值才做多（bps 為每日報酬之萬分之一分位，5 bp = 0.05% = 0.0005）。",
+        )
         _add_table_from_rows(doc, th_h, th_r, col_widths_cm=[5.5, 3.5, 3, 3.5])
         _paragraph(
             doc,
@@ -675,7 +798,9 @@ def append_zh_report(document, meta: Dict[str, str], m_real: Dict[str, str], m_v
     doc.add_heading(f"（{_ym[_yi - 1]}）年度拆解", level=2)
     hdr_y, yr = _yearly_rows("zh")
     if yr:
-        _add_table_from_rows(doc, hdr_y, yr, col_widths_cm=[2.2, 2.2, 2.8, 2.8, 2.2, 2.2])
+        _add_table_from_rows(
+            doc, hdr_y, yr, col_widths_cm=[2.2, 2.2, 2.8, 2.8, 2.2, 2.2]
+        )
         _paragraph(
             doc,
             "「約略往返次數」定義：隔日持倉由 0→1 或 1→0 各計 0.5；全日連續持有或全日空手則為 0。"
@@ -730,15 +855,41 @@ def append_zh_report(document, meta: Dict[str, str], m_real: Dict[str, str], m_v
     )
 
     doc.add_heading("附錄：圖表（測試集）", level=1)
-    _paragraph(doc, "圖檔檔名區分 realistic（主結果）與 vec（診斷）；下列各圖附一句解讀。")
+    _paragraph(
+        doc, "圖檔檔名區分 realistic（主結果）與 vec（診斷）；下列各圖附一句解讀。"
+    )
     figures_zh_notes: List[Tuple[str, str, str]] = [
-        ("equity_curve_realistic.png", "淨值（實務）", "實務路徑在 2024–2026 多數時間未能充分參與灰線基準之波段，凸顯空手與整張約束之機會成本。"),
-        ("mdd_underwater_realistic.png", "回撤（實務）", "2024 後回撤幅度一度收斂，但相對基準之落後未必同步收斂。"),
-        ("rolling_sharpe_realistic.png", "滾動 Sharpe（實務）", "若 2025 之後滾動 Sharpe 再度轉負，表示在實務執行下風險調整報酬未能穩定延續。"),
-        ("monthly_returns_heatmap_realistic.png", "月報酬熱圖（實務）", "虧損若集中於 2025 年 M3–M4 等區段，可解釋年度績效下挫之主因。"),
-        ("equity_curve_vectorized.png", "淨值（向量化）", "診斷用：全額持有假設；勿與主結果混讀。"),
+        (
+            "equity_curve_realistic.png",
+            "淨值（實務）",
+            "實務路徑在 2024–2026 多數時間未能充分參與灰線基準之波段，凸顯空手與整張約束之機會成本。",
+        ),
+        (
+            "mdd_underwater_realistic.png",
+            "回撤（實務）",
+            "2024 後回撤幅度一度收斂，但相對基準之落後未必同步收斂。",
+        ),
+        (
+            "rolling_sharpe_realistic.png",
+            "滾動 Sharpe（實務）",
+            "若 2025 之後滾動 Sharpe 再度轉負，表示在實務執行下風險調整報酬未能穩定延續。",
+        ),
+        (
+            "monthly_returns_heatmap_realistic.png",
+            "月報酬熱圖（實務）",
+            "虧損若集中於 2025 年 M3–M4 等區段，可解釋年度績效下挫之主因。",
+        ),
+        (
+            "equity_curve_vectorized.png",
+            "淨值（向量化）",
+            "診斷用：全額持有假設；勿與主結果混讀。",
+        ),
         ("mdd_underwater_vectorized.png", "回撤（向量化）", "對照用；通常較實務樂觀。"),
-        ("monthly_returns_heatmap_vectorized.png", "月報酬熱圖（向量化）", "診斷對照：不宜直接與實務淨值結論混讀。"),
+        (
+            "monthly_returns_heatmap_vectorized.png",
+            "月報酬熱圖（向量化）",
+            "診斷對照：不宜直接與實務淨值結論混讀。",
+        ),
         ("ic_by_year.png", "年度 IC", "IC 為正亦不保證每年實務獲利。"),
         ("rolling_ic.png", "滾動 IC", "可檢視排序力是否隨時間漂移。"),
     ]
@@ -765,7 +916,9 @@ def append_zh_report(document, meta: Dict[str, str], m_real: Dict[str, str], m_v
         doc.add_paragraph(sanitize_for_word(ref), style="List Bullet")
 
 
-def append_en_report(document, meta: Dict[str, str], m_real: Dict[str, str], m_vec: Dict[str, str]) -> None:
+def append_en_report(
+    document, meta: Dict[str, str], m_real: Dict[str, str], m_vec: Dict[str, str]
+) -> None:
     g = _g()
     _paragraph = g._paragraph
     _add_table_from_rows = g._add_table_from_rows
@@ -821,12 +974,24 @@ def append_en_report(document, meta: Dict[str, str], m_real: Dict[str, str], m_v
         doc,
         ["Dataset Item", "Specification"],
         [
-            ["Data download request", sanitize_for_word(f"See run_meta: data_end_requested = {dr}")],
+            [
+                "Data download request",
+                sanitize_for_word(f"See run_meta: data_end_requested = {dr}"),
+            ],
             ["Training set", "2020-01-01 to 2020-12-31"],
             ["Validation set", "2021-01-01 to 2021-12-31"],
-            ["Test set (OOS)", sanitize_for_word(f"2022-01-01 to {te} (last TW close in sample)")],
-            ["Sources", "Taiwan close: project SQLite; U.S./FX: yfinance daily, auto_adjust"],
-            ["Benchmarks", "Primary: 2330.TW buy-and-hold; optional market benchmark: 0050 ETF"],
+            [
+                "Test set (OOS)",
+                sanitize_for_word(f"2022-01-01 to {te} (last TW close in sample)"),
+            ],
+            [
+                "Sources",
+                "Taiwan close: project SQLite; U.S./FX: yfinance daily, auto_adjust",
+            ],
+            [
+                "Benchmarks",
+                "Primary: 2330.TW buy-and-hold; optional market benchmark: 0050 ETF",
+            ],
         ],
         col_widths_cm=[4.5, 12],
     )
@@ -892,7 +1057,9 @@ def append_en_report(document, meta: Dict[str, str], m_real: Dict[str, str], m_v
             "may pack more information in direction than in continuous point forecasts under this mapping.",
         )
     else:
-        _paragraph(doc, "baseline_comparison.csv not found; run run_overnight_signal.py.")
+        _paragraph(
+            doc, "baseline_comparison.csv not found; run run_overnight_signal.py."
+        )
     doc.add_heading("4.2 Passive benchmarks (test window)", level=2)
     pb_h, pb_r = _passive_benchmark_rows("en")
     if pb_r:
@@ -938,17 +1105,25 @@ def append_en_report(document, meta: Dict[str, str], m_real: Dict[str, str], m_v
         "Vectorized diagnostic: continuous notionals, same-day signal times close-to-close return, fees only on 0↔1 switches.",
     )
 
-    doc.add_heading("6. Vectorized Backtest (Diagnostic Contrast, Not Primary)", level=1)
+    doc.add_heading(
+        "6. Vectorized Backtest (Diagnostic Contrast, Not Primary)", level=1
+    )
     rows_v = _format_metrics_rows(meta, m_vec, "en")
     if rows_v:
-        _add_table_from_rows(doc, ["Metric", "Vectorized (idealized)"], rows_v, col_widths_cm=[5.5, 11])
+        _add_table_from_rows(
+            doc, ["Metric", "Vectorized (idealized)"], rows_v, col_widths_cm=[5.5, 11]
+        )
     else:
-        _paragraph(doc, "Missing metrics_vectorized_summary.csv; run run_overnight_signal.py.")
+        _paragraph(
+            doc, "Missing metrics_vectorized_summary.csv; run run_overnight_signal.py."
+        )
 
     doc.add_heading("7. Realistic Backtest (Integer Lots — Primary)", level=1)
     rows_r = _format_metrics_rows(meta, m_real, "en")
     if rows_r:
-        _add_table_from_rows(doc, ["Metric", "Realistic / lot-based"], rows_r, col_widths_cm=[5.5, 11])
+        _add_table_from_rows(
+            doc, ["Metric", "Realistic / lot-based"], rows_r, col_widths_cm=[5.5, 11]
+        )
     else:
         _paragraph(doc, "Missing metrics_summary.csv.")
 
@@ -966,8 +1141,12 @@ def append_en_report(document, meta: Dict[str, str], m_real: Dict[str, str], m_v
         col_widths_cm=[3.2, 4.8, 4.8, 4.2],
     )
 
-    doc.add_heading("9. Signal Diagnostics: IC, IC–PnL Gap, Thresholds, Stability", level=1)
-    _add_table_from_rows(doc, ["Diagnostic", "Value"], _ic_test_rows("en"), col_widths_cm=[6, 9])
+    doc.add_heading(
+        "9. Signal Diagnostics: IC, IC–PnL Gap, Thresholds, Stability", level=1
+    )
+    _add_table_from_rows(
+        doc, ["Diagnostic", "Value"], _ic_test_rows("en"), col_widths_cm=[6, 9]
+    )
     _ic_note_en = _ic_consistency_footnote("en")
     if _ic_note_en:
         _paragraph(doc, _ic_note_en)
@@ -1039,8 +1218,13 @@ def append_en_report(document, meta: Dict[str, str], m_real: Dict[str, str], m_v
         _sec9 = 2
     th_h, th_r = _threshold_rows("en")
     if th_r:
-        doc.add_heading(f"9.{_sec9} Ridge forecast threshold sweep (realistic)", level=2)
-        _paragraph(doc, "Tau is the minimum predicted daily return required to go long (5 bp = 0.05% = 0.0005).")
+        doc.add_heading(
+            f"9.{_sec9} Ridge forecast threshold sweep (realistic)", level=2
+        )
+        _paragraph(
+            doc,
+            "Tau is the minimum predicted daily return required to go long (5 bp = 0.05% = 0.0005).",
+        )
         _add_table_from_rows(doc, th_h, th_r, col_widths_cm=[5.5, 3.5, 3, 3.5])
         _paragraph(
             doc,
@@ -1052,7 +1236,9 @@ def append_en_report(document, meta: Dict[str, str], m_real: Dict[str, str], m_v
     doc.add_heading(f"9.{_sec9} Year-by-year breakdown", level=2)
     hdr_y, yr = _yearly_rows("en")
     if yr:
-        _add_table_from_rows(doc, hdr_y, yr, col_widths_cm=[2.2, 2.2, 2.8, 2.8, 2.2, 2.2])
+        _add_table_from_rows(
+            doc, hdr_y, yr, col_widths_cm=[2.2, 2.2, 2.8, 2.8, 2.2, 2.2]
+        )
         _paragraph(
             doc,
             "Approx. round trips: add 0.5 on each day the discrete position flips between flat and long; "
@@ -1108,14 +1294,46 @@ def append_en_report(document, meta: Dict[str, str], m_real: Dict[str, str], m_v
     doc.add_heading("Appendix: Charts (test window)", level=1)
     _paragraph(doc, "Each figure includes a one-line interpretation.")
     figures_en_notes: List[Tuple[str, str, str]] = [
-        ("equity_curve_realistic.png", "Equity (realistic)", "The realistic strategy fails to participate in much of the 2024–2026 benchmark rally, highlighting the cost of flat exposure and lot constraints."),
-        ("mdd_underwater_realistic.png", "Drawdown (realistic)", "Drawdown moderates after 2024 in places, but benchmark-relative underperformance may not fully recover."),
-        ("rolling_sharpe_realistic.png", "Rolling Sharpe (realistic)", "Rolling Sharpe turning negative again after 2025 indicates unstable risk-adjusted performance under realistic execution."),
-        ("monthly_returns_heatmap_realistic.png", "Monthly heatmap (realistic)", "Losses concentrated around 2025 M3–M4 explain much of the annual decline."),
-        ("equity_curve_vectorized.png", "Equity (vectorized)", "Diagnostic only—full-notional assumption."),
-        ("mdd_underwater_vectorized.png", "Drawdown (vectorized)", "Contrast; often optimistic vs realistic."),
-        ("monthly_returns_heatmap_vectorized.png", "Monthly heatmap (vectorized)", "Diagnostic contrast only—do not mix with realistic conclusions."),
-        ("ic_by_year.png", "IC by year", "Positive IC does not guarantee profitable realistic years."),
+        (
+            "equity_curve_realistic.png",
+            "Equity (realistic)",
+            "The realistic strategy fails to participate in much of the 2024–2026 benchmark rally, highlighting the cost of flat exposure and lot constraints.",
+        ),
+        (
+            "mdd_underwater_realistic.png",
+            "Drawdown (realistic)",
+            "Drawdown moderates after 2024 in places, but benchmark-relative underperformance may not fully recover.",
+        ),
+        (
+            "rolling_sharpe_realistic.png",
+            "Rolling Sharpe (realistic)",
+            "Rolling Sharpe turning negative again after 2025 indicates unstable risk-adjusted performance under realistic execution.",
+        ),
+        (
+            "monthly_returns_heatmap_realistic.png",
+            "Monthly heatmap (realistic)",
+            "Losses concentrated around 2025 M3–M4 explain much of the annual decline.",
+        ),
+        (
+            "equity_curve_vectorized.png",
+            "Equity (vectorized)",
+            "Diagnostic only—full-notional assumption.",
+        ),
+        (
+            "mdd_underwater_vectorized.png",
+            "Drawdown (vectorized)",
+            "Contrast; often optimistic vs realistic.",
+        ),
+        (
+            "monthly_returns_heatmap_vectorized.png",
+            "Monthly heatmap (vectorized)",
+            "Diagnostic contrast only—do not mix with realistic conclusions.",
+        ),
+        (
+            "ic_by_year.png",
+            "IC by year",
+            "Positive IC does not guarantee profitable realistic years.",
+        ),
         ("rolling_ic.png", "Rolling IC", "Tracks stability of ranking power."),
     ]
     for i, (fname, cap, note) in enumerate(figures_en_notes, start=1):
@@ -1140,9 +1358,3 @@ def append_en_report(document, meta: Dict[str, str], m_real: Dict[str, str], m_v
         "Course manuscript (fees and sample assumptions).",
     ]:
         doc.add_paragraph(sanitize_for_word(ref), style="List Bullet")
-
-
-
-
-
-

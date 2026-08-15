@@ -1,12 +1,7 @@
 import datetime
-import sys
-from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional
 
 import pytest
-
-_PROJECT_ROOT: Path = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(_PROJECT_ROOT))
 
 from core.models import StockAccount, StockOrder, StockQuote
 from core.strategies.stock import BaseStockStrategy

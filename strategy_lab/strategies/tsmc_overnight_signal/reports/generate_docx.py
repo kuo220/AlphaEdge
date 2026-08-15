@@ -34,9 +34,7 @@ try:
     from docx.oxml.ns import qn
     from docx.shared import Cm, Inches, Pt, RGBColor
 except ImportError as e:
-    raise SystemExit(
-        "請先安裝 python-docx：pip install python-docx\n" + str(e)
-    ) from e
+    raise SystemExit("請先安裝 python-docx：pip install python-docx\n" + str(e)) from e
 
 # reports/ 與 output/ 是 tsmc_overnight_signal/ 底下的同層姊妹資料夾
 _STRATEGY_DIR = Path(__file__).resolve().parent.parent
@@ -93,7 +91,9 @@ def _ensure_style_eastasia(style, east: str = "Microsoft JhengHei") -> None:
     rfonts.set(qn("w:eastAsia"), east)
 
 
-def _style_set_latin_font(style, ascii_font: str, east_asia: Optional[str] = None) -> None:
+def _style_set_latin_font(
+    style, ascii_font: str, east_asia: Optional[str] = None
+) -> None:
     """Set Word rFonts so body text renders with the intended Latin font (and matching eastAsia for Word UI)."""
     east = east_asia or ascii_font
     style.font.name = ascii_font
@@ -386,7 +386,7 @@ def _format_metrics_rows(
         rows.append(
             [
                 labels["cr_s"],
-                sanitize_for_word(f"{cr:.4f} (wealth approx {1+cr:.2f}x)"),
+                sanitize_for_word(f"{cr:.4f} (wealth approx {1 + cr:.2f}x)"),
             ]
         )
     if "B&H累積報酬" in m:
@@ -394,7 +394,7 @@ def _format_metrics_rows(
         rows.append(
             [
                 labels["cr_bh"],
-                sanitize_for_word(f"{cr:.4f} (wealth approx {1+cr:.2f}x)"),
+                sanitize_for_word(f"{cr:.4f} (wealth approx {1 + cr:.2f}x)"),
             ]
         )
     if "策略年化報酬" in m:
@@ -421,7 +421,9 @@ def _format_metrics_rows(
     if meta.get("fee_buy"):
         rows.append([labels["fee_b"], fmt_pct_from_decimal(meta["fee_buy"], 100)])
     if meta.get("fee_sell_plus_tax"):
-        rows.append([labels["fee_s"], fmt_pct_from_decimal(meta["fee_sell_plus_tax"], 100)])
+        rows.append(
+            [labels["fee_s"], fmt_pct_from_decimal(meta["fee_sell_plus_tax"], 100)]
+        )
 
     return rows
 
@@ -487,30 +489,84 @@ def _paragraph(document: Document, text: str) -> None:
 def _method_usage_rows(lang: Lang) -> List[List[str]]:
     if lang == "zh":
         return [
-            ["Ridge 迴歸（L2 正則化）", "降低過擬合與共線性風險，讓係數更穩定，提升樣本外泛化能力。"],
-            ["訓練／驗證／測試切分", "隔離調參與最終評估，避免資料洩漏與過度樂觀績效。"],
+            [
+                "Ridge 迴歸（L2 正則化）",
+                "降低過擬合與共線性風險，讓係數更穩定，提升樣本外泛化能力。",
+            ],
+            [
+                "訓練／驗證／測試切分",
+                "隔離調參與最終評估，避免資料洩漏與過度樂觀績效。",
+            ],
             ["對數網格搜尋 lambda", "系統化尋找正則化強度，在偏差與變異之間取得平衡。"],
-            ["做多或空手規則（long or flat）", "將連續預測轉為可執行訊號，降低雙邊摩擦與放空限制影響。"],
-            ["交易成本建模（手續費、證交稅）", "將理論報酬折減為較接近實務可達成的淨報酬。"],
-            ["資產淨值曲線（Equity Curve）", "觀察策略資本隨時間的成長路徑與複利效果。"],
-            ["最大回撤（MDD / Underwater）", "衡量從高點回落的最壞跌幅，評估壓力承受能力。"],
+            [
+                "做多或空手規則（long or flat）",
+                "將連續預測轉為可執行訊號，降低雙邊摩擦與放空限制影響。",
+            ],
+            [
+                "交易成本建模（手續費、證交稅）",
+                "將理論報酬折減為較接近實務可達成的淨報酬。",
+            ],
+            [
+                "資產淨值曲線（Equity Curve）",
+                "觀察策略資本隨時間的成長路徑與複利效果。",
+            ],
+            [
+                "最大回撤（MDD / Underwater）",
+                "衡量從高點回落的最壞跌幅，評估壓力承受能力。",
+            ],
             ["滾動 Sharpe 比率", "追蹤風險調整報酬是否持續，辨識績效是否衰退。"],
-            ["年度 IC 與滾動 IC", "檢查預測訊號與實現報酬的關聯強度與穩定性（alpha 衰減）。"],
+            [
+                "年度 IC 與滾動 IC",
+                "檢查預測訊號與實現報酬的關聯強度與穩定性（alpha 衰減）。",
+            ],
             ["月報酬熱力圖", "辨識報酬的時間分布與市場狀態敏感性。"],
             ["Buy and Hold 基準比較", "判斷策略是否提供超額報酬與較佳風險控制。"],
         ]
     return [
-        ["Ridge regression (L2 regularization)", "Controls overfitting and multicollinearity, producing more stable coefficients and better out-of-sample robustness."],
-        ["Train / validation / test split", "Separates tuning from final evaluation to reduce leakage and optimistic bias."],
-        ["Log-grid search for lambda", "Systematically selects regularization strength to balance bias and variance."],
-        ["Long-or-flat signal mapping", "Converts continuous forecasts into executable positions while reducing shorting and friction constraints."],
-        ["Transaction cost modeling (fees, tax)", "Transforms gross returns into net returns closer to realistic implementation."],
-        ["Equity curve", "Shows capital growth path and compounding behavior over time."],
-        ["Maximum drawdown (MDD / underwater)", "Measures worst peak-to-trough loss and downside tolerance."],
-        ["Rolling Sharpe ratio", "Monitors persistence of risk-adjusted performance through time."],
-        ["Annual IC and rolling IC", "Evaluates predictive signal relevance and stability, including potential alpha decay."],
-        ["Monthly return heatmap", "Visualizes return clustering and regime sensitivity by calendar month."],
-        ["Buy-and-hold benchmark comparison", "Checks whether the strategy adds alpha and improves risk control versus passive exposure."],
+        [
+            "Ridge regression (L2 regularization)",
+            "Controls overfitting and multicollinearity, producing more stable coefficients and better out-of-sample robustness.",
+        ],
+        [
+            "Train / validation / test split",
+            "Separates tuning from final evaluation to reduce leakage and optimistic bias.",
+        ],
+        [
+            "Log-grid search for lambda",
+            "Systematically selects regularization strength to balance bias and variance.",
+        ],
+        [
+            "Long-or-flat signal mapping",
+            "Converts continuous forecasts into executable positions while reducing shorting and friction constraints.",
+        ],
+        [
+            "Transaction cost modeling (fees, tax)",
+            "Transforms gross returns into net returns closer to realistic implementation.",
+        ],
+        [
+            "Equity curve",
+            "Shows capital growth path and compounding behavior over time.",
+        ],
+        [
+            "Maximum drawdown (MDD / underwater)",
+            "Measures worst peak-to-trough loss and downside tolerance.",
+        ],
+        [
+            "Rolling Sharpe ratio",
+            "Monitors persistence of risk-adjusted performance through time.",
+        ],
+        [
+            "Annual IC and rolling IC",
+            "Evaluates predictive signal relevance and stability, including potential alpha decay.",
+        ],
+        [
+            "Monthly return heatmap",
+            "Visualizes return clustering and regime sensitivity by calendar month.",
+        ],
+        [
+            "Buy-and-hold benchmark comparison",
+            "Checks whether the strategy adds alpha and improves risk control versus passive exposure.",
+        ],
     ]
 
 
@@ -556,7 +612,9 @@ def build_report(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate TSMC overnight-signal quant report DOCX.")
+    parser = argparse.ArgumentParser(
+        description="Generate TSMC overnight-signal quant report DOCX."
+    )
     parser.add_argument(
         "--lang",
         choices=("zh", "en", "both"),

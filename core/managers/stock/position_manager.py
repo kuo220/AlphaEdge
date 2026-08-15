@@ -1,12 +1,12 @@
 import datetime
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 from loguru import logger
 
+from core.backtest.models.cost_model import CostConfig, StockCostModel
 from core.managers.base.position_manager import BasePositionManager
 from core.models import StockAccount, StockOrder, StockPosition, StockTradeRecord
 from core.utils import Action, PositionType, ShortMethod
-from core.backtest.models.cost_model import CostConfig, StockCostModel
 from core.utils.instrument import StockUtils
 
 
@@ -33,7 +33,9 @@ class StockPositionManager(BasePositionManager):
         """Set Up the Config of Stock Position Manager"""
         pass
 
-    def normalize_date(self, date: Union[datetime.date, datetime.datetime]) -> datetime.date:
+    def normalize_date(
+        self, date: Union[datetime.date, datetime.datetime]
+    ) -> datetime.date:
         """Tick 級別的 date 會是 datetime，統一取其日期部分以計算持有曆日數"""
 
         return date.date() if isinstance(date, datetime.datetime) else date
@@ -191,7 +193,10 @@ class StockPositionManager(BasePositionManager):
         max_ratio: Optional[float] = (
             self.cost_model.config.short_constraint.max_short_exposure_ratio
         )
-        if max_ratio is not None and position_value > self.account.init_capital * max_ratio:
+        if (
+            max_ratio is not None
+            and position_value > self.account.init_capital * max_ratio
+        ):
             logger.warning(
                 f"[Open Short] {stock_order.stock_id} 曝險 {position_value} 超過上限 "
                 f"{self.account.init_capital * max_ratio}，拒絕開倉"

@@ -304,8 +304,7 @@ class TwStockFillModel(BaseFillModel):
             return True
 
         is_short_open: bool = (
-            order.action == Action.SELL
-            and order.position_type == PositionType.SHORT
+            order.action == Action.SELL and order.position_type == PositionType.SHORT
         )
         if not is_short_open:
             return True

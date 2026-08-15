@@ -168,9 +168,28 @@ class Backtester:
         - Description:
             決定單根 K 棒內的執行順序；策略顯式指定時一律以策略為準
 
-            放空當沖必須「先開後平」才可能同日結清，其餘情境維持既有的「先平後開」
+            推導表（僅在 `strategy.bar_execution_order` 為 None 時適用）：
+
+            | position_type | enable_intraday | 預設順序          |
+            |---------------|-----------------|-------------------|
+            | LONG          | 任意            | `CLOSE_THEN_OPEN` |
+            | SHORT         | True            | `OPEN_THEN_CLOSE` |
+            | SHORT         | False           | `CLOSE_THEN_OPEN` |
+
+            SHORT ＋ 當沖採先開後平：現股當沖沖賣必須先賣才可能同日回補；
+            留倉放空等同日頻再平衡，維持先平後開。
+
+            **推導出的是預設建議，不是政策**：策略只要填了 `bar_execution_order`，
+            這張表就完全不參與判斷。
+
+            **LONG 為何不自動切換**：`enable_intraday` 的預設值是 True，
+            既有做多策略沒有一支是刻意宣告當沖的（`MomentumStrategy1` 持倉至少隔日
+            才平倉，卻同樣吃到 True）。若讓 LONG ＋ `enable_intraday` 自動採
+            `OPEN_THEN_CLOSE`，等於在無人宣告的情況下改掉每一支做多策略的成交順序
+            與回測結果。做多當沖請在策略 `__init__` 顯式宣告 `OPEN_THEN_CLOSE`。
         - Return:
             - order: BarExecutionOrder
+                本次回測單根 bar 的開平倉先後
         """
 
         if self.strategy.bar_execution_order is not None:
@@ -244,6 +263,39 @@ class Backtester:
         """補上市場專屬的訂單欄位；規則由 CostModel 實作（見 backlog Phase2-4）"""
 
         return self.cost_model.enrich_orders(orders)
+
+    @staticmethod
+    def sort_orders(orders: List[BaseOrder]) -> List[BaseOrder]:
+        """
+        - Description:
+            同一根 bar 內委託的決定性排序：依 `(date, symbol)` 做**穩定**排序
+
+            為什麼引擎要自己排：`check_max_holdings` 的截斷與 `PositionManager`
+            的餘額不足檢查，都會讓「先處理誰」直接改變成交結果。而委託的到達順序
+            完全繼承自報價順序，報價又來自 `SELECT * FROM price WHERE date = ?`
+            ——這句沒有 `ORDER BY`，實際列順序取決於 SQLite 當下選到哪個索引。
+            今天恰好走 `PRIMARY KEY (date, stock_id, 證券名稱)` 而等同依代號排序，
+            但那是查詢計畫的副產物：多加一個索引、換一次 schema 就可能翻掉，
+            且翻掉時不會報錯，只會讓回測結果無聲改變。引擎自己排序之後，
+            結果不再依賴任何上游容器的迭代順序。
+
+            **穩定排序**：同一標的的多筆委託維持策略給定的先後，
+            分批建倉與部分平倉的意圖不會被打散。
+
+            **已知限制**：Tick 級別的 `order.date` 只到「日」（`StockQuote.date`
+            對 tick 也是 `datetime.date`），因此同一 bar 內的 tick 委託無法依成交
+            時間排序，會被壓成依代號排序。要恢復真正的時間序，得讓 `check_*_signal`
+            回傳帶時間戳的委託事件——屬 S4 事件迴圈的範圍（見
+            `backlog/回測引擎當沖執行順序重構.md`）。
+        - Parameters:
+            - orders: List[BaseOrder]
+                同一根 bar 內、同一個階段（開倉或平倉）的委託
+        - Return:
+            - List[BaseOrder]
+                依穩定排序鍵重排後的委託
+        """
+
+        return sorted(orders, key=lambda order: (order.date, order.symbol))
 
     def validate_fill_price(self, order: BaseOrder, quote: BaseQuote) -> bool:
         """成交價合理性檢查；規則由 FillModel 實作（見 backlog Phase2-2）"""
@@ -363,6 +415,18 @@ class Backtester:
         """
         - Description:
             單一時間切片的完整流程：依設定的執行順序開平倉，再做收盤後的部位檢查
+
+            **同一標的同時出現在開倉與平倉訊號時，兩腿分別成交，不做 net 合併。**
+            理由是成本與損益歸屬：證交稅只課賣出腿、當沖稅率減半也只認當沖的那一腿，
+            合併成一張淨額委託會讓兩腿的費用與稅無法各自計算；且平倉腿必須實際成交
+            才會產生 `TradeRecord`，net 掉等於整筆交易在報表上消失。
+            兩腿的先後完全由 `BarExecutionOrder` 決定——這正是它存在的理由：
+
+            - `OPEN_THEN_CLOSE`：先開後平，同一根 bar 內可完成當沖來回。
+            - `CLOSE_THEN_OPEN`：先平後開，同一標的是「先出清舊倉再重新建倉」。
+
+            同一階段內同一標的的多筆委託則依到達順序逐筆處理
+            （`sort_orders()` 為穩定排序），支援分批建倉與部分平倉。
         - Parameters:
             - date: datetime.date
                 當前交易日
@@ -399,8 +463,10 @@ class Backtester:
         # Get open orders
         open_orders: List[BaseOrder] = self.strategy.check_open_signal(quotes)
 
-        # 方向驗證 → 補值 → 成交價驗證，最後才進倉位管理器
-        open_orders = self.enrich_orders(self.validate_orders(open_orders, "open"))
+        # 方向驗證 → 補值 → 決定性排序 → 成交價驗證，最後才進倉位管理器
+        open_orders = self.sort_orders(
+            self.enrich_orders(self.validate_orders(open_orders, "open"))
+        )
         quote_map: Dict[str, BaseQuote] = {q.symbol: q for q in quotes}
 
         # Execute open orders
@@ -458,7 +524,24 @@ class Backtester:
         return False
 
     def execute_close_signal(self, quotes: List[BaseQuote]) -> List[BaseTradeRecord]:
-        """執行平倉邏輯：先判斷停損訊號，後判斷一般平倉"""
+        """
+        - Description:
+            執行平倉邏輯：先判斷停損訊號，後判斷一般平倉
+
+            **平倉的優先級固定為「停損 → 一般平倉」**，這是本階段唯一的優先級軸，
+            不由排序鍵表達：停損是風控，若被一般平倉先吃掉部位，停損就等於沒發生。
+            兩個優先級各自再依 `sort_orders()` 的穩定排序鍵處理，
+            故整個平倉階段的順序完全可重現。
+
+            停損執行完會**重新掃描剩餘部位**再產生一般平倉訊號，
+            已被停損掉的標的不會再進入一般平倉的候選。
+        - Parameters:
+            - quotes: List[BaseQuote]
+                當根 bar 的報價
+        - Return:
+            - close_records: List[BaseTradeRecord]
+                本階段產生的平倉紀錄
+        """
 
         # Find symbols with existing positions
         positions: List[BaseQuote] = [
@@ -474,7 +557,9 @@ class Backtester:
         stop_loss_orders: List[BaseOrder] = self.strategy.check_stop_loss_signal(
             positions
         )
-        stop_loss_orders = self.validate_orders(stop_loss_orders, "close")
+        stop_loss_orders = self.sort_orders(
+            self.validate_orders(stop_loss_orders, "close")
+        )
 
         # Close records
         close_records: List[BaseTradeRecord] = []
@@ -504,7 +589,7 @@ class Backtester:
         close_orders: List[BaseOrder] = self.strategy.check_close_signal(
             remaining_positions
         )
-        close_orders = self.validate_orders(close_orders, "close")
+        close_orders = self.sort_orders(self.validate_orders(close_orders, "close"))
 
         # Execute close orders
         for order in close_orders:

@@ -1,5 +1,5 @@
 import datetime
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, List, Tuple
 
 import pytest
 
@@ -70,9 +70,7 @@ def test_stops_at_available_slots(sizer, make_candidates) -> None:
     """候選多於可開檔數時，只下滿名額就停止"""
 
     account: StockAccount = StockAccount(1000000.0)
-    candidates = make_candidates(
-        [("2330", 100.0), ("2317", 100.0), ("2454", 100.0)]
-    )
+    candidates = make_candidates([("2330", 100.0), ("2317", 100.0), ("2454", 100.0)])
 
     sized = sizer.size(account, candidates, max_holdings=2)
 

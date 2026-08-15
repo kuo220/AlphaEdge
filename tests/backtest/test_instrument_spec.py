@@ -22,7 +22,9 @@ def test_spec_is_instrument_spec(spec: TwStockSpec) -> None:
     assert isinstance(spec, InstrumentSpec)
 
 
-@pytest.mark.parametrize("lots, expected", [(0, 0), (1, 1000), (5, 5000), (100, 100000)])
+@pytest.mark.parametrize(
+    "lots, expected", [(0, 0), (1, 1000), (5, 5000), (100, 100000)]
+)
 def test_to_units(spec: TwStockSpec, lots: int, expected: int) -> None:
     """張 → 股：1 張 ＝ 1000 股"""
 

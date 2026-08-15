@@ -1,7 +1,7 @@
 from core.backtest.backtester import Backtester, new_event_counts
 from core.backtest.datafeed.tw_stock_datafeed import TwStockDataFeed
-from core.backtest.models.fill_model import FillConfig, TwStockFillModel
 from core.backtest.models.cost_model import CostConfig, StockCostModel
+from core.backtest.models.fill_model import FillConfig, TwStockFillModel
 from core.backtest.models.instrument_spec import TwStockSpec
 from core.backtest.models.settlement_model import TwStockSettlementModel
 from core.backtest.report.reporter import StockBacktestReporter

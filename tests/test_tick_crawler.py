@@ -1,25 +1,32 @@
 import datetime
-from pathlib import Path
 from typing import List, Optional
 
 import pandas as pd
+import pytest
 import shioaji as sj
 from loguru import logger
 
-from core.config import TICK_DOWNLOADS_PATH
+from core.config import API_KEY, API_SECRET_KEY, TICK_DOWNLOADS_PATH
 from core.pipeline.cleaners.stock_tick_cleaner import StockTickCleaner
 from core.pipeline.crawlers.stock_tick_crawler import StockTickCrawler
-from core.utils import ShioajiAccount, ShioajiAPI, TimeUtils
-from core.config import API_KEY, API_SECRET_KEY
+from core.utils import ShioajiAccount, TimeUtils
 
-"""測試 StockTickCrawler：爬取與清洗，不寫入資料庫"""
+"""測試 StockTickCrawler：爬取與清洗，不寫入資料庫
+
+**本檔是手動執行的腳本，不是可被 pytest 直接跑的測試。** 三個 `test_*` 函式都帶
+必填參數（`stock_id`、`date`），pytest 會當成 fixture 去找而報
+`fixture 'stock_id' not found`，且執行需要 Shioaji API 金鑰。
+標記為 slow 讓 CI 的 `-m "not slow"` 略過；要真正改成自動化測試需另行改寫。
+"""
+
+pytestmark = pytest.mark.slow
 
 
 def test_crawler_only(stock_id: str, date: datetime.date):
     """只測試爬取功能，不保存檔案"""
-    print(f"\n{'='*60}")
-    print(f"測試爬取功能（不保存檔案）")
-    print(f"{'='*60}")
+    print(f"\n{'=' * 60}")
+    print("測試爬取功能（不保存檔案）")
+    print(f"{'=' * 60}")
     print(f"股票代號: {stock_id}")
     print(f"日期: {date}")
 
@@ -43,14 +50,14 @@ def test_crawler_only(stock_id: str, date: datetime.date):
     df: Optional[pd.DataFrame] = crawler.crawl_stock_tick(api_instance, date, stock_id)
 
     if df is None or df.empty:
-        print(f"❌ 沒有爬取到資料")
+        print("❌ 沒有爬取到資料")
         ShioajiAccount.API_logout(api_instance)
         return None
 
-    print(f"✅ 爬取成功！")
+    print("✅ 爬取成功！")
     print(f"資料筆數: {len(df)}")
     print(f"資料欄位: {list(df.columns)}")
-    print(f"\n前 5 筆資料:")
+    print("\n前 5 筆資料:")
     print(df.head())
 
     # 登出 API
@@ -67,9 +74,9 @@ def test_crawler_and_cleaner(stock_id: str, date: datetime.date):
         stock_id: 股票代號，例如 "2330"
         date: 日期，例如 datetime.date(2024, 1, 15)
     """
-    print(f"\n{'='*60}")
-    print(f"測試爬取和清洗功能（會保存 CSV 檔案）")
-    print(f"{'='*60}")
+    print(f"\n{'=' * 60}")
+    print("測試爬取和清洗功能（會保存 CSV 檔案）")
+    print(f"{'=' * 60}")
     print(f"股票代號: {stock_id}")
     print(f"日期: {date}")
     print(f"資料保存路徑: {TICK_DOWNLOADS_PATH}")
@@ -95,25 +102,25 @@ def test_crawler_and_cleaner(stock_id: str, date: datetime.date):
     df: Optional[pd.DataFrame] = crawler.crawl_stock_tick(api_instance, date, stock_id)
 
     if df is None or df.empty:
-        print(f"❌ 沒有爬取到資料")
+        print("❌ 沒有爬取到資料")
         ShioajiAccount.API_logout(api_instance)
         return None
 
     print(f"✅ 爬取成功！資料筆數: {len(df)}")
 
     # 清洗資料（會自動保存 CSV）
-    print(f"\n開始清洗資料...")
+    print("\n開始清洗資料...")
     cleaned_df: Optional[pd.DataFrame] = cleaner.clean_stock_tick(df, stock_id)
 
     if cleaned_df is None or cleaned_df.empty:
-        print(f"❌ 清洗後的資料為空")
+        print("❌ 清洗後的資料為空")
         ShioajiAccount.API_logout(api_instance)
         return None
 
-    print(f"✅ 清洗成功！")
+    print("✅ 清洗成功！")
     print(f"清洗後資料筆數: {len(cleaned_df)}")
     print(f"清洗後資料欄位: {list(cleaned_df.columns)}")
-    print(f"\n前 5 筆清洗後的資料:")
+    print("\n前 5 筆清洗後的資料:")
     print(cleaned_df.head())
 
     # 檢查檔案是否已保存
@@ -121,7 +128,7 @@ def test_crawler_and_cleaner(stock_id: str, date: datetime.date):
     if csv_file.exists():
         file_size = csv_file.stat().st_size
         print(f"\n✅ CSV 檔案已保存: {csv_file}")
-        print(f"檔案大小: {file_size:,} bytes ({file_size/1024:.2f} KB)")
+        print(f"檔案大小: {file_size:,} bytes ({file_size / 1024:.2f} KB)")
     else:
         print(f"\n⚠️  警告: CSV 檔案未找到於 {csv_file}")
 
@@ -139,9 +146,9 @@ def test_multiple_dates(stock_id: str, dates: list[datetime.date]):
         stock_id: 股票代號，例如 "2330"
         dates: 日期列表，例如 [datetime.date(2024, 1, 15), datetime.date(2024, 1, 16)]
     """
-    print(f"\n{'='*60}")
-    print(f"測試爬取多個日期的資料")
-    print(f"{'='*60}")
+    print(f"\n{'=' * 60}")
+    print("測試爬取多個日期的資料")
+    print(f"{'=' * 60}")
     print(f"股票代號: {stock_id}")
     print(f"日期範圍: {dates[0]} ~ {dates[-1]} (共 {len(dates)} 天)")
     print(f"資料保存路徑: {TICK_DOWNLOADS_PATH}")
@@ -174,10 +181,10 @@ def test_multiple_dates(stock_id: str, dates: list[datetime.date]):
             df_list.append(df)
             print(f"  ✅ 成功，取得 {len(df)} 筆資料")
         else:
-            print(f"  ⚠️  沒有資料")
+            print("  ⚠️  沒有資料")
 
     if not df_list:
-        print(f"\n❌ 所有日期都沒有爬取到資料")
+        print("\n❌ 所有日期都沒有爬取到資料")
         ShioajiAccount.API_logout(api_instance)
         return None
 
@@ -186,15 +193,15 @@ def test_multiple_dates(stock_id: str, dates: list[datetime.date]):
     print(f"\n✅ 合併完成！總共 {len(merged_df)} 筆資料")
 
     # 清洗資料（會自動保存 CSV）
-    print(f"\n開始清洗資料...")
+    print("\n開始清洗資料...")
     cleaned_df: Optional[pd.DataFrame] = cleaner.clean_stock_tick(merged_df, stock_id)
 
     if cleaned_df is None or cleaned_df.empty:
-        print(f"❌ 清洗後的資料為空")
+        print("❌ 清洗後的資料為空")
         ShioajiAccount.API_logout(api_instance)
         return None
 
-    print(f"✅ 清洗成功！")
+    print("✅ 清洗成功！")
     print(f"清洗後資料筆數: {len(cleaned_df)}")
 
     # 檢查檔案是否已保存
@@ -202,7 +209,7 @@ def test_multiple_dates(stock_id: str, dates: list[datetime.date]):
     if csv_file.exists():
         file_size = csv_file.stat().st_size
         print(f"\n✅ CSV 檔案已保存: {csv_file}")
-        print(f"檔案大小: {file_size:,} bytes ({file_size/1024:.2f} KB)")
+        print(f"檔案大小: {file_size:,} bytes ({file_size / 1024:.2f} KB)")
     else:
         print(f"\n⚠️  警告: CSV 檔案未找到於 {csv_file}")
 
@@ -246,5 +253,5 @@ if __name__ == "__main__":
     print("測試完成！")
     print("=" * 60)
     print(f"\n📁 資料保存位置: {TICK_DOWNLOADS_PATH}")
-    print(f"   如果執行了範例 2 或 3，CSV 檔案會保存在此目錄下")
-    print(f"   檔案名稱格式: {{stock_id}}.csv (例如: 2330.csv)")
+    print("   如果執行了範例 2 或 3，CSV 檔案會保存在此目錄下")
+    print("   檔案名稱格式: {stock_id}.csv (例如: 2330.csv)")

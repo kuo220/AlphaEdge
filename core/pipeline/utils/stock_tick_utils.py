@@ -2,7 +2,7 @@ import datetime
 import shutil
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, List, Optional, TextIO
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from loguru import logger
@@ -15,15 +15,9 @@ except ModuleNotFoundError:
 from core.config import (
     API_KEYS,
     API_SECRET_KEYS,
-    DDB_HOST,
-    DDB_PASSWORD,
-    DDB_PORT,
-    DDB_USER,
-    TICK_DB_PATH,
     TICK_DOWNLOADS_PATH,
     TICK_METADATA_DIR_PATH,
     TICK_METADATA_PATH,
-    TICK_TABLE_NAME,
 )
 from core.pipeline.utils.data_utils import DataUtils
 from core.utils import ShioajiAPI

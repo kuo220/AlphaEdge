@@ -11,7 +11,7 @@
 `Backtester` 是**唯一的回測引擎，市場無關，沒有子類**。市場之間的差異全部下沉為五個可插拔的 model，由 factory 依策略宣告的 `market` 組裝：
 
 ```
-Backtester                      ← 唯一引擎，市場無關，無子類（491 行）
+Backtester                      ← 唯一引擎，市場無關，無子類（679 行）
   ├─ InstrumentSpec             ← 乘數、tick size、漲跌停規則、報價單位換算
   ├─ FillModel                  ← 成交價可信度（前視偏誤與不可能成交的擋板）
   ├─ CostModel                  ← 手續費／稅／借券費（期貨為期交稅）
@@ -92,6 +92,24 @@ def execute_bar(self, date: datetime.date, quotes: List[BaseQuote]) -> None:
     self.update_prev_close(quotes)
 ```
 
+### 2.2.1 單根 bar 的委託順序
+
+單根 bar 內的順序有**三個互相獨立的層次**，缺一層就會出現「同樣的訊號跑出不同結果」：
+
+| 層次 | 由誰決定 | 規則 |
+|------|----------|------|
+| 開倉階段 vs 平倉階段 | `BarExecutionOrder`（策略宣告或引擎推導） | `CLOSE_THEN_OPEN`（預設）／`OPEN_THEN_CLOSE` |
+| 平倉階段內部 | 引擎寫死 | 停損 → 一般平倉；停損執行完會重掃剩餘部位 |
+| 同一階段內的多筆委託 | `Backtester.sort_orders()` | 依 `(date, symbol)` **穩定**排序 |
+
+**為什麼第三層要由引擎自己排**：`check_max_holdings()` 的截斷與 `PositionManager` 的餘額不足檢查，都會讓「先處理誰」直接改變成交結果。而委託的到達順序完全繼承自報價順序，報價又來自 `SELECT * FROM price WHERE date = ?`——這句沒有 `ORDER BY`，實際列順序取決於 SQLite 選到哪個索引。今天恰好走 `PRIMARY KEY (date, stock_id, 證券名稱)` 而等同依代號排序，但那是查詢計畫的副產物：多加一個索引就可能翻掉，且翻掉時不會報錯，只會讓回測結果無聲改變。
+
+排序是**穩定**的，同一標的的多筆委託維持策略給定的先後，分批建倉與部分平倉的意圖不會被打散。
+
+**同標的開平倉並存不做 net 合併。** 同一根 bar 內同一標的同時出現在開倉與平倉訊號時，兩腿分別成交：證交稅只課賣出腿、當沖稅率減半也只認當沖的那一腿，合併成淨額委託會讓兩腿的費用與稅無法各自計算；且平倉腿必須實際成交才會產生 `TradeRecord`，net 掉等於整筆交易在報表上消失。兩腿的先後由 `BarExecutionOrder` 決定，這正是它存在的理由。
+
+**已知限制**：Tick 級別的 `order.date` 只到「日」（`StockQuote.date` 對 tick 也是 `datetime.date`），因此同一 bar 內的 tick 委託無法依成交時間排序，會被壓成依代號排序。要恢復真正的時間序，得讓 `check_*_signal` 回傳帶時間戳的委託事件——屬事件迴圈的範圍，見 §五已知簡化與 `backlog/回測引擎當沖執行順序重構.md` S4。
+
 ### 2.3 方向與市場是兩條獨立的軸
 
 **方向（LONG／SHORT）與市場（股票／期貨）互不相干。** `validate_orders()`、`resolve_open_action()`、`resolve_close_action()` 與市場無關（期貨的多空語意與股票相同），一律留在引擎內。
@@ -102,7 +120,7 @@ def execute_bar(self, date: datetime.date, quotes: List[BaseQuote]) -> None:
 
 | 層 | 路徑 | 內容 |
 |---|---|---|
-| 引擎 | `core/backtest/backtester.py` | 唯一引擎，491 行，不含任何 `Stock*` |
+| 引擎 | `core/backtest/backtester.py` | 唯一引擎，679 行，不含任何 `Stock*` |
 | 組裝 | `core/backtest/factory.py` | `build_backtester()`／`build_tw_stock_backtester()`／`build_cost_config()` |
 | 行為 model | `core/backtest/models/instrument_spec.py` | `InstrumentSpec` ＋ `TwStockSpec` |
 | | `core/backtest/models/fill_model.py` | `BaseFillModel` ＋ `TwStockFillModel` |
@@ -157,7 +175,7 @@ model 之間刻意**不互相依賴**，需要共享的狀態以 dict 參照傳�
 |------|------|----------|
 | **per-instrument 粒度的 model 掛載** | 無法在同一次回測同時持有台股與台指期（跨市場組合／避險） | 業界（Lean 掛在 `Security`、Nautilus 掛在 `Instrument`）確實是這個粒度，本次採 per-run 簡化。升級路徑乾淨：把 model 從 `Backtester` 移到 `InstrumentSpec` 物件上，引擎迴圈不動 |
 | 事件驅動 order queue（T+1 延遲成交、限價單未成交、部分成交） | 追繳仍只能以觸發當日收盤價回補 | 本質是引擎典範轉移。既有紀錄見 [放空回測框架規格](short-selling-framework.md) §7.2 與 `backlog/回測引擎當沖執行順序重構.md` S4 |
-| 報表輸出欄位仍為 `Stock ID` 而非 `Symbol` | 期貨報表的欄位名會是股票語意 | 改名會讓 915 筆 LONG baseline 失效。等期貨真的要出報表時再處理，屆時 baseline 本來就要重產 |
+| 報表輸出欄位仍為 `Stock ID` 而非 `Symbol` | 期貨報表的欄位名會是股票語意 | 改名會讓 1,889 筆 LONG baseline 失效。等期貨真的要出報表時再處理，屆時 baseline 本來就要重產 |
 | `core/utils/instrument.py` 未移出 | `core/utils/` 仍留一個領域模組 | `StockUtils` 有 4 個 `core/backtest/` 以外的使用者（pipeline、adapters、`strategy_lab`）。移進 `core/backtest/` 會讓資料管線反過來相依於回測引擎，是更嚴重的層級問題。其 11 個函式的歸屬需先拆解——「LONG成本模型口徑收斂」（2026-08-15 完成並移出 `backlog/`）未處理此項，**本表即其目前唯一的追蹤位置** |
 | `--mode live` 實盤路徑 | 實盤仍是空實作 | `run.py` 的 live 分支目前是 `pass`；factory 已預留讓實盤共用同一組 model |
 

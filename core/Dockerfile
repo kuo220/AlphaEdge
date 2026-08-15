@@ -10,14 +10,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt /tmp/requirements.txt
+# 用鎖定版本清單建置：requirements.txt 現為 `-e .`，而專案原始碼此時尚未 COPY 進來
+COPY requirements-lock.txt /tmp/requirements-lock.txt
 
 RUN pip install --no-cache-dir --upgrade pip
 
 RUN python - <<'PY'
 from pathlib import Path
 
-src = Path("/tmp/requirements.txt")
+src = Path("/tmp/requirements-lock.txt")
 dst = Path("/tmp/requirements.docker.txt")
 
 out_lines = []

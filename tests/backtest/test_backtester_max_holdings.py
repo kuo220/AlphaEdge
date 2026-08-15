@@ -65,9 +65,7 @@ def test_excess_open_orders_are_rejected(
     assert backtester.event_counts["rejected_max_holdings"] == 1
 
 
-def test_rejection_is_not_silent(
-    make_strategy, make_backtester, make_quote
-) -> None:
+def test_rejection_is_not_silent(make_strategy, make_backtester, make_quote) -> None:
     """被剔除的訂單必須留痕，禁止靜默丟棄"""
 
     strategy = make_strategy(
@@ -85,9 +83,7 @@ def test_rejection_is_not_silent(
     assert backtester.event_counts["rejected_max_holdings"] == 1
 
 
-def test_within_limit_is_untouched(
-    make_strategy, make_backtester, make_quote
-) -> None:
+def test_within_limit_is_untouched(make_strategy, make_backtester, make_quote) -> None:
     """未超額時不得剔除任何訂單，也不得計數（既有策略走的就是這條路）"""
 
     stock_ids: List[str] = ["2330", "2317"]

@@ -144,9 +144,7 @@ class StockDividendAPI(BaseDataAPI):
 
         return self.build_column_map(self.get(date), "配股率")
 
-    def get_opening_reference_price_map(
-        self, date: datetime.date
-    ) -> Dict[str, float]:
+    def get_opening_reference_price_map(self, date: datetime.date) -> Dict[str, float]:
         """
         - Description:
             取得指定日期的開盤競價基準對照表

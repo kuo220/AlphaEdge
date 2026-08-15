@@ -3,7 +3,7 @@ import os
 import sqlite3
 import sys
 from pathlib import Path
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Tuple
 from unittest.mock import patch
 
 # 添加專案根目錄到 Python 路徑
@@ -34,9 +34,9 @@ STOCK_TRADING_DAILY_REPORT_TABLE_NAME = "taiwan_stock_trading_daily_report_secid
 
 def test_finmind_updater():
     """測試 FinMindUpdater 各更新方法，使用臨時資料庫"""
-    print(f"\n{'='*60}")
-    print(f"測試 FinMindUpdater（使用臨時資料庫）")
-    print(f"{'='*60}")
+    print(f"\n{'=' * 60}")
+    print("測試 FinMindUpdater（使用臨時資料庫）")
+    print(f"{'=' * 60}")
 
     # 檢查環境變數是否已載入
     api_token = os.getenv("FINMIND_API_TOKEN")
@@ -65,10 +65,10 @@ def test_finmind_updater():
         return False
 
     # 先導入不依賴 config 的模組
-    from core.pipeline.utils import FinMindDataType
-
     # 解決循環導入：使用 mock 在導入前先設置 config 模組
     from unittest.mock import MagicMock
+
+    from core.pipeline.utils import FinMindDataType
 
     # 創建一個臨時的 config mock，包含所有需要的屬性
     temp_config = MagicMock()
@@ -122,13 +122,15 @@ def test_finmind_updater():
 
     try:
         # 使用 mock 替換 DB_PATH
-        with patch("core.config.DB_PATH", temp_db_path), patch(
-            "core.pipeline.updaters.finmind_updater.DB_PATH", temp_db_path
-        ), patch("core.pipeline.loaders.finmind_loader.DB_PATH", temp_db_path):
+        with (
+            patch("core.config.DB_PATH", temp_db_path),
+            patch("core.pipeline.updaters.finmind_updater.DB_PATH", temp_db_path),
+            patch("core.pipeline.loaders.finmind_loader.DB_PATH", temp_db_path),
+        ):
             # ===== 測試 1: update_stock_info_with_warrant =====
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print("測試 1: update_stock_info_with_warrant()")
-            print(f"{'='*60}")
+            print(f"{'=' * 60}")
 
             updater: FinMindUpdater = FinMindUpdater()
             print("✅ FinMindUpdater 初始化完成")
@@ -150,7 +152,7 @@ def test_finmind_updater():
                     f"SELECT * FROM {STOCK_INFO_WITH_WARRANT_TABLE_NAME} LIMIT 3"
                 )
                 rows: List[Tuple[Any, ...]] = cursor.fetchall()
-                print(f"   前 3 筆資料:")
+                print("   前 3 筆資料:")
                 for row in rows:
                     print(f"   {row}")
             else:
@@ -159,9 +161,9 @@ def test_finmind_updater():
             conn.close()
 
             # ===== 測試 2: update_broker_info =====
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print("測試 2: update_broker_info()")
-            print(f"{'='*60}")
+            print(f"{'=' * 60}")
 
             print("\n🔄 執行更新...")
             updater.update_broker_info()
@@ -179,7 +181,7 @@ def test_finmind_updater():
                     f"SELECT * FROM {SECURITIES_TRADER_INFO_TABLE_NAME} LIMIT 3"
                 )
                 rows = cursor.fetchall()
-                print(f"   前 3 筆資料:")
+                print("   前 3 筆資料:")
                 for row in rows:
                     print(f"   {row}")
             else:
@@ -188,9 +190,9 @@ def test_finmind_updater():
             conn.close()
 
             # ===== 測試 3: update_broker_trading_daily_report =====
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print("測試 3: update_broker_trading_daily_report()")
-            print(f"{'='*60}")
+            print(f"{'=' * 60}")
 
             # 設定測試參數
             start_date = datetime.date(2024, 7, 1)
@@ -198,7 +200,7 @@ def test_finmind_updater():
             test_stock_id = "2330"
             test_broker_id = "1020"
 
-            print(f"   測試參數:")
+            print("   測試參數:")
             print(f"   - 起始日期: {start_date}")
             print(f"   - 結束日期: {end_date}")
             print(f"   - 股票代碼: {test_stock_id}")
@@ -227,7 +229,7 @@ def test_finmind_updater():
                     f"SELECT * FROM {STOCK_TRADING_DAILY_REPORT_TABLE_NAME} LIMIT 3"
                 )
                 rows = cursor.fetchall()
-                print(f"   前 3 筆資料:")
+                print("   前 3 筆資料:")
                 for row in rows:
                     print(f"   {row}")
             else:
@@ -238,9 +240,9 @@ def test_finmind_updater():
             conn.close()
 
             # ===== 測試 4: update() 方法 - 使用 Enum =====
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print("測試 4: update() 方法 - 使用 FinMindDataType Enum")
-            print(f"{'='*60}")
+            print(f"{'=' * 60}")
 
             print("\n🔄 測試 update(data_type=FinMindDataType.STOCK_INFO)...")
             updater.update(data_type=FinMindDataType.STOCK_INFO)
@@ -279,9 +281,9 @@ def test_finmind_updater():
             conn.close()
 
             # ===== 測試 5: update() 方法 - 使用字串 =====
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print("測試 5: update() 方法 - 使用字串參數")
-            print(f"{'='*60}")
+            print(f"{'=' * 60}")
 
             print("\n🔄 測試 update(data_type='stock_info')...")
             updater.update(data_type="stock_info")
@@ -304,9 +306,9 @@ def test_finmind_updater():
             conn.close()
 
             # ===== 測試 6: update_all() =====
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print("測試 6: update_all()")
-            print(f"{'='*60}")
+            print(f"{'=' * 60}")
 
             print("\n🔄 執行 update_all()...")
             updater.update_all(
@@ -338,9 +340,9 @@ def test_finmind_updater():
             conn.close()
 
             # ===== 測試 7: get_actual_update_start_date =====
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print("測試 7: get_actual_update_start_date()")
-            print(f"{'='*60}")
+            print(f"{'=' * 60}")
 
             # 測試從資料庫取得最新日期
             default_date = datetime.date(2021, 6, 30)
@@ -363,16 +365,16 @@ def test_finmind_updater():
             print(f"類型: {type(actual_start_date_str)}")
 
             if all_success:
-                print(f"\n{'='*60}")
+                print(f"\n{'=' * 60}")
                 print("✅ 所有測試通過！")
-                print(f"{'='*60}")
+                print(f"{'=' * 60}")
                 print(f"📁 臨時資料庫位置: {temp_db_path}")
                 print("   測試完成後可以手動刪除此檔案")
                 return True
             else:
-                print(f"\n{'='*60}")
+                print(f"\n{'=' * 60}")
                 print("⚠️  部分測試未完全通過，請檢查上述結果")
-                print(f"{'='*60}")
+                print(f"{'=' * 60}")
                 return False
 
     except Exception as e:

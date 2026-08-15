@@ -11,11 +11,11 @@ from core.api.stock_margin_api import StockMarginAPI
 from core.api.stock_price_api import StockPriceAPI
 from core.api.stock_tick_api import StockTickAPI
 from core.backtest.datafeed.base import BaseDataFeed
+from core.backtest.datafeed.market_calendar import MarketCalendar
 from core.config import DB_PATH
 from core.models import StockQuote
 from core.strategies.base import BaseStrategy
 from core.utils import Scale
-from core.backtest.datafeed.market_calendar import MarketCalendar
 
 """TwStockDataFeed: 台股資料源（五個資料 API ＋ 報價轉換 ＋ 交易日判定）"""
 
@@ -106,7 +106,15 @@ class TwStockDataFeed(BaseDataFeed):
     def close(self) -> None:
         """關閉所有資料連線（回測結束時呼叫；原本全專案的 conn 從不 close）"""
 
-        for api in (self.chip, self.mrr, self.fs, self.price, self.dividend, self.margin, self.tick):
+        for api in (
+            self.chip,
+            self.mrr,
+            self.fs,
+            self.price,
+            self.dividend,
+            self.margin,
+            self.tick,
+        ):
             if api is not None:
                 api.close()
 

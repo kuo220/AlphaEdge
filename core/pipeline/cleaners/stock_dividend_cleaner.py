@@ -205,11 +205,7 @@ class StockDividendCleaner(BaseDataCleaner):
 
         # 權息別統一為 權／息／權息
         df["權息別"] = (
-            df["權息別"]
-            .fillna("")
-            .astype(str)
-            .str.strip()
-            .replace(self.EX_TYPE_MAP)
+            df["權息別"].fillna("").astype(str).str.strip().replace(self.EX_TYPE_MAP)
         )
 
         df = DataUtils.convert_col_to_numeric(df, exclude_cols=self.non_numeric_cols())
@@ -281,9 +277,7 @@ class StockDividendCleaner(BaseDataCleaner):
 
         # 來源已提供官方拆分值（TPEX）：直接採用，不推導
         if "每仟股無償配股" in df.columns:
-            df["配股率"] = (
-                df["每仟股無償配股"] / self.SHARES_PER_THOUSAND
-            ).round(8)
+            df["配股率"] = (df["每仟股無償配股"] / self.SHARES_PER_THOUSAND).round(8)
             df["現金股利"] = df["現金股利"].round(8)
             return df
 

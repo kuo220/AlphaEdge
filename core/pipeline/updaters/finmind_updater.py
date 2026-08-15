@@ -12,7 +12,6 @@ from core.config import (
     DB_PATH,
     SECURITIES_TRADER_INFO_TABLE_NAME,
     STOCK_INFO_TABLE_NAME,
-    STOCK_INFO_WITH_WARRANT_TABLE_NAME,
     STOCK_TRADING_DAILY_REPORT_TABLE_NAME,
 )
 from core.pipeline.cleaners.finmind_cleaner import FinMindCleaner
@@ -814,9 +813,7 @@ class FinMindUpdater(BaseDataUpdater):
             List[str]: 股票代碼列表
         """
         try:
-            query: str = (
-                f"SELECT DISTINCT stock_id FROM {STOCK_INFO_TABLE_NAME} ORDER BY stock_id"
-            )
+            query: str = f"SELECT DISTINCT stock_id FROM {STOCK_INFO_TABLE_NAME} ORDER BY stock_id"
             df: pd.DataFrame = pd.read_sql_query(query, self.conn)
             stock_list: List[str] = df["stock_id"].astype(str).tolist()
             logger.info(f"Retrieved {len(stock_list)} stocks from database")
@@ -833,9 +830,7 @@ class FinMindUpdater(BaseDataUpdater):
             List[str]: 券商代碼列表
         """
         try:
-            query: str = (
-                f"SELECT DISTINCT securities_trader_id FROM {SECURITIES_TRADER_INFO_TABLE_NAME} ORDER BY securities_trader_id"
-            )
+            query: str = f"SELECT DISTINCT securities_trader_id FROM {SECURITIES_TRADER_INFO_TABLE_NAME} ORDER BY securities_trader_id"
             df: pd.DataFrame = pd.read_sql_query(query, self.conn)
             securities_trader_list: List[str] = (
                 df["securities_trader_id"].astype(str).tolist()

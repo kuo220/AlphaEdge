@@ -8,13 +8,13 @@ import pandas as pd
 from loguru import logger
 
 from core.config import DB_PATH, PRICE_TABLE_NAME
-from core.utils.log_manager import LogManager
 from core.pipeline.cleaners.stock_price_cleaner import StockPriceCleaner
 from core.pipeline.crawlers.stock_price_crawler import StockPriceCrawler
 from core.pipeline.loaders.stock_price_loader import StockPriceLoader
 from core.pipeline.updaters.base import BaseDataUpdater
 from core.pipeline.utils.sqlite_utils import SQLiteUtils
 from core.utils import TimeUtils
+from core.utils.log_manager import LogManager
 
 """
 TWSE 網站提供資料日期：

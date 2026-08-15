@@ -25,7 +25,9 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
         # Statistics
         self.benchmark: Optional[str] = None  # Benchmark stock
         self.risk_free_rate: Optional[float] = None  # 無風險利率（暫定0.02）
-        self.benchmark_return: Optional[float] = None  # 基準報酬率（用於 Information Ratio）
+        self.benchmark_return: Optional[float] = (
+            None  # 基準報酬率（用於 Information Ratio）
+        )
 
     def setup(self) -> None:
         """Set Up the Config of Analyzer"""
@@ -34,7 +36,9 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
         self.benchmark_return: float = 0.0  # 基準報酬率（可依回測期間調整）
 
     # ===== Equity-based Metrics =====
-    def compute_equity_curve(self, daily_equity: Optional[List[Dict]] = None) -> List[float]:
+    def compute_equity_curve(
+        self, daily_equity: Optional[List[Dict]] = None
+    ) -> List[float]:
         """
         - Description:
             計算權益曲線
@@ -204,9 +208,7 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
             "borrow_fee": round(
                 sum(record.borrow_fee for record in self.trade_records), 2
             ),
-            "interest": round(
-                sum(record.interest for record in self.trade_records), 2
-            ),
+            "interest": round(sum(record.interest for record in self.trade_records), 2),
         }
 
     def compute_average_holding_days(self) -> float:

@@ -22,6 +22,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import yfinance as yf
+
 from core.api.stock_price_api import StockPriceAPI
 from core.utils import Units
 from core.utils.instrument import StockUtils
@@ -132,7 +133,9 @@ def _evaluate_model_on_exec(
     signal: np.ndarray,
 ) -> Dict[str, float]:
     ex = _exec_with_pred_signal(exec_skel, dates, pred, signal)
-    ic = information_coefficient(ex["r_2330"].values.astype(float), ex["pred"].values.astype(float))
+    ic = information_coefficient(
+        ex["r_2330"].values.astype(float), ex["pred"].values.astype(float)
+    )
     mr = summary_metrics(run_backtest_with_signal(ex))
     mv = summary_metrics(run_vectorized_continuous_backtest(ex))
     return {
@@ -177,7 +180,11 @@ def fetch_panel(start: dt.date, end: dt.date) -> Tuple[pd.DataFrame, pd.DataFram
     )
     if data.empty:
         raise RuntimeError("yfinance returned empty dataset for US tickers.")
-    close_us = data["Close"].copy() if isinstance(data.columns, pd.MultiIndex) else data[["Close"]].copy()
+    close_us = (
+        data["Close"].copy()
+        if isinstance(data.columns, pd.MultiIndex)
+        else data[["Close"]].copy()
+    )
     if not isinstance(data.columns, pd.MultiIndex):
         close_us.columns = us_tickers[:1]
     close_us = close_us.sort_index()
@@ -220,12 +227,20 @@ def fetch_panel(start: dt.date, end: dt.date) -> Tuple[pd.DataFrame, pd.DataFram
         )
 
     panel = pd.DataFrame(rows).dropna()
-    panel = panel.drop_duplicates(subset=["date"], keep="last").sort_values("date").reset_index(drop=True)
+    panel = (
+        panel.drop_duplicates(subset=["date"], keep="last")
+        .sort_values("date")
+        .reset_index(drop=True)
+    )
     return close_df, panel
 
 
 def tune_alpha(
-    X_train: np.ndarray, y_train: np.ndarray, X_val: np.ndarray, y_val: np.ndarray, grid: np.ndarray
+    X_train: np.ndarray,
+    y_train: np.ndarray,
+    X_val: np.ndarray,
+    y_val: np.ndarray,
+    grid: np.ndarray,
 ) -> float:
     best_alpha = float(grid[0])
     best_mse = np.inf
@@ -238,7 +253,9 @@ def tune_alpha(
     return best_alpha
 
 
-def run_backtest_with_signal(exec_df: pd.DataFrame, init_capital: float = 1_000_000.0) -> pd.DataFrame:
+def run_backtest_with_signal(
+    exec_df: pd.DataFrame, init_capital: float = 1_000_000.0
+) -> pd.DataFrame:
     pred = exec_df["pred"].values.astype(float)
     signal = exec_df["signal"].values.astype(int)
     close = exec_df["close_2330"].values.astype(float)
@@ -383,11 +400,25 @@ def save_fig(fig: go.Figure, path: Path) -> None:
     fig.write_html(str(path.with_suffix(".html")))
 
 
-def plot_equity_curve(bt: pd.DataFrame, out_dir: Path, title_suffix: str, basename: str = "equity_curve") -> None:
+def plot_equity_curve(
+    bt: pd.DataFrame, out_dir: Path, title_suffix: str, basename: str = "equity_curve"
+) -> None:
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=bt["date"], y=bt["equity_strategy"], name="Overnight Signal Strategy", line=dict(color="#2563eb", width=2)))
     fig.add_trace(
-        go.Scatter(x=bt["date"], y=bt["equity_buyhold"], name="Buy & Hold 2330.TW", line=dict(color="#94a3b8", width=2, dash="dash"))
+        go.Scatter(
+            x=bt["date"],
+            y=bt["equity_strategy"],
+            name="Overnight Signal Strategy",
+            line=dict(color="#2563eb", width=2),
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=bt["date"],
+            y=bt["equity_buyhold"],
+            name="Buy & Hold 2330.TW",
+            line=dict(color="#94a3b8", width=2, dash="dash"),
+        )
     )
     fig.update_layout(
         title=dict(text=f"Equity curve · {title_suffix}", x=0.02, xanchor="left"),
@@ -401,11 +432,26 @@ def plot_equity_curve(bt: pd.DataFrame, out_dir: Path, title_suffix: str, basena
     save_fig(fig, out_dir / f"{basename}.png")
 
 
-def plot_mdd(bt: pd.DataFrame, out_dir: Path, title_suffix: str, basename: str = "mdd_underwater") -> None:
+def plot_mdd(
+    bt: pd.DataFrame, out_dir: Path, title_suffix: str, basename: str = "mdd_underwater"
+) -> None:
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=bt["date"], y=bt["dd_strategy"] * 100.0, name="Strategy MDD (%)", fill="tozeroy", line=dict(color="#dc2626")))
     fig.add_trace(
-        go.Scatter(x=bt["date"], y=bt["dd_buyhold"] * 100.0, name="2330 B&H MDD (%)", line=dict(color="#cbd5e1", dash="dot"))
+        go.Scatter(
+            x=bt["date"],
+            y=bt["dd_strategy"] * 100.0,
+            name="Strategy MDD (%)",
+            fill="tozeroy",
+            line=dict(color="#dc2626"),
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=bt["date"],
+            y=bt["dd_buyhold"] * 100.0,
+            name="2330 B&H MDD (%)",
+            line=dict(color="#cbd5e1", dash="dot"),
+        )
     )
     fig.update_layout(
         title=dict(text=f"Drawdown · {title_suffix}", x=0.02, xanchor="left"),
@@ -419,7 +465,9 @@ def plot_mdd(bt: pd.DataFrame, out_dir: Path, title_suffix: str, basename: str =
     save_fig(fig, out_dir / f"{basename}.png")
 
 
-def plot_rolling_sharpe(bt: pd.DataFrame, out_dir: Path, window: int = 63, basename: str = "rolling_sharpe") -> None:
+def plot_rolling_sharpe(
+    bt: pd.DataFrame, out_dir: Path, window: int = 63, basename: str = "rolling_sharpe"
+) -> None:
     rs = bt["r_strategy"].astype(float)
     rb = bt["r_buyhold"].astype(float)
 
@@ -429,9 +477,21 @@ def plot_rolling_sharpe(bt: pd.DataFrame, out_dir: Path, window: int = 63, basen
         return np.sqrt(252) * m / s
 
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=bt["date"], y=roll_sharpe(rs), name=f"Strategy Rolling Sharpe ({window}d)", line=dict(color="#2563eb")))
     fig.add_trace(
-        go.Scatter(x=bt["date"], y=roll_sharpe(rb), name=f"B&H Rolling Sharpe ({window}d)", line=dict(color="#94a3b8", dash="dash"))
+        go.Scatter(
+            x=bt["date"],
+            y=roll_sharpe(rs),
+            name=f"Strategy Rolling Sharpe ({window}d)",
+            line=dict(color="#2563eb"),
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=bt["date"],
+            y=roll_sharpe(rb),
+            name=f"B&H Rolling Sharpe ({window}d)",
+            line=dict(color="#94a3b8", dash="dash"),
+        )
     )
     fig.add_hline(y=0, line_dash="dot", line_color="#ccc")
     fig.update_layout(
@@ -446,11 +506,22 @@ def plot_rolling_sharpe(bt: pd.DataFrame, out_dir: Path, window: int = 63, basen
     save_fig(fig, out_dir / f"{basename}.png")
 
 
-def plot_rolling_ic(panel_with_pred: pd.DataFrame, out_dir: Path, window: int = 126, basename: str = "rolling_ic") -> None:
+def plot_rolling_ic(
+    panel_with_pred: pd.DataFrame,
+    out_dir: Path,
+    window: int = 126,
+    basename: str = "rolling_ic",
+) -> None:
     """Rolling information coefficient to monitor potential alpha decay."""
     df = panel_with_pred.sort_values("date").reset_index(drop=True)
-    ic_roll = df["pred"].rolling(window, min_periods=max(30, window // 4)).corr(df["r_2330"])
-    fig = go.Figure(go.Scatter(x=df["date"], y=ic_roll, name="Rolling IC", line=dict(color="#0d9488")))
+    ic_roll = (
+        df["pred"].rolling(window, min_periods=max(30, window // 4)).corr(df["r_2330"])
+    )
+    fig = go.Figure(
+        go.Scatter(
+            x=df["date"], y=ic_roll, name="Rolling IC", line=dict(color="#0d9488")
+        )
+    )
     fig.add_hline(y=0, line_dash="dot", line_color="#ccc")
     fig.update_layout(
         title=dict(text=f"Rolling IC ({window}d)", x=0.02, xanchor="left"),
@@ -469,7 +540,12 @@ def plot_ic_by_year(panel_with_pred: pd.DataFrame, out_dir: Path) -> None:
     df["year"] = pd.to_datetime(df["date"]).dt.year
     ics = []
     for y, g in df.groupby("year"):
-        ics.append({"year": y, "IC": information_coefficient(g["r_2330"].values, g["pred"].values)})
+        ics.append(
+            {
+                "year": y,
+                "IC": information_coefficient(g["r_2330"].values, g["pred"].values),
+            }
+        )
     ic_df = pd.DataFrame(ics)
     fig = go.Figure(data=go.Bar(x=ic_df["year"], y=ic_df["IC"], marker_color="#7c3aed"))
     fig.update_layout(
@@ -484,14 +560,29 @@ def plot_ic_by_year(panel_with_pred: pd.DataFrame, out_dir: Path) -> None:
     ic_df.to_csv(out_dir / "ic_by_year.csv", index=False)
 
 
-def plot_monthly_returns_heatmap(bt: pd.DataFrame, out_dir: Path, basename: str = "monthly_returns_heatmap") -> None:
+def plot_monthly_returns_heatmap(
+    bt: pd.DataFrame, out_dir: Path, basename: str = "monthly_returns_heatmap"
+) -> None:
     d = pd.to_datetime(bt["date"])
-    mret = bt.assign(ym=d.dt.to_period("M")).groupby("ym")["r_strategy"].apply(lambda s: (1 + s).prod() - 1)
+    mret = (
+        bt.assign(ym=d.dt.to_period("M"))
+        .groupby("ym")["r_strategy"]
+        .apply(lambda s: (1 + s).prod() - 1)
+    )
     pivot = mret.reset_index()
     pivot["year"] = pivot["ym"].dt.year
     pivot["month"] = pivot["ym"].dt.month
     mat = pivot.pivot(index="year", columns="month", values="r_strategy") * 100.0
-    fig = go.Figure(data=go.Heatmap(z=mat.values, x=[f"M{m}" for m in mat.columns], y=mat.index.astype(str), colorscale="RdYlGn", zmid=0, colorbar=dict(title="%")))
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=mat.values,
+            x=[f"M{m}" for m in mat.columns],
+            y=mat.index.astype(str),
+            colorscale="RdYlGn",
+            zmid=0,
+            colorbar=dict(title="%"),
+        )
+    )
     fig.update_layout(
         title=dict(text="Monthly return heatmap (%)", x=0.02, xanchor="left"),
         template="plotly_white",
@@ -526,7 +617,9 @@ def yearly_diagnostics(bt: pd.DataFrame, exec_for_ic: pd.DataFrame) -> pd.DataFr
         dd_y = g["dd_strategy"].astype(float).values
         mdd_y = float(np.min(dd_y) * 100.0) if len(dd_y) else float("nan")
         switches = float(g["pos_switch_half"].sum())
-        ic_val = information_coefficient(g["r_2330"].values.astype(float), g["pred"].values.astype(float))
+        ic_val = information_coefficient(
+            g["r_2330"].values.astype(float), g["pred"].values.astype(float)
+        )
         rows.append(
             {
                 "year": int(y),
@@ -542,7 +635,9 @@ def yearly_diagnostics(bt: pd.DataFrame, exec_for_ic: pd.DataFrame) -> pd.DataFr
 
 def ic_pnl_gap_metrics(exec_df: pd.DataFrame, bt: pd.DataFrame) -> pd.DataFrame:
     """Explain tension between ranking IC and realistic PnL (threshold, costs, cash gaps)."""
-    m = exec_df.merge(bt[["date", "position", "r_strategy", "r_buyhold"]], on="date", how="inner")
+    m = exec_df.merge(
+        bt[["date", "position", "r_strategy", "r_buyhold"]], on="date", how="inner"
+    )
     r = m["r_2330"].astype(float).values
     pred = m["pred"].astype(float).values
     sig = m["signal"].astype(int).values
@@ -567,7 +662,10 @@ def ic_pnl_gap_metrics(exec_df: pd.DataFrame, bt: pd.DataFrame) -> pd.DataFrame:
         ("share_days_pred_positive", float(np.mean(pred > 0))),
         ("share_days_signal_long_but_flat_cash_gap", float(np.mean(gap_arr))),
         ("count_days_signal_long_but_flat", float(np.sum(gap_arr))),
-        ("mean_benchmark_ret_on_cash_gap_days", float(np.mean(bh[gap_arr])) if gap_arr.any() else float("nan")),
+        (
+            "mean_benchmark_ret_on_cash_gap_days",
+            float(np.mean(bh[gap_arr])) if gap_arr.any() else float("nan"),
+        ),
     ]
 
     mdt = pd.to_datetime(m["date"])
@@ -579,7 +677,10 @@ def ic_pnl_gap_metrics(exec_df: pd.DataFrame, bt: pd.DataFrame) -> pd.DataFrame:
         rows.extend(
             [
                 ("y2026_days_in_sample", float(len(sub))),
-                ("y2026_days_pred_positive", float(np.sum(sub["pred"].astype(float).values > 0))),
+                (
+                    "y2026_days_pred_positive",
+                    float(np.sum(sub["pred"].astype(float).values > 0)),
+                ),
                 ("y2026_days_held_long", float(np.sum(ps > 0.5))),
                 ("y2026_position_change_events", float(chg)),
             ]
@@ -588,7 +689,9 @@ def ic_pnl_gap_metrics(exec_df: pd.DataFrame, bt: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=["metric", "value"])
 
 
-def placebo_feature_shift_ic(panel_test: pd.DataFrame, coef: np.ndarray, x_cols: List[str]) -> pd.DataFrame:
+def placebo_feature_shift_ic(
+    panel_test: pd.DataFrame, coef: np.ndarray, x_cols: List[str]
+) -> pd.DataFrame:
     """
     If IC is driven by incorrect calendar alignment, mis-shifted features should destroy correlation.
     Lag 1 TW row: pair today's TW return with previous row's US features (stale).
@@ -607,7 +710,9 @@ def placebo_feature_shift_ic(panel_test: pd.DataFrame, coef: np.ndarray, x_cols:
 
     Xlead = pt[x_cols].shift(-1).astype(float).values
     m2 = np.all(np.isfinite(Xlead), axis=1) & np.isfinite(y)
-    ic_lead = information_coefficient(y[m2], (np.c_[np.ones(m2.sum()), Xlead[m2]] @ coef))
+    ic_lead = information_coefficient(
+        y[m2], (np.c_[np.ones(m2.sum()), Xlead[m2]] @ coef)
+    )
 
     return pd.DataFrame(
         {
@@ -621,7 +726,9 @@ def placebo_feature_shift_ic(panel_test: pd.DataFrame, coef: np.ndarray, x_cols:
     )
 
 
-def capital_sensitivity_analysis(exec_df: pd.DataFrame, caps: List[float]) -> pd.DataFrame:
+def capital_sensitivity_analysis(
+    exec_df: pd.DataFrame, caps: List[float]
+) -> pd.DataFrame:
     """Realistic cumulative return vs initial cash (same signals); exposes lot-capital interaction."""
     rows = []
     for cap in caps:
@@ -673,7 +780,11 @@ def write_sanity_checks_csv(
 ) -> None:
     """Structured sanity checks with explicit status (not only risks)."""
     placebo_txt = ""
-    if placebo_ic_baseline is not None and placebo_ic_lag is not None and placebo_ic_lead is not None:
+    if (
+        placebo_ic_baseline is not None
+        and placebo_ic_lag is not None
+        and placebo_ic_lead is not None
+    ):
         placebo_txt = (
             f"Baseline IC {placebo_ic_baseline:.4f}; lag-1 feature placebo {placebo_ic_lag:.4f}; "
             f"lead-1 feature placebo {placebo_ic_lead:.4f}."
@@ -729,7 +840,11 @@ def summary_metrics(bt: pd.DataFrame) -> pd.Series:
     ann_b = (1 + total_b) ** (1 / years) - 1 if years > 0 else np.nan
     vol_s = float(np.std(rs, ddof=1) * np.sqrt(252))
     calmar = ann_s / abs(max_drawdown_pct(bt["dd_strategy"].values) / 100.0 + 1e-9)
-    win = float(np.mean(rs[bt["position"].values > 0] > 0)) if (bt["position"] > 0).any() else np.nan
+    win = (
+        float(np.mean(rs[bt["position"].values > 0] > 0))
+        if (bt["position"] > 0).any()
+        else np.nan
+    )
     return pd.Series(
         {
             "區間天數": len(bt),
@@ -765,7 +880,10 @@ def main(
     val = panel[(panel["date"] >= VAL_START) & (panel["date"] <= VAL_END)].copy()
     test = panel[panel["date"] >= TEST_START].copy()
 
-    X_tr, y_tr = train[x_cols].values.astype(float), train["r_2330"].values.astype(float)
+    X_tr, y_tr = (
+        train[x_cols].values.astype(float),
+        train["r_2330"].values.astype(float),
+    )
     X_va, y_va = val[x_cols].values.astype(float), val["r_2330"].values.astype(float)
     alpha = tune_alpha(X_tr, y_tr, X_va, y_va, np.logspace(-4, 3, 30))
 
@@ -806,15 +924,25 @@ def main(
             "r_2330": tw_ret.values,
         }
     )
-    exec_skel = exec_skel[(exec_skel["date"] >= TEST_START) & (exec_skel["date"] <= data_end)]
+    exec_skel = exec_skel[
+        (exec_skel["date"] >= TEST_START) & (exec_skel["date"] <= data_end)
+    ]
     exec_skel = exec_skel.dropna(subset=["r_2330", "close_2330"]).copy()
 
     dates_t = panel_test["date"].values
     baseline_rows: List[Dict[str, float]] = [
-        _evaluate_model_on_exec("Ridge", exec_skel, dates_t, pred_test, (pred_test > 0.0).astype(int)),
-        _evaluate_model_on_exec("OLS", exec_skel, dates_t, pred_ols.astype(float), sig_ols),
-        _evaluate_model_on_exec("Logistic (direction)", exec_skel, dates_t, pred_logit_score, sig_log),
-        _evaluate_model_on_exec("TSM sign only", exec_skel, dates_t, pred_tsm_only, sig_tsm),
+        _evaluate_model_on_exec(
+            "Ridge", exec_skel, dates_t, pred_test, (pred_test > 0.0).astype(int)
+        ),
+        _evaluate_model_on_exec(
+            "OLS", exec_skel, dates_t, pred_ols.astype(float), sig_ols
+        ),
+        _evaluate_model_on_exec(
+            "Logistic (direction)", exec_skel, dates_t, pred_logit_score, sig_log
+        ),
+        _evaluate_model_on_exec(
+            "TSM sign only", exec_skel, dates_t, pred_tsm_only, sig_tsm
+        ),
     ]
     pd.DataFrame(baseline_rows).to_csv(out / "baseline_comparison.csv", index=False)
 
@@ -831,7 +959,9 @@ def main(
 
     # metrics_summary.csv = lot-based / realistic execution (primary for conclusions)
     summary_metrics(bt_real).to_csv(out / "metrics_summary.csv", header=["value"])
-    summary_metrics(bt_vec).to_csv(out / "metrics_vectorized_summary.csv", header=["value"])
+    summary_metrics(bt_vec).to_csv(
+        out / "metrics_vectorized_summary.csv", header=["value"]
+    )
 
     coef_names = ["intercept", "r_tsm_us", "r_sox_us", "r_twd"]
     pd.DataFrame({"feature": coef_names, "coefficient": coef.astype(float)}).to_csv(
@@ -839,7 +969,9 @@ def main(
     )
 
     ic_panel = exec_df[["date", "r_2330", "pred"]].copy()
-    ic_test = information_coefficient(ic_panel["r_2330"].values.astype(float), ic_panel["pred"].values.astype(float))
+    ic_test = information_coefficient(
+        ic_panel["r_2330"].values.astype(float), ic_panel["pred"].values.astype(float)
+    )
     n_test = len(ic_panel)
     pd.DataFrame(
         {
@@ -848,11 +980,15 @@ def main(
         }
     ).to_csv(out / "signal_ic_test.csv", index=False)
 
-    yearly_diagnostics(bt_real, exec_df).to_csv(out / "yearly_diagnostics.csv", index=False)
+    yearly_diagnostics(bt_real, exec_df).to_csv(
+        out / "yearly_diagnostics.csv", index=False
+    )
 
     gap_tbl = ic_pnl_gap_metrics(exec_df, bt_real)
     gap_tbl.to_csv(out / "ic_pnl_gap.csv", index=False)
-    gap_share_row = gap_tbl.loc[gap_tbl["metric"] == "share_days_signal_long_but_flat_cash_gap", "value"]
+    gap_share_row = gap_tbl.loc[
+        gap_tbl["metric"] == "share_days_signal_long_but_flat_cash_gap", "value"
+    ]
     gap_share = float(gap_share_row.iloc[0]) if len(gap_share_row) else 0.0
 
     placebo_df = placebo_feature_shift_ic(panel_test, coef, x_cols)
@@ -872,13 +1008,21 @@ def main(
 
     # Threshold robustness (predicted daily return must exceed tau to go long); tau in decimal return units.
     tau_list = [0.0, 0.0005, 0.001, 0.002]
-    ridge_threshold_sweep(exec_skel, dates_t, pred_test, tau_list).to_csv(out / "threshold_robustness_ridge.csv", index=False)
+    ridge_threshold_sweep(exec_skel, dates_t, pred_test, tau_list).to_csv(
+        out / "threshold_robustness_ridge.csv", index=False
+    )
 
     sm_bh = summary_metrics(bt_real)
     pd.DataFrame(
         [
-            {"benchmark": "2330.TW buy-and-hold (test window)", "test_cumulative_return": float(sm_bh["B&H累積報酬"])},
-            {"benchmark": "Cash (flat, zero daily return)", "test_cumulative_return": 0.0},
+            {
+                "benchmark": "2330.TW buy-and-hold (test window)",
+                "test_cumulative_return": float(sm_bh["B&H累積報酬"]),
+            },
+            {
+                "benchmark": "Cash (flat, zero daily return)",
+                "test_cumulative_return": 0.0,
+            },
         ]
     ).to_csv(out / "passive_benchmarks.csv", index=False)
 
@@ -906,11 +1050,22 @@ def main(
     plot_rolling_sharpe(bt_real, out, basename="rolling_sharpe_realistic")
     plot_ic_by_year(ic_panel, out)
     plot_rolling_ic(ic_panel, out, basename="rolling_ic")
-    plot_monthly_returns_heatmap(bt_real, out, basename="monthly_returns_heatmap_realistic")
+    plot_monthly_returns_heatmap(
+        bt_real, out, basename="monthly_returns_heatmap_realistic"
+    )
 
-    plot_equity_curve(bt_vec, out, title_suffix + " · vec (diag)", basename="equity_curve_vectorized")
-    plot_mdd(bt_vec, out, title_suffix + " · vec (diag)", basename="mdd_underwater_vectorized")
-    plot_monthly_returns_heatmap(bt_vec, out, basename="monthly_returns_heatmap_vectorized")
+    plot_equity_curve(
+        bt_vec, out, title_suffix + " · vec (diag)", basename="equity_curve_vectorized"
+    )
+    plot_mdd(
+        bt_vec,
+        out,
+        title_suffix + " · vec (diag)",
+        basename="mdd_underwater_vectorized",
+    )
+    plot_monthly_returns_heatmap(
+        bt_vec, out, basename="monthly_returns_heatmap_vectorized"
+    )
 
     bt_real.to_csv(out / "backtest_daily.csv", index=False)
     bt_vec.to_csv(out / "backtest_vectorized_daily.csv", index=False)
@@ -920,4 +1075,3 @@ def main(
 if __name__ == "__main__":
     p = main()
     print(f"Done. Output: {p}")
-

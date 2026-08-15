@@ -20,9 +20,9 @@ def test_broker_trading_db_query(
     limit: int = 10,
 ) -> None:
     """查詢資料庫中的 broker_trading 資料"""
-    print(f"\n{'='*60}")
-    print(f"查詢 Broker Trading 資料庫資料")
-    print(f"{'='*60}")
+    print(f"\n{'=' * 60}")
+    print("查詢 Broker Trading 資料庫資料")
+    print(f"{'=' * 60}")
 
     # 檢查資料庫檔案是否存在
     if not DB_PATH.exists():
@@ -52,7 +52,7 @@ def test_broker_trading_db_query(
             conn.close()
             return
 
-        print(f"\n✅ 資料表存在")
+        print("\n✅ 資料表存在")
 
         # 2. 查詢總筆數
         query_count = f"SELECT COUNT(*) FROM {STOCK_TRADING_DAILY_REPORT_TABLE_NAME}"
@@ -95,9 +95,9 @@ def test_broker_trading_db_query(
         print(f"🏢 不重複券商數: {unique_traders}")
 
         # 5. 查詢前 N 筆資料
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"查詢前 {limit} 筆資料")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         query_data = f"""
         SELECT 
@@ -119,9 +119,9 @@ def test_broker_trading_db_query(
 
         # 6. 如果有指定股票或券商，查詢特定資料
         if stock_id or securities_trader_id:
-            print(f"\n{'='*60}")
-            print(f"查詢特定條件資料")
-            print(f"{'='*60}")
+            print(f"\n{'=' * 60}")
+            print("查詢特定條件資料")
+            print(f"{'=' * 60}")
 
             conditions = []
             params = []
@@ -159,9 +159,9 @@ def test_broker_trading_db_query(
             print(f"\n{df_specific.to_string(index=False)}")
 
         # 7. 統計每個股票的資料筆數（前 10 名）
-        print(f"\n{'='*60}")
-        print(f"各股票資料筆數統計（前 10 名）")
-        print(f"{'='*60}")
+        print(f"\n{'=' * 60}")
+        print("各股票資料筆數統計（前 10 名）")
+        print(f"{'=' * 60}")
 
         query_stats = f"""
         SELECT 
@@ -178,9 +178,9 @@ def test_broker_trading_db_query(
         print(f"\n{df_stats.to_string(index=False)}")
 
         # 8. 統計每個券商的資料筆數（前 10 名）
-        print(f"\n{'='*60}")
-        print(f"各券商資料筆數統計（前 10 名）")
-        print(f"{'='*60}")
+        print(f"\n{'=' * 60}")
+        print("各券商資料筆數統計（前 10 名）")
+        print(f"{'=' * 60}")
 
         query_trader_stats = f"""
         SELECT 
@@ -199,9 +199,9 @@ def test_broker_trading_db_query(
 
         conn.close()
 
-        print(f"\n{'='*60}")
-        print(f"✅ 查詢完成！")
-        print(f"{'='*60}")
+        print(f"\n{'=' * 60}")
+        print("✅ 查詢完成！")
+        print(f"{'=' * 60}")
 
     except sqlite3.Error as e:
         print(f"\n❌ 資料庫錯誤: {e}")

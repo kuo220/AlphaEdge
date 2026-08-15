@@ -1,13 +1,9 @@
 import argparse
 import datetime
-import sys
 from pathlib import Path
 from typing import List
 
 import pandas as pd
-
-_PROJECT_ROOT: Path = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(_PROJECT_ROOT))
 
 from core.backtest.backtester import Backtester
 from core.backtest.factory import build_backtester

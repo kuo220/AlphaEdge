@@ -15,7 +15,6 @@ from core.config import (
     EQUITY_CHANGE_TABLE_NAME,
     FINANCIAL_STATEMENT_DOWNLOADS_PATH,
 )
-from core.utils.log_manager import LogManager
 from core.pipeline.cleaners.financial_statement_cleaner import (
     FinancialStatementCleaner,
 )
@@ -27,6 +26,7 @@ from core.pipeline.updaters.base import BaseDataUpdater
 from core.pipeline.utils import FinancialStatementType
 from core.pipeline.utils.sqlite_utils import SQLiteUtils
 from core.utils import TimeUtils
+from core.utils.log_manager import LogManager
 
 """
 * Crawl Balance Sheet (資產負債表)

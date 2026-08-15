@@ -16,7 +16,6 @@ from core.utils import (
     PositionType,
     ShortCost,
     ShortMethod,
-    Units,
 )
 from core.utils.instrument import StockUtils
 
@@ -116,10 +115,14 @@ class ShortConstraint:
     """
 
     allow_below_reference: bool = True  # 是否允許平盤下放空（**尚未實作**）
-    day_trade_whitelist: Optional[Dict[datetime.date, Set[str]]] = None  # 每日可當沖清單（**尚未實作**）
+    day_trade_whitelist: Optional[Dict[datetime.date, Set[str]]] = (
+        None  # 每日可當沖清單（**尚未實作**）
+    )
     check_borrowable: bool = False  # 是否檢核券源（由 FillModel 依融券今日餘額檢核）
     force_cover_dates: Optional[Dict[str, List[datetime.date]]] = None  # 停券強制回補日
-    max_short_exposure_ratio: Optional[float] = None  # 單一空單曝險上限（佔初始本金比例）
+    max_short_exposure_ratio: Optional[float] = (
+        None  # 單一空單曝險上限（佔初始本金比例）
+    )
 
     def check_day_tradable(self, stock_id: str, date: datetime.date) -> bool:
         """
@@ -161,7 +164,9 @@ class CostConfig:
     short_method: ShortMethod = ShortMethod.MARGIN
     is_day_trade: bool = False
     margin_rate: float = float(ShortCost.MarginRate)
-    borrow_fee_rate: float = float(ShortCost.MarginBorrowFeeRate)  # MARGIN 一次性／SBL 年化
+    borrow_fee_rate: float = float(
+        ShortCost.MarginBorrowFeeRate
+    )  # MARGIN 一次性／SBL 年化
     interest_rate: float = float(ShortCost.MarginInterestRate)
     maintenance_ratio: float = float(ShortCost.MaintenanceRatio)
 
@@ -211,7 +216,10 @@ class StockCostModel(BaseCostModel):
     # 尚未接上呼叫端的 ShortConstraint 欄位：{欄位名: (預設值, 未實作的原因)}
     # 檢查放在建構時，任何建立路徑（factory、測試、未來的實盤）都會經過
     UNIMPLEMENTED_CONSTRAINTS: Dict[str, Tuple[Any, str]] = {
-        "allow_below_reference": (True, "平盤下放空限制需要警示／處置股清單，尚無資料源"),
+        "allow_below_reference": (
+            True,
+            "平盤下放空限制需要警示／處置股清單，尚無資料源",
+        ),
         "day_trade_whitelist": (None, "每日可當沖清單需要證交所每日公告，尚無資料源"),
     }
 
@@ -243,7 +251,10 @@ class StockCostModel(BaseCostModel):
         if constraint is None:
             return
 
-        for field_name, (default_value, reason) in self.UNIMPLEMENTED_CONSTRAINTS.items():
+        for field_name, (
+            default_value,
+            reason,
+        ) in self.UNIMPLEMENTED_CONSTRAINTS.items():
             if getattr(constraint, field_name) != default_value:
                 logger.warning(
                     f"[CostModel] ShortConstraint.{field_name} 尚未實作，"

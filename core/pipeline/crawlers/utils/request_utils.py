@@ -1,12 +1,10 @@
 import time
-from typing import Dict, List, Optional, Union
+from typing import Dict, Optional
 
 import requests
 from fake_useragent import UserAgent
 from loguru import logger
 from requests.exceptions import ChunkedEncodingError, ReadTimeout
-
-from core.pipeline.utils import URLManager
 
 
 class RequestUtils:
