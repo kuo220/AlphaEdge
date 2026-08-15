@@ -8,6 +8,7 @@ AlphaEdge 的回測系統提供了完整的策略回測功能，支援多種回�
   - [目錄](#目錄)
   - [回測級別](#回測級別)
   - [回測流程](#回測流程)
+  - [價格口徑：訊號用還原價、成交用原始價](#價格口徑訊號用還原價成交用原始價)
   - [回測結果](#回測結果)
   - [績效指標](#績效指標)
   - [使用方式](#使用方式)
@@ -54,6 +55,40 @@ self.scale: str = Scale.DAY  # 或 Scale.TICK
    - 檢查開倉訊號
    - 執行訂單
 6. **生成報告**: 計算績效指標並生成視覺化圖表
+
+## 價格口徑：訊號用還原價、成交用原始價
+
+`price` 表存的是**原始成交價**。未經還原時，除權息造成的價格跳空會被策略當成真實漲跌
+（做多憑空虧損、放空憑空獲利）。因此自 2026-08-15 起，**回測的訊號計算預設使用還原價**
+（後復權），成交與成本則一律使用原始價。
+
+| 用途 | 該用哪個 | 取值方式 |
+|------|----------|----------|
+| 策略訊號（漲跌幅、均線、動能） | **還原價** | `StockQuote.signal_close`、`BaseStockStrategy.get_signal_close_map()` |
+| 成交價、手續費、證交稅 | **原始價** | `StockQuote.close`、`StockPriceAPI.get_close_map()` |
+| 漲跌停與價格檔位判定 | **原始價** | 除權息日的基準改用 `dividend` 表的**開盤競價基準** |
+
+### 寫策略時最容易踩的坑
+
+「今日價」來自引擎傳入的 `StockQuote`、「昨日價」來自 `StockPriceAPI`，**是兩條不同的路徑**。
+只還原其中一邊，比值會同時混用還原價與原始價——**比完全不還原更糟，而且不會報錯**。
+
+```python
+# ✅ 正確：兩邊由同一個來源（引擎傳入的報價）決定是否還原
+close_map = self.get_signal_close_map(stock_quotes, yesterday)
+price_chg = quote.signal_close / close_map[quote.stock_id] - 1
+
+# ❌ 錯誤：今日走還原價、昨日走原始價
+price_chg = quote.signal_close / self.price.get_close_map(yesterday)[...] - 1
+```
+
+### 開關
+
+`build_backtester(strategy, adjusted_price=True)`，預設啟用。`Backtester` 那一層的預設為
+`False`——引擎不預設任何政策，要用哪種價格由 factory 這個政策層決定。
+
+還原方式、涵蓋範圍與已知限制（tick 不還原、不處理減資／合併／代號變更）見
+[`docs/exchanges/data_coverage.md`](../../docs/exchanges/data_coverage.md)。
 
 ## 部位大小與檔數上限
 
