@@ -14,7 +14,10 @@ from core.utils import Market, PositionType, ShortMethod
 """Backtester factory: 全專案唯一一處依市場分派的地方"""
 
 
-def build_backtester(strategy: BaseStrategy) -> Backtester:
+def build_backtester(
+    strategy: BaseStrategy,
+    adjusted_price: bool = True,
+) -> Backtester:
     """
     - Description:
         依策略宣告的市場組裝對應的 model 組合
@@ -24,18 +27,27 @@ def build_backtester(strategy: BaseStrategy) -> Backtester:
     - Parameters:
         - strategy: BaseStrategy
             要回測的策略；其 `market` 欄位為分派鍵
+        - adjusted_price: bool
+            訊號是否使用還原價（後復權）。**預設 True**：未還原時除權息跳空會被
+            當成真實漲跌，是資料正確性問題而非可選功能
+            （見 `backlog/股價還原與除權息調整.md`）。
+            `Backtester` 那一層的預設維持 False——引擎不預設任何政策，
+            要用哪種價格由 factory 這個「政策層」決定
     - Return:
         - Backtester
             已注入該市場 model 組合的引擎
     """
 
     if strategy.market == Market.STOCK:
-        return build_tw_stock_backtester(strategy)
+        return build_tw_stock_backtester(strategy, adjusted_price)
 
     raise ValueError(f"尚未支援的市場：{strategy.market}")
 
 
-def build_tw_stock_backtester(strategy: BaseStockStrategy) -> Backtester:
+def build_tw_stock_backtester(
+    strategy: BaseStockStrategy,
+    adjusted_price: bool = True,
+) -> Backtester:
     """組裝台股的 model 組合"""
 
     account: StockAccount = StockAccount(strategy.init_capital)
@@ -73,6 +85,7 @@ def build_tw_stock_backtester(strategy: BaseStockStrategy) -> Backtester:
         data_feed=TwStockDataFeed(),
         reporter_cls=StockBacktestReporter,
         event_counts=event_counts,
+        adjusted_price=adjusted_price,
     )
 
 

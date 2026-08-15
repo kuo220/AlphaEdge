@@ -20,9 +20,15 @@ from core.utils import TimeUtils
 SNAPSHOT_DIR: Path = Path(__file__).resolve().parent / "snapshots"
 BASELINE_FILE_NAME: str = "momentum_strategy_1_baseline.csv"
 
-# baseline 期間：固定短區間即可達成回歸保護目的，不需跑完策略預設的五年
+# baseline 期間：2024 全年
+#
+# 原為 2024-01-01 ~ 06-30。2026-08-15 啟用股價還原時實測發現，該區間**對還原完全無感**：
+# 台股除權息集中在 7~9 月（2024 年 67.2% 的事件落在下半年），上半年 736 筆事件中只有
+# 4 筆跨越策略的 9% 門檻，其中 2 筆量能不足、2 筆撞上滿倉，最終逐筆相同。
+# 若沿用半年區間，等於留下一條偵測不到還原行為的回歸線。
+# 改為全年後，還原前後有 13 筆開倉差異（6 消失／7 新增），回歸線才真正保護這段邏輯。
 BASELINE_START_DATE: datetime.date = datetime.date(2024, 1, 1)
-BASELINE_END_DATE: datetime.date = datetime.date(2024, 6, 30)
+BASELINE_END_DATE: datetime.date = datetime.date(2024, 12, 31)
 
 
 def run_backtest_without_report(strategy: MomentumStrategy1) -> Backtester:
