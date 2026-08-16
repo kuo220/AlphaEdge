@@ -10,6 +10,7 @@ from .constant import (
     UpdateStatus,
 )
 from .exceptions import (
+    DataLoadError,
     FinMindError,
     FinMindQuotaExhaustedError,
     PipelineError,

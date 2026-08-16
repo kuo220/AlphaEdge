@@ -1,6 +1,8 @@
 import argparse
 import datetime
-from typing import Dict, Set, Union
+import sys
+from contextlib import contextmanager
+from typing import Dict, List, Set, Union
 
 from loguru import logger
 
@@ -26,7 +28,7 @@ from core.pipeline.updaters.stock_dividend_updater import StockDividendUpdater
 from core.pipeline.updaters.stock_margin_updater import StockMarginUpdater
 from core.pipeline.updaters.stock_price_updater import StockPriceUpdater
 from core.pipeline.updaters.stock_tick_updater import StockTickUpdater
-from core.pipeline.utils import DataType, FinMindDataType
+from core.pipeline.utils import DataLoadError, DataType, FinMindDataType
 
 """
 資料更新任務主程式 (update_db)
@@ -236,9 +238,36 @@ def get_update_time_config(
         }
 
 
+@contextmanager
+def target_guard(name: str, failed_targets: List[str]):
+    """
+    - Description:
+        隔離單一 target 的失敗：記錄下來但不中斷其餘 target
+
+        一次 `--target no_tick` 會跑十來個 updater、耗時數小時。若其中一個因為
+        少數檔案入庫失敗就中止整批，當天其餘資料全部不會更新——那是拿可用性換
+        可見度。此處讓每個 target 各自成敗，最後由 `main()` 統一以非零狀態結束。
+    - Parameters:
+        - name: str
+            target 名稱，用於訊息與失敗清單
+        - failed_targets: List[str]
+            失敗的 target 會被附加進這個清單
+    """
+
+    try:
+        yield
+    except DataLoadError as exc:
+        logger.error(f"[{name}] 更新失敗：{exc}；失敗檔案：{exc.failed_files[:10]}")
+        failed_targets.append(name)
+    except Exception as exc:
+        logger.error(f"[{name}] 更新失敗：{type(exc).__name__}: {exc}")
+        failed_targets.append(name)
+
+
 def main() -> None:
     args: argparse.Namespace = parse_arguments()
     targets: Set[str] = set(args.target)
+    failed_targets: List[str] = []
 
     # all = 所有資料類型（包含 tick 和 finmind）
     if "all" in targets:
@@ -249,106 +278,126 @@ def main() -> None:
         targets.update(dt.name.lower() for dt in DataType if dt != DataType.TICK)
 
     if DataType.TICK.name.lower() in targets:
-        time_config: Dict[str, datetime.date | int] = get_update_time_config(
-            DataType.TICK
-        )
-        stock_tick_updater: StockTickUpdater = StockTickUpdater()
-        stock_tick_updater.update(
-            start_date=time_config["start_date"], end_date=time_config["end_date"]
-        )
+        with target_guard("tick", failed_targets):
+            time_config: Dict[str, datetime.date | int] = get_update_time_config(
+                DataType.TICK
+            )
+            stock_tick_updater: StockTickUpdater = StockTickUpdater()
+            stock_tick_updater.update(
+                start_date=time_config["start_date"], end_date=time_config["end_date"]
+            )
 
     if DataType.CHIP.name.lower() in targets:
-        time_config: Dict[str, datetime.date | int] = get_update_time_config(
-            DataType.CHIP
-        )
-        stock_chip_updater: StockChipUpdater = StockChipUpdater()
-        stock_chip_updater.update(
-            start_date=time_config["start_date"], end_date=time_config["end_date"]
-        )
+        with target_guard("chip", failed_targets):
+            time_config: Dict[str, datetime.date | int] = get_update_time_config(
+                DataType.CHIP
+            )
+            stock_chip_updater: StockChipUpdater = StockChipUpdater()
+            stock_chip_updater.update(
+                start_date=time_config["start_date"], end_date=time_config["end_date"]
+            )
 
     if DataType.MARGIN.name.lower() in targets:
-        time_config: Dict[str, datetime.date | int] = get_update_time_config(
-            DataType.MARGIN
-        )
-        stock_margin_updater: StockMarginUpdater = StockMarginUpdater()
-        stock_margin_updater.update(
-            start_date=time_config["start_date"], end_date=time_config["end_date"]
-        )
+        with target_guard("margin", failed_targets):
+            time_config: Dict[str, datetime.date | int] = get_update_time_config(
+                DataType.MARGIN
+            )
+            stock_margin_updater: StockMarginUpdater = StockMarginUpdater()
+            stock_margin_updater.update(
+                start_date=time_config["start_date"], end_date=time_config["end_date"]
+            )
 
     if DataType.DIVIDEND.name.lower() in targets:
-        time_config: Dict[str, datetime.date | int] = get_update_time_config(
-            DataType.DIVIDEND
-        )
-        stock_dividend_updater: StockDividendUpdater = StockDividendUpdater()
-        stock_dividend_updater.update(
-            start_date=time_config["start_date"], end_date=time_config["end_date"]
-        )
+        with target_guard("dividend", failed_targets):
+            time_config: Dict[str, datetime.date | int] = get_update_time_config(
+                DataType.DIVIDEND
+            )
+            stock_dividend_updater: StockDividendUpdater = StockDividendUpdater()
+            stock_dividend_updater.update(
+                start_date=time_config["start_date"], end_date=time_config["end_date"]
+            )
 
     if DataType.PRICE.name.lower() in targets:
-        time_config: Dict[str, datetime.date | int] = get_update_time_config(
-            DataType.PRICE
-        )
-        stock_price_updater: StockPriceUpdater = StockPriceUpdater()
-        stock_price_updater.update(
-            start_date=time_config["start_date"], end_date=time_config["end_date"]
-        )
+        with target_guard("price", failed_targets):
+            time_config: Dict[str, datetime.date | int] = get_update_time_config(
+                DataType.PRICE
+            )
+            stock_price_updater: StockPriceUpdater = StockPriceUpdater()
+            stock_price_updater.update(
+                start_date=time_config["start_date"], end_date=time_config["end_date"]
+            )
 
     if DataType.FS.name.lower() in targets:
-        time_config: Dict[str, datetime.date | int] = get_update_time_config(
-            DataType.FS
-        )
-        fs_updater: FinancialStatementUpdater = FinancialStatementUpdater()
-        fs_updater.update(
-            start_year=time_config["start_year"],
-            end_year=time_config["end_year"],
-            start_season=time_config["start_season"],
-            end_season=time_config["end_season"],
-        )
+        with target_guard("fs", failed_targets):
+            time_config: Dict[str, datetime.date | int] = get_update_time_config(
+                DataType.FS
+            )
+            fs_updater: FinancialStatementUpdater = FinancialStatementUpdater()
+            fs_updater.update(
+                start_year=time_config["start_year"],
+                end_year=time_config["end_year"],
+                start_season=time_config["start_season"],
+                end_season=time_config["end_season"],
+            )
 
     if DataType.MRR.name.lower() in targets:
-        time_config: Dict[str, datetime.date | int] = get_update_time_config(
-            DataType.MRR
-        )
-        mrr_updater: MonthlyRevenueReportUpdater = MonthlyRevenueReportUpdater()
-        mrr_updater.update(
-            start_year=time_config["start_year"],
-            end_year=time_config["end_year"],
-            start_month=time_config["start_month"],
-            end_month=time_config["end_month"],
-        )
+        with target_guard("mrr", failed_targets):
+            time_config: Dict[str, datetime.date | int] = get_update_time_config(
+                DataType.MRR
+            )
+            mrr_updater: MonthlyRevenueReportUpdater = MonthlyRevenueReportUpdater()
+            mrr_updater.update(
+                start_year=time_config["start_year"],
+                end_year=time_config["end_year"],
+                start_month=time_config["start_month"],
+                end_month=time_config["end_month"],
+            )
 
     # FinMind 資料更新
     if DataType.FINMIND.name.lower() in targets:
-        time_config: Dict[str, datetime.date | int] = get_update_time_config(
-            DataType.FINMIND
-        )
-        finmind_updater: FinMindUpdater = FinMindUpdater()
-        finmind_updater.update_all(
-            start_date=time_config["start_date"], end_date=time_config["end_date"]
-        )
+        with target_guard("finmind", failed_targets):
+            time_config: Dict[str, datetime.date | int] = get_update_time_config(
+                DataType.FINMIND
+            )
+            finmind_updater: FinMindUpdater = FinMindUpdater()
+            finmind_updater.update_all(
+                start_date=time_config["start_date"], end_date=time_config["end_date"]
+            )
 
     # FinMind 子類型更新
     if FinMindDataType.STOCK_INFO.value.lower() in targets:
-        finmind_updater: FinMindUpdater = FinMindUpdater()
-        finmind_updater.update(data_type=FinMindDataType.STOCK_INFO)
+        with target_guard("stock_info", failed_targets):
+            finmind_updater: FinMindUpdater = FinMindUpdater()
+            finmind_updater.update(data_type=FinMindDataType.STOCK_INFO)
 
     if FinMindDataType.STOCK_INFO_WITH_WARRANT.value.lower() in targets:
-        finmind_updater: FinMindUpdater = FinMindUpdater()
-        finmind_updater.update(data_type=FinMindDataType.STOCK_INFO_WITH_WARRANT)
+        with target_guard("stock_info_with_warrant", failed_targets):
+            finmind_updater: FinMindUpdater = FinMindUpdater()
+            finmind_updater.update(data_type=FinMindDataType.STOCK_INFO_WITH_WARRANT)
 
     if FinMindDataType.BROKER_INFO.value.lower() in targets:
-        finmind_updater: FinMindUpdater = FinMindUpdater()
-        finmind_updater.update(data_type=FinMindDataType.BROKER_INFO)
+        with target_guard("broker_info", failed_targets):
+            finmind_updater: FinMindUpdater = FinMindUpdater()
+            finmind_updater.update(data_type=FinMindDataType.BROKER_INFO)
 
     if FinMindDataType.BROKER_TRADING.value.lower() in targets:
-        time_config: Dict[str, datetime.date | int] = get_update_time_config(
-            FinMindDataType.BROKER_TRADING.value.lower()
+        with target_guard("broker_trading", failed_targets):
+            time_config: Dict[str, datetime.date | int] = get_update_time_config(
+                FinMindDataType.BROKER_TRADING.value.lower()
+            )
+            finmind_updater: FinMindUpdater = FinMindUpdater()
+            finmind_updater.update_broker_trading_daily_report(
+                start_date=time_config["start_date"],
+                end_date=time_config["end_date"],
+            )
+
+    if failed_targets:
+        logger.error(
+            f"❌ Database Update Failed. 失敗的 target："
+            f"{', '.join(sorted(failed_targets))}"
+            f"（成功：{', '.join(sorted(targets - set(failed_targets))) or '無'}）"
         )
-        finmind_updater: FinMindUpdater = FinMindUpdater()
-        finmind_updater.update_broker_trading_daily_report(
-            start_date=time_config["start_date"],
-            end_date=time_config["end_date"],
-        )
+        sys.exit(1)
 
     logger.info(f"✅ Database Update Completed. Updated: {', '.join(sorted(targets))}")
 

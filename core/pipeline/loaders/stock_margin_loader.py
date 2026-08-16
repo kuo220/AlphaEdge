@@ -1,7 +1,6 @@
-import shutil
 import sqlite3
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 import pandas as pd
 from loguru import logger
@@ -106,6 +105,8 @@ class StockMarginLoader(BaseDataLoader):
         self.create_missing_tables()
 
         file_cnt: int = 0
+
+        failed_files: List[str] = []
         for file_path in self.margin_dir.iterdir():
             # Skip non-CSV files
             if file_path.suffix != ".csv":
@@ -119,10 +120,15 @@ class StockMarginLoader(BaseDataLoader):
                 file_cnt += 1
             except Exception as e:
                 logger.warning(f"Error saving {file_path}: {e}")
+                failed_files.append(str(file_path))
 
         self.conn.commit()
         self.disconnect()
 
-        if remove_files:
-            shutil.rmtree(MARGIN_DOWNLOADS_PATH)
-        logger.info(f"Total file processed: {file_cnt}")
+        self.finish_load(
+            source="margin",
+            succeeded=file_cnt,
+            failed_files=failed_files,
+            remove_files=remove_files,
+            downloads_path=MARGIN_DOWNLOADS_PATH,
+        )
