@@ -20,6 +20,8 @@ If `--target` is omitted, the default is `no_tick` (all updates except tick data
 | `tick` | Tick-by-tick trades (Shioaji ticks) |
 | `chip` | Institutional chip data |
 | `price` | Closing prices |
+| `margin` | Margin trading balances (financing / short-selling balances) |
+| `dividend` | Ex-dividend / ex-rights table (adjustment factors + cash dividends) |
 | `fs` | Financial statements |
 | `mrr` | Monthly revenue report |
 | `finmind` | All FinMind datasets (stock info + brokers + broker trading) |
@@ -41,6 +43,12 @@ python -m tasks.update_db --target chip
 
 # closing prices
 python -m tasks.update_db --target price
+
+# margin trading balances
+python -m tasks.update_db --target margin
+
+# ex-dividend / ex-rights table (TWSE for listed, TPEx for OTC; full history)
+python -m tasks.update_db --target dividend
 
 # financial statements
 python -m tasks.update_db --target fs

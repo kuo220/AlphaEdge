@@ -11,7 +11,7 @@
 `Backtester` 是**唯一的回測引擎，市場無關，沒有子類**。市場之間的差異全部下沉為五個可插拔的 model，由 factory 依策略宣告的 `market` 組裝：
 
 ```
-Backtester                      ← 唯一引擎，市場無關，無子類（679 行）
+Backtester                      ← 唯一引擎，市場無關，無子類（約 680 行）
   ├─ InstrumentSpec             ← 乘數、tick size、漲跌停規則、報價單位換算
   ├─ FillModel                  ← 成交價可信度（前視偏誤與不可能成交的擋板）
   ├─ CostModel                  ← 手續費／稅／借券費（期貨為期交稅）
@@ -120,7 +120,7 @@ def execute_bar(self, date: datetime.date, quotes: List[BaseQuote]) -> None:
 
 | 層 | 路徑 | 內容 |
 |---|---|---|
-| 引擎 | `core/backtest/backtester.py` | 唯一引擎，679 行，不含任何 `Stock*` |
+| 引擎 | `core/backtest/backtester.py` | 唯一引擎，不含任何 `Stock*` |
 | 組裝 | `core/backtest/factory.py` | `build_backtester()`／`build_tw_stock_backtester()`／`build_cost_config()` |
 | 行為 model | `core/backtest/models/instrument_spec.py` | `InstrumentSpec` ＋ `TwStockSpec` |
 | | `core/backtest/models/fill_model.py` | `BaseFillModel` ＋ `TwStockFillModel` |

@@ -55,12 +55,21 @@ python run.py --strategy MomentumStrategy1
 
 通常包含：
 
-- `trading_report.csv`
-- `balance_curve.png`
-- `balance_and_benchmark_curve.png`
-- `balance_mdd.png`
-- `everyday_profit.png`
-- `<StrategyName>.log`
+所有檔名都以策略名稱為前綴：
+
+| 檔案 | 內容 |
+|------|------|
+| `<StrategyName>_trading_report.csv` | 已平倉交易的逐筆明細與損益 |
+| `<StrategyName>_direction_summary.csv` | 多空分開的勝率、損益與成本統計 |
+| `<StrategyName>_event_report.csv` | 強制回補、斷頭、拒單等事件計數 |
+| `<StrategyName>_daily_equity.csv` | 含未實現損益的逐日權益序列 |
+| `<StrategyName>_balance_curve.png` | 資產曲線 |
+| `<StrategyName>_networth.png` | 策略與 benchmark（`0050`）淨值比較 |
+| `<StrategyName>_mdd.png` | 最大回撤 |
+| `<StrategyName>_everyday_profit.png` | 每日損益 |
+| `<StrategyName>_everyday_equity_change.png` | 每日權益變化 |
+
+日誌另外落在 `core/backtest/results/logs/`。
 
 ## 5) 常用維運指令
 
