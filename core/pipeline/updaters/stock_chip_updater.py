@@ -30,6 +30,10 @@ from core.utils.log_manager import LogManager
 class StockChipUpdater(BaseDataUpdater):
     """Stock Chip Updater"""
 
+    # 每爬幾天就入庫一次。整段爬完才入庫的話，中斷等於前功盡棄——
+    # 2013 起的回補有 3,300 個交易日、數小時，中途失敗要全部重來。
+    # 分批之後最多只損失最後一批（未入庫的部分），重跑會自動接續。
+    LOAD_BATCH_SIZE: int = 100
     BATCH_SLEEP_EVERY_N_FILES: int = 100
     BATCH_SLEEP_DURATION_SECONDS: int = 120
     BATCH_RANDOM_DELAY_MIN: int = 1
@@ -55,6 +59,23 @@ class StockChipUpdater(BaseDataUpdater):
             self.conn: sqlite3.Connection = sqlite3.connect(DB_PATH)
         LogManager.setup_logger("update_chip.log")
 
+    def load_batch(self, batch_dates: List[str]) -> None:
+        """
+        - Description:
+            入庫本批爬取的日期
+
+            **只載入本批的檔案**：loader 預設會掃整個 downloads 目錄，若每批都全掃，
+            13 年的回補會變成「數十批 × 數千檔」的重複讀取。
+        - Parameters:
+            - batch_dates: List[str]
+                本批的日期字串（`YYYYMMDD`），對應 downloads 內的檔名後綴
+        """
+
+        logger.info(
+            f"* Loading batch: {len(batch_dates)} 天（{batch_dates[0]} ~ {batch_dates[-1]}）"
+        )
+        self.loader.add_to_db(remove_files=False, only_dates=set(batch_dates))
+
     def update(
         self,
         start_date: datetime.date,
@@ -73,6 +94,7 @@ class StockChipUpdater(BaseDataUpdater):
         # Set Up Update Period
         dates: List[datetime.date] = TimeUtils.generate_date_range(start_date, end_date)
         file_cnt: int = 0
+        batch_dates: List[str] = []
 
         for date in dates:
             logger.info(date.strftime("%Y/%m/%d"))
@@ -95,6 +117,12 @@ class StockChipUpdater(BaseDataUpdater):
                     logger.warning(f"Cleaned TPEX dataframe empty on {date}")
 
             file_cnt += 1
+            batch_dates.append(date.strftime("%Y%m%d"))
+
+            # Step 3: Load（分批）
+            if len(batch_dates) >= self.LOAD_BATCH_SIZE:
+                self.load_batch(batch_dates)
+                batch_dates = []
 
             if file_cnt == self.BATCH_SLEEP_EVERY_N_FILES:
                 logger.info("Sleep 2 minutes...")
@@ -106,8 +134,9 @@ class StockChipUpdater(BaseDataUpdater):
                 )
                 time.sleep(delay)
 
-        # Step 3: Load
-        self.loader.add_to_db(remove_files=False)
+        # 收尾：載入最後一批未達批量的日期
+        if batch_dates:
+            self.load_batch(batch_dates)
 
         # 更新後重新取得Table最新的日期
         table_latest_date: str = SQLiteUtils.get_table_latest_value(

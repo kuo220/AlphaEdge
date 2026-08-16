@@ -93,7 +93,11 @@ class StockPriceLoader(BaseDataLoader):
         ):
             self.create_db()
 
-    def add_to_db(self, remove_files: bool = False) -> None:
+    def add_to_db(
+        self,
+        remove_files: bool = False,
+        only_dates: Optional[Set[str]] = None,
+    ) -> None:
         """Add Data into Database"""
 
         if self.conn is None:
@@ -102,10 +106,8 @@ class StockPriceLoader(BaseDataLoader):
         # Ensure Database Table Exists
         self.create_missing_tables()
 
-        # 取得所有 CSV 檔案並排序，確保處理順序一致
-        csv_files: List[Path] = sorted(
-            [f for f in self.price_dir.iterdir() if f.suffix == ".csv"]
-        )
+        # 取得要處理的 CSV 並排序，確保處理順序一致
+        csv_files: List[Path] = self.select_csv_files(self.price_dir, only_dates)
         total_files: int = len(csv_files)
 
         if total_files == 0:

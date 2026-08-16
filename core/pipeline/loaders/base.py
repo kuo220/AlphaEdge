@@ -2,7 +2,7 @@ import shutil
 import sqlite3
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Set, Tuple
 
 import pandas as pd
 from loguru import logger
@@ -47,6 +47,38 @@ class BaseDataLoader(ABC):
     def add_to_db(self, *args, **kwargs) -> None:
         """Add Data into Database"""
         pass
+
+    @staticmethod
+    def select_csv_files(
+        directory: Path, only_dates: Optional[Set[str]] = None
+    ) -> List[Path]:
+        """
+        - Description:
+            挑出這次要入庫的 CSV；`only_dates` 為 None 時取整個目錄
+
+            **分批入庫需要它**：updater 改為每 N 天就入庫一次之後，若每批仍掃整個
+            downloads 目錄，13 年的回補會變成「160 批 × 6,600 檔」的重複讀取。
+            傳入本批的日期即可只處理該批產出的檔案。
+
+            檔名慣例為 `{market}_{YYYYMMDD}.csv`（三個高風險來源一致），
+            故以底線後的最後一段比對日期，不依賴市場前綴。
+        - Parameters:
+            - directory: Path
+                downloads 目錄
+            - only_dates: Optional[Set[str]]
+                `YYYYMMDD` 字串集合；None 表示不過濾
+        - Return:
+            - List[Path]
+                依檔名排序的 CSV 清單
+        """
+
+        files: List[Path] = sorted(
+            path for path in directory.iterdir() if path.suffix == ".csv"
+        )
+        if only_dates is None:
+            return files
+
+        return [path for path in files if path.stem.split("_")[-1] in only_dates]
 
     @staticmethod
     def insert_dataframe(

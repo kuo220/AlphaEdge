@@ -1,6 +1,6 @@
 import sqlite3
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Set
 
 import pandas as pd
 from loguru import logger
@@ -96,7 +96,11 @@ class StockChipLoader(BaseDataLoader):
         ):
             self.create_db()
 
-    def add_to_db(self, remove_files: bool = False) -> None:
+    def add_to_db(
+        self,
+        remove_files: bool = False,
+        only_dates: Optional[Set[str]] = None,
+    ) -> None:
         """將資料夾中的所有 CSV 檔存入指定 SQLite 資料庫中的指定資料表"""
 
         if self.conn is None:
@@ -110,10 +114,7 @@ class StockChipLoader(BaseDataLoader):
         failed_files: List[str] = []
         partial_files: List[str] = []
         skipped_cnt: int = 0
-        for file_path in self.chip_dir.iterdir():
-            # Skip non-CSV files
-            if file_path.suffix != ".csv":
-                continue
+        for file_path in self.select_csv_files(self.chip_dir, only_dates):
             try:
                 df: pd.DataFrame = pd.read_csv(file_path)
                 inserted, skipped = self.insert_dataframe(
