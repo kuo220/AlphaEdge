@@ -110,6 +110,7 @@ graph TB
 | [模組使用關係](docs/backtest/module-map.md)        | 回測路徑上誰呼叫誰、逐檔案職責與輸出檔案        |
 | [放空回測框架規格](docs/backtest/short-selling-framework.md) | 方向驅動的記帳、成本、維持率追繳與強制回補 |
 | [程式碼品質工具鏈與基線](docs/dev/code-quality.md) | pyproject／ruff／CI／pre-commit 設定、lint ignore 理由、覆蓋率基線 |
+| [ETL 入庫約定](docs/pipeline/etl-ingestion.md) | 入庫階段的分批時機、冪等性與失敗語意；新增 updater 的檢查表 |
 | [券商分點 NO_DATA 的 metadata 語意](docs/pipeline/broker-trading-no-data.md) | API 回傳空資料時的 metadata 處理（選型紀錄） |
 
 ---
@@ -337,7 +338,7 @@ AlphaEdge/
 ├── docs/                      # 專案文件
 │   ├── backtest/              # 引擎架構、模組使用關係、放空框架規格
 │   ├── dev/                   # 程式碼品質工具鏈與基線
-│   ├── pipeline/              # ETL 選型紀錄
+│   ├── pipeline/              # ETL 入庫約定與選型紀錄
 │   ├── setup/
 │   ├── deployment/
 │   ├── exchanges/

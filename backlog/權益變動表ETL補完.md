@@ -54,7 +54,7 @@
 ### S5. 歷史回補與驗證 ⬜
 
 - **目的**：補齊 2013Q1 起的歷史資料。
-- **做法**：執行回補並抽樣比對 MOPS 原站。**注意**：逐檔 × 逐季的請求量極大（約 2,000 檔 × 50+ 季），須估算耗時與反爬節流；回補的中斷風險與入庫時序問題見 [爬蟲入庫時序與中斷風險改善.md](爬蟲入庫時序與中斷風險改善.md)，建議該文件的 S2（分批入庫）先行，本步驟直接受益。
+- **做法**：執行回補並抽樣比對 MOPS 原站。**注意**：逐檔 × 逐季的請求量極大（約 2,000 檔 × 50+ 季），須估算耗時與反爬節流；回補的中斷風險與入庫時序約定見 [ETL 入庫約定](../docs/pipeline/etl-ingestion.md)；分批入庫已於 2026-08-16 完成，本步驟直接受益。
 - **產出**：DB `equity_change` 表資料。
 - **驗證方式**：`SELECT COUNT(*) FROM equity_change` 涵蓋 2013Q1 起；抽樣 10 檔 × 3 季與原站逐格比對。
 - **相依**：S4。
@@ -66,4 +66,4 @@
 - **優先級**：P3（無現行策略需求，先決策再投入）
 - **進度**：0 / 5 項
 - **相關程式**：`core/pipeline/crawlers/financial_statement_crawler.py`（已完成，L223~）、`core/pipeline/cleaners/financial_statement_cleaner.py`、`core/pipeline/loaders/financial_statement_loader.py`、`core/pipeline/updaters/financial_statement_updater.py`、`core/config.py`（`EQUITY_CHANGE_TABLE_NAME`）
-- **相關 backlog**：[爬蟲入庫時序與中斷風險改善.md](爬蟲入庫時序與中斷風險改善.md)（S5 歷史回補的前置建議）
+- **相關文件**：[ETL 入庫約定](../docs/pipeline/etl-ingestion.md)（新增 updater 時的檢查表；歷史回補的分批與冪等前置已完成）

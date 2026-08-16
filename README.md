@@ -115,6 +115,7 @@ graph TB
 | [Module Map](docs/backtest/module-map.md)               | Who calls whom on the backtest path, per-file responsibilities |
 | [Short-Selling Framework](docs/backtest/short-selling-framework.md) | Direction-driven accounting, costs, margin call, forced cover |
 | [Code Quality Baseline](docs/dev/code-quality.md)       | Tooling (pyproject / ruff / CI / pre-commit), lint ignore rationale, coverage baseline |
+| [ETL Ingestion](docs/pipeline/etl-ingestion.md)         | Batching, idempotency and failure semantics of the data-load stage; per-updater checklist |
 | [Broker Trading NO_DATA](docs/pipeline/broker-trading-no-data.md) | Metadata semantics for empty API responses (decision record) |
 
 
@@ -322,7 +323,7 @@ AlphaEdge/
 ├── docs/                      # project docs
 │   ├── backtest/              # engine architecture, module map, short-selling spec
 │   ├── dev/                   # code quality tooling and baselines
-│   ├── pipeline/              # ETL decision records
+│   ├── pipeline/              # ETL ingestion contract and decision records
 │   ├── setup/
 │   ├── deployment/
 │   ├── exchanges/

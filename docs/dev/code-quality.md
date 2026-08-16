@@ -120,7 +120,7 @@ pytest                              # 全部（需 core/database/stock.db）
 **已實際造成損失的案例**：2026-08-16 的 `margin` 回補中，`stock_margin_loader.add_to_db()`
 的 `except Exception` → `logger.warning` 讓 2 個檔案入庫失敗被吞掉，行程照樣印
 `✅ Database Update Completed` 且結束碼為 0，缺了 1,553 列。收斂工作追蹤於
-[爬蟲入庫時序與中斷風險改善](../../backlog/爬蟲入庫時序與中斷風險改善.md) S5。
+[ETL 入庫約定](../pipeline/etl-ingestion.md) §4.2。
 
 ### 待收斂清單（21 條）
 
