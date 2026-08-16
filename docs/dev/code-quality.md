@@ -200,10 +200,22 @@ cd /tmp/cisim && env -u API_KEY -u API_SECRET_KEY python -m pytest tests -q -m "
 
 ```bash
 ls -lO .venv/lib/python3.12/site-packages/*.pth   # 出現 hidden 即中招
-chflags nohidden .venv/lib/python3.12/site-packages/*.pth
+chflags nohidden .venv .venv/lib/python3.12/site-packages \
+                 .venv/lib/python3.12/site-packages/*.pth
 ```
 
-重建 venv 後需重做一次。反向操作為 `chflags hidden`。
+**這個旗標會反覆回來。** 實測在同一個 session 內清除後數分鐘又被重新套上，
+且新安裝套件產生的 `.pth`（例如 `pytest-cov` 的 `a1_coverage.pth`）一出生就是隱藏的
+——推測是從隱藏的父目錄繼承，或有備份／同步工具在背景重新標記。
+
+因此**不要把 editable 安裝當成本機的可靠前提**。在此環境執行需要 `import core`
+的獨立腳本時，直接指定 `PYTHONPATH`：
+
+```bash
+PYTHONPATH=. python dev/scripts/some_script.py
+```
+
+從 repo 根目錄執行 `python -m pytest` 或 `python run.py` 不受影響（cwd 會進 `sys.path`）。
 
 ---
 
