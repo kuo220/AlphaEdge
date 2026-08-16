@@ -4,7 +4,7 @@
 
 ## 前置需求
 
-- Python 3.11+（建議 3.11 或 3.12）
+- Python **3.12+**（`pyproject.toml` 的 `requires-python = ">=3.12"`；CI 亦使用 3.12）
 - pip（隨 Python 安裝；以下請用 `python -m pip`，以確保安裝在目前使用的直譯器環境）
 - Git
 - （選用）DolphinDB：若要使用 tick 相關 API/更新
@@ -18,14 +18,25 @@ source .venv/bin/activate
 
 ## 2) 安裝套件
 
-專案已提供 `requirements.txt`（尚未使用 `pyproject.toml`）：
+專案以 `pyproject.toml` 定義套件與相依，`requirements.txt` 僅一行 `-e .`：
 
 ```bash
 python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+python -m pip install -e .          # 等同 pip install -r requirements.txt
 ```
 
-`requirements.txt` 已包含 `pytest`，安裝後即可直接執行測試。
+安裝後 `core` / `tasks` / `tests` 於**任意工作目錄**皆可 import，不需再設 `PYTHONPATH`。
+
+要跑測試與 lint 請一併安裝開發相依：
+
+```bash
+python -m pip install -e ".[dev]"   # pytest、pytest-timeout、pytest-cov、ruff
+```
+
+選用相依（預設不裝，主流程不需要）：`[frontend]` Streamlit 介面、
+`[tick]` DolphinDB tick 儲存、`[lab]` `strategy_lab` 報告輸出。
+
+完整鎖定版本保留在 `requirements-lock.txt`，供 Docker build 與 conda 環境使用。
 
 ## 3) 設定環境變數
 
@@ -51,7 +62,10 @@ mkdir -p core/database core/data core/logs core/backtest/results
 
 ```bash
 # 檢查主要模組可載入
-python -c "from core.backtest import Backtester; from core.strategies import StrategyLoader; print('OK')"
+# 注意：一律用完整模組路徑。core/backtest/__init__.py 與 core/strategies/__init__.py
+# 刻意不做套件層 eager import（會造成循環 import），故 `from core.backtest import
+# Backtester` 會失敗
+python -c "from core.backtest.backtester import Backtester; from core.strategies.strategy_loader import StrategyLoader; print('OK')"
 
 # 顯示主程式參數
 python run.py --help
@@ -59,5 +73,23 @@ python run.py --help
 # 顯示資料更新參數
 python -m tasks.update_db --help
 ```
+
+## 6) 程式碼品質檢查（選用但建議）
+
+```bash
+ruff check .            # lint
+ruff format .           # 格式化
+pytest -m "not slow"    # 略過需要 stock.db 與外部 API 憑證的測試
+```
+
+可安裝 pre-commit 讓每次 commit 前自動跑同一組檢查：
+
+```bash
+pip install pre-commit && pre-commit install
+```
+
+設定理由與已知的待收斂項目見 [程式碼品質工具鏈與基線](../dev/code-quality.md)。
+
+---
 
 完成後可參考 [開發部署](../deployment/dev-deployment.md)。

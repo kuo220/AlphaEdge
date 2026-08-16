@@ -5,6 +5,8 @@ __pycache__/
 # Environments
 .venv/
 .env
+.env.*
+!.env.example
 
 
 # db
@@ -29,6 +31,12 @@ site/
 
 # broker_trading_metadata
 broker_trading_metadata.json
+
+# macOS / 編輯器產物
+# 不要只依賴 global gitignore——協作者的全域設定不會跟著 repo 走
+.DS_Store
+.idea/
+*.swp
 
 # Build & Coverage
 # egg-info 由 `pip install -e .` 產生；.coverage 由 pytest --cov 產生。

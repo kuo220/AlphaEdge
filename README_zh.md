@@ -109,6 +109,8 @@ graph TB
 | [多市場回測引擎架構](docs/backtest/multi-market-engine.md) | 單一引擎 ＋ 五個可插拔 model 的設計與已知簡化 |
 | [模組使用關係](docs/backtest/module-map.md)        | 回測路徑上誰呼叫誰、逐檔案職責與輸出檔案        |
 | [放空回測框架規格](docs/backtest/short-selling-framework.md) | 方向驅動的記帳、成本、維持率追繳與強制回補 |
+| [程式碼品質工具鏈與基線](docs/dev/code-quality.md) | pyproject／ruff／CI／pre-commit 設定、lint ignore 理由、覆蓋率基線 |
+| [券商分點 NO_DATA 的 metadata 語意](docs/pipeline/broker-trading-no-data.md) | API 回傳空資料時的 metadata 處理（選型紀錄） |
 
 ---
 
@@ -147,6 +149,39 @@ python -m pip install -r requirements.txt
 ```bash
 deactivate
 ```
+
+`requirements.txt` 現在只有一行 `-e .`，實際的套件與相依定義在 `pyproject.toml`；
+安裝後 `core` / `tasks` / `tests` 於**任意工作目錄**皆可 import。
+完整鎖定版本保留在 `requirements-lock.txt`（供 Docker build 與 conda 環境使用）。
+
+開發用途請一併安裝 dev extras：
+
+```bash
+python -m pip install -e ".[dev]"   # pytest、pytest-timeout、pytest-cov、ruff
+```
+
+選用相依（預設不裝）：`[frontend]` Streamlit 介面、`[tick]` DolphinDB tick 儲存、
+`[lab]` `strategy_lab` 報告輸出。回測與 ETL 主流程不需要它們。
+
+#### Lint、格式與測試
+
+```bash
+ruff check .            # 設定於 pyproject.toml，對應 CLAUDE.md §2.5／§2.10
+ruff format .
+pytest -m "not slow"    # 略過需要 stock.db 或 API 憑證的測試
+pytest                  # 全部（需 core/database/stock.db）
+./scripts/run_regression.sh   # LONG ＋ SHORT 回歸，必須逐筆相同
+```
+
+要讓每次 commit 前自動跑同一組檢查：
+
+```bash
+pip install pre-commit
+pre-commit install       # 只需執行一次，安裝 git hook
+```
+
+每次 push 時 GitHub Actions 會跑 `ruff check`、`ruff format --check` 與
+`pytest -m "not slow"`（見 `.github/workflows/ci.yml`）。
 
 若改採下方 **方式 2（Docker）**，則**不需要**在本機使用 venv，映像內已具備隔離的 Python 環境。
 
@@ -300,6 +335,8 @@ AlphaEdge/
 ├── backlog/                   # 內部規劃筆記
 ├── docs/                      # 專案文件
 │   ├── backtest/              # 引擎架構、模組使用關係、放空框架規格
+│   ├── dev/                   # 程式碼品質工具鏈與基線
+│   ├── pipeline/              # ETL 選型紀錄
 │   ├── setup/
 │   ├── deployment/
 │   ├── exchanges/
