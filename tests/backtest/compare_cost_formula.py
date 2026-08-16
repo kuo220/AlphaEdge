@@ -8,8 +8,7 @@ from core.utils.constant import Action, PositionType
 from core.utils.instrument import StockUtils
 
 """
-LONG 成本口徑差異比對（「LONG成本模型口徑收斂」S1 的分析工具；
-該工作已於 2026-08-15 完成並移出 `backlog/`，本腳本保留作研究用）
+LONG 成本口徑差異比對（分析工具，非測試；保留供日後調整成本模型時重跑）
 
 用途：在動生產程式碼**之前**量化「舊 `StockUtils` 路徑」與「新 `StockCostModel` 路徑」
 的差異分布，避免拿回歸測試的紅燈當探索工具。
@@ -109,7 +108,7 @@ def compute_new(
     open_volume: int,
     close_volume: int,
 ) -> Dict[str, float]:
-    """新路徑：`StockCostModel` ＋ 等比例攤提（S3 預計採用的算法）"""
+    """新路徑：`StockCostModel` ＋ 等比例攤提"""
 
     open_commission: int = cost_model.commission(price=buy_price, volume=open_volume)
     entry_cost: int = int(open_commission * (close_volume / open_volume))

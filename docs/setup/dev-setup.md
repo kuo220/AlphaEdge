@@ -18,12 +18,13 @@ source .venv/bin/activate
 
 ## 2) 安裝套件
 
-專案以 `pyproject.toml` 定義套件與相依，`requirements.txt` 僅一行 `-e .`：
-
 ```bash
 python -m pip install --upgrade pip
-python -m pip install -e .          # 等同 pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
+
+`requirements.txt` 是鎖定版本的完整清單，最後一行 `-e .` 會把專案本身也裝成
+editable，因此**一行指令就完成環境建置**。
 
 安裝後 `core` / `tasks` / `tests` 於**任意工作目錄**皆可 import，不需再設 `PYTHONPATH`。
 
@@ -36,7 +37,8 @@ python -m pip install -e ".[dev]"   # pytest、pytest-timeout、pytest-cov、ruf
 選用相依（預設不裝，主流程不需要）：`[frontend]` Streamlit 介面、
 `[tick]` DolphinDB tick 儲存、`[lab]` `strategy_lab` 報告輸出。
 
-完整鎖定版本保留在 `requirements-lock.txt`，供 Docker build 與 conda 環境使用。
+套件 metadata（相依名稱、optional extras、Python 版本下限）定義在 `pyproject.toml`；
+`requirements.txt` 則負責鎖定實際版本，Docker build 也用同一份。
 
 ## 3) 設定環境變數
 

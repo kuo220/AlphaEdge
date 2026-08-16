@@ -10,7 +10,6 @@ sys.path.insert(0, str(_PROJECT_ROOT))
 from core.pipeline.utils.constant import ChipColumn, PriceColumn
 
 """防護測試：策略層不得出現資料庫欄位字面值
-（「策略層資料欄位抽象化」S6 的產出，該工作已於 2026-08 完成並移出 `backlog/`）
 
 現況的失效模式是**靜默**的：欄位名一旦更名，部分策略會走進既有的 `continue`
 分支而安靜地不開倉，回測報表上只表現為「訊號變少」，極難察覺。本測試讓這件事

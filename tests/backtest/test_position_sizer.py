@@ -6,7 +6,7 @@ import pytest
 from core.backtest.models.sizing import EqualWeightSizer
 from core.models import StockAccount, StockPosition, StockQuote
 
-"""等權資金切分的單元測試（對應 backlog 部位控管下沉引擎 S2）
+"""等權資金切分的單元測試
 
 公式的取整規則直接決定 LONG 回歸 baseline 的 915 筆結果，任何一項改動都會破線。
 """

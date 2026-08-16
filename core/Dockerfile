@@ -10,21 +10,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# 用鎖定版本清單建置：requirements.txt 現為 `-e .`，而專案原始碼此時尚未 COPY 進來
-COPY requirements-lock.txt /tmp/requirements-lock.txt
+COPY requirements.txt /tmp/requirements.txt
 
 RUN pip install --no-cache-dir --upgrade pip
 
 RUN python - <<'PY'
 from pathlib import Path
 
-src = Path("/tmp/requirements-lock.txt")
+src = Path("/tmp/requirements.txt")
 dst = Path("/tmp/requirements.docker.txt")
 
 out_lines = []
 for raw in src.read_text(encoding="utf-8").splitlines():
     line = raw.strip()
     if not line or line.startswith("#"):
+        continue
+
+    # 略過 `-e .`：此階段只 COPY 了 requirements.txt，專案原始碼還沒進來，
+    # editable 安裝會失敗。原始碼於下方 COPY 後由 PYTHONPATH=/app 提供
+    if line.startswith("-e") or line.startswith("--editable"):
         continue
 
     # Conda-export style: package @ file:///...

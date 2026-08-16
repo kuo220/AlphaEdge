@@ -10,7 +10,7 @@ requires-python = ">=3.12"
 
 # 只列「程式碼實際 import 的套件」，不照抄 requirements.txt。
 # 清單由 AST 掃描 core/、tasks/、frontend/、tests/、strategy_lab/ 的 import 產出，
-# 版本下限取當前實測可用的版本，完整鎖定版本見 requirements-lock.txt。
+# 版本下限取當前實測可用的版本；鎖定的精確版本見 requirements.txt。
 dependencies = [
     "FinMind>=1.9",
     "fake-useragent>=2.2",
@@ -91,8 +91,8 @@ ignore = [
     "E501",
 
     # --- 例外處理：只量化不修，實測數字見 docs/dev/code-quality.md〈例外處理現況〉---
-    # 數量過大會擋住 CI 落地，故先 ignore；後續由專門的 backlog 逐一收斂，
-    # 不可因為「讓 CI 變綠」就永久關掉
+    # 數量過大會讓 CI 永遠紅燈，故先 ignore 並逐條記錄；
+    # 不可因為「讓 CI 變綠」就當成永久豁免
     "BLE001",  # blind-except，85 處
     "TRY003",  # 例外訊息長度，與 §2.1 中文訊息衝突
     "TRY300",  # try-consider-else，19 處
@@ -108,7 +108,7 @@ ignore = [
     # 補 strict=True 可能讓原本靜默的長度不一致改為拋錯，須逐點確認後再開
     "B905",
 
-    # --- 潛在缺陷，已逐點記錄，待專門 backlog 收斂 ---
+    # --- 潛在缺陷，已逐點記錄，待後續收斂 ---
     # 這 21 處**不是樣式問題，是真的可能出錯的地方**，完整清單（含 file:line）記在
     # docs/dev/code-quality.md〈待收斂清單〉。之所以先 ignore 而非在原地加 noqa：
     # 加了 noqa 會讓該行超過 88 字元，formatter 就把運算式拆成多行，

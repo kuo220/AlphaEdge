@@ -16,7 +16,6 @@ from core.config import CHIP_TABLE_NAME, PRICE_TABLE_NAME
 from core.pipeline.utils.constant import ChipColumn, PriceColumn
 
 """具名查詢方法的單元測試
-（「策略層資料欄位抽象化」S3／S4 的產出，該工作已於 2026-08 完成並移出 `backlog/`）
 
 以 in-memory SQLite 灌入固定樣本，涵蓋「查得到」「查不到」「值異常」三種情況。
 """

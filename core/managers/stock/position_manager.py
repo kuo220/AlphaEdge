@@ -152,7 +152,7 @@ class StockPositionManager(BasePositionManager):
             stock_order.short_method or self.cost_model.config.short_method
         )
 
-        # 同一標的不允許同時持有反向部位（見 backlog §7.5）
+        # 同一標的不允許同時持有反向部位
         if self.account.check_has_position(stock_order.stock_id, PositionType.LONG):
             logger.warning(
                 f"[Open Short] {stock_order.stock_id} 已有做多部位，不允許同標的雙向持倉，拒絕開倉"
@@ -349,7 +349,7 @@ class StockPositionManager(BasePositionManager):
             回補放空部位（買進），支援部分回補的等比例攤提
 
             保證金、擔保價款、借券費一律依回補張數比例攤提；
-            融券利息於此依 exit_date − entry_date 一次算出（見 backlog §4.3 計算時點表），
+            融券利息於此依 exit_date − entry_date 一次算出，
             不由 accrue_holding_cost() 重複計算。
         - Parameters:
             - position: StockPosition

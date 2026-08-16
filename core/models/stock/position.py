@@ -11,7 +11,7 @@ class StockPosition(BasePosition):
     """
     庫存未平倉倉位資訊
 
-    放空欄位的計算時點（見 backlog §4.3，不遵守會導致重複計費）：
+    放空欄位的計算時點：
     - MARGIN 融券手續費：開倉時一次收取，記入 borrow_fee
     - MARGIN 融券利息：平倉時依 exit_date − entry_date 一次算出，不逐日累加
     - SBL 借券費：由 accrue_holding_cost() 逐日計提至 accrued_borrow_fee
@@ -64,7 +64,7 @@ class StockPosition(BasePosition):
         self.borrow_fee: float = borrow_fee  # 開倉時一次收取的融券手續費
         self.accrued_borrow_fee: float = accrued_borrow_fee  # SBL 逐日計提的借券費
         self.holding_days: int = holding_days  # 已持有曆日數
-        # 連續無報價天數；停牌／下市的部位靠它才有出場依據，見真實度 S3
+        # 連續無報價天數；停牌／下市的部位靠它才有出場依據
         self.no_quote_days: int = 0
 
     @property

@@ -40,7 +40,7 @@ def test_broker_trading_db_query(
         cursor = conn.cursor()
         cursor.execute(
             """
-            SELECT name FROM sqlite_master 
+            SELECT name FROM sqlite_master
             WHERE type='table' AND name=?
             """,
             (STOCK_TRADING_DAILY_REPORT_TABLE_NAME,),
@@ -67,7 +67,7 @@ def test_broker_trading_db_query(
 
         # 3. 查詢日期範圍
         query_date_range = f"""
-        SELECT 
+        SELECT
             MIN(date) as earliest_date,
             MAX(date) as latest_date
         FROM {STOCK_TRADING_DAILY_REPORT_TABLE_NAME}
@@ -79,7 +79,7 @@ def test_broker_trading_db_query(
 
         # 4. 查詢不重複的股票和券商數量
         query_unique_stocks = f"""
-        SELECT COUNT(DISTINCT stock_id) 
+        SELECT COUNT(DISTINCT stock_id)
         FROM {STOCK_TRADING_DAILY_REPORT_TABLE_NAME}
         """
         cursor.execute(query_unique_stocks)
@@ -87,7 +87,7 @@ def test_broker_trading_db_query(
         print(f"📈 不重複股票數: {unique_stocks}")
 
         query_unique_traders = f"""
-        SELECT COUNT(DISTINCT securities_trader_id) 
+        SELECT COUNT(DISTINCT securities_trader_id)
         FROM {STOCK_TRADING_DAILY_REPORT_TABLE_NAME}
         """
         cursor.execute(query_unique_traders)
@@ -100,7 +100,7 @@ def test_broker_trading_db_query(
         print(f"{'=' * 60}")
 
         query_data = f"""
-        SELECT 
+        SELECT
             securities_trader,
             securities_trader_id,
             stock_id,
@@ -138,7 +138,7 @@ def test_broker_trading_db_query(
 
             where_clause = " AND ".join(conditions)
             query_specific = f"""
-            SELECT 
+            SELECT
                 securities_trader,
                 securities_trader_id,
                 stock_id,
@@ -164,7 +164,7 @@ def test_broker_trading_db_query(
         print(f"{'=' * 60}")
 
         query_stats = f"""
-        SELECT 
+        SELECT
             stock_id,
             COUNT(*) as count,
             MIN(date) as earliest_date,
@@ -183,7 +183,7 @@ def test_broker_trading_db_query(
         print(f"{'=' * 60}")
 
         query_trader_stats = f"""
-        SELECT 
+        SELECT
             securities_trader_id,
             securities_trader,
             COUNT(*) as count,

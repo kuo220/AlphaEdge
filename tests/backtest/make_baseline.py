@@ -10,7 +10,7 @@ from core.backtest.factory import build_backtester
 from core.strategies.stock.momentum_strategy_1 import MomentumStrategy1
 from core.utils import TimeUtils
 
-"""產生 LONG 策略的回歸 baseline：放空框架動程式碼前的第一步（見 backlog §9.0）"""
+"""產生 LONG 策略的回歸 baseline：放空框架動程式碼前的第一步"""
 
 
 SNAPSHOT_DIR: Path = Path(__file__).resolve().parent / "snapshots"
@@ -55,7 +55,8 @@ def generate_baseline() -> pd.DataFrame:
 
     backtester: Backtester = run_backtest_without_report(strategy)
 
-    # 直接由 trade_records 組表，避免依賴 reporter（reporter 在 Phase1-5 會被改動）
+    # 直接由 trade_records 組表，不經過 reporter：baseline 要釘住的是記帳結果，
+    # 不應該因為報表層的欄位調整而失效
     rows: List[dict] = [
         {
             "Stock ID": record.stock_id,

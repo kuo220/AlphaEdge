@@ -150,9 +150,10 @@ python -m pip install -r requirements.txt
 deactivate
 ```
 
-`requirements.txt` 現在只有一行 `-e .`，實際的套件與相依定義在 `pyproject.toml`；
-安裝後 `core` / `tasks` / `tests` 於**任意工作目錄**皆可 import。
-完整鎖定版本保留在 `requirements-lock.txt`（供 Docker build 與 conda 環境使用）。
+`requirements.txt` 內含鎖定版本的完整清單，最後一行是 `-e .`，因此上面那一行指令
+會同時裝好相依套件與專案本身——安裝後 `core` / `tasks` / `tests` 於**任意工作目錄**
+皆可 import。套件metadata（相依名稱、optional extras、Python 版本）定義在
+`pyproject.toml`。
 
 開發用途請一併安裝 dev extras：
 

@@ -25,7 +25,7 @@ from core.utils.instrument import StockUtils
 - BaseCostModel：各市場共用的介面（對應 Lean 的 FeeModel）
 - ShortConstraint / CostConfig / StockCostModel：台股實作，含信用交易
 
-自 core/utils/ 移入（見 backlog Phase4-1）：它是回測領域的核心，
+自 core/utils/ 移入：它是回測領域的核心，
 與 log_manager、decorators 這類通用工具混在一起會讓 core/utils/ 變成雜物櫃。
 """
 
@@ -80,7 +80,7 @@ class BaseCostModel(ABC):
     def enrich_orders(self, orders: List[BaseOrder]) -> List[BaseOrder]:
         """
         - Description:
-            依成本設定補上市場專屬的訂單欄位，策略不需自行填寫（見 backlog §4.6）
+            依成本設定補上市場專屬的訂單欄位，策略不需自行填寫
 
             預設為不補值；有信用交易制度的市場自行覆寫。
         - Parameters:
@@ -107,11 +107,9 @@ class ShortConstraint:
 
     **兩個欄位目前有定義、無呼叫端**（`allow_below_reference`、`day_trade_whitelist`）。
     設了限制卻不生效比功能沒做更危險，故由 `StockCostModel` 在建構時逐一檢查並發出警告，
-    見 `check_unimplemented_constraints()`。實作進度見
-    `backlog/放空回測市場約束補齊.md` S7。
+    見 `check_unimplemented_constraints()`。
 
-    `check_borrowable` 已於 2026-08-15 接上呼叫端（`TwStockFillModel.check_short_borrowable()`），
-    不再是死碼。
+    `check_borrowable` 則已接上呼叫端（`TwStockFillModel.check_short_borrowable()`）。
     """
 
     allow_below_reference: bool = True  # 是否允許平盤下放空（**尚未實作**）
@@ -130,7 +128,7 @@ class ShortConstraint:
 
         **目前未被任何路徑呼叫**：引擎的下單流程不會走到這裡，設定
         `day_trade_whitelist` 不會影響任何回測結果。接上呼叫端前不要
-        以為它已生效（見 `backlog/放空回測市場約束補齊.md` S7）。
+        以為它已生效。
         """
 
         if self.day_trade_whitelist is None:
@@ -187,7 +185,7 @@ class CostConfig:
         """依放空管道與是否當沖，組出市場常見值的成本設定"""
 
         # 當沖一律走現股當沖沖賣。
-        # 費率不可歸零：當沖單漲停無法回補時會轉為融券留倉（見 backlog §7.1），
+        # 費率不可歸零：當沖單漲停無法回補時會轉為融券留倉，
         # 屆時仍需以正常的保證金成數與券費率計算，歸零會讓維持率永遠不足而誤觸斷頭。
         if is_day_trade:
             return cls(short_method=ShortMethod.DAY_TRADE, is_day_trade=True)
@@ -207,7 +205,7 @@ class StockCostModel(BaseCostModel):
     """
     方向感知的成本／損益計算；PositionManager 與 Backtester 只呼叫這一層
 
-    取整規則（見 backlog §6.0，用 round() 會導致驗收數字全錯）：
+    取整規則：
     - 費用（手續費／稅／券費／利息）一律無條件捨去，與既有 LONG 路徑一致
     - 保證金無條件進位（佔用資金進位較保守）
     - 損益與報酬率 round 至小數點後 2 位
@@ -272,7 +270,7 @@ class StockCostModel(BaseCostModel):
 
     # === 單邊成本 ===
     def enrich_orders(self, orders: List[StockOrder]) -> List[StockOrder]:
-        """依成本設定補上放空管道與當沖旗標，策略不需自行填寫（見 backlog §4.6）"""
+        """依成本設定補上放空管道與當沖旗標，策略不需自行填寫"""
 
         for order in orders:
             if not self.is_short(order):

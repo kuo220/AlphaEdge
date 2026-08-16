@@ -31,7 +31,7 @@ class BaseStrategy(ABC):
         """
         === Direction Setting ===
 
-        方向的責任分工（見 backlog §4.4）：
+        方向的責任分工：
         - position_type 只用來推導預設值，不參與記帳
         - allowed_directions 是訂單方向的白名單，None 時等同 {position_type}
         - 實際記帳與成本路徑一律看每一張 order 的 position_type

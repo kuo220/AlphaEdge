@@ -6,7 +6,7 @@ import pytest
 from core.backtest.models.instrument_spec import InstrumentSpec, TwStockSpec
 from core.utils.instrument import StockUtils
 
-"""InstrumentSpec 測試：台股規格的三個介面必須與既有 StockUtils 逐值相同（backlog Phase2-1）"""
+"""InstrumentSpec 測試：台股規格的三個介面必須與既有 StockUtils 逐值相同"""
 
 
 @pytest.fixture
@@ -101,7 +101,7 @@ def test_get_price_limits_without_prev_close(
     assert spec.get_price_limits(prev_close) == (None, None)
 
 
-# === 漲跌停幅度的年代分段（真實度 S8）===
+# === 漲跌停幅度的年代分段 ===
 def test_price_limit_ratio_before_2015_06_01() -> None:
     """
     台股於 2015-06-01 由 7% 放寬為 10%

@@ -8,7 +8,7 @@ from core.backtest.factory import build_backtester
 from core.models import StockOrder
 from core.utils import Action, PositionType
 
-"""引擎側 max_holdings 硬上限（對應 backlog 部位控管下沉引擎 S4）
+"""引擎側 max_holdings 硬上限
 
 `max_holdings` 原本被引擎讀進來卻從未使用，實際上限全靠策略自我約束——
 一支不呼叫 sizer 的新策略就能無限開倉且不會有任何警告。

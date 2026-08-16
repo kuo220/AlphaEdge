@@ -13,7 +13,7 @@ from core.utils import Action, PositionType, Scale, ShortMethod
 from tests.backtest.conftest import ScriptedStrategy
 
 """
-產生 SHORT 路徑的回歸 baseline：多市場抽象重構動程式碼前的第一步（見 backlog Phase0-1）
+產生 SHORT 路徑的回歸 baseline：多市場抽象重構動程式碼前的第一步
 
 LONG 已有 915 筆逐筆 baseline，SHORT 卻只有單元／整合測試，缺少「整條路徑的完整帳」。
 Phase 2 要把放空記帳從 Backtester 搬進 SettlementModel，若某個攤提比例走鐘，
@@ -238,7 +238,7 @@ def build_scenarios() -> List[ShortScenario]:
 
     # === 6. 當沖 ＋ 停券強制回補日：釘住兩個收盤後動作的先後順序 ===
     #
-    # enforce_day_trade_cover() 與 execute_daily_position_check() 在 Phase2-3 會被
+    # enforce_day_trade_cover() 與 execute_daily_position_check() 已被
     # 合併進 SettlementModel.on_bar_close()，兩者對調不會讓任何單元測試失敗，
     # 但會讓同一次強制回補記到不同的事件桶。此情境是唯一能抓到該漂移的護欄：
     # - 現行順序：當沖回補先執行 → forced_cover_day_trade

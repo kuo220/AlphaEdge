@@ -92,8 +92,7 @@ class BaseStockStrategy(BaseStrategy):
             宣告本策略要用的資料源
 
             實例一律由 DataFeed 統一持有，策略只做取用，不自行建立
-            （見 backlog Phase2-7：原本 6 支策略各自 new 出同一批 API，
-            單次回測會開出 8~10 條互不相干且從不關閉的連線）。
+            。
         - Parameter:
             - feed: BaseDataFeed
                 引擎持有的資料源

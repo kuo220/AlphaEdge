@@ -156,10 +156,10 @@ To exit the virtualenv in the current shell:
 deactivate
 ```
 
-`requirements.txt` is now a one-liner (`-e .`) that installs the project itself from
-`pyproject.toml`, so `core` / `tasks` / `tests` become importable from **any** working
-directory. Fully pinned versions are kept in `requirements-lock.txt` (used by the Docker
-build and the conda env files).
+`requirements.txt` holds fully pinned versions plus a trailing `-e .`, so that single
+command installs both the dependencies and the project itself — `core` / `tasks` /
+`tests` become importable from **any** working directory. The package metadata
+(dependency names, optional extras, Python version) lives in `pyproject.toml`.
 
 For development work, install the dev extras as well:
 

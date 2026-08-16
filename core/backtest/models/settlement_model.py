@@ -112,7 +112,7 @@ class TwStockSettlementModel(BaseSettlementModel):
     台股結算模型：當沖日終強制回補、借券費逐日計提、維持率追繳
 
     執行順序固定為「當沖回補 → 每日部位檢查」，不可對調：對調會讓同一次強制回補
-    記到不同的事件桶（見 backlog Phase0-1 的 day_trade_on_force_cover_date 情境）。
+    記到不同的事件桶。
     """
 
     def __init__(
@@ -136,7 +136,7 @@ class TwStockSettlementModel(BaseSettlementModel):
         # 但「記錄前收」屬成交價模型的職責，故此處只持有參照，不自行維護
         self.prev_close: Dict[str, float] = prev_close
 
-        # 策略宣告的處理政策（Phase3-1 之後由 factory 從策略帶入）
+        # 策略宣告的處理政策，由 factory 從策略帶入
         self.day_trade_uncovered_policy: DayTradeUncoveredPolicy = (
             day_trade_uncovered_policy
         )
@@ -165,7 +165,7 @@ class TwStockSettlementModel(BaseSettlementModel):
     ) -> None:
         """
         - Description:
-            當沖放空於日終仍未回補時的處理（見 backlog §7.1）
+            當沖放空於日終仍未回補時的處理
 
             現行引擎不會自己發現這件事，若放著不管，回測會出現實務上不存在的
             「當沖單留倉」；因此一律依 day_trade_uncovered_policy 明確處理並計數。
@@ -371,7 +371,7 @@ class TwStockSettlementModel(BaseSettlementModel):
             逐日計提持有成本並更新持有天數
 
             只有 SBL 借券費在此逐日累加；MARGIN 的融券手續費在開倉時一次收取、
-            融券利息於平倉時依日期差一次計算（見 backlog §4.3 計算時點表），
+            融券利息於平倉時依日期差一次計算，
             在此重複計算會造成雙重計費。
         """
 
@@ -401,7 +401,7 @@ class TwStockSettlementModel(BaseSettlementModel):
             維持率追繳與強制回補檢查
 
             現行引擎沒有跨日的委託佇列，無法模擬「次一交易日開盤成交」，
-            因此一律以觸發當日收盤價立即回補（見 backlog §7.2）。
+            因此一律以觸發當日收盤價立即回補。
         """
 
         for position in list(account.get_positions(position_type=PositionType.SHORT)):

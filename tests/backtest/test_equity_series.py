@@ -10,7 +10,7 @@ from core.backtest.report.reporter import StockBacktestReporter
 from core.models import StockAccount, StockTradeRecord
 from core.utils import PositionType
 
-"""權益曲線口徑測試：有 daily_equity 時一律走盯市，沒有時退回已實現（對應 backlog 逐日權益 S2~S5）"""
+"""權益曲線口徑測試：有 daily_equity 時一律走盯市，沒有時退回已實現"""
 
 
 DAY_1: datetime.date = datetime.date(2024, 1, 2)

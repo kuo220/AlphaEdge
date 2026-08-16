@@ -151,7 +151,7 @@ class Backtester:
             載入回測資料，並把資料源交給策略
 
             **API 實例全專案只建一次**：先由 DataFeed 建立，再交給策略取用，
-            策略不自行 new（見 backlog Phase2-7）。
+            策略不自行 new。
         """
 
         self.data_feed.setup(self.strategy)
@@ -260,7 +260,7 @@ class Backtester:
         return valid_orders
 
     def enrich_orders(self, orders: List[BaseOrder]) -> List[BaseOrder]:
-        """補上市場專屬的訂單欄位；規則由 CostModel 實作（見 backlog Phase2-4）"""
+        """補上市場專屬的訂單欄位；規則由 CostModel 實作"""
 
         return self.cost_model.enrich_orders(orders)
 
@@ -298,7 +298,7 @@ class Backtester:
         return sorted(orders, key=lambda order: (order.date, order.symbol))
 
     def validate_fill_price(self, order: BaseOrder, quote: BaseQuote) -> bool:
-        """成交價合理性檢查；規則由 FillModel 實作（見 backlog Phase2-2）"""
+        """成交價合理性檢查；規則由 FillModel 實作"""
 
         return self.fill_model.validate(order, quote)
 
@@ -385,7 +385,7 @@ class Backtester:
         # Generate Backtest Report
         self.generate_backtest_report()
 
-        # 關閉資料連線（原本全專案的 conn 從不 close，見 backlog Phase2-7）
+        # 關閉資料連線：不關的話，每次回測都會累積不再使用的連線
         self.data_feed.close()
 
     def run_tick_backtest(self, date: datetime.date) -> None:
@@ -615,7 +615,7 @@ class Backtester:
             記錄含未實現損益的每日權益，並更新各部位的未實現損益
 
             只認已實現損益的權益曲線會把「持倉期間的逆勢」完全抹平，
-            而那正是放空最大的風險來源（見 backlog §7.7 註）。
+            而那正是放空最大的風險來源。
         - Parameters:
             - date: datetime.date
                 當前交易日

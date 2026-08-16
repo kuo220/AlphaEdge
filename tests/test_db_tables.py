@@ -42,7 +42,7 @@ def check_table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
     cursor: sqlite3.Cursor = conn.cursor()
     cursor.execute(
         """
-        SELECT name FROM sqlite_master 
+        SELECT name FROM sqlite_master
         WHERE type='table' AND name=?
         """,
         (table_name,),
@@ -197,7 +197,7 @@ def test_broker_trading_data(limit: int = 5) -> None:
     cursor: sqlite3.Cursor = conn.cursor()
     try:
         query = f"""
-        SELECT 
+        SELECT
             securities_trader,
             securities_trader_id,
             stock_id,

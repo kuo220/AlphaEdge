@@ -11,7 +11,7 @@ class BaseQuote:
     報價資訊的共用骨架
 
     識別欄位命名為 symbol 而非 stock_id：引擎骨架不應該知道自己在跑哪個市場，
-    台股的 stock_id 由 StockQuote 以 property 別名維持相容（見 backlog Phase1-1）。
+    台股的 stock_id 由 StockQuote 以 property 別名維持相容。
     """
 
     def __init__(

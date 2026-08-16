@@ -18,7 +18,7 @@ Stock Dividend Cleaner：將 TWSE（證交所）與 TPEX（櫃買中心）兩種
 權息別寫法（`權`／`息` vs `除權`／`除息`），以及**櫃買中心多提供官方的股利拆分欄位**。
 
 衍生欄位一律在本檔集中計算，避免兩條清洗路徑各算一份而漂移：
-- 還原係數 = 除權息參考價 / 除權息前收盤價（除權息造成的價格落差比例，供 S3 累乘還原）
+- 還原係數 = 除權息參考價 / 除權息前收盤價（除權息造成的價格落差比例，供後復權累乘）
 - 現金股利 / 配股率：上櫃直接採用官方值；上市須推導且無法拆分時留 NULL，見 `split_dividend()`
 """
 
@@ -230,7 +230,7 @@ class StockDividendCleaner(BaseDataCleaner):
             logger.warning(f"No valid dividend rows from {source}")
             return None
 
-        # 還原係數：除權息造成的價格落差比例（< 1），S3 以此往前累乘做後復權
+        # 還原係數：除權息造成的價格落差比例（< 1），查詢端以此往前累乘做後復權
         df["還原係數"] = (df["除權息參考價"] / df["除權息前收盤價"]).round(8)
         df = self.split_dividend(df)
         df["資料來源"] = source

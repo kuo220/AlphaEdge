@@ -7,7 +7,7 @@ from core.models import StockTradeRecord
 from core.utils import Action, PositionType, ShortMethod
 from core.utils.instrument import StockUtils
 
-"""成本模型與數值處理規則的單元測試（對應 backlog §6.0、§6.1、§6.2）"""
+"""成本模型與數值處理規則的單元測試"""
 
 
 # === 手算驗收範例 ===

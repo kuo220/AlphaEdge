@@ -6,7 +6,7 @@ from core.managers.stock.position_manager import StockPositionManager
 from core.models import StockAccount, StockPosition, StockTradeRecord
 from core.utils import Action, PositionType, ShortMethod
 
-"""放空開平倉記帳測試（對應 backlog §5.5、§6.1、§6.2、§7.4、§7.5）"""
+"""放空開平倉記帳測試"""
 
 
 def build_manager(

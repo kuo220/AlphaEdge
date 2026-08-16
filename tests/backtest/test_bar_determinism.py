@@ -9,7 +9,7 @@ from core.backtest.factory import build_backtester
 from core.models import StockOrder, StockTradeRecord
 from core.utils import Action, BarExecutionOrder, PositionType
 
-"""單根 bar 的委託決定性排序與同標的開平倉並存規則（對應 backlog 當沖執行順序重構 S3）
+"""單根 bar 的委託決定性排序與同標的開平倉並存規則
 
 委託的到達順序完全繼承自報價順序，而報價來自沒有 ORDER BY 的 SQL，
 實際列順序是查詢計畫的副產物。這裡的測試釘住「引擎自己排序」這件事，
@@ -155,7 +155,7 @@ def test_close_orders_are_sorted_by_symbol(
 def test_result_is_independent_of_signal_order(
     make_strategy, make_backtester, make_quote
 ) -> None:
-    """同一組訊號無論以什麼順序回傳，成交結果逐筆相同（S3 的核心驗收）"""
+    """同一組訊號無論以什麼順序回傳，成交結果逐筆相同"""
 
     stock_ids: Tuple[str, ...] = ("2330", "2317", "2454")
     results: List[List[Tuple[str, int]]] = []

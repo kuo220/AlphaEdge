@@ -899,7 +899,7 @@ class FinMindUpdater(BaseDataUpdater):
         try:
             # 從資料庫查詢每個 (securities_trader_id, stock_id) 組合的日期範圍
             query: str = f"""
-            SELECT 
+            SELECT
                 securities_trader_id,
                 stock_id,
                 MIN(date) as earliest_date,

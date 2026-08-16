@@ -11,7 +11,7 @@ from core.backtest.report.reporter import StockBacktestReporter
 from core.models import StockAccount, StockOrder, StockTradeRecord
 from core.utils import Action, PositionType, ShortMethod
 
-"""每日權益、多空分開統計與事件報表的測試（對應 backlog §5.9、§7.7）"""
+"""每日權益、多空分開統計與事件報表的測試"""
 
 
 DAY_1: datetime.date = datetime.date(2024, 1, 2)
@@ -76,7 +76,7 @@ def test_trading_report_columns_and_symbol(
     """
     報表的欄位名與識別欄位取值
 
-    引擎內部改用 symbol 之後，輸出欄位名必須維持 `Stock ID`（見 backlog Phase1-2）——
+    引擎內部改用 symbol 之後，輸出欄位名必須維持 `Stock ID`——
     改名會讓 915 筆 LONG baseline 失效。但回歸雙線是自行從 trade_records 組表的，
     完全不經過 reporter，故欄位名與取值只能靠本測試把關。
     """

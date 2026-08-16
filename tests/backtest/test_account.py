@@ -4,7 +4,7 @@ from typing import Dict
 from core.models import StockAccount, StockPosition
 from core.utils import PositionType, ShortMethod
 
-"""StockAccount 方向感知查詢與保證金欄位的測試（對應 backlog §5.4）"""
+"""StockAccount 方向感知查詢與保證金欄位的測試"""
 
 
 def build_account() -> StockAccount:

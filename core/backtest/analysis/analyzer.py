@@ -45,7 +45,7 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
 
             優先使用 Backtester 產出的每日權益（含未實現損益）；
             未提供時退回「初始資金 + 累積已實現損益」，此時留倉部位的
-            帳面波動看不見，放空的回撤會被低估（見 backlog §7.7）。
+            帳面波動看不見，放空的回撤會被低估。
 
             兩條路徑都以**初始資金**為第一個節點，與
             `StockBacktestReporter.get_equity_series()` 的口徑一致——

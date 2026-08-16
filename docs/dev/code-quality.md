@@ -19,12 +19,13 @@
 | CI | `.github/workflows/ci.yml` | 每次 push 跑 `ruff check` ＋ `ruff format --check` ＋ `pytest -m "not slow"` |
 | 本機防線 | `.pre-commit-config.yaml` | commit 前先跑一次同一組檢查（需自行 `pre-commit install`） |
 
-`requirements.txt` 現為一行 `-e .`；完整鎖定版本保留在 `requirements-lock.txt`（Docker build 與 conda 環境使用）。
+`requirements.txt` 為鎖定版本的完整清單，末行 `-e .` 讓同一份檔案也能裝上專案本身；Docker build 用同一份（建置時會濾掉 `-e` 那行）。
 
 ### 常用指令
 
 ```bash
-python -m pip install -e ".[dev]"   # pytest, pytest-timeout, pytest-cov, ruff
+python -m pip install -r requirements.txt   # 相依 + 專案本身
+python -m pip install -e ".[dev]"           # 追加 pytest / pytest-cov / ruff
 
 ruff check .                        # lint
 ruff format .                       # 格式化

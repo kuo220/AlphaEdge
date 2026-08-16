@@ -14,7 +14,7 @@ Stock dividend API: query SQLite dividend table（除權除息計算結果表）
 
 本表同時服務兩個互不相同的需求，取值時務必分清楚：
 - **價格序列還原**（`docs/exchanges/data_coverage.md`〈股價還原〉）：用「還原係數」
-- **放空的股利補償現金流**（`backlog/放空回測市場約束補齊.md` S3）：用「現金股利」
+- **放空的股利補償現金流**：用「現金股利」
 
 具名查詢方法一律回傳 `{stock_id: 值}` 對照表，與 `StockPriceAPI` 的
 `get_close_map()` 系列同型，策略層與回測層不需要知道資料表欄位名。
@@ -163,7 +163,7 @@ class StockDividendAPI(BaseDataAPI):
 
         return self.build_column_map(self.get(date), "開盤競價基準")
 
-    # === 後復權累乘係數：S3 的還原價由這一組提供 ===
+    # === 後復權累乘係數：還原價由這一組提供 ===
     def load_factor_cache(self) -> Dict[str, Tuple[np.ndarray, np.ndarray]]:
         """
         - Description:

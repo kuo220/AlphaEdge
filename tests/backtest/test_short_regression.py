@@ -17,7 +17,7 @@ from tests.backtest.make_short_baseline import (
 )
 
 """
-SHORT 路徑回歸測試：多市場抽象重構的第二條回歸線（見 backlog Phase0-1）
+SHORT 路徑回歸測試：多市場抽象重構的第二條回歸線
 
 與 LONG 回歸的分工：
 - LONG 走真實 stock.db、驗的是「換了引擎後既有做多策略的結果不變」（約 54 秒）

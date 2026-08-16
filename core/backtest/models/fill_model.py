@@ -35,14 +35,12 @@ class FillConfig:
     """
     成交假設設定
 
-    **落點與「回測滑價與執行係數」S1 的原規劃不同**（該工作已於 2026-08-15
-    完成並移出 `backlog/`，使用說明見 `core/backtest/README.md`〈成交假設〉）：原規劃寫
-    `core/utils/backtest_execution.py`，但多市場重構已把 `cost_model.py` 由
-    `core/utils/` 搬到 `core/backtest/models/`，回測假設一律與其 model 同檔
-    （`CostConfig` 之於 `CostModel`）。再放回 `core/utils/` 會與該結構相衝突，
-    故改為與 `FillModel` 同檔，語意仍與「法規費率」（`Commission`）分離。
+    **刻意與 `FillModel` 放在同一個檔案**：回測假設一律與其 model 同檔
+    （對照 `CostConfig` 之於 `CostModel`），語意上則與「法規費率」
+    （`Commission`）分離——前者是可調的模擬參數，後者是外部給定的規則。
 
-    全部預設為關閉，行為與導入前逐筆相同。
+    全部預設為關閉，此時的成交行為與未啟用任何假設時完全相同。
+    使用說明見 `core/backtest/README.md`〈成交假設〉。
     """
 
     # 滑價基點（1 bps = 0.01%）；買進加價、賣出減價

@@ -17,7 +17,7 @@ from core.utils import (
     ShortMethod,
 )
 
-"""回測引擎的方向驅動、成交價驗證與每日部位檢查測試（對應 backlog §4.5、§7.1、§7.2、§7.6）"""
+"""回測引擎的方向驅動、成交價驗證與每日部位檢查測試"""
 
 
 DAY_1: datetime.date = datetime.date(2024, 1, 2)
@@ -560,7 +560,7 @@ def test_max_holding_days_force_cover(
     assert backtester.account.positions == []
 
 
-# === 停牌／下市部位的出場（真實度 S3）===
+# === 停牌／下市部位的出場 ===
 def test_no_quote_days_force_exit(make_strategy, make_backtester, make_quote) -> None:
     """連續無報價達門檻時強制出場，避免停牌部位盯市到回測結束"""
 
@@ -673,7 +673,7 @@ def test_no_quote_exit_disabled_by_default(
     assert len(backtester.account.positions) == 1
 
 
-# === 當沖轉留倉的證交稅差額（真實度 S7）===
+# === 當沖轉留倉的證交稅差額 ===
 def test_convert_to_margin_tops_up_tax(
     make_strategy, make_backtester, make_quote
 ) -> None:

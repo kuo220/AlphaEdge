@@ -7,7 +7,7 @@ from core.models import StockAccount, StockOrder, StockQuote
 from core.strategies.stock import BaseStockStrategy
 from core.utils import Action, PositionType, Scale, ShortMethod
 
-"""放空回測框架的測試 fixture：全部為純記憶體物件，不連資料庫（見 backlog §9.0）"""
+"""放空回測框架的測試 fixture：全部為純記憶體物件，不連資料庫"""
 
 
 @pytest.fixture
