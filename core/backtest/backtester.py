@@ -285,8 +285,8 @@ class Backtester:
             **已知限制**：Tick 級別的 `order.date` 只到「日」（`StockQuote.date`
             對 tick 也是 `datetime.date`），因此同一 bar 內的 tick 委託無法依成交
             時間排序，會被壓成依代號排序。要恢復真正的時間序，得讓 `check_*_signal`
-            回傳帶時間戳的委託事件——屬 S4 事件迴圈的範圍（見
-            `backlog/回測引擎當沖執行順序重構.md`）。
+            回傳帶時間戳的委託事件——屬事件迴圈的範圍（見
+            `docs/backtest/multi-market-engine.md` §5.1）。
         - Parameters:
             - orders: List[BaseOrder]
                 同一根 bar 內、同一個階段（開倉或平倉）的委託

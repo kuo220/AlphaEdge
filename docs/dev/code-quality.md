@@ -1,0 +1,213 @@
+# 程式碼品質工具鏈與基線
+
+> 本文件描述 `pyproject.toml`／`ruff`／CI／`pre-commit`／覆蓋率的**現行設定與其理由**，
+> 以及兩份需要長期追蹤的基線資料（例外處理、測試覆蓋率）。
+> 實作於 2026-08-16 完成；規劃文件已依
+> [`manage-backlog` skill §5](../../.claude/skills/manage-backlog/SKILL.md#5-完成後的處理) 移出 `backlog/`。
+
+---
+
+## 概觀
+
+`CLAUDE.md` §2 有 10 節 coding style，但在 2026-08-16 之前**沒有任何自動化在執行這些規範**。
+現況已補齊四件事：
+
+| 項目 | 檔案 | 作用 |
+|------|------|------|
+| 套件定義 | `pyproject.toml` `[project]` | `pip install -e .` 後任意目錄可 `import core` |
+| Lint／格式 | `pyproject.toml` `[tool.ruff]` | 執行 `CLAUDE.md` §2.5（import 排序）、§2.10（行寬 88、雙引號） |
+| CI | `.github/workflows/ci.yml` | 每次 push 跑 `ruff check` ＋ `ruff format --check` ＋ `pytest -m "not slow"` |
+| 本機防線 | `.pre-commit-config.yaml` | commit 前先跑一次同一組檢查（需自行 `pre-commit install`） |
+
+`requirements.txt` 現為一行 `-e .`；完整鎖定版本保留在 `requirements-lock.txt`（Docker build 與 conda 環境使用）。
+
+### 常用指令
+
+```bash
+python -m pip install -e ".[dev]"   # pytest, pytest-timeout, pytest-cov, ruff
+
+ruff check .                        # lint
+ruff format .                       # 格式化
+pytest -m "not slow"                # 略過需要 stock.db 與外部 API 的測試
+pytest                              # 全部（需 core/database/stock.db）
+./scripts/run_regression.sh         # LONG ＋ SHORT 回歸，必須逐筆相同
+```
+
+### optional extras
+
+`dolphindb`（tick）、`streamlit`（frontend）、`python-docx`（lab）**刻意不放進主
+`dependencies`**：它們在開發環境並未安裝，而回測與 ETL 主流程照樣運作。
+需要時以 `pip install -e ".[tick]"` 等方式個別安裝。
+
+---
+
+## 一、`ruff` 的 ignore 清單為什麼長這樣
+
+**清單裡的每一條都必須有理由**，分三類。改動前先確認屬於哪一類——尤其第一類，
+「順手打開」會直接與專案規範打架。
+
+### 1. 與 `CLAUDE.md` 衝突，永久關閉
+
+| 規則 | 衝突點 |
+|------|--------|
+| `UP006`／`UP035` | §2.4.3 明訂用 `typing.List`／`Dict`，不改 `list[...]` |
+| `UP007` | §2.4.3 `Union[X, Y]`，不改 `X \| Y` |
+| `UP045` | §2.4.4 `Optional[T]`，不改 `T \| None` |
+| `UP042` | §2.7 明訂 `class XxxEnum(str, Enum)`，不改 `StrEnum` |
+| `E501` | formatter 已管行寬，但拆不了中文註解與 docstring；留著只會讓 CI 永遠紅燈，並逼人把中文註解硬折行 |
+
+> **這一類是本次施作最大的陷阱。** 原規劃只列了 `UP006`／`UP035` 要關，
+> 但 `UP` 家族實際上還有三條會動型別註解與 Enum 寫法，**合計 433 處**。
+> 若照原規劃只關兩條就跑 `ruff check --fix`，會一次改掉 433 個違反專案規範的地方。
+
+### 2. 設計選擇，非缺陷
+
+| 規則 | 理由 |
+|------|------|
+| `B027` | 基底類別刻意留的 no-op 掛點（例如股票的 `settle_daily`：股票沒有每日結算）。標成 `@abstractmethod` 反而會強迫每個子類別寫空實作 |
+| `B905` | `zip(..., strict=)` 屬行為決策：補 `strict=True` 可能讓原本靜默的長度不一致改為拋錯，須逐點確認後再開 |
+
+### 3. 待收斂，暫時關閉
+
+`BLE001`、`TRY003`／`TRY300`／`TRY301`／`TRY201`／`TRY004`，以及下方〈待收斂清單〉的七條。
+**修掉之後要把對應規則從 `ignore` 移除**，不要讓它長期留著。
+
+> **為什麼是 ignore 而不是在原地加 `# noqa`**：原本想用「規則保持啟用 ＋ 逐點 noqa」的
+> ratchet 作法，讓新程式碼不能再犯。實測失敗——加上中文理由後該行超過 88 字元，
+> `ruff format` 就把運算式拆成多行，`noqa` 註解跟著跑到別行、失去效力（21 處全部失效）。
+> 若日後要改回 ratchet，`noqa` 必須不帶理由文字，理由寫在本文件。
+
+### per-file-ignores
+
+| 對象 | 規則 | 理由 |
+|------|------|------|
+| `__init__.py` | `F401` | 套件的 re-export 門面，import 就是對外介面 |
+| `tests/*`、`strategy_lab/*` | `E402` | 獨立執行的腳本，import 前有 `sys.path` 設定或條件式 mock |
+| `stock_tick_utils.py`、`stock_tick_loader.py`、`test_tick_updater.py` | `F401` | `dolphindb` 是選用相依，該處 import 是「可用性探測」 |
+
+`*.md` 已加入 `extend-exclude`：ruff 0.16 起會連 Markdown 內的 Python 程式碼區塊一起格式化，
+而文件裡的範例常刻意對齊註解以利閱讀。`CLAUDE.md` §2.5／§2.10 規範的對象是程式碼，不是文件。
+
+---
+
+## 二、例外處理現況
+
+**量測日期：2026-08-16**（`ruff 0.16.3`，全專案 219 個 Python 檔）
+
+套上 `select = ["E", "F", "I", "UP", "B", "BLE", "TRY"]` 的第一次全量結果為 **1495 條**：
+
+| 規則 | 數量 | 處置 |
+|------|-----:|------|
+| E501 line-too-long | 597 | ignore |
+| UP045 non-pep604-annotation-optional | 391 | ignore（與 §2.4 衝突） |
+| F401 unused-import | 134 | 自動修；`__init__.py` 改用 per-file-ignore |
+| F541 f-string-missing-placeholders | 112 | 自動修 |
+| **BLE001 blind-except** | **85** | **ignore，待收斂** |
+| E402 module-import-not-at-top | 26 | per-file-ignore |
+| I001 unsorted-imports | 25 | 自動修 |
+| UP042 replace-str-enum | 24 | ignore（與 §2.7 衝突） |
+| TRY300 / TRY201 / TRY301 / TRY004 | 29 | ignore，待收斂 |
+| UP007 non-pep604-annotation-union | 18 | ignore（同 §2.4） |
+| B905 zip-without-explicit-strict | 15 | ignore |
+| B027 empty-method-without-abstract | 9 | ignore |
+| 其餘 | 30 | 見〈待收斂清單〉 |
+
+**盲捕（`except Exception` 或裸 `except`）實測 85 條。** ETL 場景下這會把「網路逾時」（該重試）
+與「資料 schema 變了」（該中止）混為一談，而 `core/pipeline/utils/exceptions.py` 已經定義了
+自訂例外卻沒有普及。
+
+**已實際造成損失的案例**：2026-08-16 的 `margin` 回補中，`stock_margin_loader.add_to_db()`
+的 `except Exception` → `logger.warning` 讓 2 個檔案入庫失敗被吞掉，行程照樣印
+`✅ Database Update Completed` 且結束碼為 0，缺了 1,553 列。收斂工作追蹤於
+[爬蟲入庫時序與中斷風險改善](../../backlog/爬蟲入庫時序與中斷風險改善.md) S5。
+
+### 待收斂清單（21 條）
+
+**這些不是樣式問題，是真的可能出錯的地方**：
+
+| 規則 | 位置 | 為什麼要緊 |
+|------|------|-----------|
+| B008 ×5 | `stock_chip_updater.py:61`、`stock_dividend_updater.py:61`、`stock_margin_updater.py:65`、`stock_price_updater.py:63`、`stock_tick_updater.py:99` | 全部是 `end_date: datetime.date = datetime.date.today()`。**預設值在 import 當下就固定**，長駐排程跑過午夜後仍會拿到啟動那天的日期，等於靜默漏掉最新一天 |
+| B006 ×4 | `financial_statement_crawler.py:269`、`data_utils.py:101/106/107` | 可變預設參數，跨呼叫共用同一個物件 |
+| B904 ×3 | `finmind_updater.py:157`、`time.py:36/45` | `raise` 未帶 `from`，原始例外被吃掉，debug 時看不到根因 |
+| E722 ×3 | `stock_tick_cleaner.py:155/163`、`stock_tick_utils.py:209` | 裸 `except`，會連 `KeyboardInterrupt` 一起吞 |
+| F841 ×3 | `stock_price_crawler.py:39/40`、`generate_docs.py:65` | **`crawl_price()` 把 `crawl_twse_price()`／`crawl_tpex_price()` 的回傳值指派後完全沒用**，看起來像未完成的函式，需確認是否為缺陷 |
+| F811 ×1 | `callback.py:7` | `OrderState` 同時從 `shioaji.constant` 與 `.constant` import，後者覆蓋前者 |
+| B007 ×2 | `test_db_tables.py:129/142` | 未使用的迴圈變數，無害 |
+
+---
+
+## 三、測試覆蓋率基線
+
+**量測日期：2026-08-16**　指令：`pytest -m "not slow" --cov=core --cov-report=term`
+（207 passed / 9 deselected）
+
+**整體：7112 行中未覆蓋 4269 行 → 40%**
+
+| 模組 | 覆蓋率 | 說明 |
+|------|-------:|------|
+| `core/models/` | 77~100% | 資料骨架，回歸線會走到 |
+| `core/backtest/models/` | 90~96% | `cost_model` 90、`fill_model` 92、`settlement_model` 90、`sizing` 96 |
+| `core/managers/` | 88~97% | `stock/position_manager` 97 |
+| `core/backtest/factory.py` | 97% | |
+| `core/backtest/backtester.py` | 76% | |
+| `core/backtest/report/reporter.py` | 38% | 出圖與報表產出未被回歸線覆蓋（呼應 [多市場回測引擎架構](../backtest/multi-market-engine.md) §6.2「回歸雙線不經過 reporter」） |
+| `core/api/` | 32~87% | `stock_price_api` 87、`stock_dividend_api` 74、`stock_margin_api` 32、`stock_tick_api` 33 |
+| `core/utils/` | 37~100% | `constant` 100、`instrument` 81、`path` 0 |
+| `core/strategies/` | 0~89% | `base` 89、`stock/base` 84，但 `momentum_strategy_1` 26、`overnight_lead_event_strategy` 0、`strategy_loader` 0 |
+| **`core/pipeline/`** | **0~39%** | **多數 loader／updater 為 0%**：`monthly_revenue_report_*`、`stock_chip_*`、`stock_dividend_*`、`stock_margin_*`、`stock_price_*`、`financial_statement_updater` 全部 0 |
+
+**刻意不設 `fail_under` 門檻**：在覆蓋率明顯偏低時設門檻只會鼓勵寫無效測試。
+補測試的優先順序建議為 `core/pipeline/` 的 loader → `strategy_loader` → `reporter`。
+
+---
+
+## 四、打包時踩到的三個坑
+
+新人重建環境或日後調整 `pyproject.toml` 時會再遇到，記於此：
+
+### 4.1 `core.managers` 等目錄沒有 `__init__.py`
+
+它們靠 PEP 420 namespace package 運作。`[tool.setuptools.packages.find]` 必須設
+`namespaces = true`，否則 editable 安裝後 `core.managers.*` 會 import 不到——
+而且**不會在安裝時報錯，是執行期才炸**。
+
+### 4.2 CI 只能跑 `-m "not slow"`
+
+`core/database/stock.db` 未進版控（`.gitignore` 有 `*.db`），CI 也沒有 Shioaji／FinMind 金鑰。
+需要這些的測試一律標 `@pytest.mark.slow` 或 `pytestmark = pytest.mark.slow`。
+
+目前標為 slow 的有：`test_long_regression.py`、`test_finmind_api.py`（需 `stock.db`）、
+`test_tick_crawler.py`、`test_tick_updater.py`（**是手動執行的腳本，不是可被 pytest 直接跑的測試**——
+`test_*` 函式帶必填參數，pytest 會當成 fixture 而報 `fixture not found`）。
+
+驗證 CI 是否真的會綠，可用「移除資料庫與金鑰的副本」在本機模擬：
+
+```bash
+rsync -a --exclude='.venv' --exclude='.git' --exclude='core/database' --exclude='.env' ./ /tmp/cisim/
+cd /tmp/cisim && env -u API_KEY -u API_SECRET_KEY python -m pytest tests -q -m "not slow"
+```
+
+### 4.3 macOS：隱藏旗標會讓 `.pth` 完全失效
+
+若 `.venv` 內的檔案帶著 macOS 的 `UF_HIDDEN` 旗標，**CPython ≥3.11 的 `site.addpackage()`
+會靜默略過隱藏的 `.pth`**——editable 安裝因此完全不生效，且沒有任何錯誤訊息
+（連 setuptools 自己的 `distutils-precedence.pth` 也不會被執行）。
+
+症狀是 `pip install -e .` 顯示成功，但在 repo 以外的目錄 `import core` 仍然 `ModuleNotFoundError`。
+檢查與修復：
+
+```bash
+ls -lO .venv/lib/python3.12/site-packages/*.pth   # 出現 hidden 即中招
+chflags nohidden .venv/lib/python3.12/site-packages/*.pth
+```
+
+重建 venv 後需重做一次。反向操作為 `chflags hidden`。
+
+---
+
+## 相關文件
+
+- [開發環境設定](../setup/dev-setup.md)——建立 venv 與環境變數
+- [多市場回測引擎架構](../backtest/multi-market-engine.md)——§七回歸護欄說明 `scripts/run_regression.sh` 的職責
+- `CLAUDE.md` §2——coding style 的權威來源，本文件的 ruff 設定即為其可執行版本

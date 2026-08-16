@@ -301,5 +301,5 @@ core/
 - **相關程式**：`core/pipeline/`、`core/api/`、`core/backtest/`、`core/strategies/`、`core/models/`、`tasks/update_db.py`
 - **相關 backlog**：
   - [台期貨ETL與回測架構規劃.md](台期貨ETL與回測架構規劃.md)（共用「平行市場模組、共享核心、不共享市場細節」原則）
-  - [回測引擎當沖執行順序重構.md](回測引擎當沖執行順序重構.md)（`engine/event_loop` 的長期方向對齊）
+  - [多市場回測引擎架構 §5.1 事件驅動迴圈](../docs/backtest/multi-market-engine.md#51-事件驅動迴圈長期方向)（`engine/event_loop` 的長期方向對齊；原「回測引擎當沖執行順序重構」已完成並移出 `backlog/`）
   - [PostgreSQL遷移計畫.md](PostgreSQL遷移計畫.md)（美股資料量較大，建議 DB 遷移先收斂）

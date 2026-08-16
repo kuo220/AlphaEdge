@@ -38,7 +38,7 @@ jobs:
         run: pytest -m "not slow" --timeout=300
 
       # 覆蓋率只建立基線、不設門檻：覆蓋率明顯偏低時設門檻只會鼓勵寫無效測試
-      # （見 backlog/專案工程基建補齊.md §範圍界線）
+      # （見 docs/dev/code-quality.md〈測試覆蓋率基線〉）
       - name: 測試覆蓋率（僅報告，不阻擋）
         continue-on-error: true
         run: pytest -m "not slow" --cov=core --cov-report=term-missing

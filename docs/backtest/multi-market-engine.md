@@ -108,7 +108,7 @@ def execute_bar(self, date: datetime.date, quotes: List[BaseQuote]) -> None:
 
 **同標的開平倉並存不做 net 合併。** 同一根 bar 內同一標的同時出現在開倉與平倉訊號時，兩腿分別成交：證交稅只課賣出腿、當沖稅率減半也只認當沖的那一腿，合併成淨額委託會讓兩腿的費用與稅無法各自計算；且平倉腿必須實際成交才會產生 `TradeRecord`，net 掉等於整筆交易在報表上消失。兩腿的先後由 `BarExecutionOrder` 決定，這正是它存在的理由。
 
-**已知限制**：Tick 級別的 `order.date` 只到「日」（`StockQuote.date` 對 tick 也是 `datetime.date`），因此同一 bar 內的 tick 委託無法依成交時間排序，會被壓成依代號排序。要恢復真正的時間序，得讓 `check_*_signal` 回傳帶時間戳的委託事件——屬事件迴圈的範圍，見 §五已知簡化與 `backlog/回測引擎當沖執行順序重構.md` S4。
+**已知限制**：Tick 級別的 `order.date` 只到「日」（`StockQuote.date` 對 tick 也是 `datetime.date`），因此同一 bar 內的 tick 委託無法依成交時間排序，會被壓成依代號排序。要恢復真正的時間序，得讓 `check_*_signal` 回傳帶時間戳的委託事件——屬事件迴圈的範圍，見 [§5.1](#51-事件驅動迴圈長期方向)。
 
 ### 2.3 方向與市場是兩條獨立的軸
 
@@ -174,10 +174,35 @@ model 之間刻意**不互相依賴**，需要共享的狀態以 dict 參照傳�
 | 項目 | 影響 | 為何不做 |
 |------|------|----------|
 | **per-instrument 粒度的 model 掛載** | 無法在同一次回測同時持有台股與台指期（跨市場組合／避險） | 業界（Lean 掛在 `Security`、Nautilus 掛在 `Instrument`）確實是這個粒度，本次採 per-run 簡化。升級路徑乾淨：把 model 從 `Backtester` 移到 `InstrumentSpec` 物件上，引擎迴圈不動 |
-| 事件驅動 order queue（T+1 延遲成交、限價單未成交、部分成交） | 追繳仍只能以觸發當日收盤價回補 | 本質是引擎典範轉移。既有紀錄見 [放空回測框架規格](short-selling-framework.md) §7.2 與 `backlog/回測引擎當沖執行順序重構.md` S4 |
+| 事件驅動 order queue（T+1 延遲成交、限價單未成交、部分成交） | 追繳仍只能以觸發當日收盤價回補 | 本質是引擎典範轉移，見 [§5.1](#51-事件驅動迴圈長期方向) |
 | 報表輸出欄位仍為 `Stock ID` 而非 `Symbol` | 期貨報表的欄位名會是股票語意 | 改名會讓 1,889 筆 LONG baseline 失效。等期貨真的要出報表時再處理，屆時 baseline 本來就要重產 |
 | `core/utils/instrument.py` 未移出 | `core/utils/` 仍留一個領域模組 | `StockUtils` 有 4 個 `core/backtest/` 以外的使用者（pipeline、adapters、`strategy_lab`）。移進 `core/backtest/` 會讓資料管線反過來相依於回測引擎，是更嚴重的層級問題。其 11 個函式的歸屬需先拆解——「LONG成本模型口徑收斂」（2026-08-15 完成並移出 `backlog/`）未處理此項，**本表即其目前唯一的追蹤位置** |
 | `--mode live` 實盤路徑 | 實盤仍是空實作 | `run.py` 的 live 分支目前是 `pass`；factory 已預留讓實盤共用同一組 model |
+
+### 5.1 事件驅動迴圈（長期方向）
+
+> 「回測引擎當沖執行順序重構」（S1~S3 於 2026-08-15 完成）的最後一步 S4 長期暫緩，
+> 其內容收錄於此，該規劃文件已移出 `backlog/`。
+
+現行引擎在單根 bar 內是「訊號產生 → 立即撮合」，`check_*_signal()` 回傳的委託沒有時間戳，
+帳戶狀態在同一個呼叫堆疊內就更新完畢。事件驅動的版本會把它拆成事件流：
+`check_*_signal()` 改為回傳**帶時間／階段的委託事件**，由 engine 依時間戳排序後依序撮合，
+`PositionManager` 只負責「收到已成交事件後的狀態更新」。
+
+**為什麼暫緩**：範圍等同重寫回測引擎，且目前沒有任何策略需要它。
+**解除條件**：美股／台期貨的多市場需求成形、[美股ETL與回測架構規劃](../../backlog/美股ETL與回測架構規劃.md)
+的 `backtest/engine/event_loop.py` 目錄定案之後再啟動。
+
+**已經因此受限的具體項目**（動工時這幾條會一起解掉）：
+
+| 受限項目 | 現況 |
+|----------|------|
+| Tick 級別的委託排序 | `order.date` 只到「日」（`StockQuote.date` 對 tick 也是 `datetime.date`），故 `Backtester.sort_orders()` 對同一 bar 的 tick 委託只能退回依代號排序，無法還原成交時間序（見 [§2.2.1](#221-單根-bar-的委託順序)） |
+| T+1 延遲成交 | 維持率追繳只能以觸發當日收盤價立即回補，少了一天的補繳緩衝（見 [放空回測框架規格](short-selling-framework.md) §7.2） |
+| 限價單未成交／部分成交 | 無 pending order 機制，每天從頭跑、訊號當下就撮合完畢 |
+
+**升級路徑**：`sort_orders()` 的排序鍵目前是 `(date, symbol)`；一旦委託帶上真正的時間戳，
+該鍵可直接擴充為時間序，引擎的分派結構不需重寫。
 
 ---
 
