@@ -2,12 +2,12 @@ import datetime
 import random
 import sqlite3
 import time
-from typing import List, Optional
+from typing import List, Optional, Set
 
 import pandas as pd
 from loguru import logger
 
-from core.config import DB_PATH, MARGIN_TABLE_NAME
+from core.config import DB_PATH, MARGIN_TABLE_NAME, PRICE_TABLE_NAME
 from core.pipeline.cleaners.stock_margin_cleaner import StockMarginCleaner
 from core.pipeline.crawlers.stock_margin_crawler import StockMarginCrawler
 from core.pipeline.loaders.stock_margin_loader import StockMarginLoader
@@ -27,7 +27,7 @@ from core.utils.log_manager import LogManager
 """
 
 
-# 週六的 weekday() 值；用於濾掉必不開市的日子
+# 週六的 weekday() 值；用於判斷是否為週末
 SATURDAY: int = 5
 
 
@@ -59,6 +59,81 @@ class StockMarginUpdater(BaseDataUpdater):
             self.conn: sqlite3.Connection = sqlite3.connect(DB_PATH)
         LogManager.setup_logger("update_margin.log")
 
+    def get_traded_weekend_dates(
+        self, start_date: datetime.date, end_date: datetime.date
+    ) -> Set[datetime.date]:
+        """
+        - Description:
+            取得區間內「週末但實際有開市」的日期，資料來源為 price 表
+
+            台股有**補行交易日**（補班補上課的週六照常開市），2013 起就有 11 天。
+            這些日子必須照爬，否則 margin 會缺整天的資料。
+        - Parameters:
+            - start_date: datetime.date
+                查詢起日
+            - end_date: datetime.date
+                查詢迄日
+        - Return:
+            - Set[datetime.date]
+                週末且 price 表有資料的日期
+        """
+
+        rows = self.conn.execute(
+            f"SELECT DISTINCT date FROM {PRICE_TABLE_NAME} WHERE date BETWEEN ? AND ?",
+            (start_date.isoformat(), end_date.isoformat()),
+        ).fetchall()
+
+        traded: Set[datetime.date] = set()
+        for (raw,) in rows:
+            date: datetime.date = datetime.date.fromisoformat(str(raw)[:10])
+            if date.weekday() >= SATURDAY:
+                traded.add(date)
+        return traded
+
+    def get_candidate_dates(
+        self, start_date: datetime.date, end_date: datetime.date
+    ) -> List[datetime.date]:
+        """
+        - Description:
+            決定要送出請求的日期清單
+
+            **平日一律照爬**：國定假日無法純靠日曆判斷，維持「送出請求後由回應判定」。
+
+            **週末原則上跳過**：台股週六日多半不開市，送出請求只會換回
+            「is a Holiday」，卻一樣要付兩次 HTTP ＋ 節流時間；2013 起的回補約
+            4,975 個日曆天中有 1,420 天是週末，跳過可省下約三成執行時間。
+
+            **但補行交易日例外**：以 price 表實際有資料的週末為準，不用「非週末」
+            近似。原本的寫法漏掉了 2013 年以來的 11 個補行交易日（皆為週六），
+            那幾天的 margin 資料整天缺失。
+
+            price 表落後於 margin 時，該區間的補行交易日會被漏掉——實務上
+            price 一律先於 margin 更新，故此風險極低；真的缺漏時重跑即可補上。
+        - Parameters:
+            - start_date: datetime.date
+                更新起日
+            - end_date: datetime.date
+                更新迄日
+        - Return:
+            - List[datetime.date]
+                要送出請求的日期
+        """
+
+        traded_weekends: Set[datetime.date] = self.get_traded_weekend_dates(
+            start_date, end_date
+        )
+        if traded_weekends:
+            logger.info(
+                f"區間內有 {len(traded_weekends)} 個補行交易日（週末開市），一併納入更新："
+                f"{sorted(traded_weekends)}"
+            )
+
+        return [
+            date
+            for date in TimeUtils.generate_date_range(start_date, end_date)
+            if date.weekday() < SATURDAY or date in traded_weekends
+        ]
+
     def update(
         self,
         start_date: datetime.date,
@@ -75,16 +150,7 @@ class StockMarginUpdater(BaseDataUpdater):
         )
         logger.info(f"Latest data date in database: {start_date}")
         # Set Up Update Period
-        #
-        # **先濾掉週末**：台股週六日必不開市，送出請求只會換回「is a Holiday」，
-        # 但一樣要付兩次 HTTP ＋ 節流時間。2013 起的回補約 4,975 個日曆天中有
-        # 1,420 天是週末，濾掉可省下約三成的執行時間。
-        # 國定假日無法純靠日曆判斷，仍維持「送出請求後由回應判定」。
-        dates: List[datetime.date] = [
-            date
-            for date in TimeUtils.generate_date_range(start_date, end_date)
-            if date.weekday() < SATURDAY
-        ]
+        dates: List[datetime.date] = self.get_candidate_dates(start_date, end_date)
         file_cnt: int = 0
 
         for date in dates:

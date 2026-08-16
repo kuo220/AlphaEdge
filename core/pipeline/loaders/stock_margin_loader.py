@@ -107,6 +107,8 @@ class StockMarginLoader(BaseDataLoader):
         file_cnt: int = 0
 
         failed_files: List[str] = []
+        partial_files: List[str] = []
+        skipped_cnt: int = 0
         for file_path in self.margin_dir.iterdir():
             # Skip non-CSV files
             if file_path.suffix != ".csv":
@@ -115,7 +117,15 @@ class StockMarginLoader(BaseDataLoader):
                 df: pd.DataFrame = pd.read_csv(file_path, dtype={"stock_id": str})
                 # 空字串的註記在 read_csv 後會變成 NaN，統一還原為空字串
                 df["註記"] = df["註記"].fillna("")
-                df.to_sql(MARGIN_TABLE_NAME, self.conn, if_exists="append", index=False)
+                inserted, skipped = self.insert_dataframe(
+                    self.conn, MARGIN_TABLE_NAME, df
+                )
+                if inserted == 0 and skipped > 0:
+                    # 整檔已在資料庫中：loader 每次都掃全目錄，重跑必然走到這裡
+                    skipped_cnt += 1
+                    continue
+                if skipped > 0:
+                    partial_files.append(str(file_path))
                 logger.info(f"Save {file_path} into database")
                 file_cnt += 1
             except Exception as e:
@@ -131,4 +141,6 @@ class StockMarginLoader(BaseDataLoader):
             failed_files=failed_files,
             remove_files=remove_files,
             downloads_path=MARGIN_DOWNLOADS_PATH,
+            skipped_files=skipped_cnt,
+            partial_files=partial_files,
         )

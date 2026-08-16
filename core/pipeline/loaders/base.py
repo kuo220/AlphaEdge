@@ -1,8 +1,10 @@
 import shutil
+import sqlite3
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
+import pandas as pd
 from loguru import logger
 
 from core.pipeline.utils.exceptions import DataLoadError
@@ -47,12 +49,55 @@ class BaseDataLoader(ABC):
         pass
 
     @staticmethod
+    def insert_dataframe(
+        conn: "sqlite3.Connection", table_name: str, df: "pd.DataFrame"
+    ) -> Tuple[int, int]:
+        """
+        - Description:
+            以 `INSERT OR IGNORE` 寫入，回傳實際寫入與被跳過的列數
+
+            **為什麼不用 `df.to_sql(if_exists="append")`**：loader 每次都掃整個
+            downloads 目錄，已入庫的檔案會再送一次；`append` 會因主鍵衝突整批拋錯，
+            使「重跑」與「真的出錯」無法區分。`INSERT OR IGNORE` 讓重複列靜靜跳過，
+            真正的錯誤（欄位不符、檔案損毀）才會拋出。
+
+            回傳「跳過幾列」而不是丟掉這個資訊，是為了讓呼叫端能分辨三種情況：
+            全部跳過（重跑，正常）、部分跳過（同鍵不同值，值得警告）、全部寫入（新資料）。
+        - Parameters:
+            - conn: sqlite3.Connection
+                目標資料庫連線
+            - table_name: str
+                目標資料表
+            - df: pd.DataFrame
+                欄位需與資料表一致
+        - Return:
+            - Tuple[int, int]
+                （實際寫入列數, 因主鍵重複被跳過的列數）
+        """
+
+        if df.empty:
+            return 0, 0
+
+        columns: List[str] = list(df.columns)
+        quoted: str = ",".join(f'"{col}"' for col in columns)
+        placeholders: str = ",".join("?" * len(columns))
+
+        cursor = conn.executemany(
+            f"INSERT OR IGNORE INTO {table_name} ({quoted}) VALUES ({placeholders})",
+            df.itertuples(index=False, name=None),
+        )
+        inserted: int = cursor.rowcount
+        return inserted, len(df) - inserted
+
+    @staticmethod
     def finish_load(
         source: str,
         succeeded: int,
         failed_files: List[str],
         remove_files: bool = False,
         downloads_path: Optional[Path] = None,
+        skipped_files: int = 0,
+        partial_files: Optional[List[str]] = None,
     ) -> None:
         """
         - Description:
@@ -67,6 +112,11 @@ class BaseDataLoader(ABC):
 
             `remove_files` 的刪除動作也收在這裡：**有失敗時一律不刪來源**，
             否則會把還沒成功入庫的資料一起刪掉，連重試的機會都沒有。
+
+            三種結果要分清楚，否則「重跑」會被誤判為「出錯」：
+            - **已存在而整檔跳過**：重跑的正常結果，只記一行摘要。
+            - **同一檔部分跳過**：同鍵不同值，資料本身可能有問題，發出警告。
+            - **拋出例外**：欄位不符、檔案損毀等真正的失敗，才會讓行程非零結束。
         - Parameters:
             - source: str
                 資料來源名稱，用於訊息辨識（例如 "margin"）
@@ -78,10 +128,20 @@ class BaseDataLoader(ABC):
                 是否在成功後刪除來源檔案目錄
             - downloads_path: Optional[Path]
                 來源檔案目錄；`remove_files` 為 True 時必填
+            - skipped_files: int
+                因資料已存在而整檔跳過的檔案數（重跑的正常結果）
+            - partial_files: Optional[List[str]]
+                只有部分列被寫入的檔案；代表同鍵不同值，值得檢查
         - Raise:
             - DataLoadError
                 `failed_files` 非空時拋出
         """
+
+        if partial_files:
+            logger.warning(
+                f"[{source}] {len(partial_files)} 個檔案只有部分列寫入（同鍵不同值），"
+                f"請確認資料是否有衝突：{partial_files[:10]}"
+            )
 
         if failed_files:
             logger.error(
@@ -96,4 +156,7 @@ class BaseDataLoader(ABC):
         if remove_files and downloads_path is not None:
             shutil.rmtree(downloads_path)
 
-        logger.info(f"[{source}] 入庫完成：成功 {succeeded} 檔、失敗 0 檔")
+        logger.info(
+            f"[{source}] 入庫完成：新寫入 {succeeded} 檔、"
+            f"已存在跳過 {skipped_files} 檔、失敗 0 檔"
+        )

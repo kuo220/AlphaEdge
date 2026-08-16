@@ -1,4 +1,4 @@
-import shutil
+import sqlite3
 from pathlib import Path
 from typing import List
 
@@ -106,47 +106,106 @@ def test_finish_load_removes_source_files_on_success(tmp_path: Path) -> None:
     assert not downloads.exists()
 
 
-# === 端到端：撞主鍵的 CSV 必須讓行程知道 ===
-def test_margin_loader_raises_on_primary_key_collision(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """
-    重現 2026-08-16 的實際情境：兩個 CSV 有相同的 (date, stock_id)
+# === 端到端：重跑與衝突的分辨 ===
+def make_margin_rows(date: str, pairs: List[tuple]) -> pd.DataFrame:
+    """建立多列 margin 資料；pairs 為 (stock_id, 證券名稱)"""
 
-    第一個正常入庫、第二個撞主鍵。舊行為是只記 warning 然後回報成功；
-    現在必須拋出 DataLoadError，且成功的那一檔仍要進資料庫。
-    """
+    return pd.DataFrame(
+        [[date, sid, name] + [0] * 12 + [0, 0.0, ""] for sid, name in pairs],
+        columns=MARGIN_COLUMNS,
+    )
+
+
+def make_loader(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """建立指向暫存 DB 與暫存 downloads 目錄的 margin loader"""
 
     import core.pipeline.loaders.stock_margin_loader as loader_module
 
-    db_path: Path = tmp_path / "test.db"
     downloads: Path = tmp_path / "margin"
-    downloads.mkdir()
-
-    monkeypatch.setattr(loader_module, "DB_PATH", str(db_path))
+    downloads.mkdir(exist_ok=True)
+    monkeypatch.setattr(loader_module, "DB_PATH", str(tmp_path / "test.db"))
     monkeypatch.setattr(loader_module, "MARGIN_DOWNLOADS_PATH", downloads)
-
-    make_margin_row().to_csv(downloads / "twse_20240102.csv", index=False)
-    make_margin_row().to_csv(downloads / "tpex_20240102.csv", index=False)  # 撞鍵
 
     loader = loader_module.StockMarginLoader()
     loader.margin_dir = downloads
+    return loader, downloads
+
+
+def test_reloading_same_files_is_not_a_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    loader 每次都掃整個 downloads 目錄，重跑必然重送已入庫的檔案
+
+    這**不是**失敗——若當成失敗，日常更新每天都會以非零狀態結束。
+    """
+
+    loader, downloads = make_loader(tmp_path, monkeypatch)
+    make_margin_rows("2024-01-02", [("2330", "台積電")]).to_csv(
+        downloads / "twse_20240102.csv", index=False
+    )
+    loader.add_to_db()
+
+    # 隔日：新增一個新檔，舊檔仍在目錄裡
+    make_margin_rows("2024-01-03", [("2330", "台積電")]).to_csv(
+        downloads / "twse_20240103.csv", index=False
+    )
+    loader2, _ = make_loader(tmp_path, monkeypatch)
+    loader2.add_to_db()  # 不得拋出
+
+    conn = sqlite3.connect(tmp_path / "test.db")
+    assert conn.execute("select count(*) from margin").fetchone()[0] == 2
+    conn.close()
+
+
+def test_partial_collision_loads_the_rest(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    重現 2026-08-16 事故的形狀：整檔中只有一列撞鍵
+
+    當時整個 625 列的檔案被判定失敗、資料全數遺失。現在撞鍵的那列跳過、
+    其餘照常入庫，並以 partial 警告把衝突浮上來。
+    """
+
+    loader, downloads = make_loader(tmp_path, monkeypatch)
+    make_margin_rows(
+        "2017-09-07", [("2330", "台積電"), ("4739", "康普"), ("2317", "鴻海")]
+    ).to_csv(downloads / "twse_20170907.csv", index=False)
+    loader.add_to_db()
+
+    # tpex 檔的 4739 與 twse 撞鍵（轉市過渡期兩邊都收錄）
+    make_margin_rows(
+        "2017-09-07", [("6201", "元大富櫃50"), ("4739", "康普"), ("5483", "中美晶")]
+    ).to_csv(downloads / "tpex_20170907.csv", index=False)
+
+    loader2, _ = make_loader(tmp_path, monkeypatch)
+    loader2.add_to_db()  # 不得拋出
+
+    conn = sqlite3.connect(tmp_path / "test.db")
+    # 3 ＋ 2（6201、5483）＝ 5；撞鍵的 4739 只留一筆
+    assert conn.execute("select count(*) from margin").fetchone()[0] == 5
+    assert (
+        conn.execute("select count(*) from margin where stock_id='4739'").fetchone()[0]
+        == 1
+    )
+    conn.close()
+
+
+def test_broken_file_still_fails_loudly(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """真正的錯誤（欄位不符）仍必須拋出，不可被「跳過」的寬鬆語意吃掉"""
+
+    loader, downloads = make_loader(tmp_path, monkeypatch)
+    pd.DataFrame([{"unexpected_column": 1}]).to_csv(
+        downloads / "twse_20240104.csv", index=False
+    )
 
     with pytest.raises(DataLoadError) as exc_info:
         loader.add_to_db()
 
-    error: DataLoadError = exc_info.value
-    assert error.succeeded == 1, "先成功的那一檔仍應入庫"
-    assert len(error.failed_files) == 1
-
-    # 成功的那一列確實落地，失敗不影響已完成的部分
-    import sqlite3
-
-    conn = sqlite3.connect(db_path)
-    assert conn.execute("select count(*) from margin").fetchone()[0] == 1
-    conn.close()
-
-    shutil.rmtree(downloads, ignore_errors=True)
+    assert len(exc_info.value.failed_files) == 1
 
 
 # === CLI 層：失敗必須反映在結束碼上 ===

@@ -181,13 +181,21 @@ class FinancialStatementLoader(BaseDataLoader):
         file_cnt: int = 0
 
         failed_files: List[str] = []
+        partial_files: List[str] = []
+        skipped_cnt: int = 0
         for file_path in dir_path.iterdir():
             # Skip non-CSV files
             if file_path.suffix != ".csv":
                 continue
             try:
                 df: pd.DataFrame = pd.read_csv(file_path)
-                df.to_sql(table_name, self.conn, if_exists="append", index=False)
+                inserted, skipped = self.insert_dataframe(self.conn, table_name, df)
+                if inserted == 0 and skipped > 0:
+                    # 整檔已在資料庫中：loader 每次都掃全目錄，重跑必然走到這裡
+                    skipped_cnt += 1
+                    continue
+                if skipped > 0:
+                    partial_files.append(str(file_path))
                 logger.info(f"Save {file_path} into database")
                 file_cnt += 1
             except Exception as e:
@@ -203,4 +211,6 @@ class FinancialStatementLoader(BaseDataLoader):
             failed_files=failed_files,
             remove_files=remove_files,
             downloads_path=dir_path,
+            skipped_files=skipped_cnt,
+            partial_files=partial_files,
         )
