@@ -36,12 +36,19 @@ CSV，程序中斷後資料庫仍是 0 列。
 | `StockMarginUpdater` | **每 100 天** | 同上 | `INSERT OR IGNORE` | `DataLoadError` |
 | `StockDividendUpdater` | 全部跑完 | 同上 | `INSERT OR REPLACE` | `DataLoadError` |
 | `MonthlyRevenueReportUpdater` | 全部跑完 | DB 最大年月 +1 | 先查既有鍵再過濾 | `DataLoadError` |
-| `FinancialStatementUpdater` | 每種報表一次 | 各表最大年季 +1 | `INSERT OR IGNORE` | `DataLoadError` |
+| `FinancialStatementUpdater`（前三張報表） | 每種報表一次 | 各表最大年季 +1 | `INSERT OR IGNORE` | `DataLoadError` |
+| `FinancialStatementUpdater`（equity_change） | **每 100 檔** | 逐年季查已入庫的 `stock_id` | `INSERT OR IGNORE` | `DataLoadError` |
 | `FinMindUpdater`（broker_trading） | 逐組合、每 50 組 commit | metadata ＋ DB | 先查既有鍵再過濾 | — |
 | `StockTickUpdater` | 全部跑完 | 固定起日 ＋ `tick_metadata.json` | **無**（`keepDuplicates=ALL`） | — |
 
 **未分批的四個並非疏漏**：dividend／mrr／fs 的量級是十餘年 × 數十個年月或年季，
 單次執行以分鐘計，中斷重跑的成本可接受。tick 走 DolphinDB，語意與 SQLite 組不同。
+
+**`equity_change` 是 fs 裡的例外**：MOPS 的權益變動表端點（`ajax_t164sb06`）是
+**逐檔查詢**，一個年季就要打兩千多次請求，整段回補以十萬次計——量級跟 price／chip／margin
+同一等級，所以入庫時機與 resume 依據都得比照它們，而不是比照同一支 updater 裡的另外三張報表。
+Resume 尤其不能沿用「表最大年季 +1」：一個年季爬到一半中斷時，該年季已經有資料，
+會被判定為已完成而整季跳過，沒爬到的公司永遠補不回來。
 
 **`StockTickUpdater` 是目前唯一沒有重載防護的**：DolphinDB 建表時
 `keepDuplicates=ALL` 是 tick 語意的刻意選擇（同一時間戳可以有多筆成交），

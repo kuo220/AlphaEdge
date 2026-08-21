@@ -30,6 +30,17 @@ class FinancialStatementCrawler(BaseDataCrawler):
     CRAWL_DELAY_MIN: float = 1.0
     CRAWL_DELAY_MAX: float = 3.0
 
+    # 權益變動表專用（其餘三張報表不適用，故不放共用常數）
+    # MOPS 的 ajax_t164sb06 要 step=2 才會直接回報表：step=1 對金控這類多實體公司
+    # 只回子公司選單頁（實測 2891 中信金），step=2 則各類公司一律直接得到報表
+    EQUITY_CHANGE_STEP: str = "2"
+    # 站方過載時會回 HTTP 200，內容卻只有 "Unreachable Server"。這與「查無資料」
+    # 必須分開處理，否則逐檔回補會把暫時性失敗記成「這檔沒有權益變動表」而永久略過
+    EQUITY_CHANGE_UNREACHABLE_MARKER: str = "Unreachable Server"
+    EQUITY_CHANGE_NO_DATA_MARKER: str = "查無資料"
+    EQUITY_CHANGE_MAX_RETRIES: int = 3
+    EQUITY_CHANGE_RETRY_DELAY_SECONDS: int = 30
+
     def __init__(self):
         super().__init__()
 
@@ -88,9 +99,11 @@ class FinancialStatementCrawler(BaseDataCrawler):
             self.crawl_comprehensive_income(year, season)
         )
         df_dict["cash_flow"].extend(self.crawl_cash_flow(year, season))
-        df_dict["equity_changes"].extend(
-            self.crawl_equity_changes(year, season, stock_id)
+        # 權益變動表查無資料或站方過載時會回 None，不能直接 extend
+        equity_changes: Optional[List[pd.DataFrame]] = self.crawl_equity_changes(
+            year, season, stock_id
         )
+        df_dict["equity_changes"].extend(equity_changes or [])
 
         return df_dict
 
@@ -233,12 +246,22 @@ class FinancialStatementCrawler(BaseDataCrawler):
         資料區間
         上市: 民國 102 (2013) 年 ~ present
         上櫃: 民國 102 (2013) 年 ~ present
+
+        與其他三張報表不同，本端點是「逐檔查詢」（一次一檔股票），
+        故回傳值要能分辨三種結果，讓逐檔回補的呼叫端決定要不要重試：
+        - None: 暫時性失敗（站方過載或連線失敗），本檔尚未確認有無資料，應留待重跑
+        - []:   查無資料（例如 ETF、當季未申報），重跑也不會有結果
+        - 非空 list: 正常取得，內容為該頁的所有表格
         """
 
-        logger.info(f"* Start crawling equity changes: {year}/Q{season}")
+        logger.debug(f"* Start crawling equity changes: {stock_id} {year}/Q{season}")
 
         roc_year: str = TimeUtils.convert_ad_to_roc_year(year)
 
+        # step 與 co_id 只在本方法生效，離開前一律還原：payload 由四張報表共用，
+        # 其餘三張是「全市場一次查完」，被殘留的 co_id 縮成單一公司會靜默少資料
+        original_step: Optional[str] = self.payload.step
+        self.payload.step = self.EQUITY_CHANGE_STEP
         self.payload.TYPEK = None
         self.payload.co_id = stock_id
         self.payload.year = roc_year
@@ -247,20 +270,60 @@ class FinancialStatementCrawler(BaseDataCrawler):
         equity_changes_url: str = URLManager.get_url("EQUITY_CHANGE_STATEMENT_URL")
 
         try:
-            res: Optional[requests.Response] = RequestUtils.requests_post(
-                equity_changes_url, data=self.payload.convert_to_clean_dict()
+            return self._request_equity_changes(
+                url=equity_changes_url,
+                payload=self.payload.convert_to_clean_dict(),
+                year=year,
+                season=season,
+                stock_id=stock_id,
             )
-        except Exception:
-            logger.warning(f"Cannot get equity changes statement at {year}Q{season}")
-            return None
+        finally:
+            self.payload.step = original_step
+            self.payload.co_id = None
 
-        try:
-            df_list: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
-        except Exception:
-            logger.warning("No tables found")
-            return None
+    def _request_equity_changes(
+        self,
+        url: str,
+        payload: Dict[str, str],
+        year: int,
+        season: int,
+        stock_id: str,
+    ) -> Optional[List[pd.DataFrame]]:
+        """送出權益變動表請求，暫時性失敗就地重試；回傳語意見 crawl_equity_changes"""
 
-        return df_list
+        for attempt in range(self.EQUITY_CHANGE_MAX_RETRIES):
+            res: Optional[requests.Response] = None
+            try:
+                res = RequestUtils.requests_post(url, data=payload)
+            except Exception as error:
+                logger.warning(
+                    f"Request failed on equity changes {stock_id} {year}Q{season}: {error}"
+                )
+
+            if res is not None:
+                if self.EQUITY_CHANGE_NO_DATA_MARKER in res.text:
+                    logger.debug(f"No equity changes data: {stock_id} {year}Q{season}")
+                    return []
+
+                if self.EQUITY_CHANGE_UNREACHABLE_MARKER not in res.text:
+                    try:
+                        return pd.read_html(StringIO(res.text))
+                    except ValueError:
+                        # 既非「查無資料」也非過載，卻解不出表格：版面可能已改制
+                        logger.warning(
+                            f"No tables found on equity changes {stock_id} {year}Q{season}"
+                        )
+                        return []
+
+            # 走到這裡代表站方過載或連線失敗，等一下再試同一檔
+            if attempt < self.EQUITY_CHANGE_MAX_RETRIES - 1:
+                time.sleep(self.EQUITY_CHANGE_RETRY_DELAY_SECONDS)
+
+        logger.warning(
+            f"Equity changes unreachable after {self.EQUITY_CHANGE_MAX_RETRIES} "
+            f"retries: {stock_id} {year}Q{season}"
+        )
+        return None
 
     def get_all_report_columns(
         self,

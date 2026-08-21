@@ -19,6 +19,32 @@ from core.pipeline.utils.sqlite_utils import SQLiteUtils
 class FinancialStatementLoader(BaseDataLoader):
     """Financial Statement Loader"""
 
+    # 各報表的主鍵。其他三張是「一家公司一列」，權益變動表攤平成長表後
+    # 一家公司一季有數十列，必須把攤平出來的兩個維度一起納入主鍵才唯一；
+    # 且來源端點（逐檔查詢）不回傳公司名稱，故該表不含 `公司名稱`
+    PRIMARY_KEYS: dict[str, List[str]] = {
+        FinancialStatementType.BALANCE_SHEET: [
+            "year",
+            "season",
+            "stock_id",
+            "公司名稱",
+        ],
+        FinancialStatementType.COMPREHENSIVE_INCOME: [
+            "year",
+            "season",
+            "stock_id",
+            "公司名稱",
+        ],
+        FinancialStatementType.CASH_FLOW: ["year", "season", "stock_id", "公司名稱"],
+        FinancialStatementType.EQUITY_CHANGE: [
+            "year",
+            "season",
+            "stock_id",
+            "權益項目",
+            "變動原因",
+        ],
+    }
+
     def __init__(self):
         super().__init__()
 
@@ -26,7 +52,13 @@ class FinancialStatementLoader(BaseDataLoader):
         self.conn: Optional[sqlite3.Connection] = None
 
         # Specify column data types
-        self.text_not_null_cols: List[str] = ["date", "stock_id", "公司名稱"]
+        self.text_not_null_cols: List[str] = [
+            "date",
+            "stock_id",
+            "公司名稱",
+            "權益項目",
+            "變動原因",
+        ]
         self.int_not_null_cols: List[str] = ["year", "season"]
 
         # Reports Cleaned Columns Path
@@ -107,6 +139,7 @@ class FinancialStatementLoader(BaseDataLoader):
         self,
         table_name: str,
         cleaned_cols_path: Path,
+        primary_keys: Optional[List[str]] = None,
     ) -> None:
         """Create New Database"""
 
@@ -128,7 +161,9 @@ class FinancialStatementLoader(BaseDataLoader):
                 col_defs.append(f"{col_name} REAL")
 
         # Step 3: 加 PRIMARY KEY
-        col_defs.append('PRIMARY KEY ("year", "season", "stock_id", "公司名稱")')
+        pk_cols: List[str] = primary_keys or ["year", "season", "stock_id", "公司名稱"]
+        pk_sql: str = ", ".join(f'"{col}"' for col in pk_cols)
+        col_defs.append(f"PRIMARY KEY ({pk_sql})")
 
         # Step 4: 組建 SQL
         col_defs_sql: str = ",\n            ".join(col_defs)
@@ -150,18 +185,25 @@ class FinancialStatementLoader(BaseDataLoader):
         self.conn.commit()
 
     def create_missing_tables(self) -> None:
-        """確保所有財報類型的資料表存在（除了尚未實作的）"""
+        """確保所有財報類型的資料表存在"""
 
         for fs_type in FinancialStatementType:
-            if fs_type == FinancialStatementType.EQUITY_CHANGE:
-                continue  # TODO: 實作後移除
-
             table_name: str = fs_type.lower()
             cleaned_cols_path: Path = self.cleaned_cols_paths[fs_type]
 
+            if not cleaned_cols_path.exists():
+                # 欄位定義由 cleaner 產出，缺檔就建不出表；靜默跳過會讓入庫階段
+                # 才炸在「no such table」，離真正的原因太遠
+                logger.warning(
+                    f"Cleaned columns not found for {table_name}: {cleaned_cols_path}"
+                )
+                continue
+
             if not SQLiteUtils.check_table_exist(conn=self.conn, table_name=table_name):
                 self.create_db(
-                    table_name=table_name, cleaned_cols_path=cleaned_cols_path
+                    table_name=table_name,
+                    cleaned_cols_path=cleaned_cols_path,
+                    primary_keys=self.PRIMARY_KEYS[fs_type],
                 )
 
     def add_to_db(
@@ -169,8 +211,24 @@ class FinancialStatementLoader(BaseDataLoader):
         dir_path: Path,
         table_name: str,
         remove_files: bool = False,
+        only_files: Optional[List[Path]] = None,
     ) -> None:
-        """Add Data into Database"""
+        """
+        - Description:
+            Add Data into Database
+
+            `only_files` 給分批入庫用：權益變動表是逐檔查詢，整段回補會落地上千個
+            CSV，若每一批都掃整個目錄，重複讀取的成本會隨批次數線性長大。
+        - Parameters:
+            - dir_path: Path
+                CSV 所在目錄
+            - table_name: str
+                目標資料表
+            - remove_files: bool
+                成功後是否刪除來源目錄
+            - only_files: Optional[List[Path]]
+                只入庫這些檔案；None 表示掃整個目錄
+        """
 
         if self.conn is None:
             self.connect()
@@ -183,7 +241,10 @@ class FinancialStatementLoader(BaseDataLoader):
         failed_files: List[str] = []
         partial_files: List[str] = []
         skipped_cnt: int = 0
-        for file_path in dir_path.iterdir():
+        target_files: List[Path] = (
+            list(dir_path.iterdir()) if only_files is None else only_files
+        )
+        for file_path in target_files:
             # Skip non-CSV files
             if file_path.suffix != ".csv":
                 continue

@@ -2,7 +2,7 @@ import random
 import sqlite3
 import time
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Set, Tuple
 
 import pandas as pd
 from loguru import logger
@@ -14,6 +14,7 @@ from core.config import (
     DB_PATH,
     EQUITY_CHANGE_TABLE_NAME,
     FINANCIAL_STATEMENT_DOWNLOADS_PATH,
+    STOCK_INFO_TABLE_NAME,
 )
 from core.pipeline.cleaners.financial_statement_cleaner import (
     FinancialStatementCleaner,
@@ -94,6 +95,11 @@ class FinancialStatementUpdater(BaseDataUpdater):
     BATCH_RANDOM_DELAY_MAX: int = 5
     LAST_SEASON: int = 4  # 第4季，用於季別進位判斷
 
+    # 權益變動表專用（逐檔查詢，量級與其他三張報表差了三個數量級）
+    EQUITY_CHANGE_LOAD_BATCH_SIZE: int = 100  # 每 100 檔入庫一次
+    # 連續這麼多檔都查無資料，就當作該年季尚未申報
+    EQUITY_CHANGE_EMPTY_SEASON_THRESHOLD: int = 30
+
     def __init__(self):
         super().__init__()
 
@@ -151,7 +157,9 @@ class FinancialStatementUpdater(BaseDataUpdater):
         self.update_cash_flow(start_year, end_year, start_season, end_season)
 
         # Update Equity Changes
-        # TODO: Update Equity Changes
+        # 逐檔查詢，量級與前三張報表差三個數量級（一個年季約兩千次請求），
+        # 故放在最後：即使這裡耗時或中斷，前三張報表已經入庫完成
+        self.update_equity_changes(start_year, end_year, start_season, end_season)
 
     def update_balance_sheet(
         self,
@@ -399,63 +407,68 @@ class FinancialStatementUpdater(BaseDataUpdater):
         end_year: int,
         start_season: int,
         end_season: int,
-        stock_id: str,
+        stock_ids: Optional[List[str]] = None,
     ) -> None:
-        """Update Equity Changes"""
-        # TODO: 因為 Equity Changes 的 cleaner & loader 還未完成，所以這部分還無法使用
+        """
+        - Description:
+            Update Equity Changes
+
+            與其他三張報表不同，MOPS 的權益變動表端點是**逐檔查詢**，一個年季要打
+            兩千多次請求。因此本方法不用 `get_actual_update_start_year_season()`
+            決定起點——那是以「表內最新年季 +1」為準，一個年季爬到一半中斷時，
+            該年季會被當成已完成而整季跳過，缺的公司永遠補不回來。
+            改為逐年季查出「已入庫的 stock_id」，只補差集。
+        - Parameters:
+            - start_year / end_year / start_season / end_season: int
+                更新區間
+            - stock_ids: Optional[List[str]]
+                要爬的股票清單；None 時取 `taiwan_stock_info` 的上市櫃股票
+        """
 
         logger.info("* Start Updating Equity Changes Data...")
 
-        # Step 1: Crawl
-        start_year, start_season = self.get_actual_update_start_year_season(
-            table_name=EQUITY_CHANGE_TABLE_NAME,
-            default_year=start_year,
-            default_season=start_season,
+        target_stock_ids: List[str] = (
+            stock_ids if stock_ids is not None else self.get_target_stock_ids()
         )
-        logger.info(f"Latest data date in database: {start_year}Q{start_season}")
-        # Set Up Update Period
+
+        if not target_stock_ids:
+            logger.warning("No target stocks for equity changes, skipped")
+            return
+
         years: List[int] = TimeUtils.generate_season_range(start_year, end_year)
         seasons: List[int] = TimeUtils.generate_season_range(start_season, end_season)
-        file_cnt: int = 0
+
+        unreachable_cnt: int = 0
 
         for year in years:
             for season in seasons:
-                logger.info(f"* {year}Q{season}")
-                df_list: Optional[List[pd.DataFrame]] = (
-                    self.crawler.crawl_equity_changes(year, season, stock_id)
-                )
+                # Step 1: 逐檔 resume——只補這個年季還沒入庫的公司
+                crawled_stock_ids: Set[str] = self.get_crawled_stock_ids(year, season)
+                pending_stock_ids: List[str] = [
+                    stock_id
+                    for stock_id in target_stock_ids
+                    if stock_id not in crawled_stock_ids
+                ]
 
-                # Step 2: Clean
-                if df_list is None or not df_list:
+                if not pending_stock_ids:
+                    logger.info(f"* {year}Q{season} already complete, skipped")
                     continue
 
-                cleaned_df: pd.DataFrame = self.cleaner.clean_equity_changes(
-                    df_list, year, season
+                logger.info(
+                    f"* {year}Q{season}: {len(pending_stock_ids)} stocks pending "
+                    f"({len(crawled_stock_ids)} already in database)"
+                )
+                unreachable_cnt += self.update_equity_changes_season(
+                    year=year, season=season, stock_ids=pending_stock_ids
                 )
 
-                if cleaned_df is None or cleaned_df.empty:
-                    logger.warning(
-                        f"Cleaned equity changes dataframe empty on {year}Q{season}"
-                    )
-                    continue
-
-                file_cnt += 1
-                if file_cnt == self.BATCH_SLEEP_EVERY_N_FILES:
-                    logger.info("Sleep 30 seconds...")
-                    file_cnt = 0
-                    time.sleep(self.BATCH_SLEEP_DURATION_SECONDS)
-                else:
-                    delay: int = random.randint(
-                        self.BATCH_RANDOM_DELAY_MIN, self.BATCH_RANDOM_DELAY_MAX
-                    )
-                    time.sleep(delay)
-
-        # Step 3: Load
-        self.loader.add_to_db(
-            dir_path=self.equity_change_dir,
-            table_name=EQUITY_CHANGE_TABLE_NAME,
-            remove_files=False,
-        )
+        if unreachable_cnt:
+            # 站方過載造成的失敗不是「這檔沒資料」，下次重跑會自動補；但不講出來，
+            # 就會變成「回補跑完了卻莫名少了幾百檔」
+            logger.warning(
+                f"Equity changes: {unreachable_cnt} requests unreachable after retries, "
+                f"rerun to fill them"
+            )
 
         # 重新取得更新後的最新年度跟季度
         latest_year: Optional[int]
@@ -471,6 +484,146 @@ class FinancialStatementUpdater(BaseDataUpdater):
         logger.info(
             f"Equity changes data updated. Latest available date: {latest_year}Q{latest_season}"
         )
+
+    def update_equity_changes_season(
+        self,
+        year: int,
+        season: int,
+        stock_ids: List[str],
+    ) -> int:
+        """逐檔爬取單一年季的權益變動表並分批入庫，回傳站方過載而失敗的次數"""
+
+        cleaned_df_list: List[pd.DataFrame] = []
+        batch_index: int = 0
+        unreachable_cnt: int = 0
+        consecutive_empty_cnt: int = 0
+        request_cnt: int = 0
+
+        for stock_id in stock_ids:
+            # Step 1: Crawl
+            df_list: Optional[List[pd.DataFrame]] = self.crawler.crawl_equity_changes(
+                year, season, stock_id
+            )
+
+            if df_list is None:
+                unreachable_cnt += 1
+            elif not df_list:
+                consecutive_empty_cnt += 1
+                # 尚未到申報期的年季，每一檔都會是「查無資料」。不設這個門檻，
+                # 每次日常更新都要為當季白打兩千次請求
+                if consecutive_empty_cnt >= self.EQUITY_CHANGE_EMPTY_SEASON_THRESHOLD:
+                    logger.info(
+                        f"{year}Q{season}: first {consecutive_empty_cnt} stocks have no "
+                        f"data, treated as not yet filed and skipped"
+                    )
+                    break
+            else:
+                consecutive_empty_cnt = 0
+
+                # Step 2: Clean
+                cleaned_df: pd.DataFrame = self.cleaner.clean_equity_changes(
+                    df_list, year, season, stock_id
+                )
+
+                if cleaned_df is None or cleaned_df.empty:
+                    logger.warning(
+                        f"Cleaned equity changes dataframe empty on "
+                        f"{stock_id} {year}Q{season}"
+                    )
+                else:
+                    cleaned_df_list.append(cleaned_df)
+
+            # Step 3: Load（分批入庫，中斷最多只損失最後一批）
+            if len(cleaned_df_list) >= self.EQUITY_CHANGE_LOAD_BATCH_SIZE:
+                self.load_equity_changes_batch(
+                    cleaned_df_list, year, season, batch_index
+                )
+                cleaned_df_list = []
+                batch_index += 1
+
+            request_cnt += 1
+            if request_cnt % self.BATCH_SLEEP_EVERY_N_FILES == 0:
+                logger.info("Sleep 30 seconds...")
+                time.sleep(self.BATCH_SLEEP_DURATION_SECONDS)
+            else:
+                delay: int = random.randint(
+                    self.BATCH_RANDOM_DELAY_MIN, self.BATCH_RANDOM_DELAY_MAX
+                )
+                time.sleep(delay)
+
+        # 收尾：把最後不滿一批的資料也寫進去
+        if cleaned_df_list:
+            self.load_equity_changes_batch(cleaned_df_list, year, season, batch_index)
+
+        return unreachable_cnt
+
+    def load_equity_changes_batch(
+        self,
+        cleaned_df_list: List[pd.DataFrame],
+        year: int,
+        season: int,
+        batch_index: int,
+    ) -> None:
+        """把一批已清洗的權益變動表落地成 CSV 並入庫"""
+
+        file_path: Optional[Path] = self.cleaner.save_equity_changes(
+            df_list=cleaned_df_list,
+            year=year,
+            season=season,
+            batch_index=batch_index,
+        )
+
+        if file_path is None:
+            return
+
+        self.loader.add_to_db(
+            dir_path=self.equity_change_dir,
+            table_name=EQUITY_CHANGE_TABLE_NAME,
+            remove_files=False,
+            only_files=[file_path],
+        )
+
+    def get_target_stock_ids(self) -> List[str]:
+        """取得要逐檔爬取權益變動表的股票清單（上市櫃普通股，排除 ETF 與興櫃）"""
+
+        query: str = f"""
+        SELECT stock_id FROM {STOCK_INFO_TABLE_NAME}
+        WHERE type IN ('twse', 'tpex')
+          AND industry_category NOT LIKE '%ETF%'
+          AND stock_id GLOB '[0-9][0-9][0-9][0-9]'
+        ORDER BY stock_id
+        """
+
+        try:
+            df: pd.DataFrame = pd.read_sql_query(query, self.conn)
+        except Exception as e:
+            logger.error(f"Failed to get target stocks for equity changes: {e}")
+            return []
+
+        return df["stock_id"].astype(str).tolist()
+
+    def get_crawled_stock_ids(self, year: int, season: int) -> Set[str]:
+        """取得指定年季已入庫的 stock_id，供逐檔爬取的中斷續跑使用"""
+
+        if not SQLiteUtils.check_table_exist(
+            conn=self.conn, table_name=EQUITY_CHANGE_TABLE_NAME
+        ):
+            return set()
+
+        query: str = f"""
+        SELECT DISTINCT stock_id FROM {EQUITY_CHANGE_TABLE_NAME}
+        WHERE year = ? AND season = ?
+        """
+
+        try:
+            df: pd.DataFrame = pd.read_sql_query(
+                query, self.conn, params=(year, season)
+            )
+        except Exception as e:
+            logger.error(f"Failed to get crawled stocks on {year}Q{season}: {e}")
+            return set()
+
+        return set(df["stock_id"].astype(str))
 
     def get_actual_update_start_year_season(
         self,
