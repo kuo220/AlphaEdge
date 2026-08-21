@@ -97,8 +97,9 @@ class FinancialStatementUpdater(BaseDataUpdater):
 
     # 權益變動表專用（逐檔查詢，量級與其他三張報表差了三個數量級）
     EQUITY_CHANGE_LOAD_BATCH_SIZE: int = 100  # 每 100 檔入庫一次
-    # 連續這麼多檔都查無資料，就當作該年季尚未申報
-    EQUITY_CHANGE_EMPTY_SEASON_THRESHOLD: int = 30
+    # 判斷「該年季是否已申報」用的試探標的：都是 2013 年前就上市的權值股，
+    # 只要有任何一檔查得到，該年季就確定已申報（理由見 is_season_filed()）
+    EQUITY_CHANGE_PROBE_STOCK_IDS: Tuple[str, ...] = ("2330", "2317", "1101")
 
     def __init__(self):
         super().__init__()
@@ -454,6 +455,10 @@ class FinancialStatementUpdater(BaseDataUpdater):
                     logger.info(f"* {year}Q{season} already complete, skipped")
                     continue
 
+                if not self.is_season_filed(year, season, crawled_stock_ids):
+                    logger.info(f"* {year}Q{season} not yet filed, skipped")
+                    continue
+
                 logger.info(
                     f"* {year}Q{season}: {len(pending_stock_ids)} stocks pending "
                     f"({len(crawled_stock_ids)} already in database)"
@@ -485,6 +490,52 @@ class FinancialStatementUpdater(BaseDataUpdater):
             f"Equity changes data updated. Latest available date: {latest_year}Q{latest_season}"
         )
 
+    def is_season_filed(
+        self,
+        year: int,
+        season: int,
+        crawled_stock_ids: Set[str],
+    ) -> bool:
+        """
+        - Description:
+            判斷該年季是否已申報，用來略過「還沒到申報期」的年季
+
+            尚未申報的年季，每一檔都會是「查無資料」；不擋掉的話，每次日常更新都要
+            為當季白打兩千次請求。
+
+            **判斷依據是幾檔長期上市的權值股，不是「連續 N 檔查無資料」。**
+            後者曾實際造成資料遺失：2026-08-22 的 2020Q1 回補跑到代號 6874 附近時，
+            撞上一段「2020 年後才上市」的連續新股，被誤判成整季未申報而中止，
+            **323 檔（含 9933 中鼎、9945 潤泰新等確定有資料的公司）從未被嘗試**。
+            股票代號是排序過的，某個號段連續都是新股完全正常，拿它當全季的證據是錯的。
+        - Parameters:
+            - year / season: int
+                要判斷的年季
+            - crawled_stock_ids: Set[str]
+                該年季已入庫的股票；非空即代表已申報，不必再打請求
+        - Return:
+            - bool
+                是否已申報；暫時性失敗一律回 True（寧可多打請求，不可略過已申報的年季）
+        """
+
+        if crawled_stock_ids:
+            return True
+
+        for stock_id in self.EQUITY_CHANGE_PROBE_STOCK_IDS:
+            df_list: Optional[List[pd.DataFrame]] = self.crawler.crawl_equity_changes(
+                year, season, stock_id
+            )
+
+            # None 是站方過載，不是「沒有資料」，不能拿來證明整季未申報
+            if df_list is None or df_list:
+                return True
+
+            time.sleep(
+                random.randint(self.BATCH_RANDOM_DELAY_MIN, self.BATCH_RANDOM_DELAY_MAX)
+            )
+
+        return False
+
     def update_equity_changes_season(
         self,
         year: int,
@@ -496,7 +547,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
         cleaned_df_list: List[pd.DataFrame] = []
         batch_index: int = 0
         unreachable_cnt: int = 0
-        consecutive_empty_cnt: int = 0
+        no_data_cnt: int = 0
         request_cnt: int = 0
 
         for stock_id in stock_ids:
@@ -508,18 +559,10 @@ class FinancialStatementUpdater(BaseDataUpdater):
             if df_list is None:
                 unreachable_cnt += 1
             elif not df_list:
-                consecutive_empty_cnt += 1
-                # 尚未到申報期的年季，每一檔都會是「查無資料」。不設這個門檻，
-                # 每次日常更新都要為當季白打兩千次請求
-                if consecutive_empty_cnt >= self.EQUITY_CHANGE_EMPTY_SEASON_THRESHOLD:
-                    logger.info(
-                        f"{year}Q{season}: first {consecutive_empty_cnt} stocks have no "
-                        f"data, treated as not yet filed and skipped"
-                    )
-                    break
+                # 該年季這檔沒有報表（多半是當時尚未上市）；本迴圈**不做任何早退**，
+                # 見 update_equity_changes() 對「未申報年季」的處理
+                no_data_cnt += 1
             else:
-                consecutive_empty_cnt = 0
-
                 # Step 2: Clean
                 cleaned_df: pd.DataFrame = self.cleaner.clean_equity_changes(
                     df_list, year, season, stock_id
@@ -554,6 +597,11 @@ class FinancialStatementUpdater(BaseDataUpdater):
         # 收尾：把最後不滿一批的資料也寫進去
         if cleaned_df_list:
             self.load_equity_changes_batch(cleaned_df_list, year, season, batch_index)
+
+        logger.info(
+            f"{year}Q{season} done: {request_cnt} requested, "
+            f"{no_data_cnt} no data, {unreachable_cnt} unreachable"
+        )
 
         return unreachable_cnt
 

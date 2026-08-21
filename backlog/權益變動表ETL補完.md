@@ -15,7 +15,7 @@
 | S2 | cleaner：實作 `clean_equity_changes()` | `core/pipeline/cleaners/financial_statement_cleaner.py` | 單元測試（不連網、不連 DB），比照 `tests/test_stock_margin_cleaner.py` | ✅ | 攤平成**長表**（見 S2）；`tests/test_financial_statement_cleaner_equity_change.py` 8 項通過 |
 | S3 | loader：建表與欄位定義 | `core/pipeline/loaders/financial_statement_loader.py` | `create_missing_tables()` 後 `equity_change` 表存在 | ✅ | PK 偏離原規格（不含 `公司名稱`、改含攤平後的兩個維度），見 S3 |
 | S4 | updater 接線與簽名修正 | `core/pipeline/updaters/financial_statement_updater.py` | `--target fs` 跑通、增量更新正確 | ✅ | resume 改為**逐檔**而非逐年季，理由見 S4 |
-| S5 | 歷史回補與驗證 | DB `equity_change` 表 | 2013Q1 起資料入庫，抽樣與 MOPS 原站比對 | 🔄 | **2026-08-22 啟動 2020Q1 全市場回補**（2,086 檔）試水溫；實測約 6 秒/檔，一個年季約 3.5 小時，全段 56 個年季約 200 小時（見 S5） |
+| S5 | 歷史回補與驗證 | DB `equity_change` 表 | 2013Q1 起資料入庫，抽樣與 MOPS 原站比對 | 🔄 | **2020Q1 已完成**（2026-08-22，230,163 列 / 1,743 檔，抽樣 6 檔 1,993 列比對 mismatch = 0）；其餘 55 個年季未跑。過程中修掉一個會靜默漏 323 檔的早退 bug，見 S5 |
 
 ## 步驟詳述
 
@@ -92,7 +92,7 @@
 > - **偏離原規格：resume 不用 `get_actual_update_start_year_season()`**。那個函式以「表內最新年季 +1」為準，對逐檔查詢是錯的——一個年季爬到一半中斷時，該年季已經有資料，會被判定為已完成而**整季跳過**，沒爬到的公司永遠補不回來。改為 `get_crawled_stock_ids(year, season)` 逐年季查出已入庫的 `stock_id`，只補差集。這也讓「中斷 → 重跑」的成本等於已完成的部分，而非整季重來。
 > - **股票清單來源**：`taiwan_stock_info`，條件為 `type IN ('twse','tpex')`、排除 ETF、代號為 4 碼數字，實測 **2,086 檔**。**已知限制**：該表是「現在的」上市櫃清單，歷史回補會漏掉已下市的公司，也不含興櫃。
 > - **分批入庫**：每 100 檔寫一個 CSV 並立即入庫（`EQUITY_CHANGE_LOAD_BATCH_SIZE`），符合 [ETL 入庫約定](../docs/pipeline/etl-ingestion.md) §4.1——中斷最多只損失最後一批。
-> - **尚未申報的年季會早退**：連續 30 檔查無資料就判定該季尚未申報並跳出（`EQUITY_CHANGE_EMPTY_SEASON_THRESHOLD`）。沒有這道門檻，每次日常更新都要為當季白打兩千次請求。
+> - **尚未申報的年季會早退**：`is_season_filed()` 試探三檔 2013 年前就上市的權值股（`EQUITY_CHANGE_PROBE_STOCK_IDS`＝2330／2317／1101），全部查無資料才判定該季未申報並跳過。沒有這道門檻，每次日常更新都要為當季白打兩千次請求。⚠️ **初版用的是「連續 30 檔查無資料」，實際造成 323 檔靜默漏抓，已於 2026-08-22 修正**——事故經過見 S5 與 [ETL 入庫約定 §4.5](../docs/pipeline/etl-ingestion.md)。
 > - **crawler 一併修的三件事**（都是這次實測才發現的）：
 >   1. **改用 `step=2`**。原本的 `step=1` 對金控這類多實體公司只回子公司選單頁而非報表——實測 2891 中信金拿回的是一張 38 列的子公司清單，`clean` 完會是空表且不會有任何錯誤。`step=2` 對各類公司一律直接回報表。
 >   2. **`step` 與 `co_id` 用完即還原**。`Payload` 由四張報表共用，`crawl_equity_changes()` 原本把 `co_id` 設成單一股票後就不復原；其餘三張是「全市場一次查完」，被殘留的 `co_id` 縮成單一公司會靜默少資料。目前 `update()` 的呼叫順序讓這個 bug 還沒發作，但它一直都在。
@@ -115,12 +115,44 @@
 - **驗證方式**：`SELECT COUNT(*) FROM equity_change` 涵蓋 2013Q1 起；抽樣 10 檔 × 3 季與原站逐格比對。
 - **相依**：S4。
 
-> **🔄 進行中（2026-08-22）**
-> S2~S4 的程式面已完成並驗證，本步驟純粹是「跑」。**2026-08-22 先啟動 2020Q1 全市場（2,086 檔）作為試水溫**，目的是拿到三組真實數據再決定要不要全段回補：實際每檔耗時、`unreachable` 比例、一季的完整列數與涵蓋檔數。
-> - **規模**：2,086 檔 × 約 56 個年季（2013Q1~2026Q2）≈ **11.7 萬次請求**。
-> - **實測速率（2026-08-22，2020Q1 首 20 檔）**：現行節流為「每檔隨機 sleep 1~5 秒、每 10 檔多睡 30 秒」，實際約 **6 秒/檔**——**一個年季約 3.5 小時，全段約 200 小時**。
->   ⚠️ 這裡原本估「60 小時以上」是**低估**：漏算了「每 10 檔多睡 30 秒」那段，它讓每檔的實際成本幾乎翻倍。要加速就調 `BATCH_SLEEP_EVERY_N_FILES` 與隨機延遲，代價是被 MOPS 擋的風險上升（但暫時性失敗會被歸類成 `unreachable` 留待重跑，不會造成靜默缺漏）。
-> - **第一批資料要等 100 檔之後才落地**（`EQUITY_CHANGE_LOAD_BATCH_SIZE`），約 10 分鐘。啟動後前幾分鐘查 DB 是 0 列屬正常，不是失敗。
+> **🔄 進行中：2020Q1 已完成（2026-08-22）**
+> 先跑 2020Q1 全市場試水溫，結果如下；其餘 55 個年季尚未執行。
+>
+> | 項目 | 實際結果 |
+> |------|----------|
+> | 入庫 | **230,163 列 / 1,743 檔**（目標 2,086 檔） |
+> | 查無資料 | 343 檔（2020Q1 當時尚未上市），1,743 ＋ 343 = 2,086 ✅ |
+> | `unreachable` | **0**（連續近 4 小時未被 MOPS 擋） |
+> | 入庫失敗 | 0 |
+> | 耗時 | 2:56（首輪，中途誤中止）＋ 0:56（補跑 556 檔）＝ 約 3.9 小時 |
+> | 抽樣稽核 | 2330／2891／6488／9933／1101／8996 共 6 檔 **1,993 列**重爬後逐格比對，**mismatch = 0** |
+>
+> **⚠️ 過程中發現並修掉一個會靜默漏資料的 bug**（詳見 [ETL 入庫約定 §4.5](../docs/pipeline/etl-ingestion.md)）：
+> 原本的早退條件是「連續 30 檔查無資料就判定該年季尚未申報」。首輪跑到代號 6874 附近撞上
+> 一段 2020 年後才上市的連續新股，被誤判成整季未申報而中止，**代號 6874~9962 共 323 檔從未被嘗試**
+> （抽驗 9933 中鼎、9945 潤泰新、9958 世紀鋼、8996 高力、7402 邦特，全部確實有資料）。
+> 行程以結束碼 0 正常結束、log 無任何錯誤。根因是拿「順序」當統計樣本——股票代號是排序過的，
+> 某個號段連續都是新股完全正常。這個 bug 連 resume 都會壞：重跑時 pending 清單開頭就是一串
+> 無資料的公司，會在同一處再次誤判中止。
+> **修法**：改為 `is_season_filed()` 試探三檔 2013 年前就上市的權值股（2330／2317／1101），
+> 全部查無資料才判定未申報；該年季 DB 已有資料則直接視為已申報、連請求都不打；
+> 暫時性失敗一律視為已申報繼續跑。另補上每季收尾的 `N requested, N no data, N unreachable`
+> 統計行——這次正是因為缺這行，才需要事後撈 log 才發現少了 323 檔。
+>
+> **實測速率**：約 6 秒/檔（節流為每檔隨機 sleep 1~5 秒、每 10 檔多睡 30 秒），
+> **一個年季約 3.5 小時，全段 56 個年季約 200 小時**。
+> ⚠️ 本文件原本估「60 小時以上」是低估，漏算了「每 10 檔多睡 30 秒」那段。
+> 要加速就調 `BATCH_SLEEP_EVERY_N_FILES` 與隨機延遲——2020Q1 全程 `unreachable = 0`，
+> 代表現行設定還有放寬空間，但放寬多少才會被擋，只有實際試才知道。
+>
+> **第一批資料要等 100 檔之後才落地**（`EQUITY_CHANGE_LOAD_BATCH_SIZE`），約 10 分鐘。
+> 啟動後前幾分鐘查 DB 是 0 列屬正常，不是失敗。
+>
+> **每次重跑會重打「查無資料」的那些檔**（2020Q1 是 343 檔）：resume 以「DB 有沒有列」為準，
+> 查無資料的公司不會留下任何列，因此無法與「還沒爬」區分。這與
+> [券商分點 NO_DATA 的 metadata 語意](../docs/pipeline/broker-trading-no-data.md) 是同一個問題，
+> 該文件已選型未實作；在那之前，每個年季的重跑會多打約 15% 的無效請求。
+>
 > - **執行方式**：`python -m tasks.update_db --target fs`。逐檔 resume 已就緒，中斷後重跑會自動只補差集，不需要手動記錄進度。
 > - **要分段跑**就直接呼叫 `FinancialStatementUpdater().update_equity_changes(start_year, end_year, start_season, end_season)` 指定較窄的年季區間；`--target fs` 走的是 `DEFAULT_START_YEAR` ~ 今年、Q1~Q4 的完整區間。
 > - **已知限制**（回補完成後仍會存在，寫在這裡免得事後被當成 bug）：
@@ -133,6 +165,6 @@
 ## 關聯與狀態
 
 - **優先級**：P3（S5 歷史回補純屬執行，可隨時中斷續跑）
-- **進度**：4 / 5 項 ✅（S1~S4，2026-08-22）；S5 🔄 2020Q1 全市場回補進行中（2026-08-22 啟動）
+- **進度**：4 / 5 項 ✅（S1~S4，2026-08-22）；S5 🔄 2020Q1 已完成（230,163 列 / 1,743 檔），其餘 55 個年季未跑
 - **相關程式**：`core/pipeline/crawlers/financial_statement_crawler.py`、`core/pipeline/cleaners/financial_statement_cleaner.py`、`core/pipeline/loaders/financial_statement_loader.py`、`core/pipeline/updaters/financial_statement_updater.py`、`core/config.py`（`EQUITY_CHANGE_TABLE_NAME`）、`tests/test_financial_statement_cleaner_equity_change.py`
 - **相關文件**：[ETL 入庫約定](../docs/pipeline/etl-ingestion.md)（新增 updater 時的檢查表；§二的對照表已補上 `equity_change` 與其餘三張報表的差異）
