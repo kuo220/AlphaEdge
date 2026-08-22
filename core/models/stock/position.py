@@ -15,6 +15,7 @@ class StockPosition(BasePosition):
     - MARGIN 融券手續費：開倉時一次收取，記入 borrow_fee
     - MARGIN 融券利息：平倉時依 exit_date − entry_date 一次算出，不逐日累加
     - SBL 借券費：由 accrue_holding_cost() 逐日計提至 accrued_borrow_fee
+    - 股利補償：由 compensate_cash_dividend() 於除息日一次計入 dividend_compensation
     """
 
     def __init__(
@@ -37,6 +38,7 @@ class StockPosition(BasePosition):
         short_proceeds: float = 0.0,
         borrow_fee: float = 0.0,
         accrued_borrow_fee: float = 0.0,
+        dividend_compensation: float = 0.0,
         holding_days: int = 0,
     ):
         super().__init__(
@@ -63,6 +65,8 @@ class StockPosition(BasePosition):
         )
         self.borrow_fee: float = borrow_fee  # 開倉時一次收取的融券手續費
         self.accrued_borrow_fee: float = accrued_borrow_fee  # SBL 逐日計提的借券費
+        # 除息日補償給出借方的現金股利（放空專屬支出）
+        self.dividend_compensation: float = dividend_compensation
         self.holding_days: int = holding_days  # 已持有曆日數
         # 連續無報價天數；停牌／下市的部位靠它才有出場依據
         self.no_quote_days: int = 0

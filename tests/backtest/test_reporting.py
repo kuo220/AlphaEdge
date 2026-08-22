@@ -239,5 +239,9 @@ def test_analyzer_direction_metrics(make_strategy) -> None:
 
     assert analyzer.compute_trade_count_by_direction() == {"SHORT": 1, "LONG": 1}
     assert analyzer.compute_pnl_by_direction() == {"SHORT": 4548.0, "LONG": -2184.0}
-    assert analyzer.compute_short_cost() == {"borrow_fee": 80.0, "interest": 10.0}
+    assert analyzer.compute_short_cost() == {
+        "borrow_fee": 80.0,
+        "interest": 10.0,
+        "dividend_compensation": 0.0,
+    }
     assert analyzer.compute_average_holding_days() == 5.0

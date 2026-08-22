@@ -109,7 +109,9 @@ class ShortConstraint:
     設了限制卻不生效比功能沒做更危險，故由 `StockCostModel` 在建構時逐一檢查並發出警告，
     見 `check_unimplemented_constraints()`。
 
-    `check_borrowable` 則已接上呼叫端（`TwStockFillModel.check_short_borrowable()`）。
+    `check_borrowable` 則已接上呼叫端（`TwStockFillModel.check_short_borrowable()`），
+    `force_cover_dates` 與 `auto_force_cover_on_ex_dividend` 接上
+    `TwStockSettlementModel.check_force_cover()`。
     """
 
     allow_below_reference: bool = True  # 是否允許平盤下放空（**尚未實作**）
@@ -118,6 +120,9 @@ class ShortConstraint:
     )
     check_borrowable: bool = False  # 是否檢核券源（由 FillModel 依融券今日餘額檢核）
     force_cover_dates: Optional[Dict[str, List[datetime.date]]] = None  # 停券強制回補日
+    # 是否由除權息行事曆自動推導融券最後回補日（**預設開啟**：這是融券制度的規則，
+    # 不是可選功能；關掉等於回到「留倉放空不受停券影響」的高估假設）
+    auto_force_cover_on_ex_dividend: bool = True
     max_short_exposure_ratio: Optional[float] = (
         None  # 單一空單曝險上限（佔初始本金比例）
     )
@@ -137,7 +142,12 @@ class ShortConstraint:
         return stock_id in self.day_trade_whitelist.get(date, set())
 
     def get_force_cover_dates(self, stock_id: str) -> List[datetime.date]:
-        """取得該股票的強制回補日（停券期間）"""
+        """
+        取得使用者**手動指定**的強制回補日
+
+        由除權息行事曆自動推導的融券最後回補日不在此列，兩者的適用範圍不同
+        （見 `TwStockSettlementModel.check_force_cover()`）
+        """
 
         if self.force_cover_dates is None:
             return []
@@ -172,6 +182,10 @@ class CostConfig:
     financing_rate: float = float(MarginCost.FinancingRate)
 
     days_per_year: int = DAYS_PER_YEAR
+
+    # 除息日是否對留倉空單扣股利補償（**預設開啟**：放空者補償出借方當期現金股利
+    # 是實際發生的現金流，不計會系統性高估長天期放空的績效）
+    compensate_cash_dividend: bool = True
 
     # 可成交限制
     short_constraint: ShortConstraint = field(default_factory=ShortConstraint)

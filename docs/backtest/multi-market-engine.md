@@ -140,14 +140,14 @@ def execute_bar(self, date: datetime.date, quotes: List[BaseQuote]) -> None:
 | `InstrumentSpec` | 一張／一口是多少計價單位？價格要對齊什麼跳動點？漲跌停在哪？ | 1 張 ＝ 1000 股、六段跳動點、前收 ±10%（漲停捨去、跌停進位，方向不可對調） |
 | `FillModel` | 這張單在這根 bar 有可能以這個價格成交嗎？ | 日 K 以 OHLC 為界、Tick 以當日已發生的累計高低為界；超出漲跌停拒單；檔位未對齊僅警告 |
 | `CostModel` | 這筆交易要付多少錢？損益怎麼算？ | 手續費／證交稅（當沖減半）／融券手續費／SBL 借券費／保證金／融券利息 |
-| `SettlementModel` | 這根 bar 收盤後，市場規則強制要做什麼？ | 當沖日終強制回補、漲停鎖死轉融券留倉、SBL 借券費逐日計提、維持率追繳、停券強制回補 |
+| `SettlementModel` | 這根 bar 收盤後，市場規則強制要做什麼？ | 當沖日終強制回補、漲停鎖死轉融券留倉、SBL 借券費逐日計提、維持率追繳、停券強制回補、除息日的股利補償 |
 | `DataFeed` | 今天有開市嗎？報價從哪來？ | 當日有日 K 即視為開市；五個資料 API 共用單一 SQLite 連線 |
 
 ### 兩個跨 model 的共用狀態
 
 model 之間刻意**不互相依賴**，需要共享的狀態以 dict 參照傳遞：
 
-- **`event_counts`**：由 factory 建立，同時交給引擎與 `FillModel`。六個 key 與報表相容，不可更名。
+- **`event_counts`**：由 factory 建立，同時交給引擎、`FillModel` 與 `SettlementModel`。既有 key 與報表相容，不可更名（新增可以）。
 - **`prev_close`**：由 `FillModel` 持有（記錄前收是成交價模型的職責），`SettlementModel` 建構時取得同一個 dict 的參照，用於停牌盯市與漲停判定。
 
 `get_mark_price()` 屬 `BaseSettlementModel` 的介面方法而非 `FillModel`——**期貨的盯市價就是每日結算價**，本來就是結算模型的職責；引擎的 `snapshot_daily_equity()` 也用它算未實現損益。
@@ -264,10 +264,14 @@ model 之間刻意**不互相依賴**，需要共享的狀態以 dict 參照傳�
 
 | 回歸線 | 內容 | 需求 | 耗時 |
 |---|---|---|---|
-| SHORT | 8 組腳本情境、3 份快照（交易紀錄／期末未平倉部位／帳戶與事件計數） | 純記憶體，不連 DB | 0.06 秒 |
+| SHORT | 12 組腳本情境、3 份快照（交易紀錄／期末未平倉部位／帳戶與事件計數） | 純記憶體，不連 DB | 0.06 秒 |
 | LONG | `MomentumStrategy1` 2024-01~06，915 筆 × 13 欄逐筆比對 | 需 `core/database/stock.db` | 約 54 秒 |
 
-SHORT 的 8 組情境刻意各只動一個變因，任一情境快照有變即可直接指向出問題的掛點：當沖同日回補（稅率減半）、融券留倉 10 天、FIFO 部分回補的等比例攤提、維持率斷頭、當沖鎖漲停轉留倉、當沖遇停券回補日（釘住結算順序）、SBL 與 MARGIN 借券費對照。
+SHORT 的 12 組情境刻意各只動一個變因，任一情境快照有變即可直接指向出問題的掛點：當沖同日回補（稅率減半）、融券留倉 10 天、FIFO 部分回補的等比例攤提、維持率斷頭、當沖鎖漲停轉留倉、當沖遇停券回補日（釘住結算順序）、SBL 與 MARGIN 借券費對照、除權息停券日的 MARGIN／SBL 對照、跨除息日的股利補償（含部分回補攤提）。
+
+停券日與除息股利由 `DataFeed` 每根 bar 推給 `SettlementModel`，故相關情境的腳本掛在
+`tests/backtest/conftest.py` 的 `ScriptedDataFeed` 上——直接設 `SettlementModel` 的欄位
+會在下一根 bar 被引擎覆寫。
 
 **重產 baseline 是有代價的**：一旦重產，先前每一次「逐筆相同」的驗證都失去意義。會改變回測結果的工作（股價還原、LONG 成本口徑收斂）應合併排程、只重產一次。
 

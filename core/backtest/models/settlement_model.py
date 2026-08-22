@@ -1,6 +1,7 @@
 import datetime
+import math
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from loguru import logger
 
@@ -86,6 +87,31 @@ class BaseSettlementModel(ABC):
             else:
                 position.no_quote_days += 1
 
+    def apply_force_cover_symbols(self, symbols: Set[str]) -> None:
+        """
+        - Description:
+            更新今日觸發停券強制回補的標的（由 DataFeed 每根 bar 提供）
+
+            與 `FillModel.apply_short_balance()` 同一種掛法：把「當日市場狀態」
+            推給 model，model 不自行查資料源。沒有停券制度的市場沿用預設 no-op。
+        - Parameters:
+            - symbols: Set[str]
+                今日觸及回補日的標的
+        """
+
+        pass
+
+    def apply_cash_dividends(self, dividends: Dict[str, float]) -> None:
+        """
+        - Description:
+            更新今日除息的每股現金股利（由 DataFeed 每根 bar 提供）
+        - Parameters:
+            - dividends: Dict[str, float]
+                `{symbol: 每股現金股利}`
+        """
+
+        pass
+
     def get_mark_price(
         self, position: BasePosition, quote_map: Dict[str, BaseQuote]
     ) -> float:
@@ -143,6 +169,20 @@ class TwStockSettlementModel(BaseSettlementModel):
         self.margin_call_policy: MarginCallPolicy = margin_call_policy
         self.max_holding_days: Optional[int] = max_holding_days
         self.max_no_quote_days: Optional[int] = max_no_quote_days
+
+        # 當日市場狀態，由引擎每根 bar 從 DataFeed 推入（本 model 不自行查資料源）
+        self.force_cover_symbols: Set[str] = set()  # 今日觸及融券最後回補日的標的
+        self.cash_dividends: Dict[str, float] = {}  # 今日除息的每股現金股利
+
+    def apply_force_cover_symbols(self, symbols: Set[str]) -> None:
+        """更新今日觸及融券最後回補日的標的"""
+
+        self.force_cover_symbols = symbols
+
+    def apply_cash_dividends(self, dividends: Dict[str, float]) -> None:
+        """更新今日除息的每股現金股利（元／股）"""
+
+        self.cash_dividends = dividends
 
     def on_bar_close(
         self,
@@ -358,6 +398,9 @@ class TwStockSettlementModel(BaseSettlementModel):
 
         self.update_no_quote_days(quote_map, short_positions)
         self.accrue_holding_cost(date, quote_map, account)
+        # 股利補償先於強制回補：除息當日的補償屬該日仍在倉者的義務，
+        # 放在回補之後會讓「回補日恰為除息日」的部位少扣一筆
+        self.compensate_cash_dividend(date, account, event_counts)
         self.check_margin_call(date, quote_map, account, event_counts)
 
     def accrue_holding_cost(
@@ -388,6 +431,121 @@ class TwStockSettlementModel(BaseSettlementModel):
                 holding_days=1,
                 short_method=ShortMethod.SBL,
             )
+
+    def compensate_cash_dividend(
+        self,
+        date: datetime.date,
+        account: BaseAccount,
+        event_counts: Dict[str, int],
+    ) -> None:
+        """
+        - Description:
+            除息日的股利補償：放空者須把當期現金股利補償給出借方
+
+            **只補償除息日之前就在倉的部位**：除權息交易日當天賣出者已不含權，
+            當日開倉的空單不需補償（漲停鎖死轉留倉的當沖單同樣落在此例）。
+
+            與價格還原的分工（兩者都做才不會重複計算或互相抵銷）：部位損益一律以
+            `quote.close` 這條**未還原**的原始價序列盯市，除息跳空因此仍留在帳面
+            損益裡；本方法扣掉的正是「那段跳空該歸誰」——放空者從跳空賺到的價差要
+            原封不動付給出借方，兩者相抵後除息本身不產生損益。還原價只用於**訊號**
+            （`Backtester.adjusted_price`），不參與這裡的記帳。
+
+            現金股利為 `NaN`（上市權息並存的標的無法拆出現金股利，見
+            `docs/exchanges/data_coverage.md`〈已知限制〉）時**不猜 0**：記 warning
+            並計入 `dividend_compensation_unknown`，讓報表看得見被跳過的補償筆數。
+        - Parameters:
+            - date: datetime.date
+                當前交易日（＝除權息交易日）
+            - account: BaseAccount
+                交易帳戶
+            - event_counts: Dict[str, int]
+                事件計數
+        """
+
+        if not self.cost_model.config.compensate_cash_dividend:
+            return
+
+        if not self.cash_dividends:
+            return
+
+        for position in account.get_positions(position_type=PositionType.SHORT):
+            if position.symbol not in self.cash_dividends:
+                continue
+
+            # 除權息交易日當天開倉者不含權
+            if TimeUtils.to_date(position.date) >= date:
+                continue
+
+            dividend: float = self.to_dividend_per_share(
+                self.cash_dividends[position.symbol]
+            )
+            if math.isnan(dividend):
+                logger.warning(
+                    f"[Dividend] {position.symbol} 於 {date} 除權息，但現金股利無法拆分"
+                    f"（權息並存），本次跳過股利補償——該筆放空成本會被低估"
+                )
+                event_counts["dividend_compensation_unknown"] += 1
+                continue
+
+            # 純除權（現金股利為 0）不產生補償現金流
+            amount: int = int(dividend * self.instrument.to_units(position.volume))
+            if amount <= 0:
+                continue
+
+            logger.warning(
+                f"[Dividend] {position.symbol} 於 {date} 除息 {dividend} 元／股，"
+                f"空單補償出借方 {amount} 元"
+            )
+            event_counts["dividend_compensation_paid"] += 1
+
+            # 與 accrued_borrow_fee 同一種記法：只累加在部位上，
+            # 平倉時才依回補張數攤提進 carry_cost，不動 position.transaction_cost
+            position.dividend_compensation += amount
+            account.balance -= amount
+
+    @staticmethod
+    def to_dividend_per_share(value: Any) -> float:
+        """把資料表原樣取出的現金股利轉為 float；無法轉換者一律視為 `NaN`（未知）"""
+
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return float("nan")
+
+    def check_force_cover(self, date: datetime.date, position: StockPosition) -> bool:
+        """
+        - Description:
+            判定該部位今日是否觸及停券強制回補日；兩個來源任一命中即回補
+
+            1. `ShortConstraint.force_cover_dates`：使用者明示指定的日期，
+               **不分放空管道一律適用**——引擎不替使用者的政策再加條件。
+            2. 除權息行事曆推導的融券最後回補日（由 DataFeed 每根 bar 推入）：
+               這是**融券制度**的規則，故只對 `MARGIN` 生效。SBL 借券不受強制回補
+               約束，其跨除息日的成本改由 `compensate_cash_dividend()` 反映；
+               `DAY_TRADE` 當日已由 `enforce_day_trade_cover()` 處理完畢。
+        - Parameters:
+            - date: datetime.date
+                當前交易日
+            - position: StockPosition
+                待判定的放空部位
+        - Return:
+            - bool
+                True 表示今日須強制回補
+        """
+
+        constraint = self.cost_model.config.short_constraint
+
+        if date in constraint.get_force_cover_dates(position.symbol):
+            return True
+
+        if not constraint.auto_force_cover_on_ex_dividend:
+            return False
+
+        if position.short_method != ShortMethod.MARGIN:
+            return False
+
+        return position.symbol in self.force_cover_symbols
 
     def check_margin_call(
         self,
@@ -437,13 +595,8 @@ class TwStockSettlementModel(BaseSettlementModel):
                 self.force_cover_position(position, date, price)
                 continue
 
-            # 停券強制回補日
-            force_cover_dates: List[datetime.date] = (
-                self.cost_model.config.short_constraint.get_force_cover_dates(
-                    position.symbol
-                )
-            )
-            if date in force_cover_dates:
+            # 停券強制回補日（使用者指定 ＋ 除權息行事曆推導的融券最後回補日）
+            if self.check_force_cover(date, position):
                 logger.warning(
                     f"[Force Cover] {position.symbol} 於 {date} 停券，以 {price} 強制回補"
                 )

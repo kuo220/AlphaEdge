@@ -249,6 +249,7 @@ class StockBacktestReporter(BaseBacktestReporter):
             "Transaction Cost",
             "Borrow Fee",
             "Interest",
+            "Dividend Compensation",
             "Margin",
             "Holding Days",
             "Short Method",
@@ -312,6 +313,7 @@ class StockBacktestReporter(BaseBacktestReporter):
                 "Transaction Cost": record.transaction_cost,
                 "Borrow Fee": record.borrow_fee,
                 "Interest": record.interest,
+                "Dividend Compensation": record.dividend_compensation,
                 "Margin": record.margin,
                 "Holding Days": record.holding_days,
                 "Short Method": (
@@ -361,6 +363,9 @@ class StockBacktestReporter(BaseBacktestReporter):
                     "Total Tax": round(group["Tax"].sum(), 2),
                     "Total Borrow Fee": round(group["Borrow Fee"].sum(), 2),
                     "Total Interest": round(group["Interest"].sum(), 2),
+                    "Total Dividend Compensation": round(
+                        group["Dividend Compensation"].sum(), 2
+                    ),
                     "Avg Holding Days": round(group["Holding Days"].mean(), 2),
                 }
             )

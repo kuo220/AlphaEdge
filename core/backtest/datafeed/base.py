@@ -1,6 +1,6 @@
 import datetime
 from abc import ABC, abstractmethod
-from typing import Dict, List
+from typing import Dict, List, Set
 
 from core.models import BaseQuote
 from core.strategies.base import BaseStrategy
@@ -77,6 +77,42 @@ class BaseDataFeed(ABC):
         - Return:
             - Dict[str, int]
                 `{symbol: 可借券張數}`；預設為空 dict
+        """
+
+        return {}
+
+    def get_force_cover_symbols(self, date: datetime.date) -> Set[str]:
+        """
+        - Description:
+            取得當日觸發「停券強制回補」的標的
+
+            台股為除權息前的融券最後回補日。**空集合代表「今日沒有標的停券」**，
+            與券源餘額不同，這裡查不到就是真的沒有——停券日由行事曆推導，
+            不存在「資料缺一天」的中間狀態。沒有停券制度的市場沿用預設即可。
+        - Parameters:
+            - date: datetime.date
+                交易日
+        - Return:
+            - Set[str]
+                `{symbol}`；預設為空集合
+        """
+
+        return set()
+
+    def get_cash_dividend_map(self, date: datetime.date) -> Dict[str, float]:
+        """
+        - Description:
+            取得當日除息的每股現金股利
+
+            供放空的股利補償計算使用（放空者須補償出借方當期股利）。
+            值可能為 `NaN`——代表「有除權息但無法拆出現金股利」，
+            與 key 不存在（當日未除息）語意不同，呼叫端不可一律當成 0。
+        - Parameters:
+            - date: datetime.date
+                除權息交易日
+        - Return:
+            - Dict[str, float]
+                `{symbol: 每股現金股利}`；預設為空 dict
         """
 
         return {}

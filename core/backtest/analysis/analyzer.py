@@ -202,13 +202,16 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
         return pnl
 
     def compute_short_cost(self) -> Dict[str, float]:
-        """統計放空專屬成本：借券費支出與融券利息收入"""
+        """統計放空專屬成本：借券費支出、融券利息收入與股利補償"""
 
         return {
             "borrow_fee": round(
                 sum(record.borrow_fee for record in self.trade_records), 2
             ),
             "interest": round(sum(record.interest for record in self.trade_records), 2),
+            "dividend_compensation": round(
+                sum(record.dividend_compensation for record in self.trade_records), 2
+            ),
         }
 
     def compute_average_holding_days(self) -> float:

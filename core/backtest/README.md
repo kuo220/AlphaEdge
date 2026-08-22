@@ -147,6 +147,9 @@ class MyStrategy(BaseStockStrategy):
 | `rejected_no_borrow` | 融券餘額不足，放空開倉被拒 |
 | `rejected_volume_cap` | 超過成交量上限且政策為拒單（或上限不足一張） |
 | `truncated_by_volume` | 超過成交量上限被縮量 |
+| `forced_cover_suspended` | 觸及停券強制回補日（除權息推導或手動指定） |
+| `dividend_compensation_paid` | 跨除息日的空單補償出借方現金股利 |
+| `dividend_compensation_unknown` | 權息並存拆不出現金股利，該筆補償被跳過（成本低估） |
 
 **查無融券資料時一律放行並 warning**，不會把「查不到」當成「借不到」——
 `margin` 表的歷史回補是獨立作業，尚未執行時整場回測都會查無資料。

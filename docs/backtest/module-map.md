@@ -110,13 +110,13 @@ sequenceDiagram
 | `core/backtest/models/instrument_spec.py` | 一張／一口的計價單位換算、跳動點對齊、漲跌停區間 | 無（純規則） |
 | `core/backtest/models/fill_model.py` | 這張單在這根 bar 有沒有可能以這個價格成交 | `prev_close`、`intraday_range` |
 | `core/backtest/models/cost_model.py` | 手續費／證交稅／融券手續費／借券費／保證金／利息；`enrich_orders()` 補市場欄位 | `CostConfig`（含 `ShortConstraint`） |
-| `core/backtest/models/settlement_model.py` | 一根 bar 收盤後市場規則強制執行的動作：當沖強制回補、漲停轉留倉、借券費計提、維持率追繳、停券回補 | 參照 `FillModel.prev_close` |
+| `core/backtest/models/settlement_model.py` | 一根 bar 收盤後市場規則強制執行的動作：當沖強制回補、漲停轉留倉、借券費計提、維持率追繳、停券回補、除息股利補償 | 參照 `FillModel.prev_close`；`force_cover_symbols`、`cash_dividends` 由 `DataFeed` 每根 bar 推入 |
 | `core/backtest/datafeed/base.py`／`tw_stock_datafeed.py` | 建立並持有全部資料 API、報價轉換、交易日判定、回測結束時關連線 | **單次回測唯一的 SQLite 連線** |
-| `core/backtest/datafeed/market_calendar.py` | 交易日推算（前一交易日、是否開盤） | `DataFeed`、策略 |
+| `core/backtest/datafeed/market_calendar.py` | 交易日推算（前一交易日、是否開盤、往前推 N 個營業日） | `DataFeed`、策略 |
 
 **跨 model 的共用狀態只有兩個**，皆以 dict 參照傳遞，model 之間不互相 import：
 
-- `event_counts`：`factory` 建立 → 同時給 `Backtester` 與 `FillModel`。六個 key 與報表相容，**不可更名**。
+- `event_counts`：`factory` 建立 → 同時給 `Backtester`、`FillModel` 與 `SettlementModel`。既有 key 與報表相容，**不可更名**（新增可以）。
 - `prev_close`：`FillModel` 持有 → `SettlementModel` 建構時取得同一個 dict 的參照。
 
 ### 帳務與領域模型
