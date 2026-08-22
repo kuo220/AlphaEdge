@@ -17,7 +17,8 @@
 
 | 編號 | 步驟名稱 | 產出檔案 | 驗證方式 | 狀態 | 備註／中斷點 |
 |------|----------|----------|----------|:----:|--------------|
-| Phase1-1 | `core/config.py` 新增期貨 DB 與表名常數 | `core/config.py` | `FUTURES_DB_PATH` 可解析 | ⬜ | 沿用 `get_static_resolved_path` |
+| Phase0-1 | `downloads/` 收斂為市場維度目錄 | `core/config.py`、`core/pipeline/downloads/` | 既有 ETL 全部跑通且落點正確；`tests/` 全綠 | ⬜ | **動任何期貨程式之前先做**。純資料目錄搬遷、零行為改變；成本遠低於程式碼搬遷（決策見 §3.0、結構見 §3.1） |
+| Phase1-1 | `core/config.py` 新增期貨 DB 與表名常數 | `core/config.py` | `FUTURES_DB_PATH` 可解析 | ⬜ | 相依 Phase0-1；沿用 `get_static_resolved_path` |
 | Phase1-2 | `futures_price` 四層 ETL（TAIFEX 日線／結算價） | `core/pipeline/*/futures_price_*.py` | `--target futures_price` 跑完可查到資料且重跑冪等 | ⬜ | **前置關卡**：DB 沒建起來前不要寫 API／策略／回測（見 §6.3） |
 | Phase1-3 | `FuturesPriceAPI` ＋ `FuturesQuoteAdapter` | `core/api/futures_price_api.py`、`core/adapters/futures_quote_adapter.py` | 只從 `futures.db` 讀，不讀中繼檔 | ⬜ | 相依 Phase1-2 |
 | Phase1-4 | `models/futures` ＋ `managers/futures`（簡化保證金） | `core/models/futures/`、`core/managers/futures/` | 口數、多空、未平倉語意正確 | ⬜ | 相依 Phase1-3 |
@@ -33,7 +34,7 @@
 | Phase4-2 | 日盤／夜盤整併 | `core/pipeline/*`、日曆 | 跨盤別跳空被保留 | ⬜ | 相依 Phase2-3 |
 | Phase5-1 | 分 K 與 Tick（Shioaji futures ticks） | `core/pipeline/*/futures_tick_*.py` | 日內策略可回測 | ⬜ | 相依 Phase4-1；可參考 `StockTickUpdater` 多 key／執行緒 |
 | Phase5-2 | frontend 期貨專屬指標（保證金曲線、口數曝險） | `frontend/` | 指標可顯示 | ⬜ | 相依 Phase2-2 |
-| Phase5-3 | 目錄收斂至路徑 B（`tw_stock` / `tw_futures`） | 全專案 | 台股回歸逐筆相同 | ⏸ | 暫緩：與美股 `us/` 一起收斂，避免兩次重工 |
+| Phase5-3 | **程式碼**目錄收斂至路徑 B（`pipeline/tw_stock` / `tw_futures`） | 全專案 | 台股回歸逐筆相同 | ⏸ | 暫緩：與美股 `us/` 一起收斂，避免兩次重工。**資料目錄已於 Phase0-1 先行收斂**，本步驟只剩程式碼 |
 | Phase6-1 | `futures_stock_universe` 標的池 ETL | `core/pipeline/*/futures_stock_universe_*.py` | 掛牌／下市與乘數異動可追蹤 | ⬜ | 相依 Phase1-2 |
 | Phase6-2 | 股票期貨行情 ETL 與除權息乘數調整 | `core/pipeline/*` | 與台股除權息處理對照，無雙重調整 | ⬜ | 相依 Phase6-1 |
 
@@ -50,7 +51,9 @@
 - `core/backtest`、`core/strategies` 已有策略執行與結果輸出流程，可複用事件迴圈與報表概念。
 - Shioaji 已用於股票 tick／帳戶工具，可作為期貨合約與 ticks 的自然資料來源。
 - 常數層已有預留鉤子：`Market.FUTURE`、`OrderState.FuturesOrder` / `FuturesDeal`、`InstrumentType.FUTURE`（見 `core/utils/constant.py`）。
-- 目錄命名慣例（`stock_price_crawler.py`、`stock.db`、`stock_quote_adapter.py`）已經是「路徑 A：命名平行」的實際做法，期貨可直接沿用同一套命名風格，不需另外發明新的頂層結構（例如不需要新開 `data/futures/` 這種與現有 `core/pipeline/downloads/` 平行的目錄）。
+- **程式碼**的命名慣例（`stock_price_crawler.py`、`stock_quote_adapter.py`）已經是「路徑 A：命名平行」的實際做法，期貨直接沿用同一套命名風格即可，不需另外發明新的頂層結構（例如不需要新開 `data/futures/` 這種與現有 `core/pipeline/downloads/` 平行的目錄）。
+- **資料**則已經是市場維度：`core/database/` 早就是 `stock.db` ＋（規劃中的）`futures.db`。唯一沒跟上的是 `downloads/`，Phase0-1 把它歸位（決策與理由見 §3.0）。
+- `core/models/`、`core/managers/`、`core/strategies/` 已按**商品類別**分目錄（`base/` ＋ `stock/`），期貨新增 `futures/` 是沿用既有慣例，不是新決策。
 
 ### 目前主要缺口
 
@@ -144,7 +147,7 @@ flowchart TB
 | 層 | 台股（現有） | 台期貨（新增） |
 |----|-------------|----------------|
 | 來源 | TWSE/TPEX/MOPS/FinMind/Shioaji | TAIFEX + Shioaji `Contracts.Futures` |
-| 中繼 | `downloads/price\|chip\|tick` | `downloads/futures/{price,tick,meta}` |
+| 中繼 | `downloads/tw_stock/{price,chip,tick,…}` | `downloads/tw_futures/{price,tick,meta,…}` |
 | 儲存 | `stock.db` / DolphinDB | `futures.db`（合約碼含商品 + 到期月） |
 | CLI | `--target price\|chip\|tick\|…` | `--target futures_price\|futures_tick\|…` |
 | 成本 | 手續費 + 證交稅 | 手續費 + 保證金／點值／結算 |
@@ -155,26 +158,75 @@ flowchart TB
 
 ## 三、建議目錄調整
 
-有兩條路徑，效果相同；可先走 A，再收斂到 B。
+### 3.0 決策（2026-08-22）：資料目錄現在就分，程式碼目錄先不分
 
-### 路徑 A：最小摩擦（命名平行，先不搬現有檔）
+**程式碼與資料的搬遷成本差一個量級**，因此兩者採不同做法，不是自相矛盾：
+
+| 對象 | 做法 | 何時 | 搬遷成本 |
+|------|------|------|----------|
+| `downloads/`（資料） | **市場維度目錄**：`tw_stock/` ／ `tw_futures/` | **Phase0-1，動期貨程式之前** | 改 9 個 config 常數 ＋ `git mv` ＋ 修 1 個測試 |
+| `pipeline/` `api/` `adapters/`（程式碼） | **命名平行**：`futures_*_crawler.py` | 收斂延到 Phase5-3 ⏸ | 全專案 import 都要改 |
+| `models/` `managers/` `strategies/` | **目錄分家**：新增 `futures/` | 隨 Phase1-4、Phase1-5 | 新增目錄，不動既有 |
+
+專案其實**早就有兩套慣例並存**，而且各有道理——期貨照著既有慣例走即可，不需要發明新結構：
+
+| 層 | 現況分家方式 | 依據 |
+|----|--------------|------|
+| `models/` `managers/` `strategies/` | 目錄（`base/` ＋ `stock/`） | 依**商品類別**——`Position` 的語意台股與美股相同，期貨才不同 |
+| `pipeline/` `api/` `adapters/` | 命名平行（扁平 ＋ `stock_` 前綴） | 有共用基底類別（`crawlers/base.py` 等），搬遷會動全專案 import |
+| `database/` | 目錄／檔案分家（`stock.db` ＋ `futures.db`） | 依**市場**——純資料，語意不可混用 |
+
+`downloads/` 目前是唯一的例外：它是純資料，卻還跟著程式碼用扁平命名。Phase0-1 就是把它歸位到與 `database/` 一致的市場維度。
+
+**為什麼不用 `downloads/tw/stock/` 三層**：市場 × 商品不是自由組合的兩軸，只會命名實際支援的組合；多一層只裝兩個項目是純導覽成本。單層 `tw_stock` 也與路徑 B 的 `pipeline/tw_stock/` 同名，將來收斂時不需要再改一次。
+
+**為什麼不能只搬期貨**：若台股留在扁平、期貨進 `tw_futures/`，會得到 `downloads/{price, chip, …, tw_futures/}`——看到 `price/` 無法判斷屬於哪個市場。要嘛全部走目錄、要嘛全部走前綴，混著是最糟的選項。
+
+### 3.1 `downloads/` 目標結構（Phase0-1 落地）
+
+```text
+core/pipeline/downloads/
+├── tw_stock/                       # 既有台股中繼檔全部搬進來（Phase0-1）
+│   ├── price/
+│   ├── chip/
+│   ├── margin/
+│   ├── dividend/
+│   ├── tick/
+│   ├── finmind/                    # FinMind 是資料源，但供應的是台股資料
+│   ├── financial_statement/
+│   ├── monthly_revenue_report/
+│   └── meta/                       # resume 用的 metadata，同樣按市場分
+│       ├── financial_statement/
+│       ├── monthly_revenue_report/
+│       ├── tick/
+│       └── broker_trading/
+└── tw_futures/                     # 新增（Phase1-2 起陸續使用）
+    ├── price/
+    ├── chip/
+    ├── continuous/
+    ├── universe/                   # 股票期貨標的池（Phase6-1）
+    ├── tick/                       # 可選（Phase5-1）
+    └── meta/
+```
+
+### 3.2 程式碼：路徑 A（命名平行，先不搬現有檔）
 
 ```text
 core/
 ├── pipeline/
 │   ├── crawlers/
-│   │   ├── stock_price_crawler.py          # 維持
-│   │   ├── futures_price_crawler.py        # 新增
-│   │   ├── futures_chip_crawler.py         # 新增（三大法人／大額交易人／PCR）
+│   │   ├── stock_price_crawler.py            # 維持
+│   │   ├── futures_price_crawler.py          # 新增
+│   │   ├── futures_chip_crawler.py           # 新增（三大法人／大額交易人／PCR）
 │   │   ├── futures_stock_universe_crawler.py # 新增（股票期貨標的清單）
-│   │   └── futures_tick_crawler.py         # 新增（可選）
+│   │   └── futures_tick_crawler.py           # 新增（可選）
 │   ├── cleaners/   # futures_*_cleaner.py
 │   ├── loaders/    # futures_*_loader.py
 │   ├── updaters/   # futures_*_updater.py
-│   └── downloads/futures/{price,tick,meta,chip,continuous}/
+│   └── downloads/  # 見 §3.1（Phase0-1 已改為市場維度）
 ├── database/
 │   ├── stock.db
-│   └── futures.db                          # 建議獨立，避免與 stock_id 語意混用
+│   └── futures.db                          # 獨立，避免與 stock_id 語意混用
 ├── api/
 │   ├── stock_*_api.py
 │   ├── futures_price_api.py
@@ -183,9 +235,11 @@ core/
 │   ├── stock_quote_adapter.py
 │   └── futures_quote_adapter.py
 ├── models/
+│   ├── base/
 │   ├── stock/
 │   └── futures/                            # Account / Order / Position / Quote
 ├── managers/
+│   ├── base/
 │   ├── stock/
 │   └── futures/                            # 保證金、口數、開平倉
 ├── strategies/
@@ -201,18 +255,20 @@ core/
     └── constant.py                         # 已有 Market.FUTURE 等鉤子
 ```
 
-### 路徑 B：市場維度目錄（與美股規劃一致，長期較乾淨）
+### 3.3 程式碼：路徑 B（市場維度目錄，Phase5-3 ⏸）
+
+**只剩程式碼**——`downloads/` 與 `database/` 已在 Phase0-1 之後就是這個形態。
 
 ```text
 core/
 ├── pipeline/
 │   ├── shared/                 # BaseCrawler/Cleaner/Loader/Updater
 │   ├── tw_stock/               # 現有台股 ETL（逐步歸位）
-│   └── tw_futures/             # 新增台期 ETL
-│       ├── crawlers/
-│       ├── cleaners/
-│       ├── loaders/
-│       └── updaters/
+│   │   ├── crawlers/
+│   │   ├── cleaners/
+│   │   ├── loaders/
+│   │   └── updaters/
+│   └── tw_futures/             # 台期 ETL（由路徑 A 的 futures_*.py 歸位）
 ├── api/
 │   ├── tw_stock/
 │   └── tw_futures/
@@ -224,10 +280,10 @@ core/
 │   ├── calendars/
 │   │   ├── tw_stock_calendar.py
 │   │   └── tw_futures_calendar.py
-│   ├── fee_models/             # 股票證交稅 vs 期貨手續費/結算費
+│   ├── fee_models/             # 股票證交稅 vs 期貨手續費／結算費
 │   └── report/
 ├── strategies/
-│   ├── stock/                  # 或 tw_stock/
+│   ├── stock/                  # 商品類別維度，不隨市場再分
 │   └── futures/
 ├── models/
 │   ├── stock/
@@ -236,6 +292,10 @@ core/
     ├── stock/
     └── futures/
 ```
+
+> **注意路徑 B 的兩個維度不同**：`pipeline/` `api/` `backtest/datafeed/` 依**市場**（`tw_stock`／`tw_futures`／`us`），
+> 而 `models/` `managers/` `strategies/` 依**商品類別**（`stock`／`futures`）——美股上來時共用 `models/stock/`，
+> 不會變成 `models/tw_stock/` ＋ `models/us_stock/`。這不是疏漏，是刻意的。
 
 ---
 
@@ -400,6 +460,7 @@ core/
 實作慣例（沿用台股既有做法）：
 
 - 在 `core/config.py` 新增 `FUTURES_DB_NAME: str = "futures.db"` 與 `FUTURES_DB_PATH`（沿用 `get_static_resolved_path(base_dir=DATABASE_DIR_PATH, ...)`），並比照 `PRICE_TABLE_NAME` 新增 `FUTURES_*_TABLE_NAME` 常數，不要在程式中散落字串。
+- 中繼檔目錄同樣走常數：`TW_FUTURES_DOWNLOADS_PATH` 之下再掛 `FUTURES_PRICE_DOWNLOADS_PATH` 等（結構見 §3.1）。**任何地方都不要自行以字串拼 downloads 路徑**——目前全專案 30 個檔案都只透過常數取用，這是 Phase0-1 的搬遷成本能壓到極低的唯一原因，不要破壞它。
 - 期貨 loader 繼承 `BaseDataLoader`，在 `setup()` 內 `connect()` → `create_missing_tables()`，與 `StockPriceLoader` 同一套骨架。
 - 共用 `core/pipeline/utils/sqlite_utils.py` 的 `SQLiteUtils`（`check_table_exist`、`get_table_latest_value` 等）做增量更新的起訖日判斷，不要另寫一套。
 - `futures.db` 與 `stock.db` **分開**存放於 `core/database/`，避免 `stock_id` 與 `contract_id` 語意混用。
@@ -503,15 +564,44 @@ core/
 
 ## 九、實作步驟詳述
 
+### Phase 0：目錄前置
+
+#### Phase0-1. `downloads/` 收斂為市場維度目錄 ⬜
+
+- **目的**：`core/database/` 早就是市場維度（`stock.db` ＋ `futures.db`），`downloads/` 卻還跟著程式碼用扁平命名。**在放進任何期貨中繼檔之前先歸位**，否則之後只會有兩個壞選項：混合樹（`downloads/{price, chip, …, tw_futures/}`，看到 `price/` 不知道屬於誰），或事後連同程式碼一起搬（成本高一個量級）。決策理由見 §3.0。
+- **做法**（純資料目錄搬遷，**零行為改變**）：
+  1. `core/config.py` 新增兩個中介常數：
+
+     ```python
+     TW_STOCK_DOWNLOADS_PATH: Path = get_static_resolved_path(
+         base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="tw_stock"
+     )
+     TW_FUTURES_DOWNLOADS_PATH: Path = get_static_resolved_path(
+         base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="tw_futures"
+     )
+     ```
+
+  2. 既有 9 個 `*_DOWNLOADS_PATH`（`FINANCIAL_STATEMENT`／`MONTHLY_REVENUE_REPORT`／`PRICE`／`CHIP`／`MARGIN`／`DIVIDEND`／`TICK`／`FINMIND`）與 `DOWNLOADS_METADATA_DIR_PATH` 的 `base_dir` 由 `PIPELINE_DOWNLOADS_PATH` 改為 `TW_STOCK_DOWNLOADS_PATH`。**常數名稱一律不動**——改名會擴散到 30 個檔案，而搬目錄不需要。
+  3. `git mv` 既有目錄到 `downloads/tw_stock/` 之下（版控中只有 `meta/` 的 14 個 JSON，CSV 暫存區為空）。
+  4. 修掉唯一一處自行重組路徑的測試：`tests/test_finmind_updater.py:81`（`project_root / "core" / "pipeline" / "downloads" / "finmind"`）。
+  5. 修 3 處提到舊路徑的註解：`monthly_revenue_report_crawler.py:184`、`financial_statement_crawler.py:386`、`tasks/load_broker_trading_to_db.py:19`。
+- **成本實查（2026-08-22）**：全專案 30 個檔案取用 downloads 路徑，**全部走 config 常數，無一硬寫字串**；因此改動集中在 `core/config.py`，其餘只有 1 個測試 ＋ 3 行註解。這是全專案搬遷成本最低的一塊。
+- **產出**：`core/config.py`、`core/pipeline/downloads/`（目錄搬遷）、`tests/test_finmind_updater.py`。
+- **驗證方式**：
+  1. `.venv/bin/python -m pytest tests -q` 全綠。
+  2. 任取一個既有 target（例如 `--target dividend`）跑一次日更，中繼檔落在 `downloads/tw_stock/dividend/`，且入庫筆數與搬遷前一致。
+  3. `grep -rn "downloads/" --include='*.py' core tasks tests` 無殘留的舊路徑字串。
+- **相依**：無。**本步驟阻塞 Phase1-2 之後所有會寫中繼檔的步驟。**
+
 ### Phase 1：單商品日 K 最小可跑閉環
 
 #### Phase1-1. `core/config.py` 新增期貨 DB 與表名常數 ⬜
 
 - **目的**：先把路徑與表名收斂成常數，避免後續在程式中散落字串。
-- **做法**：新增 `FUTURES_DB_NAME: str = "futures.db"` 與 `FUTURES_DB_PATH`（沿用 `get_static_resolved_path(base_dir=DATABASE_DIR_PATH, ...)`），並比照 `PRICE_TABLE_NAME` 新增 `FUTURES_*_TABLE_NAME` 常數。
+- **做法**：新增 `FUTURES_DB_NAME: str = "futures.db"` 與 `FUTURES_DB_PATH`（沿用 `get_static_resolved_path(base_dir=DATABASE_DIR_PATH, ...)`），並比照 `PRICE_TABLE_NAME` 新增 `FUTURES_*_TABLE_NAME` 常數；中繼檔常數則掛在 Phase0-1 建立的 `TW_FUTURES_DOWNLOADS_PATH` 之下（`FUTURES_PRICE_DOWNLOADS_PATH` 等，結構見 §3.1）。
 - **產出**：`core/config.py`。
-- **驗證方式**：`FUTURES_DB_PATH` 可正確解析為 `core/database/futures.db`。
-- **相依**：無。
+- **驗證方式**：`FUTURES_DB_PATH` 可正確解析為 `core/database/futures.db`；`FUTURES_PRICE_DOWNLOADS_PATH` 解析為 `core/pipeline/downloads/tw_futures/price`。
+- **相依**：Phase0-1。
 
 #### Phase1-2. `futures_price` 四層 ETL ⬜
 
@@ -641,7 +731,7 @@ core/
 #### Phase5-1. 分 K 與 Tick ⬜
 
 - **目的**：支援日內策略回測。
-- **做法**：引入 Shioaji futures tick（可參考 `StockTickUpdater` 的多 key／執行緒做法）；tick／連續合約快取可用 Parquet 存於 `core/pipeline/downloads/futures/`，但結構化表格資料一律走 `futures.db`。
+- **做法**：引入 Shioaji futures tick（可參考 `StockTickUpdater` 的多 key／執行緒做法）；tick／連續合約快取可用 Parquet 存於 `core/pipeline/downloads/tw_futures/tick/`，但結構化表格資料一律走 `futures.db`。
 - **產出**：`core/pipeline/*/futures_tick_*.py`。
 - **驗證方式**：日內策略可完成一次回測；tick 時間戳為台北時間且 timezone-aware。
 - **相依**：Phase4-1。
@@ -654,14 +744,15 @@ core/
 - **驗證方式**：指標可從回測結果讀取並顯示。
 - **相依**：Phase2-2。
 
-#### Phase5-3. 目錄收斂至路徑 B ⏸
+#### Phase5-3. 程式碼目錄收斂至路徑 B ⏸
 
 - **目的**：把路徑 A（命名平行）收斂為路徑 B（市場維度目錄），與美股 `us/` 對齊。
-- **做法**：收斂至 `tw_stock` / `tw_futures`（見 §三 路徑 B）。
-- **產出**：全專案目錄調整。
-- **驗證方式**：台股回歸測試逐筆相同。
+- **範圍已縮小（2026-08-22）**：`downloads/` 已於 **Phase0-1** 先行收斂、`core/database/` 本來就是市場維度，故本步驟**只剩程式碼**——`pipeline/`、`api/`、`adapters/`、`backtest/datafeed/`。
+- **做法**：收斂至 `pipeline/{shared,tw_stock,tw_futures}/`、`api/{tw_stock,tw_futures}/`（見 §3.3）。**`models/` `managers/` `strategies/` 不在範圍內**：它們依商品類別分而非市場分，美股上來時共用 `stock/`（見 §3.3 的注意事項）。
+- **產出**：`core/pipeline/`、`core/api/`、`core/adapters/`、`core/backtest/datafeed/` 的目錄調整。
+- **驗證方式**：台股回歸雙線（LONG 915 筆 ＋ SHORT 快照）逐筆相同；全專案無殘留的舊 import 路徑。
 - **相依**：Phase1-1~Phase5-2。
-- **暫緩原因與解除條件**：影響面大且會動到台股既有路徑；應與 [美股ETL與回測架構規劃.md](美股ETL與回測架構規劃.md) 的 Phase3-3 一起收斂，避免兩次重工。待兩邊的最小閉環都驗證完成後解除。
+- **暫緩原因與解除條件**：影響面大且會動到台股既有路徑的每一個 import；應與 [美股ETL與回測架構規劃.md](美股ETL與回測架構規劃.md) 的 Phase3-3 一起收斂，避免兩次重工。待兩邊的最小閉環都驗證完成後解除。**注意該解除條件目前不成立**：美股卡在「尚未選定 provider、`.env.example` 無任何美股憑證」，因此路徑 A 會維持相當長一段時間，命名前綴要保持一致，不要當成過渡期就隨意命名。
 
 ### Phase 6：股票期貨（股期）擴充
 
@@ -689,8 +780,8 @@ core/
 - 所有時間欄位統一轉為台北時間並以 timezone-aware timestamp 儲存。
 - 連續合約構建需將「調整方式」與「換月規則」設計為可設定參數，不要寫死。
 - 原始資料與衍生資料分層存放，原始層唯讀，衍生層可重建，確保回測可重現。
-- **落地順序不可跳過**:crawl → clean → **`sqlite3` 寫入 `core/database/futures.db`** → API → 回測。`downloads/futures/` 下的 CSV／Parquet 只是 crawler 與 loader 之間的中繼暫存，任何下游（API、策略、回測、frontend）都不得直接讀取（詳見 §6.3）。
-- 儲存格式：結構化表格資料走 `futures.db`（SQLite，對齊現有 `stock.db` 慣例，使用 Python 標準庫 `sqlite3` 與既有 `SQLiteUtils`）；tick／連續合約快取可用 Parquet 存於 `core/pipeline/downloads/futures/` 下。
+- **落地順序不可跳過**:crawl → clean → **`sqlite3` 寫入 `core/database/futures.db`** → API → 回測。`downloads/tw_futures/` 下的 CSV／Parquet 只是 crawler 與 loader 之間的中繼暫存，任何下游（API、策略、回測、frontend）都不得直接讀取（詳見 §6.3）。
+- 儲存格式：結構化表格資料走 `futures.db`（SQLite，對齊現有 `stock.db` 慣例，使用 Python 標準庫 `sqlite3` 與既有 `SQLiteUtils`）；tick／連續合約快取可用 Parquet 存於 `core/pipeline/downloads/tw_futures/` 下。
 - 保證金、契約規格、交易日曆屬低頻但關鍵資料，建議獨立維護並版本控管。
 
 ---
@@ -701,10 +792,13 @@ core/
 |------|----------|------------|
 | 原則 | 平行模組、共享核心 | 相同 |
 | 市場細節 | 時區、拆股配息、adjusted close | 保證金、換月、夜盤、點值 |
-| 目錄長期形態 | `pipeline/us`、`strategies/us` | `pipeline/tw_futures`、`strategies/futures` |
+| 目錄長期形態 | `pipeline/us`、`strategies/stock` | `pipeline/tw_futures`、`strategies/futures` |
+| 資料目錄 | `downloads/us_stock/` | `downloads/tw_futures/`（Phase0-1 已定案） |
 | 回測抽層 | engine / datafeed / calendars / fee_models | 同一套抽象，掛不同實作 |
 
 兩者都強化「市場維度」；台期貨可先落地路徑 A，之後與美股一起收斂到路徑 B，避免兩次重工。
+
+**美股接上來時要沿用同一組規則**（見 §3.0）：`downloads/us_stock/` 直接新增即可；程式碼走 `futures_*` 同款的命名平行（或等 Phase5-3 一起收斂）；`models/` `managers/` `strategies/` 則**共用既有的 `stock/`**，不要開 `us_stock/`——美股的 `Position` 與台股同語意，差異在成本模型與日曆，那些走 model 注入。
 
 ---
 
@@ -714,7 +808,8 @@ core/
 - 台期貨應以**平行垂直切片**加入：pipeline → DB → API → models/managers → strategies → backtest；其中「DB」這一關不可省略，所有資料一律先用 `sqlite3` 落地到 `core/database/futures.db`，再往下游走（見 §6.3）。
 - 關鍵風險是誤用股票成本與日曆；保證金／換月／結算必須獨立建模。
 - 個股期貨（股期）已納入規劃，但因標的數量大（250+ 檔）、多數流動性偏低，建議分階段以流動性排名篩選後再擴充（見 Phase 6），避免一開始就攤開全部標的拖慢核心指數期貨閉環。
-- 建議先跑通 Phase 1 最小閉環（日線 + 簡化保證金 + 一支策略），再補日曆與換月，接著籌碼訊號，最後才做多商品、tick 與目錄收斂。
+- **目錄策略採「資料先分、程式碼後分」**（§3.0）：`downloads/` 於 Phase0-1 就收斂為 `tw_stock/` ／ `tw_futures/`（成本僅 9 個 config 常數 ＋ `git mv`），程式碼則維持命名平行到 Phase5-3。兩者做法不同是因為搬遷成本差一個量級，不是自相矛盾。
+- 建議先跑通 Phase 0（目錄歸位）與 Phase 1 最小閉環（日線 + 簡化保證金 + 一支策略），再補日曆與換月，接著籌碼訊號，最後才做多商品、tick 與程式碼目錄收斂。
 
 ---
 
