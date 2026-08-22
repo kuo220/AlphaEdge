@@ -78,7 +78,7 @@ def test_finmind_updater():
     temp_config.LOGS_DIR_PATH = project_root / "core" / "logs"
     temp_config.DB_PATH = project_root / "core" / "database" / "stock.db"
     temp_config.FINMIND_DOWNLOADS_PATH = (
-        project_root / "core" / "pipeline" / "downloads" / "finmind"
+        project_root / "core" / "pipeline" / "downloads" / "tw_stock" / "finmind"
     )
     temp_config.STOCK_INFO_WITH_WARRANT_TABLE_NAME = STOCK_INFO_WITH_WARRANT_TABLE_NAME
     temp_config.SECURITIES_TRADER_INFO_TABLE_NAME = SECURITIES_TRADER_INFO_TABLE_NAME

@@ -17,9 +17,9 @@
 
 | 編號 | 步驟名稱 | 產出檔案 | 驗證方式 | 狀態 | 備註／中斷點 |
 |------|----------|----------|----------|:----:|--------------|
-| Phase0-1 | `downloads/` 收斂為市場維度目錄 | `core/config.py`、`core/pipeline/downloads/` | 既有 ETL 全部跑通且落點正確；`tests/` 全綠 | ⬜ | **動任何期貨程式之前先做**。純資料目錄搬遷、零行為改變；成本遠低於程式碼搬遷（決策見 §3.0、結構見 §3.1） |
-| Phase1-1 | `core/config.py` 新增期貨 DB 與表名常數 | `core/config.py` | `FUTURES_DB_PATH` 可解析 | ⬜ | 相依 Phase0-1；沿用 `get_static_resolved_path` |
-| Phase1-2 | `futures_price` 四層 ETL（TAIFEX 日線／結算價） | `core/pipeline/*/futures_price_*.py` | `--target futures_price` 跑完可查到資料且重跑冪等 | ⬜ | **前置關卡**：DB 沒建起來前不要寫 API／策略／回測（見 §6.3） |
+| Phase0-1 | `downloads/` 收斂為市場維度目錄 | `core/config.py`、`core/pipeline/downloads/` | 既有 ETL 全部跑通且落點正確；`tests/` 全綠 | ✅ | **2026-08-22 完成**：9 個常數改掛 `TW_STOCK_DOWNLOADS_PATH`，常數名稱不動；`git mv` 為純 rename。實作時多抓到 1 處漏網（`tests/test_finmind_pipeline.py`），見完成紀錄 |
+| Phase1-1 | `core/config.py` 新增期貨 DB 與表名常數 | `core/config.py` | `FUTURES_DB_PATH` 可解析 | ✅ | **2026-08-22 完成**：DB 路徑 ＋ 6 個表名 ＋ 5 個中繼目錄 ＋ meta 目錄。`DEFAULT_FUTURES_START_DATE` **刻意未加**，待來源網址確認後再定回補起點 |
+| Phase1-2 | `futures_price` 四層 ETL（TAIFEX 日線／結算價） | `core/pipeline/*/futures_price_*.py` | `--target futures_price` 跑完可查到資料且重跑冪等 | ⬜ | **前置關卡**：DB 沒建起來前不要寫 API／策略／回測（見 §6.3）。**卡來源網址（§5.10 A1~A4）與回補起點**。建表時 `session` 欄位不可省（見 §5.8）；先只做大台 TX |
 | Phase1-3 | `FuturesPriceAPI` ＋ `FuturesQuoteAdapter` | `core/api/futures_price_api.py`、`core/adapters/futures_quote_adapter.py` | 只從 `futures.db` 讀，不讀中繼檔 | ⬜ | 相依 Phase1-2 |
 | Phase1-4 | `models/futures` ＋ `managers/futures`（簡化保證金） | `core/models/futures/`、`core/managers/futures/` | 口數、多空、未平倉語意正確 | ⬜ | 相依 Phase1-3 |
 | Phase1-5 | `BaseFuturesStrategy` ＋ 一支示範策略 | `core/strategies/futures/` | 策略可被 `load_futures_strategies()` 載入 | ⬜ | 相依 Phase1-4 |
@@ -31,7 +31,7 @@
 | Phase2-4 | 換月規則參數化 | `core/backtest/` | 三種換月規則可切換 | ⬜ | 相依 Phase1-7、Phase2-3 |
 | Phase3-1 | 籌碼訊號 ETL（三大法人、大額交易人、PCR） | `core/pipeline/*/futures_chip_*.py` | 前視偏差對齊（T+1 可用） | ⬜ | 相依 Phase1-2 |
 | Phase4-1 | 多商品擴充（MTX、TMF、TE、TF） | `core/pipeline/*` | 各商品點值／乘數正確 | ⬜ | 相依 Phase2-2 |
-| Phase4-2 | 日盤／夜盤整併 | `core/pipeline/*`、日曆 | 跨盤別跳空被保留 | ⬜ | 相依 Phase2-3 |
+| Phase4-2 | 日盤／夜盤整併 | `core/pipeline/*`、日曆 | 跨盤別跳空被保留 | ⬜ | 相依 Phase2-3；`session` 欄位已由 Phase1-2 建立，本步驟只剩整併政策 |
 | Phase5-1 | 分 K 與 Tick（Shioaji futures ticks） | `core/pipeline/*/futures_tick_*.py` | 日內策略可回測 | ⬜ | 相依 Phase4-1；可參考 `StockTickUpdater` 多 key／執行緒 |
 | Phase5-2 | frontend 期貨專屬指標（保證金曲線、口數曝險） | `frontend/` | 指標可顯示 | ⬜ | 相依 Phase2-2 |
 | Phase5-3 | **程式碼**目錄收斂至路徑 B（`pipeline/tw_stock` / `tw_futures`） | 全專案 | 台股回歸逐筆相同 | ⏸ | 暫緩：與美股 `us/` 一起收斂，避免兩次重工。**資料目錄已於 Phase0-1 先行收斂**，本步驟只剩程式碼 |
@@ -396,8 +396,30 @@ core/
 
 - 開休市日曆（含國定假日、颱風假等臨時休市）
 - 日盤時段：08:45–13:45
-- 夜盤時段：15:00–次日 05:00
+- 夜盤時段：15:00–次日 05:00（自 **2017-05-15** 開始，之前無夜盤）
 - 結算日特殊時段標記
+
+#### 決策（2026-08-22）：資料層一律分開存，合併與否交給回測層
+
+**`session` 欄位在 Phase1-2 建表時就要留好**，即使整併政策要到 Phase4-2 才實作。
+
+理由——**合併是有損操作**：分開存隨時可以合併，合併存回不去。三個具體後果：
+
+1. **2017-05-15 之前沒有夜盤**。若一開始就合成單一序列，那天前後的 K 棒性質不同，長回測的統計量會被汙染，而且事後看不出來。
+2. **留倉策略的隔夜風險真的發生在夜盤**。只存日盤 OHLC 會系統性低估跳空——與「放空不計借券成本」屬同一類錯誤：不是精度問題，是把風險整段抹掉。
+3. **當沖／日內策略只該看日盤**。合併後的序列會讓訊號吃到不該有的價格。
+
+這也是 `session` 是本表**唯一「晚做要付重建成本」欄位**的原因：其他欄位可以之後 `ALTER TABLE` 補，`session` 一旦沒有，整表要重爬重建。
+
+#### ⚠️ 交易日歸屬：夜盤屬於「次一營業日」
+
+TAIFEX 的盤後交易時段，其交易資料**歸屬於次一營業日**（官方每日行情頁註明「盤後交易時段交易資料查詢，以其交易量歸屬日期查詢」）。也就是說**週一晚上 15:00 開始的夜盤，是週二的資料**。
+
+**cleaner 一律以官方給的 trade date 為準，不可自行從 timestamp 推算日期**，否則整段資料會與官方對不起來，且因為只差一天、不會報錯，屬於典型的靜默錯誤。
+
+#### 待確認
+
+- **股票期貨是否有夜盤**（初步認為沒有，僅部分商品有盤後交易時段）。會影響 Phase6 的 schema 與整併邏輯，查證 TAIFEX 來源網址時一併確認。
 
 ### 5.9 交易成本資料
 
@@ -405,21 +427,56 @@ core/
 - 手續費（依券商而異，以參數化方式設定）
 - 滑價假設參數（大台與小台流動性不同，需分別設定）
 
-### 5.10 資料來源清單
+### 5.10 資料來源清單與網址盤點表
 
-| 資料類型 | 建議來源 | 取得方式 | 更新頻率 |
-|----------|----------|----------|----------|
-| 期貨每日行情 | TAIFEX 官網每日交易行情 | `requests` + `pd.read_html()` / CSV 下載 | 每日 |
-| 股票期貨（股期）每日行情 | TAIFEX 官網股票期貨每日行情 | `requests` + `pd.read_html()` / CSV 下載 | 每日 |
-| 股票期貨標的清單 | TAIFEX 商品資訊（股票期貨） | 網頁爬取 / CSV | 異動時 |
-| Tick / 分 K 歷史 | Shioaji（永豐金 API） | API 呼叫 | 依需求 |
-| 三大法人期貨 | TAIFEX 三大法人查詢 | 網頁爬取 / CSV | 每日盤後 |
-| 大額交易人未平倉 | TAIFEX 大額交易人專區 | 網頁爬取 | 每日盤後 |
-| 選擇權 PCR | TAIFEX Put/Call Ratio | CSV 下載 | 每日盤後 |
-| 加權指數 / 分類指數 | 證交所（TWSE） | API / 網頁爬取 | 每日 |
-| 台灣 VIX | TAIFEX 波動率指數 | 網頁爬取 | 每日 |
-| 契約規格 / 保證金 | TAIFEX 保證金與契約規格公告 | 網頁爬取 | 異動時 |
-| 交易日曆 | TAIFEX 行事曆 | 網頁爬取 / 手動維護 | 年度更新 |
+> **狀態（2026-08-22）**：`URLManager` 目前 20 條 URL 全為 TWSE／TPEX／MOPS，**零筆 TAIFEX**。
+> 下表是動工前要湊齊的清單，「來源網址」欄由使用者確認後填入，再一併寫進
+> `core/pipeline/utils/url_manager.py`。**優先級 P0 者不齊就無法跑 Phase1-2 的最小閉環。**
+
+#### A. Phase 1 最小閉環必要（P0）
+
+| # | 資料項目 | 用途 | 建議來源 | 來源網址 | 對應步驟 |
+|---|----------|------|----------|----------|----------|
+| A1 | 期貨每日行情（各月份契約 OHLC、成交量、**結算價**、**未平倉量**） | `futures_price_daily` 主表 | TAIFEX 每日行情（`/cht/3/futDailyMarketView`） | 待填 | Phase1-2 |
+| A2 | 每日全市場 CSV 批次下載 | 歷史回補（一天一包，含全部契約） | TAIFEX `Dailydownload/DailydownloadCSV/Daily_YYYY_MM_DD.zip`（**尚未實測**） | 待填 | Phase1-2 |
+| A3 | 契約基本規格（乘數、跳動點、漲跌幅限制） | `futures_contract`；PnL 計算的乘數來源 | TAIFEX 契約規格頁 | 待填 | Phase1-2／Phase1-4 |
+| A4 | 各契約掛牌日、最後交易日、結算日 | 換月與到期判斷 | TAIFEX 商品資訊／行事曆 | 待填 | Phase1-7 |
+
+#### B. Phase 2 成本、保證金與日曆（P1）
+
+| # | 資料項目 | 用途 | 建議來源 | 來源網址 | 對應步驟 |
+|---|----------|------|----------|----------|----------|
+| B1 | 原始／維持保證金**歷史序列**（含公告生效日） | `futures_margin_history`；用當前值回測歷史會失真 | TAIFEX 保證金公告 | 待填 | Phase2-2 |
+| B2 | 期交稅率（現行十萬分之二）與其歷史調整 | 成本模型；**不可複用證交稅** | TAIFEX／財政部公告 | 待填（可先參數化寫死） | Phase2-1 |
+| B3 | 交易日曆（開休市、國定假日、颱風假臨時休市） | 期貨日曆，不可沿用股票 calendar | TAIFEX 行事曆 | 待填 | Phase2-3 |
+| B4 | 最後結算價（Final Settlement Price） | 結算日跳空的損益計算 | TAIFEX 結算價公告 | 待填 | Phase1-7／Phase2-4 |
+
+#### C. Phase 3 籌碼訊號（P2）
+
+| # | 資料項目 | 用途 | 建議來源 | 來源網址 | 對應步驟 |
+|---|----------|------|----------|----------|----------|
+| C1 | 三大法人期貨買賣超與未平倉口數 | `futures_institutional_chip` | TAIFEX 三大法人查詢 | 待填 | Phase3-1 |
+| C2 | 大額交易人未平倉（前五大／前十大、特定法人拆分） | 同上 | TAIFEX 大額交易人專區 | 待填 | Phase3-1 |
+| C3 | 選擇權 Put/Call Ratio（成交量 PCR ＋ 未平倉 PCR） | 輔助訊號 | TAIFEX PCR CSV | 待填 | Phase3-1 |
+| C4 | 各履約價未平倉分布、Max Pain | 支撐壓力訊號（可選） | TAIFEX 選擇權行情 | 待填 | Phase3-1 |
+
+#### D. 擴充與輔助（P3）
+
+| # | 資料項目 | 用途 | 建議來源 | 來源網址 | 對應步驟 |
+|---|----------|------|----------|----------|----------|
+| D1 | 股票期貨標的清單（`underlying_stock_id`、掛牌／下市、乘數異動） | `futures_stock_universe` | TAIFEX 股票期貨商品資訊 | 待填 | Phase6-1 |
+| D2 | 股票期貨每日行情 | 股期回測 | TAIFEX（多半與 A1／A2 同源） | 待填 | Phase6-2 |
+| D3 | 股票期貨契約調整公告（除權息調整乘數／發新契約） | **不可套用現股還原邏輯**，須依官方公告 | TAIFEX 契約調整公告 | 待填 | Phase6-2 |
+| D4 | 分 K 與 Tick | 日內策略 | **Shioaji**（憑證已在 `.env`） | 不需爬網頁 | Phase5-1 |
+| D5 | 加權指數（TAIEX）、電子／金融類指數 | 期現貨正逆價差 Basis | TWSE（**現有 pipeline 已在爬 TWSE**，可能不需新來源） | 待確認是否已涵蓋 | 未排入 |
+| D6 | 台灣 VIX（選擇權波動率指數） | 風險指標 | TAIFEX 波動率指數 | 待填 | 未排入 |
+
+#### 資料源分工結論
+
+- **日線、結算價、籌碼、保證金、規格 → TAIFEX**（官方為準）
+- **分 K 與 Tick → Shioaji**（憑證已具備，不需另申請）
+- **現貨指數 → TWSE**（先確認現有 `price` 相關 crawler 是否已含指數，能共用就不新增）
+- TAIFEX 另有 OpenAPI（`openapi.taifex.com.tw`），可能比爬 HTML 穩定，但其 Swagger UI 為 JS 應用、無法直接取得端點清單，**待實作時以瀏覽器確認**；若可用則優先於網頁爬取。
 
 ---
 
@@ -482,6 +539,19 @@ core/
 
 - `futures_price_daily`: `(contract_id, trade_date, source)` 或 `(product, expiry, trade_date, source)`
 - `futures_contract`: `(contract_id)` 或 `(product, expiry)`
+
+`futures_price_daily`（各月份契約日 K）**必備欄位**——`session` 見 §5.8 的決策，建表時就要有：
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| trade_date | date | **以官方歸屬日為準**，不可從 timestamp 自行推算（見 §5.8） |
+| product | string | 商品代碼（TX、MTX…） |
+| expiry | string | 到期月份（週別） |
+| session | string | `day` ／ `night`；2017-05-15 前一律 `day` |
+| open / high / low / close | float | OHLC |
+| volume | int | 成交量 |
+| settlement | float | 結算價（股票沒有這個欄位，期貨的每日結算靠它） |
+| open_interest | int | 未沖銷契約量 |
 
 建議核心資料表欄位（連續合約日 K，供回測直接讀取）：
 
@@ -550,7 +620,8 @@ core/
 ### 資料處理層面
 
 - **前視偏差（Look-ahead Bias）**：法人籌碼、未平倉等資料為盤後公布，回測時須以「隔日可用」對齊，不可用當日尚未公布的資料下單。
-- **日盤/夜盤整併**：需決定是否合併為單一連續序列，或分開回測。跨盤別的跳空需保留。
+- **日盤/夜盤整併**：**已於 2026-08-22 定案**——資料層分開存（`session` 欄位，Phase1-2 就要有），是否合併是回測層參數（Phase4-2）。理由與交易日歸屬的坑見 §5.8。
+- **夜盤的交易日歸屬**：TAIFEX 把盤後時段歸到**次一營業日**，週一晚上的夜盤是週二的資料。自行從 timestamp 推日期會與官方差一天且不會報錯。
 - **時間戳對齊**：期貨、現貨、籌碼三類資料時間基準不同，合併前需統一。
 
 ### 資料品質層面
@@ -566,7 +637,7 @@ core/
 
 ### Phase 0：目錄前置
 
-#### Phase0-1. `downloads/` 收斂為市場維度目錄 ⬜
+#### Phase0-1. `downloads/` 收斂為市場維度目錄 ✅
 
 - **目的**：`core/database/` 早就是市場維度（`stock.db` ＋ `futures.db`），`downloads/` 卻還跟著程式碼用扁平命名。**在放進任何期貨中繼檔之前先歸位**，否則之後只會有兩個壞選項：混合樹（`downloads/{price, chip, …, tw_futures/}`，看到 `price/` 不知道屬於誰），或事後連同程式碼一起搬（成本高一個量級）。決策理由見 §3.0。
 - **做法**（純資料目錄搬遷，**零行為改變**）：
@@ -593,9 +664,19 @@ core/
   3. `grep -rn "downloads/" --include='*.py' core tasks tests` 無殘留的舊路徑字串。
 - **相依**：無。**本步驟阻塞 Phase1-2 之後所有會寫中繼檔的步驟。**
 
+> **✅ 完成紀錄（2026-08-22）**
+> - **實際改動**：`core/config.py` 新增 `TW_STOCK_DOWNLOADS_PATH` ／ `TW_FUTURES_DOWNLOADS_PATH`，9 個既有常數（8 個 `*_DOWNLOADS_PATH` ＋ `DOWNLOADS_METADATA_DIR_PATH`）的 `base_dir` 改掛前者。**常數名稱一個都沒改**——改名會擴散到 30 個檔案，搬目錄不需要。
+> - **目錄搬遷**：`git mv` 9 個目錄，git 全部辨識為 rename（14 個受版控的 meta JSON 內容未動）。
+> - **事前成本估計準確**：預估「9 個常數 ＋ `git mv` ＋ 1 個測試 ＋ 3 行註解」，實際多出 1 處——`tests/test_finmind_pipeline.py:43` 與 `test_finmind_updater.py:81` 是**同一段自行重組路徑的程式碼複製了兩份**，第一次盤點的 grep 樣式太窄只抓到一個。教訓：盤點這類「自行拼路徑」的殘留時，樣式要放寬到 `downloads` 而不是完整路徑。
+> - **不需要改的**：`tests/test_broker_trading_updater.py` 的 `downloads/finmind`、`downloads/meta/broker_trading` 指的是 `tests/downloads/` 這個測試自建的 fixture 根目錄，與正式路徑無關，維持原樣。
+> - **驗證結果**：
+>   1. `pytest tests` → **261 passed**；4 個 error 為既有問題（`tests/test_tick_crawler.py`／`test_tick_updater.py` 的測試函式帶必填參數被 pytest 當成 fixture，該檔第 17 行自己已註明），以 `git stash` 比對確認改動前後完全相同。
+>   2. 9 個常數全部解析到 `pipeline/downloads/tw_stock/*` 且目錄存在。
+>   3. **反向檢查**：實例化 6 個 loader ＋ 5 個 cleaner（其 `setup()` 會 `mkdir` 中繼目錄）後，`downloads/` 底下只剩 `tw_stock`，舊位置沒有任何目錄被重建——確認無遺漏的呼叫端。
+
 ### Phase 1：單商品日 K 最小可跑閉環
 
-#### Phase1-1. `core/config.py` 新增期貨 DB 與表名常數 ⬜
+#### Phase1-1. `core/config.py` 新增期貨 DB 與表名常數 ✅
 
 - **目的**：先把路徑與表名收斂成常數，避免後續在程式中散落字串。
 - **做法**：新增 `FUTURES_DB_NAME: str = "futures.db"` 與 `FUTURES_DB_PATH`（沿用 `get_static_resolved_path(base_dir=DATABASE_DIR_PATH, ...)`），並比照 `PRICE_TABLE_NAME` 新增 `FUTURES_*_TABLE_NAME` 常數；中繼檔常數則掛在 Phase0-1 建立的 `TW_FUTURES_DOWNLOADS_PATH` 之下（`FUTURES_PRICE_DOWNLOADS_PATH` 等，結構見 §3.1）。
@@ -603,13 +684,31 @@ core/
 - **驗證方式**：`FUTURES_DB_PATH` 可正確解析為 `core/database/futures.db`；`FUTURES_PRICE_DOWNLOADS_PATH` 解析為 `core/pipeline/downloads/tw_futures/price`。
 - **相依**：Phase0-1。
 
+> **✅ 完成紀錄（2026-08-22）**
+> - **新增內容**：
+>   - `FUTURES_DB_NAME` ／ `FUTURES_DB_PATH` → `core/database/futures.db`
+>   - 6 個表名常數：`futures_contract`、`futures_price_daily`、`futures_continuous`、`futures_institutional_chip`、`futures_margin_history`、`futures_stock_universe`（名稱沿用 §6.4）
+>   - 5 個中繼目錄常數（price／chip／continuous／universe／tick）＋ `FUTURES_METADATA_DIR_PATH`
+> - **刻意未加 `DEFAULT_FUTURES_START_DATE`**：回補起始年份取決於 TAIFEX 各來源實際能回溯多久，待來源網址確認後再定（使用者 2026-08-22 決定延後）。其他資料類型都有對應的 `DEFAULT_*_START_DATE`，這個缺口是刻意的，不是漏掉。
+> - **命名偏離台股慣例（刻意）**：台股表名不帶前綴（`price`、`chip`），期貨表名帶 `futures_` 前綴。雖然分屬不同 DB、前綴理論上多餘，但 Phase6-2 的股票期貨除權息需要與 `stock.db` 對照（可能走 `ATTACH`），屆時帶前綴的表名在查詢裡不會混淆。
+> - **`tw_futures/` 目錄尚未建立**：常數已就緒，目錄會在 Phase1-2 的 loader 首次 `setup()` 時自動建立，與台股 loader 同一套骨架。
+
 #### Phase1-2. `futures_price` 四層 ETL ⬜
 
 - **目的**：以大台（TX）為起點建立資料真相來源。**這是後續所有工作的前置關卡：DB 沒建起來之前，不要開始寫 API、策略或回測**（理由見 §6.3）。
-- **做法**：`FuturesPriceCrawler`（TAIFEX 日線／結算價）→ `FuturesPriceCleaner` → `FuturesPriceLoader`（`sqlite3` upsert，繼承 `BaseDataLoader`，`setup()` 內 `connect()` → `create_missing_tables()`）→ `FuturesPriceUpdater`；`tasks/update_db.py` 加 `--target futures_price`。增量更新的起訖日判斷共用既有 `SQLiteUtils`，不要另寫一套。
+- **做法**：`FuturesPriceCrawler`（TAIFEX 日線／結算價）→ `FuturesPriceCleaner` → `FuturesPriceLoader`（`sqlite3` upsert，繼承 `BaseDataLoader`，`setup()` 內 `connect()` → `create_missing_tables()`）→ `FuturesPriceUpdater`；`tasks/update_db.py` 加 `--target futures_price`。增量更新的起訖日判斷共用既有 `SQLiteUtils`，不要另寫一套。中繼檔落點為 `FUTURES_PRICE_DOWNLOADS_PATH`（Phase1-1 已備妥，目錄由 loader 首次 `setup()` 自動建立）。
+- **建表時就要有 `session` 欄位**（見 §5.8 決策與 §6.4 欄位表）：它是本表唯一「晚做要付重建成本」的欄位，其他欄位可以之後 `ALTER TABLE` 補。
+- **`trade_date` 一律取官方歸屬日**，不可從 timestamp 自行推算——夜盤歸屬次一營業日，自行推算會差一天且不會報錯（見 §5.8）。
 - **產出**：`core/pipeline/{crawlers,cleaners,loaders,updaters}/futures_price_*.py`、`tasks/update_db.py`。
-- **驗證方式**：跑完能用 `sqlite3 core/database/futures.db` 直接查到資料，且**重跑一次筆數不變（冪等）**。
-- **相依**：Phase1-1。
+- **驗證方式**：跑完能用 `sqlite3 core/database/futures.db` 直接查到資料，且**重跑一次筆數不變（冪等）**；抽樣比對 TAIFEX 原始頁面，含結算價與未沖銷契約量。
+- **相依**：Phase1-1（✅）。**目前卡兩件事**：
+  1. **來源網址未定**（§5.10 的 A1~A4，使用者確認中）。其中 A2 的每日全市場 CSV zip 若可用，歷史回補會輕鬆很多，值得優先實測。
+  2. **回補起始年份未定**（`DEFAULT_FUTURES_START_DATE` 刻意未加，見 Phase1-1 完成紀錄），取決於各來源實際能回溯多久。
+
+> **決策紀錄（2026-08-22）**
+> - **商品範圍**：先只做**大台 TX** 跑通最小閉環，MTX 等留給 Phase4-1。使用者已確認採此建議。
+> - **日線來源**：以 **TAIFEX 官方為準**；Shioaji 只用於 Phase5-1 的分 K 與 Tick（憑證已在 `.env`，不需另申請）。使用者已確認採此建議。
+> - **交易時段**：日盤與夜盤**分開存**，見 §5.8。
 
 #### Phase1-3. `FuturesPriceAPI` ＋ `FuturesQuoteAdapter` ⬜
 
@@ -721,7 +820,8 @@ core/
 #### Phase4-2. 日盤／夜盤整併 ⬜
 
 - **目的**：決定是否合併為單一連續序列或分開回測，並保留跨盤別跳空。
-- **做法**：以 `session` 欄位標記 day／night；整併策略設為可設定參數。
+- **範圍已縮小（2026-08-22）**：`session` 欄位由 **Phase1-2 建表時就建立**（決策見 §5.8），本步驟**只做整併政策**，不再需要改 schema。
+- **做法**：整併策略設為可設定參數（分開／合併），預設分開；合併時須保留跨盤別跳空，不可平滑。
 - **產出**：`core/pipeline/*`、期貨日曆。
 - **驗證方式**：跨盤別跳空未被平滑掉；整併前後的日 K OHLC 可對帳。
 - **相依**：Phase2-3。
@@ -809,6 +909,7 @@ core/
 - 關鍵風險是誤用股票成本與日曆；保證金／換月／結算必須獨立建模。
 - 個股期貨（股期）已納入規劃，但因標的數量大（250+ 檔）、多數流動性偏低，建議分階段以流動性排名篩選後再擴充（見 Phase 6），避免一開始就攤開全部標的拖慢核心指數期貨閉環。
 - **目錄策略採「資料先分、程式碼後分」**（§3.0）：`downloads/` 於 Phase0-1 就收斂為 `tw_stock/` ／ `tw_futures/`（成本僅 9 個 config 常數 ＋ `git mv`），程式碼則維持命名平行到 Phase5-3。兩者做法不同是因為搬遷成本差一個量級，不是自相矛盾。
+- **交易時段採「資料層分開存、回測層決定合併」**（§5.8）：`session` 欄位在 Phase1-2 建表時就要有，因為合併是有損操作、且 2017-05-15 前根本沒有夜盤。另注意 TAIFEX 把夜盤歸屬到次一營業日，`trade_date` 一律取官方值。
 - 建議先跑通 Phase 0（目錄歸位）與 Phase 1 最小閉環（日線 + 簡化保證金 + 一支策略），再補日曆與換月，接著籌碼訊號，最後才做多商品、tick 與程式碼目錄收斂。
 
 ---

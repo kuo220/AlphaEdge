@@ -383,7 +383,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
         # 去除重複欄位並保留順序
         unique_columns: List[str] = list(dict.fromkeys(all_columns))
 
-        # Save all columns list as .json in pipeline/downloads/meta/financial_statement
+        # Save all columns list as .json in pipeline/downloads/tw_stock/meta/financial_statement
         dir_path: Path = FINANCIAL_STATEMENT_META_DIR_PATH / report_type.lower()
         dir_path.mkdir(parents=True, exist_ok=True)
 

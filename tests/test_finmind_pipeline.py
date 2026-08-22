@@ -40,7 +40,7 @@ def test_finmind_pipeline():
     # 設置其他可能需要的屬性（使用合理的預設值）
     temp_config.DB_PATH = project_root / "core" / "database" / "stock.db"
     temp_config.FINMIND_DOWNLOADS_PATH = (
-        project_root / "core" / "pipeline" / "downloads" / "finmind"
+        project_root / "core" / "pipeline" / "downloads" / "tw_stock" / "finmind"
     )
     temp_config.STOCK_INFO_WITH_WARRANT_TABLE_NAME = STOCK_INFO_WITH_WARRANT_TABLE_NAME
     temp_config.SECURITIES_TRADER_INFO_TABLE_NAME = SECURITIES_TRADER_INFO_TABLE_NAME

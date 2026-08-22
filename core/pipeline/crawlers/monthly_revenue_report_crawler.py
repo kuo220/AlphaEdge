@@ -181,7 +181,7 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
         # 去除重複欄位並保留順序
         unique_columns: List[str] = list(dict.fromkeys(all_columns))
 
-        # Save all columns list as .json in pipeline/downloads/meta/monthly_revenue_report
+        # Save all columns list as .json in pipeline/downloads/tw_stock/meta/monthly_revenue_report
         dir_path: Path = MONTHLY_REVENUE_REPORT_META_DIR_PATH
         dir_path.mkdir(parents=True, exist_ok=True)
 

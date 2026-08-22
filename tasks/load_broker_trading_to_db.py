@@ -16,7 +16,7 @@ def main() -> None:
         loader = FinMindLoader()
 
         # 載入 broker_trading 資料（從 CSV 檔案）
-        # 如果不傳入 df 參數，會自動從 pipeline/downloads/finmind/broker_trading/ 讀取
+        # 如果不傳入 df 參數，會自動從 pipeline/downloads/tw_stock/finmind/broker_trading/ 讀取
         loader.load_broker_trading_daily_report()
 
         logger.info("✅ broker_trading 資料載入完成")

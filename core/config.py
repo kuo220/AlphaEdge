@@ -62,29 +62,56 @@ BACKTEST_LOGS_DIR_PATH: Path = get_static_resolved_path(
 PIPELINE_DOWNLOADS_PATH: Path = get_static_resolved_path(
     base_dir=BASE_DIR_PATH, dir_name="pipeline/downloads"
 )
+
+# 中繼檔依「市場」分層，與 core/database/ 的 stock.db／futures.db 同一個維度。
+# 程式碼（pipeline / api / adapters）維持命名平行不分目錄——兩者搬遷成本差一個量級，
+# 決策理由見 backlog/台期貨ETL與回測架構規劃.md §3.0
+TW_STOCK_DOWNLOADS_PATH: Path = get_static_resolved_path(
+    base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="tw_stock"
+)
+TW_FUTURES_DOWNLOADS_PATH: Path = get_static_resolved_path(
+    base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="tw_futures"
+)
 FINANCIAL_STATEMENT_DOWNLOADS_PATH: Path = get_static_resolved_path(
-    base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="financial_statement"
+    base_dir=TW_STOCK_DOWNLOADS_PATH, dir_name="financial_statement"
 )
 MONTHLY_REVENUE_REPORT_DOWNLOADS_PATH: Path = get_static_resolved_path(
-    base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="monthly_revenue_report"
+    base_dir=TW_STOCK_DOWNLOADS_PATH, dir_name="monthly_revenue_report"
 )
 PRICE_DOWNLOADS_PATH: Path = get_static_resolved_path(
-    base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="price"
+    base_dir=TW_STOCK_DOWNLOADS_PATH, dir_name="price"
 )
 CHIP_DOWNLOADS_PATH: Path = get_static_resolved_path(
-    base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="chip"
+    base_dir=TW_STOCK_DOWNLOADS_PATH, dir_name="chip"
 )
 MARGIN_DOWNLOADS_PATH: Path = get_static_resolved_path(
-    base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="margin"
+    base_dir=TW_STOCK_DOWNLOADS_PATH, dir_name="margin"
 )
 DIVIDEND_DOWNLOADS_PATH: Path = get_static_resolved_path(
-    base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="dividend"
+    base_dir=TW_STOCK_DOWNLOADS_PATH, dir_name="dividend"
 )
 TICK_DOWNLOADS_PATH: Path = get_static_resolved_path(
-    base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="tick"
+    base_dir=TW_STOCK_DOWNLOADS_PATH, dir_name="tick"
 )
 FINMIND_DOWNLOADS_PATH: Path = get_static_resolved_path(
-    base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="finmind"
+    base_dir=TW_STOCK_DOWNLOADS_PATH, dir_name="finmind"
+)
+
+# 台期貨中繼檔；目錄與 tw_stock 同構，只是資料類型不同
+FUTURES_PRICE_DOWNLOADS_PATH: Path = get_static_resolved_path(
+    base_dir=TW_FUTURES_DOWNLOADS_PATH, dir_name="price"
+)
+FUTURES_CHIP_DOWNLOADS_PATH: Path = get_static_resolved_path(
+    base_dir=TW_FUTURES_DOWNLOADS_PATH, dir_name="chip"
+)
+FUTURES_CONTINUOUS_DOWNLOADS_PATH: Path = get_static_resolved_path(
+    base_dir=TW_FUTURES_DOWNLOADS_PATH, dir_name="continuous"
+)
+FUTURES_UNIVERSE_DOWNLOADS_PATH: Path = get_static_resolved_path(
+    base_dir=TW_FUTURES_DOWNLOADS_PATH, dir_name="universe"
+)
+FUTURES_TICK_DOWNLOADS_PATH: Path = get_static_resolved_path(
+    base_dir=TW_FUTURES_DOWNLOADS_PATH, dir_name="tick"
 )
 
 # -----------------------------------------------------------------------
@@ -92,7 +119,7 @@ FINMIND_DOWNLOADS_PATH: Path = get_static_resolved_path(
 # -----------------------------------------------------------------------
 #
 DOWNLOADS_METADATA_DIR_PATH: Path = get_static_resolved_path(
-    base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="meta"
+    base_dir=TW_STOCK_DOWNLOADS_PATH, dir_name="meta"
 )
 FINANCIAL_STATEMENT_META_DIR_PATH: Path = get_static_resolved_path(
     base_dir=DOWNLOADS_METADATA_DIR_PATH, dir_name="financial_statement"
@@ -108,6 +135,9 @@ TICK_METADATA_PATH: Path = get_static_resolved_path(
 )
 BROKER_TRADING_METADATA_DIR_PATH: Path = get_static_resolved_path(
     base_dir=DOWNLOADS_METADATA_DIR_PATH, dir_name="broker_trading"
+)
+FUTURES_METADATA_DIR_PATH: Path = get_static_resolved_path(
+    base_dir=TW_FUTURES_DOWNLOADS_PATH, dir_name="meta"
 )
 BROKER_TRADING_METADATA_PATH: Path = get_static_resolved_path(
     base_dir=BROKER_TRADING_METADATA_DIR_PATH, dir_name="broker_trading_metadata.json"
@@ -145,6 +175,14 @@ TICK_DB_NAME: str = "tickDB"
 DB_PATH: Path = get_static_resolved_path(base_dir=DATABASE_DIR_PATH, dir_name=DB_NAME)
 TICK_DB_PATH: str = f"{os.getenv('DDB_PATH')}{TICK_DB_NAME}"
 
+# 期貨與股票分庫：合約碼（contract_id）與 stock_id 語意不同，混在同一個 DB
+# 會讓「這張表的主鍵到底是什麼」失去單一答案
+FUTURES_DB_NAME: str = "futures.db"
+
+FUTURES_DB_PATH: Path = get_static_resolved_path(
+    base_dir=DATABASE_DIR_PATH, dir_name=FUTURES_DB_NAME
+)
+
 
 # -----------------------------------------------------------------------
 # === Database Table names ===
@@ -163,6 +201,16 @@ EQUITY_CHANGE_TABLE_NAME: str = "equity_change"
 STOCK_INFO_TABLE_NAME: str = "taiwan_stock_info"
 STOCK_INFO_WITH_WARRANT_TABLE_NAME: str = "taiwan_stock_info_with_warrant"
 SECURITIES_TRADER_INFO_TABLE_NAME: str = "taiwan_securities_trader_info"
+# 台期貨（皆位於 futures.db）
+FUTURES_CONTRACT_TABLE_NAME: str = "futures_contract"  # 合約／商品規格
+FUTURES_PRICE_DAILY_TABLE_NAME: str = "futures_price_daily"  # 各月份合約日 K
+FUTURES_CONTINUOUS_TABLE_NAME: str = "futures_continuous"  # 連續合約（換月接續後）
+FUTURES_INSTITUTIONAL_CHIP_TABLE_NAME: str = (
+    "futures_institutional_chip"  # 三大法人／大額交易人
+)
+FUTURES_MARGIN_HISTORY_TABLE_NAME: str = "futures_margin_history"  # 保證金歷史序列
+FUTURES_STOCK_UNIVERSE_TABLE_NAME: str = "futures_stock_universe"  # 股票期貨標的池
+
 STOCK_TRADING_DAILY_REPORT_TABLE_NAME: str = (
     "taiwan_stock_trading_daily_report_secid_agg"
 )
