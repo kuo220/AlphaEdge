@@ -433,7 +433,6 @@ class FinancialStatementCleaner(BaseDataCleaner):
         df_list: List[pd.DataFrame],
         year: int,
         season: int,
-        batch_index: int,
     ) -> Optional[Path]:
         """把一批（多檔股票）已清洗的權益變動表合併寫成一個 CSV，回傳檔案路徑"""
 
@@ -447,13 +446,47 @@ class FinancialStatementCleaner(BaseDataCleaner):
         # 逐檔查詢若一檔一個 CSV，全市場全季會產生十萬個檔案，而 loader 每次都掃整個
         # 目錄；故以「批」為單位落地，檔名帶批次序號讓 loader 只讀本批
         batch_df: pd.DataFrame = pd.concat(valid_df_list, ignore_index=True)
-        file_path: Path = (
-            self.equity_change_dir
-            / f"equity_change_{year}Q{season}_{batch_index:04d}.csv"
+        file_path: Path = self.equity_change_dir / (
+            f"equity_change_{year}Q{season}_"
+            f"{self.next_equity_changes_batch_index(year, season):04d}.csv"
         )
         batch_df.to_csv(file_path, index=False, encoding=FileEncoding.UTF8.value)
 
         return file_path
+
+    def next_equity_changes_batch_index(self, year: int, season: int) -> int:
+        """
+        - Description:
+            取得該年季下一個可用的批次序號（現有最大序號 +1，沒有檔案則為 0）
+
+            **序號由目錄現況決定，不能由呼叫端從 0 重數。** 同一年季跑第二次是常態
+            （resume 續跑、補暫時性失敗、新上市公司補舊季），而每次執行涵蓋的股票
+            子集都不同，同名檔的內容也就不同——2026-08-22 的 2020Q1 補跑實際發生過：
+            首輪寫了 16 批，補跑從 0000 重數而蓋掉前 3 批，磁碟上少了 300 檔的紀錄。
+
+            資料本身不會遺失（每批寫完就立刻入庫，且 DB 有主鍵擋重複），但覆寫會讓
+            downloads 目錄無法反映實際跑過什麼；更麻煩的是**入庫失敗的批次**——
+            那種檔案的資料只存在於磁碟上，被蓋掉就斷了手動補救的路，而 loader 特地
+            保留 `remove_files=False` 不刪來源檔，本意正是留這條路。
+        - Parameters:
+            - year / season: int
+                目標年季
+        - Return:
+            - int
+                下一個可用的批次序號
+        """
+
+        max_index: int = -1
+        for file_path in self.equity_change_dir.glob(
+            f"equity_change_{year}Q{season}_*.csv"
+        ):
+            try:
+                max_index = max(max_index, int(file_path.stem.split("_")[-1]))
+            except ValueError:
+                # 手動改過名的檔案不該讓整個流程停擺，略過即可
+                logger.warning(f"Unexpected equity changes batch file: {file_path}")
+
+        return max_index + 1
 
     def clean_report_column_names(
         self,

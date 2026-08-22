@@ -545,7 +545,6 @@ class FinancialStatementUpdater(BaseDataUpdater):
         """逐檔爬取單一年季的權益變動表並分批入庫，回傳站方過載而失敗的次數"""
 
         cleaned_df_list: List[pd.DataFrame] = []
-        batch_index: int = 0
         unreachable_cnt: int = 0
         no_data_cnt: int = 0
         request_cnt: int = 0
@@ -578,11 +577,8 @@ class FinancialStatementUpdater(BaseDataUpdater):
 
             # Step 3: Load（分批入庫，中斷最多只損失最後一批）
             if len(cleaned_df_list) >= self.EQUITY_CHANGE_LOAD_BATCH_SIZE:
-                self.load_equity_changes_batch(
-                    cleaned_df_list, year, season, batch_index
-                )
+                self.load_equity_changes_batch(cleaned_df_list, year, season)
                 cleaned_df_list = []
-                batch_index += 1
 
             request_cnt += 1
             if request_cnt % self.BATCH_SLEEP_EVERY_N_FILES == 0:
@@ -596,7 +592,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
 
         # 收尾：把最後不滿一批的資料也寫進去
         if cleaned_df_list:
-            self.load_equity_changes_batch(cleaned_df_list, year, season, batch_index)
+            self.load_equity_changes_batch(cleaned_df_list, year, season)
 
         logger.info(
             f"{year}Q{season} done: {request_cnt} requested, "
@@ -610,15 +606,15 @@ class FinancialStatementUpdater(BaseDataUpdater):
         cleaned_df_list: List[pd.DataFrame],
         year: int,
         season: int,
-        batch_index: int,
     ) -> None:
         """把一批已清洗的權益變動表落地成 CSV 並入庫"""
 
+        # 批次序號由 cleaner 依目錄現況決定，不在這裡累加——同一年季跑第二次時
+        # 從 0 重數會蓋掉前一次的檔案（見 next_equity_changes_batch_index()）
         file_path: Optional[Path] = self.cleaner.save_equity_changes(
             df_list=cleaned_df_list,
             year=year,
             season=season,
-            batch_index=batch_index,
         )
 
         if file_path is None:
