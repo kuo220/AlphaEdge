@@ -35,13 +35,12 @@ class FillConfig:
     """
     成交假設設定
 
-    **落點與 `backlog/回測滑價與執行係數.md` S1 的原規劃不同**：原文件寫
-    `core/utils/backtest_execution.py`，但多市場重構已把 `cost_model.py` 由
-    `core/utils/` 搬到 `core/backtest/models/`，回測假設一律與其 model 同檔
-    （`CostConfig` 之於 `CostModel`）。再放回 `core/utils/` 會與該結構相衝突，
-    故改為與 `FillModel` 同檔，語意仍與「法規費率」（`Commission`）分離。
+    **刻意與 `FillModel` 放在同一個檔案**：回測假設一律與其 model 同檔
+    （對照 `CostConfig` 之於 `CostModel`），語意上則與「法規費率」
+    （`Commission`）分離——前者是可調的模擬參數，後者是外部給定的規則。
 
-    全部預設為關閉，行為與導入前逐筆相同。
+    全部預設為關閉，此時的成交行為與未啟用任何假設時完全相同。
+    使用說明見 `core/backtest/README.md`〈成交假設〉。
     """
 
     # 滑價基點（1 bps = 0.01%）；買進加價、賣出減價
@@ -303,8 +302,7 @@ class TwStockFillModel(BaseFillModel):
             return True
 
         is_short_open: bool = (
-            order.action == Action.SELL
-            and order.position_type == PositionType.SHORT
+            order.action == Action.SELL and order.position_type == PositionType.SHORT
         )
         if not is_short_open:
             return True
@@ -345,7 +343,8 @@ class TwStockFillModel(BaseFillModel):
 
             **`quote.volume` 的語意依級別不同**：DAY 為當日總量、TICK 為單筆成交量。
             TICK 級別下以單筆量當分母沒有意義，故本檢查只在 DAY 級別生效
-            （TICK 的累計量檢查屬 `backlog/回測引擎執行真實度補強.md` S5 的後續）。
+            （TICK 的累計量檢查尚未實作，見 `core/backtest/README.md`
+            〈成交假設〉的已知限制）。
         - Parameters:
             - order: BaseOrder
                 待檢查的訂單

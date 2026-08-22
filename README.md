@@ -114,6 +114,9 @@ graph TB
 | [Multi-Market Engine](docs/backtest/multi-market-engine.md) | Backtest engine architecture: one engine, five pluggable models |
 | [Module Map](docs/backtest/module-map.md)               | Who calls whom on the backtest path, per-file responsibilities |
 | [Short-Selling Framework](docs/backtest/short-selling-framework.md) | Direction-driven accounting, costs, margin call, forced cover |
+| [Code Quality Baseline](docs/dev/code-quality.md)       | Tooling (pyproject / ruff / CI / pre-commit), lint ignore rationale, coverage baseline |
+| [ETL Ingestion](docs/pipeline/etl-ingestion.md)         | Batching, idempotency and failure semantics of the data-load stage; per-updater checklist |
+| [Broker Trading NO_DATA](docs/pipeline/broker-trading-no-data.md) | Metadata semantics for empty API responses (decision record) |
 
 
 ---
@@ -153,6 +156,42 @@ To exit the virtualenv in the current shell:
 ```bash
 deactivate
 ```
+
+`requirements.txt` holds fully pinned versions plus a trailing `-e .`, so that single
+command installs both the dependencies and the project itself — `core` / `tasks` /
+`tests` become importable from **any** working directory. The package metadata
+(dependency names, optional extras, Python version) lives in `pyproject.toml`.
+
+For development work, install the dev extras as well:
+
+```bash
+python -m pip install -e ".[dev]"   # pytest, pytest-timeout, pytest-cov, ruff
+```
+
+Optional extras: `frontend` (Streamlit UI), `tick` (DolphinDB tick storage), `lab`
+(`strategy_lab` report output). They are deliberately **not** part of the base install —
+the backtest and ETL paths run without them.
+
+#### Lint, format and tests
+
+```bash
+ruff check .            # CLAUDE.md §2.5 / §2.10, configured in pyproject.toml
+ruff format .
+pytest -m "not slow"    # skips tests needing stock.db or API credentials
+pytest                  # full suite (needs core/database/stock.db)
+./scripts/run_regression.sh   # LONG + SHORT regression, must stay row-identical
+```
+
+To have the same checks run automatically before each commit:
+
+```bash
+pip install pre-commit
+pre-commit install       # one-time; installs the git hook
+pre-commit run --all-files
+```
+
+GitHub Actions runs `ruff check`, `ruff format --check` and `pytest -m "not slow"` on
+every push (see `.github/workflows/ci.yml`).
 
 If you switch to **Option 2 (Docker)** for this project, you do not need a local venv: the container image already provides an isolated Python environment.
 
@@ -283,6 +322,8 @@ AlphaEdge/
 ├── backlog/                   # internal planning notes
 ├── docs/                      # project docs
 │   ├── backtest/              # engine architecture, module map, short-selling spec
+│   ├── dev/                   # code quality tooling and baselines
+│   ├── pipeline/              # ETL ingestion contract and decision records
 │   ├── setup/
 │   ├── deployment/
 │   ├── exchanges/

@@ -6,6 +6,7 @@ Rewrite DataFrame-like column access from attr syntax to subscript:
 Only touches bases named `df` or ending with `_df`. Skips names in
 pandas.DataFrame API (dir, no leading underscore).
 """
+
 from __future__ import annotations
 
 import ast

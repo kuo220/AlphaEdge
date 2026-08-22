@@ -2,6 +2,7 @@ import datetime
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
+from loguru import logger
 
 from core.api.stock_price_api import StockPriceAPI
 from core.api.stock_tick_api import StockTickAPI
@@ -122,7 +123,7 @@ class StockQuoteAdapter:
 
             adjusted_close_map = adjusted_close_map or {}
 
-            return [
+            quotes: List[StockQuote] = [
                 StockQuoteAdapter.generate_stock_quote(
                     stock,
                     stock.stock_id,
@@ -133,6 +134,40 @@ class StockQuoteAdapter:
                 for stock in data
                 if stock.stock_id in filtered_stock_ids
             ]
+
+            StockQuoteAdapter.warn_duplicate_symbols(quotes, date)
+            return quotes
+
+    @staticmethod
+    def warn_duplicate_symbols(quotes: List[StockQuote], date: datetime.date) -> None:
+        """
+        - Description:
+            同一根 bar 內出現重複 symbol 時發出警告
+
+            重複代表資料層無法唯一識別商品——例如上市股與上櫃 ETF 共用同一個
+            4 碼代號。引擎後續會以 `{q.symbol: q for q in quotes}` 建對照表，
+            重複的只會留下最後一筆，**成交價與訊號都可能取到另一檔商品**，
+            而且整個過程不會有任何錯誤。
+
+            這裡只警告不排除：要留哪一筆屬資料修正的範疇，靜默挑一筆才是更糟的選擇。
+        - Parameters:
+            - quotes: List[StockQuote]
+                當根 bar 的報價
+            - date: datetime.date
+                當前交易日（僅供訊息辨識）
+        """
+
+        seen: Dict[str, int] = {}
+        for quote in quotes:
+            seen[quote.symbol] = seen.get(quote.symbol, 0) + 1
+
+        duplicates: List[str] = [symbol for symbol, n in seen.items() if n > 1]
+        if duplicates:
+            logger.warning(
+                f"[Quote] {date} 有 {len(duplicates)} 個代號對應多筆報價："
+                f"{sorted(duplicates)[:10]}；建對照表時只會留下最後一筆，"
+                f"請確認該代號是否被不同商品共用"
+            )
 
     @staticmethod
     def generate_stock_quote(

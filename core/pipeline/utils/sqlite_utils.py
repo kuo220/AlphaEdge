@@ -1,6 +1,6 @@
 import datetime
 import sqlite3
-from typing import Any, Optional, Tuple, Union
+from typing import Any, Optional, Tuple
 
 from loguru import logger
 

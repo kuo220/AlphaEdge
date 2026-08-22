@@ -1,4 +1,4 @@
-FROM python:3.11-bookworm
+FROM python:3.12-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -24,6 +24,11 @@ out_lines = []
 for raw in src.read_text(encoding="utf-8").splitlines():
     line = raw.strip()
     if not line or line.startswith("#"):
+        continue
+
+    # 略過 `-e .`：此階段只 COPY 了 requirements.txt，專案原始碼還沒進來，
+    # editable 安裝會失敗。原始碼於下方 COPY 後由 PYTHONPATH=/app 提供
+    if line.startswith("-e") or line.startswith("--editable"):
         continue
 
     # Conda-export style: package @ file:///...

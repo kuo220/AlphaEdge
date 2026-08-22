@@ -25,7 +25,9 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
         # Statistics
         self.benchmark: Optional[str] = None  # Benchmark stock
         self.risk_free_rate: Optional[float] = None  # 無風險利率（暫定0.02）
-        self.benchmark_return: Optional[float] = None  # 基準報酬率（用於 Information Ratio）
+        self.benchmark_return: Optional[float] = (
+            None  # 基準報酬率（用於 Information Ratio）
+        )
 
     def setup(self) -> None:
         """Set Up the Config of Analyzer"""
@@ -34,14 +36,16 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
         self.benchmark_return: float = 0.0  # 基準報酬率（可依回測期間調整）
 
     # ===== Equity-based Metrics =====
-    def compute_equity_curve(self, daily_equity: Optional[List[Dict]] = None) -> List[float]:
+    def compute_equity_curve(
+        self, daily_equity: Optional[List[Dict]] = None
+    ) -> List[float]:
         """
         - Description:
             計算權益曲線
 
             優先使用 Backtester 產出的每日權益（含未實現損益）；
             未提供時退回「初始資金 + 累積已實現損益」，此時留倉部位的
-            帳面波動看不見，放空的回撤會被低估（見 backlog §7.7）。
+            帳面波動看不見，放空的回撤會被低估。
 
             兩條路徑都以**初始資金**為第一個節點，與
             `StockBacktestReporter.get_equity_series()` 的口徑一致——
@@ -198,14 +202,15 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
         return pnl
 
     def compute_short_cost(self) -> Dict[str, float]:
-        """統計放空專屬成本：借券費支出與融券利息收入"""
+        """統計放空專屬成本：借券費支出、融券利息收入與股利補償"""
 
         return {
             "borrow_fee": round(
                 sum(record.borrow_fee for record in self.trade_records), 2
             ),
-            "interest": round(
-                sum(record.interest for record in self.trade_records), 2
+            "interest": round(sum(record.interest for record in self.trade_records), 2),
+            "dividend_compensation": round(
+                sum(record.dividend_compensation for record in self.trade_records), 2
             ),
         }
 

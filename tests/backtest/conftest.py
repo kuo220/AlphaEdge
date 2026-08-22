@@ -1,18 +1,14 @@
 import datetime
-import sys
-from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Set
 
 import pytest
 
-_PROJECT_ROOT: Path = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(_PROJECT_ROOT))
-
+from core.backtest.datafeed.tw_stock_datafeed import TwStockDataFeed
 from core.models import StockAccount, StockOrder, StockQuote
 from core.strategies.stock import BaseStockStrategy
 from core.utils import Action, PositionType, Scale, ShortMethod
 
-"""放空回測框架的測試 fixture：全部為純記憶體物件，不連資料庫（見 backlog §9.0）"""
+"""放空回測框架的測試 fixture：全部為純記憶體物件，不連資料庫"""
 
 
 @pytest.fixture
@@ -143,6 +139,40 @@ class ScriptedStrategy(BaseStockStrategy):
         """測試策略的下單張數由腳本直接指定，不需計算"""
 
         return []
+
+
+class ScriptedDataFeed(TwStockDataFeed):
+    """
+    測試用資料源：停券日與除息股利改由腳本給定，完全不連資料庫
+
+    引擎每根 bar 都會從 DataFeed 把這兩份資料推給 `SettlementModel`
+    （`Backtester.execute_bar()`），因此腳本情境要驗停券強制回補與股利補償，
+    只能從這一層注入——直接設 `SettlementModel` 的欄位會在下一根 bar 被覆寫。
+    """
+
+    def __init__(
+        self,
+        force_cover_script: Optional[Dict[datetime.date, Set[str]]] = None,
+        cash_dividend_script: Optional[Dict[datetime.date, Dict[str, float]]] = None,
+    ):
+        super().__init__()
+
+        self.force_cover_script: Dict[datetime.date, Set[str]] = (
+            force_cover_script or {}
+        )
+        self.cash_dividend_script: Dict[datetime.date, Dict[str, float]] = (
+            cash_dividend_script or {}
+        )
+
+    def get_force_cover_symbols(self, date: datetime.date) -> Set[str]:
+        """依腳本回傳當日觸及融券最後回補日的標的"""
+
+        return self.force_cover_script.get(date, set())
+
+    def get_cash_dividend_map(self, date: datetime.date) -> Dict[str, float]:
+        """依腳本回傳當日除息的每股現金股利"""
+
+        return self.cash_dividend_script.get(date, {})
 
 
 @pytest.fixture

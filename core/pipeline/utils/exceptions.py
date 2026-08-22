@@ -21,7 +21,7 @@ Usage:
         ...
 """
 
-from typing import Optional
+from typing import List, Optional
 
 # -----------------------------------------------------------------------------
 # Pipeline 通用（未來可擴充 CrawlerError, LoaderError 等）
@@ -112,3 +112,28 @@ class FinMindQuotaExhaustedError(FinMindError):
     """
 
     pass
+
+
+# -----------------------------------------------------------------------------
+# Loader 例外
+# -----------------------------------------------------------------------------
+
+
+class DataLoadError(PipelineError):
+    """部分或全部檔案入庫失敗。
+
+    **存在的理由是「不讓失敗變成靜默」**：loader 逐檔入庫時，單一檔案失敗
+    （撞主鍵、欄位不符、檔案損毀）不應中止整批——其餘檔案仍該入庫。
+    但整批跑完後若有任何失敗，就必須讓呼叫端知道，否則行程會以成功狀態結束，
+    缺漏要靠事後逐檔對帳才會被發現。
+
+    `failed_files` 保留失敗清單，供呼叫端記錄或重試。
+    """
+
+    def __init__(self, source: str, failed_files: List[str], succeeded: int = 0):
+        self.source: str = source
+        self.failed_files: List[str] = failed_files
+        self.succeeded: int = succeeded
+        super().__init__(
+            f"{source} 入庫未完全成功：成功 {succeeded} 檔、失敗 {len(failed_files)} 檔"
+        )

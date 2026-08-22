@@ -1,9 +1,8 @@
 import datetime
 import sqlite3
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
-from loguru import logger
 
 from core.api.base import BaseDataAPI
 from core.api.stock_dividend_api import StockDividendAPI
@@ -23,7 +22,7 @@ class StockPriceAPI(BaseDataAPI):
         conn: Optional[sqlite3.Connection] = None,
         dividend_api: Optional[StockDividendAPI] = None,
     ):
-        # 由 DataFeed 傳入共用連線；未指定時自行建立（見 backlog Phase2-7）
+        # 由 DataFeed 傳入共用連線；未指定時自行建立
         self.conn: Optional[sqlite3.Connection] = conn
         self.owns_conn: bool = conn is None
 
@@ -103,6 +102,47 @@ class StockPriceAPI(BaseDataAPI):
         )
         return df
 
+    def get_trading_days(
+        self,
+        start_date: datetime.date,
+        end_date: datetime.date,
+    ) -> List[datetime.date]:
+        """
+        - Description:
+            取得日期範圍內的所有交易日（已排序、去重）
+
+            交易日曆直接由 `price` 表推導：當日有日 K 資料即為開盤日，與
+            `MarketCalendar.check_stock_market_open()` 同一套判準。凡是「往前推
+            N 個營業日」的市場規則（例如融券最後回補日）都應吃這一份，
+            自行以曆日相減會在連假整段位移。
+        - Parameters:
+            - start_date: datetime.date
+                起始日（含）
+            - end_date: datetime.date
+                結束日（含）
+        - Return:
+            - List[datetime.date]
+                區間內的交易日；無資料時回傳空 list
+        """
+
+        if start_date > end_date:
+            return []
+
+        query: str = f"""
+        SELECT DISTINCT date FROM {PRICE_TABLE_NAME}
+        WHERE date BETWEEN ? AND ?
+        ORDER BY date
+        """
+        df: pd.DataFrame = pd.read_sql_query(
+            query,
+            self.conn,
+            params=(start_date, end_date),
+        )
+
+        if df.empty:
+            return []
+        return pd.to_datetime(df["date"]).dt.date.tolist()
+
     # === 具名查詢：策略層一律走這一組，不要自行操作 DataFrame 欄位 ===
     def get_close_map(self, date: datetime.date) -> Dict[str, Any]:
         """
@@ -144,9 +184,7 @@ class StockPriceAPI(BaseDataAPI):
         """
 
         df: pd.DataFrame = self.get(date)
-        share_map: Dict[str, Any] = self.build_column_map(
-            df, PriceColumn.SHARES.value
-        )
+        share_map: Dict[str, Any] = self.build_column_map(df, PriceColumn.SHARES.value)
 
         volume_map: Dict[str, int] = {}
         for stock_id, shares in share_map.items():
@@ -201,7 +239,7 @@ class StockPriceAPI(BaseDataAPI):
 
             刻意不做成 `get_close_map(adjusted=True)`：同一個方法回傳兩種語意的價格，
             呼叫端很容易拿錯而且不會有任何錯誤訊息
-            （見 `backlog/股價還原與除權息調整.md` S2 決策）。
+            （決策理由見 `docs/exchanges/data_coverage.md`〈股價還原〉）。
 
             無除權息紀錄的股票其係數為 1，回傳值與 `get_close_map()` 相同。
         - Parameters:
@@ -213,8 +251,8 @@ class StockPriceAPI(BaseDataAPI):
         """
 
         close_map: Dict[str, Any] = self.get_close_map(date)
-        factor_map: Dict[str, float] = self.get_dividend_api().get_cumulative_factor_map(
-            date
+        factor_map: Dict[str, float] = (
+            self.get_dividend_api().get_cumulative_factor_map(date)
         )
 
         adjusted_close_map: Dict[str, Any] = {}

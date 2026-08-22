@@ -77,7 +77,7 @@ class EqualWeightSizer(BasePositionSizer):
     ) -> List[Tuple[BaseQuote, float, int]]:
         """依剩餘可開倉名額均分餘額並換算張數"""
 
-        # max_holdings 為 None 時不限制（五支策略的多數派語意，見 backlog S1 決策）
+        # max_holdings 為 None 時不限制持倉檔數
         available_position_cnt: int = (
             max(0, max_holdings - account.get_position_count())
             if max_holdings is not None
@@ -95,7 +95,7 @@ class EqualWeightSizer(BasePositionSizer):
                 break
 
             # 參考價無效時跳過；原本只有三支策略有這道檢查，`_1`／`_3` 會直接
-            # ZeroDivisionError 中斷整場回測（見 backlog S2 的行為變更說明）
+            # ZeroDivisionError 中斷整場回測
             if ref_price <= 0:
                 continue
 

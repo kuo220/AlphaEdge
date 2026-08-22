@@ -1,23 +1,19 @@
 import argparse
 import datetime
-import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import pandas as pd
 
-_PROJECT_ROOT: Path = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(_PROJECT_ROOT))
-
 from core.backtest.backtester import Backtester
 from core.backtest.factory import build_backtester
+from core.backtest.models.cost_model import ShortConstraint
 from core.models import StockOrder, StockQuote
 from core.utils import Action, PositionType, Scale, ShortMethod
-from core.backtest.models.cost_model import ShortConstraint
-from tests.backtest.conftest import ScriptedStrategy
+from tests.backtest.conftest import ScriptedDataFeed, ScriptedStrategy
 
 """
-產生 SHORT 路徑的回歸 baseline：多市場抽象重構動程式碼前的第一步（見 backlog Phase0-1）
+產生 SHORT 路徑的回歸 baseline：多市場抽象重構動程式碼前的第一步
 
 LONG 已有 915 筆逐筆 baseline，SHORT 卻只有單元／整合測試，缺少「整條路徑的完整帳」。
 Phase 2 要把放空記帳從 Backtester 搬進 SettlementModel，若某個攤提比例走鐘，
@@ -66,11 +62,22 @@ class ShortScenario:
         verifies: str,
         strategy: ScriptedStrategy,
         bars: List[Tuple[datetime.date, List[StockQuote]]],
+        force_cover_script: Optional[Dict[datetime.date, Set[str]]] = None,
+        cash_dividend_script: Optional[Dict[datetime.date, Dict[str, float]]] = None,
     ):
         self.name: str = name  # 情境名稱（快照的分組鍵）
         self.verifies: str = verifies  # 這個情境驗的是什麼
         self.strategy: ScriptedStrategy = strategy
         self.bars: List[Tuple[datetime.date, List[StockQuote]]] = bars  # 逐日報價
+
+        # 停券日與除息股利由 DataFeed 每根 bar 推給 SettlementModel，
+        # 故腳本掛在資料源那一層而非策略上
+        self.force_cover_script: Dict[datetime.date, Set[str]] = (
+            force_cover_script or {}
+        )
+        self.cash_dividend_script: Dict[datetime.date, Dict[str, float]] = (
+            cash_dividend_script or {}
+        )
 
 
 def day(offset: int) -> datetime.date:
@@ -158,12 +165,8 @@ def build_scenarios() -> List[ShortScenario]:
             verifies="DAY_TRADE 稅率減半、OPEN_THEN_CLOSE 同 bar 開平倉",
             strategy=make_short_strategy(
                 enable_intraday=True,
-                open_script={
-                    day(0): [make_short_order(day(0), Action.SELL, 100.0, 2)]
-                },
-                close_script={
-                    day(0): [make_short_order(day(0), Action.BUY, 95.0, 2)]
-                },
+                open_script={day(0): [make_short_order(day(0), Action.SELL, 100.0, 2)]},
+                close_script={day(0): [make_short_order(day(0), Action.BUY, 95.0, 2)]},
             ),
             bars=[(day(0), [make_quote(day(0), 97.0, high=101.0, low=94.0)])],
         )
@@ -182,9 +185,7 @@ def build_scenarios() -> List[ShortScenario]:
             name="margin_swing_10_days",
             verifies="保證金佔用、融券利息於平倉一次計算、holding_days 累計",
             strategy=make_short_strategy(
-                open_script={
-                    day(0): [make_short_order(day(0), Action.SELL, 100.0, 2)]
-                },
+                open_script={day(0): [make_short_order(day(0), Action.SELL, 100.0, 2)]},
                 close_script={
                     day(10): [make_short_order(day(10), Action.BUY, 95.0, 2)]
                 },
@@ -203,9 +204,7 @@ def build_scenarios() -> List[ShortScenario]:
                     day(0): [make_short_order(day(0), Action.SELL, 100.0, 3)],
                     day(1): [make_short_order(day(1), Action.SELL, 105.0, 2)],
                 },
-                close_script={
-                    day(2): [make_short_order(day(2), Action.BUY, 95.0, 4)]
-                },
+                close_script={day(2): [make_short_order(day(2), Action.BUY, 95.0, 4)]},
             ),
             bars=[
                 (day(0), [make_quote(day(0), 100.0, high=101.0, low=99.0)]),
@@ -221,9 +220,7 @@ def build_scenarios() -> List[ShortScenario]:
             name="margin_call_force_cover",
             verifies="維持率跌破門檻的強制回補與事件計數",
             strategy=make_short_strategy(
-                open_script={
-                    day(0): [make_short_order(day(0), Action.SELL, 100.0, 2)]
-                },
+                open_script={day(0): [make_short_order(day(0), Action.SELL, 100.0, 2)]},
             ),
             bars=[
                 (day(0), [make_quote(day(0), 100.0, high=101.0, low=99.0)]),
@@ -240,9 +237,7 @@ def build_scenarios() -> List[ShortScenario]:
             verifies="漲停鎖死無法回補 → 轉融券留倉、補收保證金與券費",
             strategy=make_short_strategy(
                 enable_intraday=True,
-                open_script={
-                    day(1): [make_short_order(day(1), Action.SELL, 110.0, 1)]
-                },
+                open_script={day(1): [make_short_order(day(1), Action.SELL, 110.0, 1)]},
             ),
             bars=[
                 # 第一根 bar 不下單，只為了讓引擎記下前收 100（漲停價才會是 110）
@@ -254,7 +249,7 @@ def build_scenarios() -> List[ShortScenario]:
 
     # === 6. 當沖 ＋ 停券強制回補日：釘住兩個收盤後動作的先後順序 ===
     #
-    # enforce_day_trade_cover() 與 execute_daily_position_check() 在 Phase2-3 會被
+    # enforce_day_trade_cover() 與 execute_daily_position_check() 已被
     # 合併進 SettlementModel.on_bar_close()，兩者對調不會讓任何單元測試失敗，
     # 但會讓同一次強制回補記到不同的事件桶。此情境是唯一能抓到該漂移的護欄：
     # - 現行順序：當沖回補先執行 → forced_cover_day_trade
@@ -268,9 +263,7 @@ def build_scenarios() -> List[ShortScenario]:
                 short_constraint=ShortConstraint(
                     force_cover_dates={STOCK_ID: [day(0)]}
                 ),
-                open_script={
-                    day(0): [make_short_order(day(0), Action.SELL, 100.0, 1)]
-                },
+                open_script={day(0): [make_short_order(day(0), Action.SELL, 100.0, 1)]},
             ),
             bars=[(day(0), [make_quote(day(0), 98.0, high=101.0, low=97.0)])],
         )
@@ -299,6 +292,73 @@ def build_scenarios() -> List[ShortScenario]:
             )
         )
 
+    # === 8. 除權息前的融券最後回補日：MARGIN 被強制回補、SBL 不受影響 ===
+    #
+    # 回補日由 `TwStockDataFeed` 依「除權息交易日前 4 個營業日」推導，此處直接以
+    # 腳本給定。兩個管道跑同一份腳本，釘住「自動推導的停券日只對融券生效」——
+    # 若哪天誤把 SBL 也納入，第二組情境的期末部位會直接消失。
+    for short_method in (ShortMethod.MARGIN, ShortMethod.SBL):
+        scenarios.append(
+            ShortScenario(
+                name=f"ex_dividend_force_cover_{short_method.value.lower()}",
+                verifies="除權息推導的停券日只強制回補 MARGIN，SBL 續抱",
+                strategy=make_short_strategy(
+                    short_method=short_method,
+                    open_script={
+                        day(0): [make_short_order(day(0), Action.SELL, 100.0, 2)]
+                    },
+                ),
+                bars=[
+                    (day(0), [make_quote(day(0), 100.0, high=101.0, low=99.0)]),
+                    (day(1), [make_quote(day(1), 99.0, high=100.0, low=98.0)]),
+                ],
+                force_cover_script={day(1): {STOCK_ID}},
+            )
+        )
+
+    # === 9. SBL 留倉跨除息日：補償出借方現金股利 ===
+    #
+    # 股利補償是 carry cost 的一部分，會同時出現在 record 的
+    # Dividend Compensation、Transaction Cost 與 Realized PnL 三處，
+    # 任何一處漏掉都會讓三者對不起來。
+    scenarios.append(
+        ShortScenario(
+            name="ex_dividend_compensation_sbl",
+            verifies="跨除息日的 SBL 空單補償現金股利，並攤提進已實現損益",
+            strategy=make_short_strategy(
+                short_method=ShortMethod.SBL,
+                open_script={day(0): [make_short_order(day(0), Action.SELL, 100.0, 2)]},
+                close_script={day(2): [make_short_order(day(2), Action.BUY, 98.0, 2)]},
+            ),
+            bars=[
+                (day(0), [make_quote(day(0), 100.0, high=101.0, low=99.0)]),
+                # 除息 2 元／股：股價跳空到 98，空單帳面賺 4,000，同額補償給出借方
+                (day(1), [make_quote(day(1), 98.0, high=99.0, low=97.0)]),
+                (day(2), [make_quote(day(2), 98.0, high=99.0, low=97.0)]),
+            ],
+            cash_dividend_script={day(1): {STOCK_ID: 2.0}},
+        )
+    )
+
+    # === 10. 部分回補時的股利補償等比例攤提 ===
+    scenarios.append(
+        ShortScenario(
+            name="ex_dividend_compensation_partial_cover",
+            verifies="股利補償依回補張數攤提，剩餘部位保留未攤提的部分",
+            strategy=make_short_strategy(
+                short_method=ShortMethod.SBL,
+                open_script={day(0): [make_short_order(day(0), Action.SELL, 100.0, 4)]},
+                close_script={day(2): [make_short_order(day(2), Action.BUY, 98.0, 1)]},
+            ),
+            bars=[
+                (day(0), [make_quote(day(0), 100.0, high=101.0, low=99.0)]),
+                (day(1), [make_quote(day(1), 98.0, high=99.0, low=97.0)]),
+                (day(2), [make_quote(day(2), 98.0, high=99.0, low=97.0)]),
+            ],
+            cash_dividend_script={day(1): {STOCK_ID: 1.5}},
+        )
+    )
+
     return scenarios
 
 
@@ -306,6 +366,10 @@ def run_scenario(scenario: ShortScenario) -> Backtester:
     """逐 bar 跑完一組情境，回傳跑完的引擎"""
 
     backtester: Backtester = build_scripted_backtester(scenario.strategy)
+    backtester.data_feed = ScriptedDataFeed(
+        force_cover_script=scenario.force_cover_script,
+        cash_dividend_script=scenario.cash_dividend_script,
+    )
 
     for date, stock_quotes in scenario.bars:
         backtester.execute_bar(date, stock_quotes)
@@ -314,7 +378,9 @@ def run_scenario(scenario: ShortScenario) -> Backtester:
     return backtester
 
 
-def collect_trade_rows(scenario_name: str, backtester: Backtester) -> List[Dict[str, Any]]:
+def collect_trade_rows(
+    scenario_name: str, backtester: Backtester
+) -> List[Dict[str, Any]]:
     """取出已平倉的交易紀錄全欄位（放空記帳的主要驗收對象）"""
 
     rows: List[Dict[str, Any]] = []
@@ -346,6 +412,7 @@ def collect_trade_rows(scenario_name: str, backtester: Backtester) -> List[Dict[
                 "Tax": record.tax,
                 "Borrow Fee": record.borrow_fee,
                 "Interest": record.interest,
+                "Dividend Compensation": record.dividend_compensation,
                 "Margin": record.margin,
                 "Transaction Cost": record.transaction_cost,
                 "Holding Days": record.holding_days,
@@ -386,6 +453,7 @@ def collect_position_rows(
                 "Short Proceeds": position.short_proceeds,
                 "Borrow Fee": position.borrow_fee,
                 "Accrued Borrow Fee": position.accrued_borrow_fee,
+                "Dividend Compensation": position.dividend_compensation,
                 "Holding Days": position.holding_days,
             }
         )
@@ -394,7 +462,7 @@ def collect_position_rows(
 
 
 def collect_summary_row(scenario_name: str, backtester: Backtester) -> Dict[str, Any]:
-    """取出帳戶終值與六個事件計數（報表相容性的驗收對象）"""
+    """取出帳戶終值與全部事件計數（報表相容性的驗收對象）"""
 
     account = backtester.account
 
@@ -411,7 +479,7 @@ def collect_summary_row(scenario_name: str, backtester: Backtester) -> Dict[str,
         "Open Position Count": len(account.get_positions()),
     }
 
-    # event_counts 的六個 key 在重構後必須維持不變（報表相容）
+    # event_counts 的既有 key 在重構後必須維持不變（報表相容）
     for event, count in backtester.event_counts.items():
         row[event] = count
 

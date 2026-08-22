@@ -28,15 +28,12 @@ try:
     from docx.oxml.ns import qn
     from docx.shared import Cm, Pt, RGBColor
 except ImportError as e:
-    raise SystemExit(
-        "請先安裝 python-docx：pip install python-docx\n" + str(e)
-    ) from e
+    raise SystemExit("請先安裝 python-docx：pip install python-docx\n" + str(e)) from e
 
 import pandas as pd
 
 from strategy_lab.data_analysis.tech_new_high_continuation.analysis import (  # noqa: E402
     END_DATE,
-    HORIZONS,
     MIN_EVENT_COUNT,
     START_DATE,
 )
@@ -183,7 +180,9 @@ def build_report() -> Path:
     overall_all = all_ev[all_ev["scope"] == "all_tech"].iloc[0]
 
     by_ind_non = non[non["scope"].str.startswith("by_industry:")].copy()
-    by_ind_non["industry"] = by_ind_non["scope"].str.replace("by_industry:", "", regex=False)
+    by_ind_non["industry"] = by_ind_non["scope"].str.replace(
+        "by_industry:", "", regex=False
+    )
     by_ind_non = by_ind_non.sort_values("prob_20d", ascending=False)
 
     all_stocks = by_stock[
@@ -199,7 +198,9 @@ def build_report() -> Path:
     ].sort_values("stock_id")
 
     ind_sufficient = by_ind_non[by_ind_non["event_count"] >= MIN_INDUSTRY_EVENTS]
-    best_ind = ind_sufficient.iloc[0] if not ind_sufficient.empty else by_ind_non.iloc[0]
+    best_ind = (
+        ind_sufficient.iloc[0] if not ind_sufficient.empty else by_ind_non.iloc[0]
+    )
     worst_ind = (
         ind_sufficient.iloc[-1] if not ind_sufficient.empty else by_ind_non.iloc[-1]
     )

@@ -8,8 +8,8 @@ from loguru import logger
 from shioaji.data import Ticks
 
 from core.config import TICK_DOWNLOADS_PATH
-from core.utils.log_manager import LogManager
 from core.pipeline.crawlers.base import BaseDataCrawler
+from core.utils.log_manager import LogManager
 
 """
 Shioaji 台股 ticks 資料時間表：

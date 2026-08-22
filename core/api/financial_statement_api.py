@@ -2,7 +2,6 @@ import sqlite3
 from typing import Optional
 
 import pandas as pd
-from loguru import logger
 
 from core.api.base import BaseDataAPI
 from core.config import DB_PATH
@@ -15,7 +14,7 @@ class FinancialStatementAPI(BaseDataAPI):
     """Financial Statement Data API"""
 
     def __init__(self, conn: Optional[sqlite3.Connection] = None):
-        # 由 DataFeed 傳入共用連線；未指定時自行建立（見 backlog Phase2-7）
+        # 由 DataFeed 傳入共用連線；未指定時自行建立
         self.conn: Optional[sqlite3.Connection] = conn
         self.owns_conn: bool = conn is None
 

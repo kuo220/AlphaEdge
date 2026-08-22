@@ -1,12 +1,12 @@
 import datetime
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, List, Tuple
 
 import pytest
 
 from core.backtest.models.sizing import EqualWeightSizer
 from core.models import StockAccount, StockPosition, StockQuote
 
-"""等權資金切分的單元測試（對應 backlog 部位控管下沉引擎 S2）
+"""等權資金切分的單元測試
 
 公式的取整規則直接決定 LONG 回歸 baseline 的 915 筆結果，任何一項改動都會破線。
 """
@@ -70,9 +70,7 @@ def test_stops_at_available_slots(sizer, make_candidates) -> None:
     """候選多於可開檔數時，只下滿名額就停止"""
 
     account: StockAccount = StockAccount(1000000.0)
-    candidates = make_candidates(
-        [("2330", 100.0), ("2317", 100.0), ("2454", 100.0)]
-    )
+    candidates = make_candidates([("2330", 100.0), ("2317", 100.0), ("2454", 100.0)])
 
     sized = sizer.size(account, candidates, max_holdings=2)
 

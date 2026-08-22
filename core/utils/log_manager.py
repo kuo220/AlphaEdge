@@ -1,7 +1,7 @@
 """Log Manager for unified logging configuration using loguru"""
 
 from pathlib import Path
-from typing import Any, Optional, Set
+from typing import Optional, Set
 
 from loguru import logger
 

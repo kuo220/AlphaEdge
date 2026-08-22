@@ -4,7 +4,7 @@
 
 - **背景／問題**：FinMind 券商分點資料的 crawl → clean → load 流程存在重複 I/O（每個組合至少讀 2 次 metadata）、全表掃描的「已存在」查詢、每筆組合一次 commit、以及嚴格序列執行等瓶頸，資料表越大越慢。
 - **目標**：在**不改動「中斷後重新爬取時能跳過已爬過的資料」語意**的前提下，降低磁碟 I/O、縮小查詢範圍、減少 commit 次數並導入並行爬取。
-- **範圍界線**：**不改** resume 判斷依據（仍為 metadata ＋ DB）、不改資料表 schema 語意、不處理 NO_DATA 的 metadata 更新（屬 [券商分點NO_DATA處理.md](券商分點NO_DATA處理.md)）。
+- **範圍界線**：**不改** resume 判斷依據（仍為 metadata ＋ DB）、不改資料表 schema 語意、不處理 NO_DATA 的 metadata 更新（屬 [券商分點 NO_DATA 的 metadata 語意](../docs/pipeline/broker-trading-no-data.md)，已選型未實作）。
 - **驗收標準**：七項優化全部落地或明確標記暫緩，且每項變更後「中斷 → 重跑」皆不會重複爬取已存在的 `(broker_id, stock_id, date)`。
 
 ---
@@ -20,7 +20,7 @@
 | S5 | 並行爬取（遵守 API quota） | `core/pipeline/updaters/finmind_updater.py` | quota 未被超用；結果與序列版本一致 | ⬜ | 相依 S1 的 cache；需與 `_check_and_update_api_quota()` 整合 |
 | S6 | 批次寫入 DB（進階） | `core/pipeline/loaders/finmind_loader.py` | 同 S2 的一致性檢查 | ⬜ | 相依 S5 |
 | S7 | 其他小優化（日誌降頻、移除多餘查詢） | `core/pipeline/updaters/finmind_updater.py` | 人工檢視 log 量下降 | ✅ | 完成於本文件建立進度表之前，未留下當時的驗證紀錄 |
-| S8 | 拆分 `finmind_updater.py`／`finmind_loader.py` | `core/pipeline/updaters/finmind/*.py`、`core/pipeline/loaders/finmind/*.py` | `tests/test_finmind_*.py` 五檔全數通過；行為零改變 | ⬜ | 1102 ＋ 859 行，全專案最大單體；**建議在 S5／S6 之前做**，否則並行邏輯會塞進更大的檔案 |
+| S8 | 拆分 `finmind_updater.py`／`finmind_loader.py` | `core/pipeline/updaters/finmind/*.py`、`core/pipeline/loaders/finmind/*.py` | `tests/test_finmind_*.py` 五檔全數通過；行為零改變 | ⬜ | 1097 ＋ 859 行，全專案最大單體；**建議在 S5／S6 之前做**，否則並行邏輯會塞進更大的檔案 |
 
 ---
 
@@ -87,7 +87,7 @@
 
 ## S8. 拆分 `finmind_updater.py`／`finmind_loader.py` ⬜
 
-- **目的**：`core/pipeline/updaters/finmind_updater.py`（**1102 行**）與 `core/pipeline/loaders/finmind_loader.py`（**859 行**）是全專案最大的兩個檔案，遠超其他 updater／loader（次大者 574 行）。單一 `FinMindUpdater` 同時處理券商分點、月營收、財報等多種 FinMind 資料集的 metadata 管理、quota 控制、resume 判斷與寫入協調，已明顯超出單一職責。
+- **目的**：`core/pipeline/updaters/finmind_updater.py`（**1097 行**）與 `core/pipeline/loaders/finmind_loader.py`（**859 行**）是全專案最大的兩個檔案，遠超其他 updater／loader（次大者 574 行）。單一 `FinMindUpdater` 同時處理券商分點、月營收、財報等多種 FinMind 資料集的 metadata 管理、quota 控制、resume 判斷與寫入協調，已明顯超出單一職責。
   **順序上這步該排在 S5／S6 之前**：並行爬取與批次寫入會再往這兩個檔案加相當份量的程式碼，先拆再加比較省事。
 - **做法**：**行為零改變的純搬移**，先按資料集切分，不要按技術層次切：
   1. `core/pipeline/updaters/finmind/` 下依資料集拆檔（券商分點、月營收、財報…），共用的 metadata cache 與 quota 控制抽成 `finmind/common.py`。
@@ -107,4 +107,4 @@
 
 - **優先級**：P2
 - **相關程式**：`core/pipeline/crawlers/finmind_crawler.py`、`core/pipeline/cleaners/finmind_cleaner.py`、`core/pipeline/loaders/finmind_loader.py`、`core/pipeline/updaters/finmind_updater.py`
-- **相關 backlog**：[券商分點NO_DATA處理.md](券商分點NO_DATA處理.md)（NO_DATA 時的 metadata 處理，可一併減少 API 用量）
+- **相關文件**：[券商分點 NO_DATA 的 metadata 語意](../docs/pipeline/broker-trading-no-data.md)（選型紀錄；若動工，NO_DATA 的 metadata 處理可與本文件一併減少 API 用量）

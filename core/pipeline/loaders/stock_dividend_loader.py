@@ -1,4 +1,3 @@
-import shutil
 import sqlite3
 from pathlib import Path
 from typing import List, Optional
@@ -112,6 +111,8 @@ class StockDividendLoader(BaseDataLoader):
         self.create_missing_tables()
 
         file_cnt: int = 0
+
+        failed_files: List[str] = []
         dfs: List[pd.DataFrame] = []
         for file_path in sorted(self.dividend_dir.iterdir()):
             # Skip non-CSV files
@@ -123,6 +124,7 @@ class StockDividendLoader(BaseDataLoader):
                 file_cnt += 1
             except Exception as e:
                 logger.warning(f"Error reading {file_path}: {e}")
+                failed_files.append(str(file_path))
 
         if not dfs:
             logger.warning("No dividend CSV file to load")
@@ -140,9 +142,13 @@ class StockDividendLoader(BaseDataLoader):
         self.conn.commit()
         self.disconnect()
 
-        if remove_files:
-            shutil.rmtree(DIVIDEND_DOWNLOADS_PATH)
-        logger.info(f"Total file processed: {file_cnt}")
+        self.finish_load(
+            source="dividend",
+            succeeded=file_cnt,
+            failed_files=failed_files,
+            remove_files=remove_files,
+            downloads_path=DIVIDEND_DOWNLOADS_PATH,
+        )
 
     def upsert(self, df: pd.DataFrame) -> None:
         """

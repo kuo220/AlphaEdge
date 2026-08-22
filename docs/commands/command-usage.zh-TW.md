@@ -21,6 +21,8 @@
 | `tick`                    | 逐筆成交（Shioaji ticks）           |
 | `chip`                    | 三大法人籌碼                        |
 | `price`                   | 收盤價                           |
+| `margin`                  | 信用交易（融資融券餘額）              |
+| `dividend`                | 除權除息計算結果表（含還原係數、現金股利） |
 | `fs`                      | 財報（Financial Statement）       |
 | `mrr`                     | 月營收報表（Monthly Revenue Report） |
 | `finmind`                 | 全部 FinMind（台股總覽 + 證券商 + 券商分點） |
@@ -43,6 +45,12 @@ python -m tasks.update_db --target chip
 
 # 收盤價
 python -m tasks.update_db --target price
+
+# 信用交易（融資融券餘額）
+python -m tasks.update_db --target margin
+
+# 除權除息計算結果表（上市走證交所、上櫃走櫃買中心，皆為全歷史）
+python -m tasks.update_db --target dividend
 
 # 財報
 python -m tasks.update_db --target fs

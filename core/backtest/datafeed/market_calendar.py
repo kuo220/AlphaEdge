@@ -1,4 +1,6 @@
+import bisect
 import datetime
+from typing import List, Optional
 
 import pandas as pd
 import shioaji as sj
@@ -25,6 +27,38 @@ class MarketCalendar:
 
         df: pd.DataFrame = api.get(date)
         return True if not df.empty else False
+
+    @staticmethod
+    def shift_trading_days(
+        trading_days: List[datetime.date],
+        date: datetime.date,
+        offset: int,
+    ) -> Optional[datetime.date]:
+        """
+        - Description:
+            以**營業日**為單位平移日期；`offset` 為負代表往前推
+
+            台股多數「前 N 個營業日」的規則（融券最後回補日、停券起始日）都必須
+            以實際開盤日計算，用曆日相減會在連假整段位移。與
+            `get_last_trading_date()` 的差異：後者逐日往前查資料庫，只適合推一天；
+            本方法吃已備妥的交易日清單，適合一次換算整批日期。
+        - Parameters:
+            - trading_days: List[datetime.date]
+                已排序的交易日清單（由 `StockPriceAPI.get_trading_days()` 提供）
+            - date: datetime.date
+                基準日；不在清單內時以「不早於它的第一個交易日」為基準
+            - offset: int
+                平移的營業日數，負值往前
+        - Return:
+            - Optional[datetime.date]
+                平移後的交易日；超出清單範圍時為 None（代表交易日資料不足以推算）
+        """
+
+        index: int = bisect.bisect_left(trading_days, date) + offset
+
+        if index < 0 or index >= len(trading_days):
+            return None
+        return trading_days[index]
 
     @staticmethod
     def get_last_trading_date(

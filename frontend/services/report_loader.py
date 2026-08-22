@@ -59,4 +59,3 @@ def load_backtest_report(strategy_dir: Path) -> BacktestReport:
 def read_trading_report(csv_path: Path) -> pd.DataFrame:
     # 產出檔多為 UTF-8-SIG，讀取時優先用 utf-8-sig
     return pd.read_csv(csv_path, encoding="utf-8-sig")
-

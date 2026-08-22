@@ -8,7 +8,7 @@ from core.utils.constant import Action, PositionType
 from core.utils.instrument import StockUtils
 
 """
-LONG 成本口徑差異比對（`backlog/LONG成本模型口徑收斂.md` S1）
+LONG 成本口徑差異比對（分析工具，非測試；保留供日後調整成本模型時重跑）
 
 用途：在動生產程式碼**之前**量化「舊 `StockUtils` 路徑」與「新 `StockCostModel` 路徑」
 的差異分布，避免拿回歸測試的紅燈當探索工具。
@@ -42,7 +42,18 @@ LONG baseline 的 915 筆全部是全額平倉，故該次切換**未改變 base
 
 # 涵蓋各檔位級距的邊界價（台股升降單位在 10／50／100／500／1000 換檔）
 PRICES: List[float] = [
-    5.0, 9.99, 10.0, 49.95, 50.0, 99.5, 100.0, 499.0, 500.0, 999.0, 1000.0, 2000.0,
+    5.0,
+    9.99,
+    10.0,
+    49.95,
+    50.0,
+    99.5,
+    100.0,
+    499.0,
+    500.0,
+    999.0,
+    1000.0,
+    2000.0,
 ]
 
 # 開倉張數；含 1 張（最低手續費必然觸發）與大額（最低手續費不觸發）
@@ -97,7 +108,7 @@ def compute_new(
     open_volume: int,
     close_volume: int,
 ) -> Dict[str, float]:
-    """新路徑：`StockCostModel` ＋ 等比例攤提（S3 預計採用的算法）"""
+    """新路徑：`StockCostModel` ＋ 等比例攤提"""
 
     open_commission: int = cost_model.commission(price=buy_price, volume=open_volume)
     entry_cost: int = int(open_commission * (close_volume / open_volume))
@@ -166,7 +177,9 @@ def report(df: pd.DataFrame) -> None:
 
     print(f"組合總數：{len(df):,}（其中部分平倉 {int(df['is_partial'].sum()):,}）")
     print()
-    print(f"{'項目':<14}{'有差異筆數':>12}{'占比':>9}{'最大差':>12}{'全額平倉差異':>14}")
+    print(
+        f"{'項目':<14}{'有差異筆數':>12}{'占比':>9}{'最大差':>12}{'全額平倉差異':>14}"
+    )
     print("-" * 62)
 
     for key in ("commission", "tax", "realized_pnl", "roi"):
@@ -201,8 +214,13 @@ def report(df: pd.DataFrame) -> None:
         print(
             top[
                 [
-                    "buy_price", "sell_price", "open_volume", "close_volume",
-                    "old_realized_pnl", "new_realized_pnl", "diff_realized_pnl",
+                    "buy_price",
+                    "sell_price",
+                    "open_volume",
+                    "close_volume",
+                    "old_realized_pnl",
+                    "new_realized_pnl",
+                    "diff_realized_pnl",
                 ]
             ].to_string(index=False)
         )

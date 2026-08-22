@@ -1,10 +1,10 @@
 import datetime
-from typing import Dict, List
+from typing import Dict
 
 from core.models import StockAccount, StockPosition
 from core.utils import PositionType, ShortMethod
 
-"""StockAccount 方向感知查詢與保證金欄位的測試（對應 backlog §5.4）"""
+"""StockAccount 方向感知查詢與保證金欄位的測試"""
 
 
 def build_account() -> StockAccount:
@@ -62,7 +62,9 @@ def test_get_positions_filter() -> None:
     assert len(account.get_positions()) == 2
     assert len(account.get_positions(position_type=PositionType.SHORT)) == 1
     assert len(account.get_positions(stock_id="2330")) == 1
-    assert account.get_positions(stock_id="2330", position_type=PositionType.SHORT) == []
+    assert (
+        account.get_positions(stock_id="2330", position_type=PositionType.SHORT) == []
+    )
 
     account.positions[0].is_closed = True
     assert len(account.get_positions()) == 1

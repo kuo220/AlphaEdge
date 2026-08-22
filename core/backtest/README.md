@@ -147,6 +147,9 @@ class MyStrategy(BaseStockStrategy):
 | `rejected_no_borrow` | 融券餘額不足，放空開倉被拒 |
 | `rejected_volume_cap` | 超過成交量上限且政策為拒單（或上限不足一張） |
 | `truncated_by_volume` | 超過成交量上限被縮量 |
+| `forced_cover_suspended` | 觸及停券強制回補日（除權息推導或手動指定） |
+| `dividend_compensation_paid` | 跨除息日的空單補償出借方現金股利 |
+| `dividend_compensation_unknown` | 權息並存拆不出現金股利，該筆補償被跳過（成本低估） |
 
 **查無融券資料時一律放行並 warning**，不會把「查不到」當成「借不到」——
 `margin` 表的歷史回補是獨立作業，尚未執行時整場回測都會查無資料。
@@ -237,6 +240,11 @@ for stock_quote, ref_price, open_volume in self.sizer.size(
 回測結果儲存路徑：`core/backtest/results/<StrategyName>/`
 
 ## 績效指標
+
+**計算路徑有兩條，職責不同**：正式回測輸出（報表 CSV 與四張圖）由
+`report/reporter.py` 產生；`analysis/analyzer.py`（`StockBacktestAnalyzer`）
+則供測試與研究驗算指標使用，不在 `Backtester.run()` 的輸出路徑上。
+兩者指標定義應保持一致，修改任一邊的公式時須同步檢查另一邊。
 
 回測系統會自動計算以下績效指標：
 

@@ -3,7 +3,6 @@ import sqlite3
 from typing import Any, Dict, Optional
 
 import pandas as pd
-from loguru import logger
 
 from core.api.base import BaseDataAPI
 from core.config import CHIP_TABLE_NAME, DB_PATH
@@ -17,7 +16,7 @@ class StockChipAPI(BaseDataAPI):
     """Institutional investors chip API"""
 
     def __init__(self, conn: Optional[sqlite3.Connection] = None):
-        # 由 DataFeed 傳入共用連線；未指定時自行建立（見 backlog Phase2-7）
+        # 由 DataFeed 傳入共用連線；未指定時自行建立
         self.conn: Optional[sqlite3.Connection] = conn
         self.owns_conn: bool = conn is None
 

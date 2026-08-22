@@ -1,6 +1,7 @@
 # strategy_lab 目錄規範（Claude Code）
 
-> 本檔案對齊 `.cursor/rules/strategy-lab-layout.mdc`（globs: `strategy_lab/**`, alwaysApply: false）。
+> **本檔是 `strategy_lab/` 目錄規範的唯一來源**；`.cursor/rules/strategy-lab-layout.mdc`
+> （globs: `strategy_lab/**`, alwaysApply: false）只是指向本檔的指標，內容不得複製一份。
 > Claude Code 沒有 glob 條件規則機制，改用「目錄專屬 CLAUDE.md」達到同等效果：只有在 `strategy_lab/` 底下讀寫檔案時才會載入本規則。
 
 `strategy_lab/` 是 R&D 工作區。四大分類為**大分類**，每個研究主題用**一個 `snake_case` 子資料夾**區分。

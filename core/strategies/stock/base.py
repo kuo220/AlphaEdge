@@ -8,6 +8,9 @@ from core.api.stock_chip_api import StockChipAPI
 from core.api.stock_price_api import StockPriceAPI
 from core.api.stock_tick_api import StockTickAPI
 from core.backtest.datafeed.base import BaseDataFeed
+from core.backtest.models.cost_model import CostConfig, ShortConstraint
+from core.backtest.models.fill_model import FillConfig
+from core.backtest.models.sizing import BasePositionSizer, EqualWeightSizer
 from core.models import StockAccount, StockOrder, StockQuote
 from core.strategies.base import BaseStrategy
 from core.utils import (
@@ -17,9 +20,6 @@ from core.utils import (
     Market,
     ShortMethod,
 )
-from core.backtest.models.cost_model import CostConfig, ShortConstraint
-from core.backtest.models.fill_model import FillConfig
-from core.backtest.models.sizing import BasePositionSizer, EqualWeightSizer
 
 """BaseStockStrategy: 台股策略基底，補上信用交易設定與五個資料集"""
 
@@ -36,7 +36,12 @@ class BaseStockStrategy(BaseStrategy):
         """
         === Short Setting ===
 
-        台股信用交易專屬；方向白名單與執行順序屬市場無關，已上移至 BaseStrategy。
+        台股信用交易專屬；方向白名單與執行順序屬市場無關，已上移至 BaseStrategy
+        （`enable_intraday` 與 `bar_execution_order` 的對應表見 `BaseStrategy.__init__`
+        的〈Direction Setting〉區塊，推導由 `Backtester.get_execution_order()` 執行）。
+
+        `enable_intraday` 在台股另有一項市場專屬效果：SHORT ＋ 當沖時
+        `factory.build_cost_config()` 會強制 `ShortMethod.DAY_TRADE`（證交稅減半）。
         """
         self.short_method: ShortMethod = ShortMethod.MARGIN  # 放空管道
         self.cost_config: Optional[CostConfig] = None  # 成本參數（None 用預設）
@@ -87,8 +92,7 @@ class BaseStockStrategy(BaseStrategy):
             宣告本策略要用的資料源
 
             實例一律由 DataFeed 統一持有，策略只做取用，不自行建立
-            （見 backlog Phase2-7：原本 6 支策略各自 new 出同一批 API，
-            單次回測會開出 8~10 條互不相干且從不關閉的連線）。
+            。
         - Parameter:
             - feed: BaseDataFeed
                 引擎持有的資料源

@@ -6,7 +6,7 @@ from loguru import logger
 
 from core.backtest.models.cost_model import CostConfig, ShortConstraint, StockCostModel
 
-"""尚未實作的 ShortConstraint 欄位防呆（對應 backlog 執行真實度補強 S1）
+"""尚未實作的 ShortConstraint 欄位防呆
 
 設了限制卻不生效、又完全不吭聲，比功能沒做更危險——使用者會把回測結果
 誤讀成「已經考慮過該限制」。本檔案釘住「要嘛警告、要嘛明確拒絕」。
@@ -65,9 +65,7 @@ def test_day_trade_whitelist_warns(warnings: List[str]) -> None:
 
     StockCostModel(
         make_config(
-            ShortConstraint(
-                day_trade_whitelist={datetime.date(2024, 1, 2): {"2330"}}
-            )
+            ShortConstraint(day_trade_whitelist={datetime.date(2024, 1, 2): {"2330"}})
         )
     )
 

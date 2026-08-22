@@ -16,7 +16,6 @@ from core.utils import (
     PositionType,
     ShortCost,
     ShortMethod,
-    Units,
 )
 from core.utils.instrument import StockUtils
 
@@ -26,7 +25,7 @@ from core.utils.instrument import StockUtils
 - BaseCostModel：各市場共用的介面（對應 Lean 的 FeeModel）
 - ShortConstraint / CostConfig / StockCostModel：台股實作，含信用交易
 
-自 core/utils/ 移入（見 backlog Phase4-1）：它是回測領域的核心，
+自 core/utils/ 移入：它是回測領域的核心，
 與 log_manager、decorators 這類通用工具混在一起會讓 core/utils/ 變成雜物櫃。
 """
 
@@ -81,7 +80,7 @@ class BaseCostModel(ABC):
     def enrich_orders(self, orders: List[BaseOrder]) -> List[BaseOrder]:
         """
         - Description:
-            依成本設定補上市場專屬的訂單欄位，策略不需自行填寫（見 backlog §4.6）
+            依成本設定補上市場專屬的訂單欄位，策略不需自行填寫
 
             預設為不補值；有信用交易制度的市場自行覆寫。
         - Parameters:
@@ -108,18 +107,25 @@ class ShortConstraint:
 
     **兩個欄位目前有定義、無呼叫端**（`allow_below_reference`、`day_trade_whitelist`）。
     設了限制卻不生效比功能沒做更危險，故由 `StockCostModel` 在建構時逐一檢查並發出警告，
-    見 `check_unimplemented_constraints()`。實作進度見
-    `backlog/回測引擎執行真實度補強.md`。
+    見 `check_unimplemented_constraints()`。
 
-    `check_borrowable` 已於 2026-08-15 接上呼叫端（`TwStockFillModel.check_short_borrowable()`），
-    不再是死碼。
+    `check_borrowable` 則已接上呼叫端（`TwStockFillModel.check_short_borrowable()`），
+    `force_cover_dates` 與 `auto_force_cover_on_ex_dividend` 接上
+    `TwStockSettlementModel.check_force_cover()`。
     """
 
     allow_below_reference: bool = True  # 是否允許平盤下放空（**尚未實作**）
-    day_trade_whitelist: Optional[Dict[datetime.date, Set[str]]] = None  # 每日可當沖清單（**尚未實作**）
+    day_trade_whitelist: Optional[Dict[datetime.date, Set[str]]] = (
+        None  # 每日可當沖清單（**尚未實作**）
+    )
     check_borrowable: bool = False  # 是否檢核券源（由 FillModel 依融券今日餘額檢核）
     force_cover_dates: Optional[Dict[str, List[datetime.date]]] = None  # 停券強制回補日
-    max_short_exposure_ratio: Optional[float] = None  # 單一空單曝險上限（佔初始本金比例）
+    # 是否由除權息行事曆自動推導融券最後回補日（**預設開啟**：這是融券制度的規則，
+    # 不是可選功能；關掉等於回到「留倉放空不受停券影響」的高估假設）
+    auto_force_cover_on_ex_dividend: bool = True
+    max_short_exposure_ratio: Optional[float] = (
+        None  # 單一空單曝險上限（佔初始本金比例）
+    )
 
     def check_day_tradable(self, stock_id: str, date: datetime.date) -> bool:
         """
@@ -127,7 +133,7 @@ class ShortConstraint:
 
         **目前未被任何路徑呼叫**：引擎的下單流程不會走到這裡，設定
         `day_trade_whitelist` 不會影響任何回測結果。接上呼叫端前不要
-        以為它已生效（見 `backlog/回測引擎執行真實度補強.md` S1）。
+        以為它已生效。
         """
 
         if self.day_trade_whitelist is None:
@@ -136,7 +142,12 @@ class ShortConstraint:
         return stock_id in self.day_trade_whitelist.get(date, set())
 
     def get_force_cover_dates(self, stock_id: str) -> List[datetime.date]:
-        """取得該股票的強制回補日（停券期間）"""
+        """
+        取得使用者**手動指定**的強制回補日
+
+        由除權息行事曆自動推導的融券最後回補日不在此列，兩者的適用範圍不同
+        （見 `TwStockSettlementModel.check_force_cover()`）
+        """
 
         if self.force_cover_dates is None:
             return []
@@ -161,7 +172,9 @@ class CostConfig:
     short_method: ShortMethod = ShortMethod.MARGIN
     is_day_trade: bool = False
     margin_rate: float = float(ShortCost.MarginRate)
-    borrow_fee_rate: float = float(ShortCost.MarginBorrowFeeRate)  # MARGIN 一次性／SBL 年化
+    borrow_fee_rate: float = float(
+        ShortCost.MarginBorrowFeeRate
+    )  # MARGIN 一次性／SBL 年化
     interest_rate: float = float(ShortCost.MarginInterestRate)
     maintenance_ratio: float = float(ShortCost.MaintenanceRatio)
 
@@ -169,6 +182,10 @@ class CostConfig:
     financing_rate: float = float(MarginCost.FinancingRate)
 
     days_per_year: int = DAYS_PER_YEAR
+
+    # 除息日是否對留倉空單扣股利補償（**預設開啟**：放空者補償出借方當期現金股利
+    # 是實際發生的現金流，不計會系統性高估長天期放空的績效）
+    compensate_cash_dividend: bool = True
 
     # 可成交限制
     short_constraint: ShortConstraint = field(default_factory=ShortConstraint)
@@ -182,7 +199,7 @@ class CostConfig:
         """依放空管道與是否當沖，組出市場常見值的成本設定"""
 
         # 當沖一律走現股當沖沖賣。
-        # 費率不可歸零：當沖單漲停無法回補時會轉為融券留倉（見 backlog §7.1），
+        # 費率不可歸零：當沖單漲停無法回補時會轉為融券留倉，
         # 屆時仍需以正常的保證金成數與券費率計算，歸零會讓維持率永遠不足而誤觸斷頭。
         if is_day_trade:
             return cls(short_method=ShortMethod.DAY_TRADE, is_day_trade=True)
@@ -202,7 +219,7 @@ class StockCostModel(BaseCostModel):
     """
     方向感知的成本／損益計算；PositionManager 與 Backtester 只呼叫這一層
 
-    取整規則（見 backlog §6.0，用 round() 會導致驗收數字全錯）：
+    取整規則：
     - 費用（手續費／稅／券費／利息）一律無條件捨去，與既有 LONG 路徑一致
     - 保證金無條件進位（佔用資金進位較保守）
     - 損益與報酬率 round 至小數點後 2 位
@@ -211,7 +228,10 @@ class StockCostModel(BaseCostModel):
     # 尚未接上呼叫端的 ShortConstraint 欄位：{欄位名: (預設值, 未實作的原因)}
     # 檢查放在建構時，任何建立路徑（factory、測試、未來的實盤）都會經過
     UNIMPLEMENTED_CONSTRAINTS: Dict[str, Tuple[Any, str]] = {
-        "allow_below_reference": (True, "平盤下放空限制需要警示／處置股清單，尚無資料源"),
+        "allow_below_reference": (
+            True,
+            "平盤下放空限制需要警示／處置股清單，尚無資料源",
+        ),
         "day_trade_whitelist": (None, "每日可當沖清單需要證交所每日公告，尚無資料源"),
     }
 
@@ -243,7 +263,10 @@ class StockCostModel(BaseCostModel):
         if constraint is None:
             return
 
-        for field_name, (default_value, reason) in self.UNIMPLEMENTED_CONSTRAINTS.items():
+        for field_name, (
+            default_value,
+            reason,
+        ) in self.UNIMPLEMENTED_CONSTRAINTS.items():
             if getattr(constraint, field_name) != default_value:
                 logger.warning(
                     f"[CostModel] ShortConstraint.{field_name} 尚未實作，"
@@ -261,7 +284,7 @@ class StockCostModel(BaseCostModel):
 
     # === 單邊成本 ===
     def enrich_orders(self, orders: List[StockOrder]) -> List[StockOrder]:
-        """依成本設定補上放空管道與當沖旗標，策略不需自行填寫（見 backlog §4.6）"""
+        """依成本設定補上放空管道與當沖旗標，策略不需自行填寫"""
 
         for order in orders:
             if not self.is_short(order):

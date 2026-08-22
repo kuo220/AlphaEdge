@@ -6,25 +6,17 @@ alwaysApply: false
 
 # strategy_lab 目錄規範
 
-`strategy_lab/` 是 R&D 工作區。四大分類為**大分類**，每個研究主題用**一個 `snake_case` 子資料夾**區分。
+[`strategy_lab/CLAUDE.md`](../../strategy_lab/CLAUDE.md) 是 `strategy_lab/` 目錄規範的**唯一權威來源**，
+完整定義了：四大分類（`ideas/`、`data_analysis/`、`notebooks/`、`strategies/`）的分類決策表、
+主題子資料夾的命名慣例，以及禁止在頂層新增檔案、產出落點、複用 `core/` 等硬性規則。
 
-## 分類決策
+本檔只是指標，**不重複任何規則內容**——規範一旦兩邊各存一份就會漂移。
 
-| 工作性質 | 放置位置 |
-| -------- | -------- |
-| 未驗證假設、文獻筆記、失敗結論 | `ideas/<topic>/` |
-| EDA、IC、特徵探索、非完整策略 | `data_analysis/<topic>/` |
-| 探索性 Jupyter、快速視覺化 | `notebooks/<topic>/` |
-| 完整策略研究、可重現 pipeline | `strategies/<topic>/` |
+## 執行步驟
 
-同一主題跨分類時，**資料夾名稱保持一致**（例如 `ideas/momentum_breakout/` 與 `data_analysis/momentum_breakout/`）。
+1. 一律先完整讀取 [`strategy_lab/CLAUDE.md`](../../strategy_lab/CLAUDE.md)，
+   再在 `strategy_lab/` 底下新增或搬移檔案，不要只憑記憶或猜測分類。
+2. 詳細說明、API 用法、工作流見 [`strategy_lab/README.md`](../../strategy_lab/README.md)。
 
-## 硬性規則
-
-- 新檔案必須落在 `<category>/<topic>/` 內，**禁止**在 `strategy_lab/` 頂層直接新增 script / notebook / md。
-- 主題資料夾命名：`snake_case`，語意清楚（例：`tech_new_high_continuation`、`tsmc_overnight_signal`）。
-- 研究產出（圖表、CSV）放對應主題的 `output/`；Word/PDF 報告放 `reports/`。
-- 優先複用 `core/api/` 與 `core/utils/`，不在 lab 內重複實作資料讀取、手續費、交易日邏輯。
-- 成熟策略最終搬到 `core/strategies/stock/`，用 `run.py --strategy <Name>` 跑正式回測。
-
-詳細說明、API 用法、工作流 → [`strategy_lab/README.md`](strategy_lab/README.md)
+> 規則需要修改時，改 `strategy_lab/CLAUDE.md`，不要改本檔。
+> 本檔僅在指標失效（例如權威文件搬家）時才需要更新。

@@ -1,7 +1,7 @@
 from core.backtest.backtester import Backtester, new_event_counts
 from core.backtest.datafeed.tw_stock_datafeed import TwStockDataFeed
-from core.backtest.models.fill_model import FillConfig, TwStockFillModel
 from core.backtest.models.cost_model import CostConfig, StockCostModel
+from core.backtest.models.fill_model import FillConfig, TwStockFillModel
 from core.backtest.models.instrument_spec import TwStockSpec
 from core.backtest.models.settlement_model import TwStockSettlementModel
 from core.backtest.report.reporter import StockBacktestReporter
@@ -30,7 +30,7 @@ def build_backtester(
         - adjusted_price: bool
             訊號是否使用還原價（後復權）。**預設 True**：未還原時除權息跳空會被
             當成真實漲跌，是資料正確性問題而非可選功能
-            （見 `backlog/股價還原與除權息調整.md`）。
+            （見 `docs/exchanges/data_coverage.md`〈股價還原〉）。
             `Backtester` 那一層的預設維持 False——引擎不預設任何政策，
             要用哪種價格由 factory 這個「政策層」決定
     - Return:

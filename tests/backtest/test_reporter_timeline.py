@@ -9,7 +9,7 @@ from core.backtest.report.reporter import StockBacktestReporter
 from core.models import StockAccount, StockTradeRecord
 from core.utils import PositionType
 
-"""報表時間軸測試：SHORT 的損益必須落在回補日而非開倉日（對應 backlog §2.6、§5.9）"""
+"""報表時間軸測試：SHORT 的損益必須落在回補日而非開倉日"""
 
 
 @pytest.fixture

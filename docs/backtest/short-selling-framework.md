@@ -47,7 +47,7 @@
 5. 融券利息**收入**：`(融券賣出擔保價款 + 保證金) × 年利率 0.2% × 天數 / 365`（券商付給客戶，正值，很小）。
 6. 借券費**支出**（`SBL`）：`每日收盤價 × 股數 × 年化費率 × 天數 / 365`。
 7. 維持率：`(擔保價款 + 保證金) / (現價 × 股數)`，低於 130% 追繳，未補則斷頭回補。
-8. **股利補償**：融券在除息／除權前會被**強制回補**（停券）；借券賣出者需補償出借人現金股利。框架以「強制回補日」處理，不模擬股利補償現金流（見 §7.3）。
+8. **股利補償**：融券在除息／除權前會被**強制回補**（停券），故一般碰不到除息日；不受強制回補約束的 `SBL` 借券則需於除息日補償出借人現金股利。兩者皆已實作（見 §7.3）。
 
 **平倉（回補買進）**
 
@@ -84,11 +84,13 @@
 | 平盤下放空 | 2013 起原則全面開放；**警示／處置股期間禁止** | `ShortConstraint.allow_below_reference` 開關，預設 True |
 | 可當沖標的清單 | 證交所每日公告，處置股停止先賣後買 | `ShortConstraint.day_trade_whitelist`（Optional，無資料時跳過） |
 | 券源／融券餘額上限 | 借不到券就無法放空 | `ShortConstraint.check_borrowable`，預設關閉 |
-| 停券期間（除權息／股東會） | 強制回補 | `ShortConstraint.force_cover_dates`（Optional）＋ `max_holding_days` 保險絲 |
+| 停券期間（除權息） | 強制回補 | 由 `dividend` 表推導融券最後回補日（`auto_force_cover_on_ex_dividend`，預設開啟）；另可用 `ShortConstraint.force_cover_dates` 手動指定 |
+| 停券期間（股東會） | 強制回補 | **無資料源**，仍以 `max_holding_days` 保險絲近似 |
+| 除息日的股利補償 | 放空者須補償出借方現金股利 | `CostConfig.compensate_cash_dividend`（預設開啟），逐筆計入 `dividend_compensation` |
 | 漲停無法回補 | 當沖放空無法平倉，實務轉借券 | 見 §7.1 |
 | 券資比／單一標的空單上限 | 風控 | `max_short_exposure_ratio` 部位上限檢查 |
 
-> ⚠️ **實作現況**：本表六項中，`allow_below_reference`、`day_trade_whitelist`、`check_borrowable` 三個欄位目前**只有定義沒有呼叫端**，設定後不會生效且不會報錯。修補與券源資料接入分別見 [`backlog/回測引擎執行真實度補強.md`](../../backlog/回測引擎執行真實度補強.md) 與 [`backlog/放空回測市場約束補齊.md`](../../backlog/放空回測市場約束補齊.md)。
+> ⚠️ **實作現況（2026-08-15 更新）**：`check_borrowable` 已接上呼叫端（`TwStockFillModel.check_short_borrowable()`，資料來自 `margin` 表，拒單計入 `rejected_no_borrow`）。本表僅剩 `allow_below_reference`、`day_trade_whitelist` 兩個欄位**只有定義沒有呼叫端**——設定後不會生效，但 `StockCostModel` 建構時會發出警告（`check_unimplemented_constraints()`），不會靜默。接上呼叫端的追蹤見 [`backlog/放空回測市場約束補齊.md`](../../backlog/放空回測市場約束補齊.md) S7。
 
 ### 3.5 價格檔位（tick size）
 
@@ -347,18 +349,46 @@ snapshot_daily_equity(date, quotes)
 - `FORCE_COVER`（預設）：**以觸發當日收盤價立即回補**，記為斷頭事件。
 - `WARN_ONLY`：僅記錄，適合研究純訊號績效。
 
-> **為什麼不是「次一交易日開盤價」**：實務上追繳有 T+1 補繳期，但現行引擎**沒有跨日的 pending order 機制**（每天從頭跑，訊號當下就撮合完畢），要做 T+1 延遲成交必須先設計 order queue，等同引擎重構。因此一律**當日收盤價立即回補**，並註明「斷頭價格較實務樂觀（少了一天的補繳緩衝，但也少了一天的續跌／續漲風險）」。T+1 延遲成交的後續規劃見 [`backlog/回測引擎當沖執行順序重構.md`](../../backlog/回測引擎當沖執行順序重構.md)。
+> **為什麼不是「次一交易日開盤價」**：實務上追繳有 T+1 補繳期，但現行引擎**沒有跨日的 pending order 機制**（每天從頭跑，訊號當下就撮合完畢），要做 T+1 延遲成交必須先設計 order queue，等同引擎重構。因此一律**當日收盤價立即回補**，並註明「斷頭價格較實務樂觀（少了一天的補繳緩衝，但也少了一天的續跌／續漲風險）」。T+1 延遲成交的後續規劃見 [多市場回測引擎架構 §5.1](multi-market-engine.md#51-事件驅動迴圈長期方向)。
 
 停牌無報價時，盯市沿用前一交易日收盤價並記 warning。
 
-### 7.3 強制回補日（除權息／股東會停券）
+### 7.3 強制回補日與股利補償（2026-08-22 更新）
 
-現行不接資料源，改用兩道保險絲：
+**除權息停券**已接上資料源。`TwStockDataFeed` 由 `dividend` 表推導融券最後回補日，
+每根 bar 把當日觸及回補日的標的推給 `SettlementModel`：
 
-1. `max_holding_days`（策略設定，建議放空策略設 20~30 天）。
-2. `force_cover_dates: Optional[Dict[str, List[date]]]`，若使用者提供則優先。
+```
+融券最後回補日 = 除權息交易日往前推 4 個營業日
+```
 
-**未模擬股利補償現金流**，長天期放空的績效會被高估。資料源接入見 [`backlog/放空回測市場約束補齊.md`](../../backlog/放空回測市場約束補齊.md) S3。
+法規原文是「停止過戶日前 6 個營業日」，而停止過戶日 = 除權息交易日 + 2 個營業日，
+兩者相減即得 4。`dividend` 表只有除權息交易日，故一律以此換算；營業日必須取自
+`price` 表的實際開盤日（`StockPriceAPI.get_trading_days()`），用曆日相減會在連假整段位移。
+
+**三個管道的適用範圍不同**，這是本節最容易搞錯的地方：
+
+| 放空管道 | 除權息停券強制回補 | 除息日股利補償 |
+|----------|--------------------|----------------|
+| `MARGIN`（融券） | ✅ 於回補日以收盤價回補，計入 `forced_cover_suspended` | 正常情況下碰不到（已先被回補） |
+| `SBL`（借券） | ❌ 不受強制回補約束 | ✅ 於除息日扣 `每股現金股利 × 股數` |
+| `DAY_TRADE`（現股當沖） | 當日已由 `enforce_day_trade_cover()` 處理完畢 | 同左 |
+
+使用者透過 `ShortConstraint.force_cover_dates` **手動指定**的日期則**不分管道一律適用**
+——引擎不替使用者的政策再加條件。
+
+**股利補償的記帳**（`compensate_cash_dividend()`）：
+
+- 只補償**除息日之前就在倉**的部位：除權息交易日當天賣出者已不含權。
+- 除息當日即從 `balance` 扣款，平倉時再把攤提進 `realized_pnl` 的那一份加回，
+  避免同一筆被扣兩次。**刻意不比照 `accrued_borrow_fee` 的「只在平倉扣一次」**：
+  部位損益一律以未還原的 `quote.close` 盯市，除息跳空會讓空單當天憑空多出一段
+  未實現獲利，唯有同日的現金流出才能把它抵銷掉，逐日權益曲線才不會失真。
+- 現金股利為 `NULL`（上市權息並存無法拆分）時**不猜 0**，記 warning 並計入
+  `dividend_compensation_unknown`。
+
+**仍未涵蓋**：股東會停券（需股東會行事曆資料源），故推導出的回補日是實際停券日的
+**子集**，留倉放空的持有天數仍會被高估一部分——`max_holding_days` 保險絲請保留。
 
 ### 7.4 部分回補與 FIFO
 
@@ -396,13 +426,14 @@ snapshot_daily_equity(date, quotes)
 | 項目 | 影響 | 為何不做／後續規劃 |
 |------|------|--------------------|
 | T+2 交割（Lean 的 `SettlementModel`） | 資金可用時點被高估；現股當沖實際是淨額交割不需全額現金 | 對日頻策略影響小，實作成本高 |
-| 股利補償現金流 | 長天期放空績效被高估 | 以強制回補／`max_holding_days` 近似規避；見[市場約束補齊](../../backlog/放空回測市場約束補齊.md) S3 |
-| 券源可得性（融券餘額檢核） | 高估可放空的機會數 | 資料已於 2026-08 補齊，檢核尚未接上；見[市場約束補齊](../../backlog/放空回測市場約束補齊.md) S2 |
-| 未實現損益的每日權益曲線 | **留倉放空的 MDD 被低估** | `snapshot_daily_equity` 已產出逐日權益，但報表四張圖仍走已實現損益；見 [`backlog/回測權益曲線改用逐日權益.md`](../../backlog/回測權益曲線改用逐日權益.md) |
+| ~~股利補償現金流~~ | ~~長天期放空績效被高估~~ | ✅ 已於 2026-08-22 完成（`SBL` 於除息日扣補償；`MARGIN` 於除權息前被停券回補），見 §7.3 |
+| 股東會停券 | 留倉放空的持有天數仍被高估 | 缺股東會行事曆資料源；除權息停券已接上，見 §7.3 |
+| ~~券源可得性（融券餘額檢核）~~ | ~~高估可放空的機會數~~ | ✅ 已於 2026-08-15 接上 `FillModel`（拒單計入 `rejected_no_borrow`）；`margin` 表歷史回補已於 2026-08-16 完成（574 萬列、3,330 個交易日） |
+| ~~未實現損益的每日權益曲線~~ | ~~留倉放空的 MDD 被低估~~ | ✅ 已於 2026-08 完成：報表已改用逐日盯市權益 |
 | `SBL` 議定費率的個股差異 | 熱門空方標的實際費率遠高於 3% | 需借券成交資料；見[市場約束補齊](../../backlog/放空回測市場約束補齊.md) S6 |
-| 流動性上限與部分成交 | 下單張數不受當日成交量約束，小型股成交假設過於樂觀 | 見 [`backlog/回測引擎執行真實度補強.md`](../../backlog/回測引擎執行真實度補強.md) |
-| 除權息價格還原 | `price` 表為原始成交價，除息跳空被當成真實漲跌（SHORT 憑空獲利、LONG 憑空虧損） | 見 [`backlog/股價還原與除權息調整.md`](../../backlog/股價還原與除權息調整.md) |
-| 滑價 | 成交價即策略填入價 | 見 [`backlog/回測滑價與執行係數.md`](../../backlog/回測滑價與執行係數.md) |
+| 流動性上限與部分成交 | 下單張數不受當日成交量約束，小型股成交假設過於樂觀 | 日 K 已於 2026-08-15 完成（`FillConfig.max_volume_share`）；TICK 累計量未做，見 [`core/backtest/README.md`](../../core/backtest/README.md)〈成交假設〉 |
+| ~~除權息價格還原~~ | ~~除息跳空被當成真實漲跌~~ | ✅ 已於 2026-08-15 完成（訊號預設用還原價），見 [`docs/exchanges/data_coverage.md`](../exchanges/data_coverage.md)〈股價還原〉 |
+| ~~滑價~~ | ~~成交價即策略填入價~~ | ✅ 已於 2026-08-15 完成（`FillConfig.slippage_bps_*`），見 [`core/backtest/README.md`](../../core/backtest/README.md)〈成交假設〉 |
 
 > **註**：既然 `execute_daily_position_check` 每天都要取當日收盤價算維持率，順手產出「含未實現損益的每日權益快照」成本極低但價值很高——放空最大的風險就是持倉期間的逆勢，只認已實現損益的權益曲線會把這段完全抹平。`snapshot_daily_equity()` 即為此而生。
 
@@ -416,7 +447,7 @@ snapshot_daily_equity(date, quotes)
 |------------|----------|----------|
 | `StockCostModel` + `CostConfig` | Lean `FeeModel`；Backtrader `CommissionInfo`；Zipline `CommissionModel` | ✅ 一致。Lean 另把 `BuyingPowerModel`／`MarginInterestRateModel` 拆開，本專案單一市場故合併，需留意 `CostConfig` 不要膨脹成 god object |
 | `execute_daily_position_check` | Lean `MarginCallModel` + `MarginInterestRateModel`；Backtrader `interest_long`；Nautilus 每日 mark-to-market | ✅ 一致（本框架把兩者合成薄殼再拆兩個子函式） |
-| `ShortConstraint.check_borrowable` | Lean `IShortableProvider` | ✅ 概念一致（尚未接上資料） |
+| `ShortConstraint.check_borrowable` | Lean `IShortableProvider` | ✅ 概念一致（2026-08-15 已接上 `margin` 表資料） |
 | `validate_fill_price` | 各框架的 fill model 都限制成交價於 bar range 內 | ✅ 一致 |
 | `round_to_tick` | Lean `SymbolProperties.MinimumPriceVariation` | ✅ 一致 |
 | 方向來自 order（§1 原則 2） | 業界一律 signed quantity（`order(-100)` 即放空），方向屬於部位 | ✅ 一致；若把方向綁在策略層則會偏離 |
@@ -444,7 +475,7 @@ snapshot_daily_equity(date, quotes)
 
 **時間軸的重要約定**：`StockTradeRecord` 的 `buy_*` / `sell_*` 以「動作」對應（SHORT 的 `sell_*` 是**開倉**），因此**報表時間軸一律使用 `exit_date`，不可用 `sell_date`**，否則 3 月放空、5 月回補的交易會被畫在 3 月。`entry_date`／`entry_price`／`exit_date`／`exit_price` 是實體欄位而非 property——reporter 以 `pd.DataFrame` 組報表，property 取值會被繞過。
 
-**已知偏離**：`StockPositionManager` 的 LONG 分支仍走舊 `StockUtils` 而非 `StockCostModel`，形成兩套費用口徑並存。原因是舊公式在部分平倉時以「平倉張數」重算開倉手續費，與新模型的等比例攤提口徑不同，改動會破壞 LONG 回歸。收斂規劃見 [`backlog/LONG成本模型口徑收斂.md`](../../backlog/LONG成本模型口徑收斂.md)。
+**已知偏離（已於 2026-08-15 解除）**：`StockPositionManager` 的 LONG 分支曾走舊 `StockUtils` 而非 `StockCostModel`，形成兩套費用口徑並存。「LONG成本模型口徑收斂」完成後，多空記帳已共用 `StockCostModel`，LONG baseline 同批重產為 2024 全年。
 
 **策略撰寫指南**：`core/strategies/README.md` 的放空策略章節（設定欄位表、訊號方向對照、完整範例）。
 

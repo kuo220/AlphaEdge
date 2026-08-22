@@ -2,7 +2,6 @@ import datetime
 import os
 import sqlite3
 import sys
-import tempfile
 from pathlib import Path
 from typing import Any, List, Optional, Tuple
 from unittest.mock import patch
@@ -29,7 +28,6 @@ def test_finmind_pipeline():
 
     # 解決循環導入：使用 mock 在導入前先設置 config 模組
     # 這樣當其他模組導入 config 時，會使用我們預先設置的版本
-    import importlib
     from unittest.mock import MagicMock
 
     # 創建一個臨時的 config mock，包含所有需要的屬性
@@ -79,9 +77,9 @@ def test_finmind_pipeline():
     # 現在導入 loader（使用真正的或臨時的 config）
     from core.pipeline.loaders.finmind_loader import FinMindLoader
 
-    print(f"\n{'='*60}")
-    print(f"測試 FinMind 完整流程（使用臨時資料庫）")
-    print(f"{'='*60}")
+    print(f"\n{'=' * 60}")
+    print("測試 FinMind 完整流程（使用臨時資料庫）")
+    print(f"{'=' * 60}")
 
     # 檢查環境變數
     if not os.getenv("FINMIND_API_TOKEN"):
@@ -105,8 +103,9 @@ def test_finmind_pipeline():
     try:
         # 使用 mock 替換 DB_PATH，讓 loader 使用臨時資料庫
         # 需要同時 patch 多個地方，因為 DB_PATH 可能在不同模組中被導入
-        with patch("core.config.DB_PATH", temp_db_path), patch(
-            "core.pipeline.loaders.finmind_loader.DB_PATH", temp_db_path
+        with (
+            patch("core.config.DB_PATH", temp_db_path),
+            patch("core.pipeline.loaders.finmind_loader.DB_PATH", temp_db_path),
         ):
             # 初始化各個組件
             print("\n1️⃣ 初始化組件...")
@@ -117,9 +116,9 @@ def test_finmind_pipeline():
             print("✅ 組件初始化完成")
 
             # ===== 測試 1: 台股總覽(含權證) =====
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print("測試 1: 台股總覽(含權證) - TaiwanStockInfoWithWarrant")
-            print(f"{'='*60}")
+            print(f"{'=' * 60}")
 
             # Crawler: 爬取資料
             print("\n📥 步驟 1: 爬取資料...")
@@ -133,7 +132,7 @@ def test_finmind_pipeline():
 
             print(f"✅ 爬取成功！取得 {len(stock_info_df)} 筆資料")
             print(f"   資料欄位: {list(stock_info_df.columns)}")
-            print(f"   前 3 筆資料:")
+            print("   前 3 筆資料:")
             print(stock_info_df.head(3).to_string())
 
             # Cleaner: 清洗資料
@@ -165,7 +164,7 @@ def test_finmind_pipeline():
                     f"SELECT * FROM {STOCK_INFO_WITH_WARRANT_TABLE_NAME} LIMIT 3"
                 )
                 rows: List[Tuple[Any, ...]] = cursor.fetchall()
-                print(f"   前 3 筆資料:")
+                print("   前 3 筆資料:")
                 for row in rows:
                     print(f"   {row}")
             else:
@@ -176,9 +175,9 @@ def test_finmind_pipeline():
             conn.close()
 
             # ===== 測試 2: 證券商資訊 =====
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print("測試 2: 證券商資訊 - TaiwanSecuritiesTraderInfo")
-            print(f"{'='*60}")
+            print(f"{'=' * 60}")
 
             # Crawler: 爬取資料
             print("\n📥 步驟 1: 爬取資料...")
@@ -190,7 +189,7 @@ def test_finmind_pipeline():
 
             print(f"✅ 爬取成功！取得 {len(broker_info_df)} 筆資料")
             print(f"   資料欄位: {list(broker_info_df.columns)}")
-            print(f"   前 3 筆資料:")
+            print("   前 3 筆資料:")
             print(broker_info_df.head(3).to_string())
 
             # Cleaner: 清洗資料
@@ -222,7 +221,7 @@ def test_finmind_pipeline():
                     f"SELECT * FROM {SECURITIES_TRADER_INFO_TABLE_NAME} LIMIT 3"
                 )
                 rows: List[Tuple[Any, ...]] = cursor.fetchall()
-                print(f"   前 3 筆資料:")
+                print("   前 3 筆資料:")
                 for row in rows:
                     print(f"   {row}")
             else:
@@ -233,9 +232,9 @@ def test_finmind_pipeline():
             conn.close()
 
             # ===== 測試 3: 當日券商分點統計表 =====
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print("測試 3: 當日券商分點統計表 - TaiwanStockTradingDailyReportSecIdAgg")
-            print(f"{'='*60}")
+            print(f"{'=' * 60}")
 
             # 設定測試參數（使用 finmind.ipynb 中的參數）
             test_stock_id: str = "2330"
@@ -243,7 +242,7 @@ def test_finmind_pipeline():
             start_date: str = "2024-07-01"
             end_date: str = "2024-07-15"
 
-            print(f"   測試參數:")
+            print("   測試參數:")
             print(f"   - 股票代碼: {test_stock_id}")
             print(f"   - 券商代碼: {test_broker_id}")
             print(f"   - 日期範圍: {start_date} 到 {end_date}")
@@ -267,7 +266,7 @@ def test_finmind_pipeline():
             else:
                 print(f"✅ 爬取成功！取得 {len(trading_report_df)} 筆資料")
                 print(f"   資料欄位: {list(trading_report_df.columns)}")
-                print(f"   前 3 筆資料:")
+                print("   前 3 筆資料:")
                 print(trading_report_df.head(3).to_string())
 
                 # Cleaner: 清洗資料
@@ -301,7 +300,7 @@ def test_finmind_pipeline():
                         f"SELECT * FROM {STOCK_TRADING_DAILY_REPORT_TABLE_NAME} LIMIT 3"
                     )
                     rows: List[Tuple[Any, ...]] = cursor.fetchall()
-                    print(f"   前 3 筆資料:")
+                    print("   前 3 筆資料:")
                     for row in rows:
                         print(f"   {row}")
                 else:
@@ -310,9 +309,9 @@ def test_finmind_pipeline():
                 conn.close()
 
             # ===== 最終驗證 =====
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print("最終驗證：檢查所有資料表")
-            print(f"{'='*60}")
+            print(f"{'=' * 60}")
 
             conn: sqlite3.Connection = sqlite3.connect(temp_db_path)
             cursor: sqlite3.Cursor = conn.cursor()
@@ -340,16 +339,16 @@ def test_finmind_pipeline():
             loader.disconnect()
 
             if all_success:
-                print(f"\n{'='*60}")
+                print(f"\n{'=' * 60}")
                 print("✅ 所有測試通過！")
-                print(f"{'='*60}")
+                print(f"{'=' * 60}")
                 print(f"📁 臨時資料庫位置: {temp_db_path}")
                 print("   測試完成後可以手動刪除此檔案")
                 return True
             else:
-                print(f"\n{'='*60}")
+                print(f"\n{'=' * 60}")
                 print("⚠️  部分測試未完全通過，請檢查上述結果")
-                print(f"{'='*60}")
+                print(f"{'=' * 60}")
                 return False
 
     except Exception as e:

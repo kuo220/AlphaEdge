@@ -17,7 +17,7 @@ from core.utils import (
     ShortMethod,
 )
 
-"""回測引擎的方向驅動、成交價驗證與每日部位檢查測試（對應 backlog §4.5、§7.1、§7.2、§7.6）"""
+"""回測引擎的方向驅動、成交價驗證與每日部位檢查測試"""
 
 
 DAY_1: datetime.date = datetime.date(2024, 1, 2)
@@ -60,9 +60,7 @@ def test_resolve_actions() -> None:
 def test_execution_order_derivation(make_strategy, make_backtester) -> None:
     """當沖放空預設先開後平，其餘維持先平後開；策略顯式指定時以策略為準"""
 
-    day_trade = make_backtester(
-        short_strategy(make_strategy, enable_intraday=True)
-    )
+    day_trade = make_backtester(short_strategy(make_strategy, enable_intraday=True))
     assert day_trade.get_execution_order() == BarExecutionOrder.OPEN_THEN_CLOSE
 
     swing = make_backtester(short_strategy(make_strategy, enable_intraday=False))
@@ -70,6 +68,13 @@ def test_execution_order_derivation(make_strategy, make_backtester) -> None:
 
     long_strategy = make_backtester(make_strategy(position_type=PositionType.LONG))
     assert long_strategy.get_execution_order() == BarExecutionOrder.CLOSE_THEN_OPEN
+
+    # 做多不因 enable_intraday 自動切換：該旗標預設就是 True，自動切換等於在
+    # 無人宣告的情況下改掉所有既有做多策略的成交順序（見 get_execution_order docstring）
+    long_intraday = make_backtester(
+        make_strategy(position_type=PositionType.LONG, enable_intraday=True)
+    )
+    assert long_intraday.get_execution_order() == BarExecutionOrder.CLOSE_THEN_OPEN
 
     explicit = make_backtester(
         make_strategy(
@@ -112,7 +117,9 @@ def test_wrong_direction_order_rejected(
     orders: List[StockOrder] = backtester.validate_orders(
         [
             make_order(action=Action.SELL, position_type=PositionType.SHORT),  # 合法
-            make_order(action=Action.BUY, position_type=PositionType.LONG),  # 方向不允許
+            make_order(
+                action=Action.BUY, position_type=PositionType.LONG
+            ),  # 方向不允許
             make_order(action=Action.BUY, position_type=PositionType.SHORT),  # 動作錯誤
         ],
         "open",
@@ -217,7 +224,9 @@ def test_fill_model_state_shared_with_engine(
 
 
 # === 同日開平倉 ===
-def test_same_day_short_cover(make_strategy, make_backtester, make_order, make_quote) -> None:
+def test_same_day_short_cover(
+    make_strategy, make_backtester, make_order, make_quote
+) -> None:
     """§4.5：OPEN_THEN_CLOSE 下，當沖放空可在同一天完成開倉與回補"""
 
     strategy = short_strategy(
@@ -250,7 +259,9 @@ def test_same_day_short_cover(make_strategy, make_backtester, make_order, make_q
     )
     backtester: Backtester = make_backtester(strategy)
 
-    backtester.execute_bar(DAY_1, [make_quote(date=DAY_1, cur_price=97.0, high=101.0, low=94.0)])
+    backtester.execute_bar(
+        DAY_1, [make_quote(date=DAY_1, cur_price=97.0, high=101.0, low=94.0)]
+    )
 
     records: List[StockTradeRecord] = backtester.account.trade_records
     assert len(records) == 1
@@ -296,7 +307,9 @@ def test_close_then_open_cannot_cover_same_day(
     )
     backtester: Backtester = make_backtester(strategy)
 
-    backtester.execute_bar(DAY_1, [make_quote(date=DAY_1, cur_price=97.0, high=101.0, low=94.0)])
+    backtester.execute_bar(
+        DAY_1, [make_quote(date=DAY_1, cur_price=97.0, high=101.0, low=94.0)]
+    )
 
     # 平倉訊號先於開倉執行，因此當日不會產生交易紀錄
     assert backtester.account.trade_records == []
@@ -325,7 +338,8 @@ def test_uncovered_day_trade_forced(make_strategy, make_backtester, make_quote) 
     backtester: Backtester = make_backtester(strategy)
 
     backtester.execute_bar(
-        DAY_1, [make_quote(date=DAY_1, cur_price=98.0, high=101.0, low=97.0, close=98.0)]
+        DAY_1,
+        [make_quote(date=DAY_1, cur_price=98.0, high=101.0, low=97.0, close=98.0)],
     )
 
     assert backtester.event_counts["forced_cover_day_trade"] == 1
@@ -392,11 +406,15 @@ def test_margin_call_force_cover(make_strategy, make_backtester, make_quote) -> 
     )
     backtester: Backtester = make_backtester(strategy)
 
-    backtester.execute_bar(DAY_1, [make_quote(date=DAY_1, cur_price=100.0, high=101.0, low=99.0)])
+    backtester.execute_bar(
+        DAY_1, [make_quote(date=DAY_1, cur_price=100.0, high=101.0, low=99.0)]
+    )
     assert len(backtester.account.get_positions()) == 1
 
     # 股價漲到 150：維持率 190000 / 150000 = 126.7% < 130%
-    backtester.execute_bar(DAY_2, [make_quote(date=DAY_2, cur_price=150.0, high=151.0, low=149.0)])
+    backtester.execute_bar(
+        DAY_2, [make_quote(date=DAY_2, cur_price=150.0, high=151.0, low=149.0)]
+    )
 
     assert backtester.event_counts["forced_cover_margin_call"] == 1
     assert backtester.account.positions == []
@@ -424,8 +442,12 @@ def test_margin_call_warn_only(make_strategy, make_backtester, make_quote) -> No
     )
     backtester: Backtester = make_backtester(strategy)
 
-    backtester.execute_bar(DAY_1, [make_quote(date=DAY_1, cur_price=100.0, high=101.0, low=99.0)])
-    backtester.execute_bar(DAY_2, [make_quote(date=DAY_2, cur_price=150.0, high=151.0, low=149.0)])
+    backtester.execute_bar(
+        DAY_1, [make_quote(date=DAY_1, cur_price=100.0, high=101.0, low=99.0)]
+    )
+    backtester.execute_bar(
+        DAY_2, [make_quote(date=DAY_2, cur_price=150.0, high=151.0, low=149.0)]
+    )
 
     assert backtester.event_counts["forced_cover_margin_call"] == 0
     assert len(backtester.account.get_positions()) == 1
@@ -453,7 +475,9 @@ def test_borrow_fee_not_double_counted(
     )
     backtester: Backtester = make_backtester(strategy)
 
-    backtester.execute_bar(DAY_1, [make_quote(date=DAY_1, cur_price=100.0, high=101.0, low=99.0)])
+    backtester.execute_bar(
+        DAY_1, [make_quote(date=DAY_1, cur_price=100.0, high=101.0, low=99.0)]
+    )
 
     # 連續持有 10 天，期間沒有任何訊號
     for offset in range(1, 11):
@@ -491,8 +515,12 @@ def test_sbl_borrow_fee_accrued_daily(
     )
     backtester: Backtester = make_backtester(strategy)
 
-    backtester.execute_bar(DAY_1, [make_quote(date=DAY_1, cur_price=100.0, high=101.0, low=99.0)])
-    backtester.execute_bar(DAY_2, [make_quote(date=DAY_2, cur_price=100.0, high=101.0, low=99.0)])
+    backtester.execute_bar(
+        DAY_1, [make_quote(date=DAY_1, cur_price=100.0, high=101.0, low=99.0)]
+    )
+    backtester.execute_bar(
+        DAY_2, [make_quote(date=DAY_2, cur_price=100.0, high=101.0, low=99.0)]
+    )
 
     position: StockPosition = backtester.account.get_positions()[0]
     # 每日 100000 × 3% / 365 = 8.21 → 捨去為 8，兩天共 16
@@ -532,7 +560,7 @@ def test_max_holding_days_force_cover(
     assert backtester.account.positions == []
 
 
-# === 停牌／下市部位的出場（真實度 S3）===
+# === 停牌／下市部位的出場 ===
 def test_no_quote_days_force_exit(make_strategy, make_backtester, make_quote) -> None:
     """連續無報價達門檻時強制出場，避免停牌部位盯市到回測結束"""
 
@@ -598,8 +626,14 @@ def test_no_quote_days_reset_when_quote_returns(
     backtester.execute_bar(DAY_1 + datetime.timedelta(days=1), [])
     backtester.execute_bar(
         DAY_1 + datetime.timedelta(days=2),
-        [make_quote(date=DAY_1 + datetime.timedelta(days=2), cur_price=100.0,
-                    high=101.0, low=99.0)],
+        [
+            make_quote(
+                date=DAY_1 + datetime.timedelta(days=2),
+                cur_price=100.0,
+                high=101.0,
+                low=99.0,
+            )
+        ],
     )
     backtester.execute_bar(DAY_1 + datetime.timedelta(days=3), [])
 
@@ -639,7 +673,7 @@ def test_no_quote_exit_disabled_by_default(
     assert len(backtester.account.positions) == 1
 
 
-# === 當沖轉留倉的證交稅差額（真實度 S7）===
+# === 當沖轉留倉的證交稅差額 ===
 def test_convert_to_margin_tops_up_tax(
     make_strategy, make_backtester, make_quote
 ) -> None:
@@ -679,8 +713,10 @@ def test_convert_to_margin_tops_up_tax(
     position: StockPosition = positions[0]
     cost_model = backtester.cost_model
     full_tax: int = cost_model.tax(
-        price=position.price, volume=position.volume,
-        action=Action.SELL, is_day_trade=False,
+        price=position.price,
+        volume=position.volume,
+        action=Action.SELL,
+        is_day_trade=False,
     )
 
     # 轉換後的稅應等於全額稅率的結果，而非開倉時的減半稅

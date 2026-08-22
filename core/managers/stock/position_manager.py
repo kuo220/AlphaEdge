@@ -1,12 +1,12 @@
 import datetime
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 from loguru import logger
 
+from core.backtest.models.cost_model import CostConfig, StockCostModel
 from core.managers.base.position_manager import BasePositionManager
 from core.models import StockAccount, StockOrder, StockPosition, StockTradeRecord
 from core.utils import Action, PositionType, ShortMethod
-from core.backtest.models.cost_model import CostConfig, StockCostModel
 from core.utils.instrument import StockUtils
 
 
@@ -33,7 +33,9 @@ class StockPositionManager(BasePositionManager):
         """Set Up the Config of Stock Position Manager"""
         pass
 
-    def normalize_date(self, date: Union[datetime.date, datetime.datetime]) -> datetime.date:
+    def normalize_date(
+        self, date: Union[datetime.date, datetime.datetime]
+    ) -> datetime.date:
         """Tick 級別的 date 會是 datetime，統一取其日期部分以計算持有曆日數"""
 
         return date.date() if isinstance(date, datetime.datetime) else date
@@ -150,7 +152,7 @@ class StockPositionManager(BasePositionManager):
             stock_order.short_method or self.cost_model.config.short_method
         )
 
-        # 同一標的不允許同時持有反向部位（見 backlog §7.5）
+        # 同一標的不允許同時持有反向部位
         if self.account.check_has_position(stock_order.stock_id, PositionType.LONG):
             logger.warning(
                 f"[Open Short] {stock_order.stock_id} 已有做多部位，不允許同標的雙向持倉，拒絕開倉"
@@ -191,7 +193,10 @@ class StockPositionManager(BasePositionManager):
         max_ratio: Optional[float] = (
             self.cost_model.config.short_constraint.max_short_exposure_ratio
         )
-        if max_ratio is not None and position_value > self.account.init_capital * max_ratio:
+        if (
+            max_ratio is not None
+            and position_value > self.account.init_capital * max_ratio
+        ):
             logger.warning(
                 f"[Open Short] {stock_order.stock_id} 曝險 {position_value} 超過上限 "
                 f"{self.account.init_capital * max_ratio}，拒絕開倉"
@@ -343,8 +348,8 @@ class StockPositionManager(BasePositionManager):
         - Description:
             回補放空部位（買進），支援部分回補的等比例攤提
 
-            保證金、擔保價款、借券費一律依回補張數比例攤提；
-            融券利息於此依 exit_date − entry_date 一次算出（見 backlog §4.3 計算時點表），
+            保證金、擔保價款、借券費與股利補償一律依回補張數比例攤提；
+            融券利息於此依 exit_date − entry_date 一次算出，
             不由 accrue_holding_cost() 重複計算。
         - Parameters:
             - position: StockPosition
@@ -366,6 +371,7 @@ class StockPositionManager(BasePositionManager):
         prop_open_tax: int = int(position.tax * ratio)
         prop_borrow_fee: int = int(position.borrow_fee * ratio)
         prop_accrued_borrow_fee: int = int(position.accrued_borrow_fee * ratio)
+        prop_dividend_compensation: int = int(position.dividend_compensation * ratio)
 
         # 回補手續費（買進不課證交稅）
         close_commission: int = self.cost_model.commission(
@@ -381,9 +387,11 @@ class StockPositionManager(BasePositionManager):
             short_method=position.short_method,
         )
 
-        # 開倉成本、平倉成本與持有期間淨成本（借券費支出 − 利息收入）
+        # 開倉成本、平倉成本與持有期間淨成本（借券費支出 + 股利補償 − 利息收入）
         entry_cost: int = prop_open_commission + prop_open_tax + prop_borrow_fee
-        carry_cost: int = prop_accrued_borrow_fee - interest
+        carry_cost: int = (
+            prop_accrued_borrow_fee + prop_dividend_compensation - interest
+        )
 
         realized_pnl: float = self.cost_model.realized_pnl(
             position_type=PositionType.SHORT,
@@ -431,6 +439,7 @@ class StockPositionManager(BasePositionManager):
             transaction_cost=entry_cost
             + close_commission
             + prop_accrued_borrow_fee
+            + prop_dividend_compensation
             - interest,
             realized_pnl=realized_pnl,
             roi=roi,
@@ -438,6 +447,7 @@ class StockPositionManager(BasePositionManager):
             short_method=position.short_method,
             borrow_fee=prop_borrow_fee + prop_accrued_borrow_fee,
             interest=interest,
+            dividend_compensation=prop_dividend_compensation,
             margin=prop_margin,
             holding_days=holding_days,
         )
@@ -448,6 +458,7 @@ class StockPositionManager(BasePositionManager):
         position.tax -= prop_open_tax
         position.borrow_fee -= prop_borrow_fee
         position.accrued_borrow_fee -= prop_accrued_borrow_fee
+        position.dividend_compensation -= prop_dividend_compensation
         position.transaction_cost -= entry_cost
         position.margin -= prop_margin
         position.short_proceeds -= prop_proceeds
@@ -456,8 +467,15 @@ class StockPositionManager(BasePositionManager):
 
         # Update account：釋回保證金並結算損益
         # realized_pnl 已扣掉開倉成本，而開倉成本在開倉當下就從餘額扣過了，
-        # 故此處加回 entry_cost，避免同一筆成本被扣兩次（與 LONG 的現金流口徑一致）
-        self.account.balance += prop_margin + realized_pnl + entry_cost
+        # 故此處加回 entry_cost，避免同一筆成本被扣兩次（與 LONG 的現金流口徑一致）。
+        # 股利補償同理：除息當日就已從餘額扣款（`compensate_cash_dividend()`），
+        # 這裡加回攤提進 realized_pnl 的那一份。
+        # **與 accrued_borrow_fee 的差異**：借券費不動餘額、只在平倉時經損益扣一次；
+        # 股利補償走即時扣款，除息日的價格跳空才會被同額的現金流出抵銷，
+        # 逐日權益曲線不會憑空多出一段假獲利
+        self.account.balance += (
+            prop_margin + realized_pnl + entry_cost + prop_dividend_compensation
+        )
         self.account.margin_used -= prop_margin
         self.account.realized_pnl += realized_pnl
         self.account.trade_records.append(record)

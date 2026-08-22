@@ -10,7 +10,7 @@ from core.backtest.report.reporter import StockBacktestReporter
 from core.models import StockAccount, StockTradeRecord
 from core.utils import PositionType
 
-"""權益曲線口徑測試：有 daily_equity 時一律走盯市，沒有時退回已實現（對應 backlog 逐日權益 S2~S5）"""
+"""權益曲線口徑測試：有 daily_equity 時一律走盯市，沒有時退回已實現"""
 
 
 DAY_1: datetime.date = datetime.date(2024, 1, 2)
@@ -58,9 +58,7 @@ def test_equity_series_uses_daily_equity_when_available(
 ) -> None:
     """有 daily_equity 時採盯市口徑：節點數等於交易日數（＋起始資金節點）"""
 
-    strategy = make_strategy(
-        start_date=DAY_1, end_date=datetime.date(2024, 1, 5)
-    )
+    strategy = make_strategy(start_date=DAY_1, end_date=datetime.date(2024, 1, 5))
     account: StockAccount = StockAccount(1000000.0)
     strategy.setup_account(account)
 
@@ -96,9 +94,7 @@ def test_equity_series_uses_daily_equity_when_available(
 def test_equity_series_falls_back_to_realized(make_strategy, reporter_factory) -> None:
     """沒有 daily_equity 時退回已實現口徑，行為與逐日權益上線前一致"""
 
-    strategy = make_strategy(
-        start_date=DAY_1, end_date=datetime.date(2024, 1, 31)
-    )
+    strategy = make_strategy(start_date=DAY_1, end_date=datetime.date(2024, 1, 31))
     account: StockAccount = StockAccount(1000000.0)
     strategy.setup_account(account)
 
@@ -129,9 +125,7 @@ def test_equity_series_falls_back_to_realized(make_strategy, reporter_factory) -
 def test_equity_series_dedups_same_day_trades(make_strategy, reporter_factory) -> None:
     """同一天多筆平倉只取當日最後一筆，避免重複節點"""
 
-    strategy = make_strategy(
-        start_date=DAY_1, end_date=datetime.date(2024, 1, 31)
-    )
+    strategy = make_strategy(start_date=DAY_1, end_date=datetime.date(2024, 1, 31))
     account: StockAccount = StockAccount(1000000.0)
     strategy.setup_account(account)
 
@@ -153,9 +147,7 @@ def test_mark_to_market_mdd_is_deeper_than_realized(
 ) -> None:
     """同一組交易：盯市口徑的 MDD 必須比只認已實現的更深，否則沒修到問題"""
 
-    strategy = make_strategy(
-        start_date=DAY_1, end_date=datetime.date(2024, 1, 5)
-    )
+    strategy = make_strategy(start_date=DAY_1, end_date=datetime.date(2024, 1, 5))
     account: StockAccount = StockAccount(1000000.0)
     strategy.setup_account(account)
 
@@ -190,9 +182,7 @@ def test_mark_to_market_mdd_is_deeper_than_realized(
 def test_analyzer_mdd_matches_reporter_series(make_strategy, reporter_factory) -> None:
     """analyzer 與圖表必須同口徑：兩者算出的 MDD 要一致"""
 
-    strategy = make_strategy(
-        start_date=DAY_1, end_date=datetime.date(2024, 1, 5)
-    )
+    strategy = make_strategy(start_date=DAY_1, end_date=datetime.date(2024, 1, 5))
     account: StockAccount = StockAccount(1000000.0)
     strategy.setup_account(account)
     account.trade_records.append(
@@ -227,9 +217,7 @@ def test_everyday_equity_change_skipped_without_daily_equity(
 ) -> None:
     """沒有 daily_equity 時不畫盯市差分圖，避免畫出與已實現口徑重複的圖"""
 
-    strategy = make_strategy(
-        start_date=DAY_1, end_date=datetime.date(2024, 1, 31)
-    )
+    strategy = make_strategy(start_date=DAY_1, end_date=datetime.date(2024, 1, 31))
     account: StockAccount = StockAccount(1000000.0)
     strategy.setup_account(account)
     account.trade_records.append(

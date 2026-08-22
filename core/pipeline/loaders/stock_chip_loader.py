@@ -1,7 +1,6 @@
-import shutil
 import sqlite3
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional, Set
 
 import pandas as pd
 from loguru import logger
@@ -97,7 +96,11 @@ class StockChipLoader(BaseDataLoader):
         ):
             self.create_db()
 
-    def add_to_db(self, remove_files: bool = False) -> None:
+    def add_to_db(
+        self,
+        remove_files: bool = False,
+        only_dates: Optional[Set[str]] = None,
+    ) -> None:
         """將資料夾中的所有 CSV 檔存入指定 SQLite 資料庫中的指定資料表"""
 
         if self.conn is None:
@@ -107,21 +110,37 @@ class StockChipLoader(BaseDataLoader):
         self.create_missing_tables()
 
         file_cnt: int = 0
-        for file_path in self.chip_dir.iterdir():
-            # Skip non-CSV files
-            if file_path.suffix != ".csv":
-                continue
+
+        failed_files: List[str] = []
+        partial_files: List[str] = []
+        skipped_cnt: int = 0
+        for file_path in self.select_csv_files(self.chip_dir, only_dates):
             try:
                 df: pd.DataFrame = pd.read_csv(file_path)
-                df.to_sql(CHIP_TABLE_NAME, self.conn, if_exists="append", index=False)
+                inserted, skipped = self.insert_dataframe(
+                    self.conn, CHIP_TABLE_NAME, df
+                )
+                if inserted == 0 and skipped > 0:
+                    # 整檔已在資料庫中：loader 每次都掃全目錄，重跑必然走到這裡
+                    skipped_cnt += 1
+                    continue
+                if skipped > 0:
+                    partial_files.append(str(file_path))
                 logger.info(f"Save {file_path} into database")
                 file_cnt += 1
             except Exception as e:
                 logger.warning(f"Error saving {file_path}: {e}")
+                failed_files.append(str(file_path))
 
         self.conn.commit()
         self.disconnect()
 
-        if remove_files:
-            shutil.rmtree(CHIP_DOWNLOADS_PATH)
-        logger.info(f"Total file processed: {file_cnt}")
+        self.finish_load(
+            source="chip",
+            succeeded=file_cnt,
+            failed_files=failed_files,
+            remove_files=remove_files,
+            downloads_path=CHIP_DOWNLOADS_PATH,
+            skipped_files=skipped_cnt,
+            partial_files=partial_files,
+        )

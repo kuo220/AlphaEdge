@@ -10,7 +10,7 @@ from tests.backtest.make_baseline import (
     run_backtest_without_report,
 )
 
-"""LONG 路徑回歸測試：放空框架的任何改動都不得影響既有做多策略的結果（backlog §9.0）"""
+"""LONG 路徑回歸測試：放空框架的任何改動都不得影響既有做多策略的結果"""
 
 
 pytestmark = pytest.mark.slow

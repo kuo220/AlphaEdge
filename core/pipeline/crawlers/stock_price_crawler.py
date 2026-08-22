@@ -1,6 +1,5 @@
 import datetime
 from io import StringIO
-from pathlib import Path
 from typing import Optional
 
 import pandas as pd
@@ -65,7 +64,7 @@ class StockPriceCrawler(BaseDataCrawler):
         # 檢查是否為假日
         try:
             df: pd.DataFrame = pd.read_html(StringIO(res.text))[-1]
-        except Exception as e:
+        except Exception:
             logger.info(f"{date} is a Holiday!")
             return None
 
@@ -97,7 +96,7 @@ class StockPriceCrawler(BaseDataCrawler):
         # 檢查是否為假日
         try:
             df: pd.DataFrame = pd.read_html(StringIO(res.text))[0]
-        except Exception as e:
+        except Exception:
             logger.info(f"{date} is a Holiday!")
             return None
 

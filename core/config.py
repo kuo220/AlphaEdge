@@ -28,8 +28,10 @@ BASE_DIR_PATH: Path = Path(__file__).resolve().parent
 DATABASE_DIR_PATH: Path = get_static_resolved_path(
     base_dir=BASE_DIR_PATH, dir_name="database"
 )
+# 目錄**不在此建立**：import 一個設定模組不應該有檔案系統副作用，
+# 否則任何只是要讀常數的測試都會被動生出 core/logs/。
+# 實際要寫檔時由 `LogManager.setup_logger()` 惰性建立（見 log_manager.py）
 LOGS_DIR_PATH: Path = get_static_resolved_path(base_dir=BASE_DIR_PATH, dir_name="logs")
-LOGS_DIR_PATH.mkdir(parents=True, exist_ok=True)  # 確保 logs 目錄存在
 DATA_DIR_PATH: Path = get_static_resolved_path(base_dir=BASE_DIR_PATH, dir_name="data")
 
 
@@ -158,7 +160,6 @@ BALANCE_SHEET_TABLE_NAME: str = "balance_sheet"
 COMPREHENSIVE_INCOME_TABLE_NAME: str = "comprehensive_income"
 CASH_FLOW_TABLE_NAME: str = "cash_flow"
 EQUITY_CHANGE_TABLE_NAME: str = "equity_change"
-TICK_METADATA_TABLE_NAME: str = "TICK_METADATA_TABLE_NAME"
 STOCK_INFO_TABLE_NAME: str = "taiwan_stock_info"
 STOCK_INFO_WITH_WARRANT_TABLE_NAME: str = "taiwan_stock_info_with_warrant"
 SECURITIES_TRADER_INFO_TABLE_NAME: str = "taiwan_securities_trader_info"
@@ -179,16 +180,35 @@ DEFAULT_START_YEAR: int = 2013
 DEFAULT_END_MONTH: int = 12
 TICK_UPDATE_START_DATE: datetime.date = datetime.date(2024, 5, 10)
 FINMIND_BROKER_TRADING_START_DATE: datetime.date = datetime.date(2021, 6, 30)
-FINMIND_BROKER_TRADING_END_DATE: datetime.date = datetime.date(2026, 2, 1)
+# 結束日不設常數：與 chip／margin／dividend／price 一致，由呼叫端取 today()
 
 
 # -----------------------------------------------------------------------
 # === DolphinDB server setting ===
 # -----------------------------------------------------------------------
 #
+def get_int_env(name: str, default: int = 0) -> int:
+    """
+    讀取整數型環境變數；無法轉型時退回預設值
+
+    原本是 `int(os.getenv("DDB_PORT") or "0")`：環境變數被設成任何非數字字串
+    （含誤植的空白或註解）都會在 **import 期**拋 ValueError，
+    而這個模組被全專案 import，等於整個程式無法啟動且錯誤訊息與設定無關。
+    """
+
+    raw: Optional[str] = os.getenv(name)
+    if not raw:
+        return default
+
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
 DDB_PATH: str | None = os.getenv("DDB_PATH")
 DDB_HOST: str | None = os.getenv("DDB_HOST")
-DDB_PORT: int = int(os.getenv("DDB_PORT") or "0")
+DDB_PORT: int = get_int_env("DDB_PORT")
 DDB_USER: str | None = os.getenv("DDB_USER")
 DDB_PASSWORD: str | None = os.getenv("DDB_PASSWORD")
 

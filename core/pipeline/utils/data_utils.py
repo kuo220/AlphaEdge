@@ -1,4 +1,3 @@
-import datetime
 import json
 import re
 from pathlib import Path
@@ -99,9 +98,19 @@ class DataUtils:
     @staticmethod
     def standardize_column_name(
         word: str,
-        replace_pairs: Dict[str, str] = {"（": "(", "）": ")", "：": ":"},
+        replace_pairs: Dict[str, str] = {
+            "（": "(",
+            "）": ")",
+            "：": ":",
+        },
         remove_chars: List[str] = [],
-        remove_dash: List[str] = ["－", "-", "—", "–", "─"],
+        remove_dash: List[str] = [
+            "－",
+            "-",
+            "—",
+            "–",
+            "─",
+        ],
         remove_whitespace: bool = True,
     ) -> str:
         """
@@ -341,7 +350,7 @@ class DataUtils:
         """
 
         try:
-            with open(file_path, "r", encoding=encoding) as f:
+            with open(file_path, encoding=encoding) as f:
                 data: Any = json.load(f)
                 return data
         except FileNotFoundError:

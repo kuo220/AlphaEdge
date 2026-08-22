@@ -42,7 +42,7 @@ def check_table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
     cursor: sqlite3.Cursor = conn.cursor()
     cursor.execute(
         """
-        SELECT name FROM sqlite_master 
+        SELECT name FROM sqlite_master
         WHERE type='table' AND name=?
         """,
         (table_name,),
@@ -66,9 +66,9 @@ def test_db_tables() -> bool:
     """
     測試 stock.db 中是否存在指定的資料表
     """
-    print(f"\n{'='*60}")
-    print(f"測試 stock.db 資料表存在性")
-    print(f"{'='*60}")
+    print(f"\n{'=' * 60}")
+    print("測試 stock.db 資料表存在性")
+    print(f"{'=' * 60}")
     print(f"\n資料庫路徑: {DB_PATH}")
 
     # 檢查資料庫檔案是否存在
@@ -76,12 +76,12 @@ def test_db_tables() -> bool:
         print(f"\n[錯誤] 資料庫檔案不存在於 {DB_PATH}")
         return False
 
-    print(f"[OK] 資料庫檔案存在")
+    print("[OK] 資料庫檔案存在")
 
     # 連接資料庫
     try:
         conn: sqlite3.Connection = sqlite3.connect(DB_PATH)
-        print(f"[OK] 成功連接到資料庫\n")
+        print("[OK] 成功連接到資料庫\n")
     except sqlite3.Error as e:
         print(f"\n[錯誤] 無法連接到資料庫: {e}")
         return False
@@ -118,19 +118,29 @@ def test_db_tables() -> bool:
     conn.close()
 
     # 顯示總結
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     if all_exist:
         print("[OK] 所有資料表都存在！")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
         print("資料表摘要:")
-        for display_name, table_name, exists, row_count in results:
+        for (
+            display_name,
+            table_name,
+            exists,
+            row_count,
+        ) in results:
             print(f"   - {display_name} ({table_name}): {row_count:,} 筆")
         return True
     else:
         print("[X] 部分資料表不存在！")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
         print("缺失的資料表:")
-        for display_name, table_name, exists, row_count in results:
+        for (
+            display_name,
+            table_name,
+            exists,
+            row_count,
+        ) in results:
             if not exists:
                 print(f"   - {display_name} ({table_name})")
         return False
@@ -146,9 +156,9 @@ def test_broker_trading_data(limit: int = 5) -> None:
     Args:
         limit: 要顯示的資料筆數（預設為 5 筆）
     """
-    print(f"\n{'='*60}")
-    print(f"測試 broker_trading 資料表資料")
-    print(f"{'='*60}")
+    print(f"\n{'=' * 60}")
+    print("測試 broker_trading 資料表資料")
+    print(f"{'=' * 60}")
     print(f"\n資料庫路徑: {DB_PATH}")
 
     # 檢查資料庫檔案是否存在
@@ -156,12 +166,12 @@ def test_broker_trading_data(limit: int = 5) -> None:
         print(f"\n[錯誤] 資料庫檔案不存在於 {DB_PATH}")
         return
 
-    print(f"[OK] 資料庫檔案存在")
+    print("[OK] 資料庫檔案存在")
 
     # 連接資料庫
     try:
         conn: sqlite3.Connection = sqlite3.connect(DB_PATH)
-        print(f"[OK] 成功連接到資料庫\n")
+        print("[OK] 成功連接到資料庫\n")
     except sqlite3.Error as e:
         print(f"\n[錯誤] 無法連接到資料庫: {e}")
         return
@@ -187,7 +197,7 @@ def test_broker_trading_data(limit: int = 5) -> None:
     cursor: sqlite3.Cursor = conn.cursor()
     try:
         query = f"""
-        SELECT 
+        SELECT
             securities_trader,
             securities_trader_id,
             stock_id,
@@ -206,9 +216,9 @@ def test_broker_trading_data(limit: int = 5) -> None:
         # 取得欄位名稱
         column_names = [description[0] for description in cursor.description]
 
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print(f"顯示前 {len(results)} 筆資料:")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
         # 顯示資料
         for idx, row in enumerate(results, 1):
@@ -224,9 +234,9 @@ def test_broker_trading_data(limit: int = 5) -> None:
                     print(f"   {col_name}: {value}")
             print()
 
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print(f"[完成] 已顯示 {len(results)} 筆資料（共 {row_count:,} 筆）")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
     except sqlite3.Error as e:
         print(f"[錯誤] 查詢資料時發生錯誤: {e}")

@@ -1,19 +1,14 @@
 # Python standard library
 import datetime
-import sys
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-import numpy as np
-import pandas as pd
 from loguru import logger
 
 from core.backtest.datafeed.base import BaseDataFeed
+from core.backtest.datafeed.market_calendar import MarketCalendar
 from core.models import StockAccount, StockOrder, StockPosition, StockQuote
 from core.strategies.stock import BaseStockStrategy
-from core.utils import Action, Market, PositionType, Scale
-from core.utils.instrument import StockUtils
-from core.backtest.datafeed.market_calendar import MarketCalendar
+from core.utils import Action, PositionType, Scale
 
 
 class MomentumStrategy1(BaseStockStrategy):
@@ -48,7 +43,6 @@ class MomentumStrategy1(BaseStockStrategy):
 
         self.start_date: datetime.date = self.DEFAULT_BACKTEST_START_DATE
         self.end_date: datetime.date = self.DEFAULT_BACKTEST_END_DATE
-
 
     def setup_account(self, account: StockAccount) -> None:
         """設置虛擬帳戶資訊"""

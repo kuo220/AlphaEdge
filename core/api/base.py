@@ -24,9 +24,8 @@ class BaseDataAPI(ABC):
         - Description:
             由單日全市場 DataFrame 建立 `{stock_id: 欄位值}` 對照表
 
-            具名查詢方法的共用底座：策略原本的樣式是「逐檔建 mask 再取欄位」，
-            那是 O(n²) 且把資料表欄位名洩漏到策略層（見
-            `backlog/策略層資料欄位抽象化.md`）。
+            具名查詢方法的共用底座。策略若自行「逐檔建 mask 再取欄位」，
+            不但是 O(n²)，還會把資料表欄位名洩漏到策略層。
 
             同一檔重複出現時取**第一筆**，與原本 `df.loc[mask, col].iloc[0]`
             的取值一致——改成取最後一筆會讓歷史回歸逐筆對不上。
@@ -55,7 +54,7 @@ class BaseDataAPI(ABC):
             關閉資料連線
 
             單次回測原本會開出 8~10 條互不相干的 SQLite 連線且從不關閉
-            （見 backlog Phase2-7）。預設實作關掉 `self.conn`；
+            。預設實作關掉 `self.conn`；
             非 SQLite 的資料源（如 DolphinDB）自行覆寫。
         """
 

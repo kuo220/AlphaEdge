@@ -79,12 +79,20 @@ class StockAccount(BaseAccount):
         self.total_commission = sum(record.commission for record in self.trade_records)
         self.total_tax = sum(record.tax for record in self.trade_records)
 
-        # 放空的借券費為支出、融券利息為收入，一併計入總交易成本
+        # 放空的借券費與股利補償為支出、融券利息為收入，一併計入總交易成本
+        # （與 `StockTradeRecord.transaction_cost` 同一口徑，兩邊須一致）
         total_borrow_fee: float = sum(
             record.borrow_fee for record in self.trade_records
         )
         total_interest: float = sum(record.interest for record in self.trade_records)
+        total_dividend_compensation: float = sum(
+            record.dividend_compensation for record in self.trade_records
+        )
 
         self.total_transaction_cost = (
-            self.total_commission + self.total_tax + total_borrow_fee - total_interest
+            self.total_commission
+            + self.total_tax
+            + total_borrow_fee
+            + total_dividend_compensation
+            - total_interest
         )

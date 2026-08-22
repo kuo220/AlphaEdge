@@ -18,6 +18,9 @@
     9. get_broker_trading_for_stock_on_date(stock_id, date) - 指定股票指定日期券商分點（單日）
     10. get_broker_trading_for_stock_in_range(stock_id, start_date, end_date) - 指定股票區間券商分點（多日）
     11. get_broker_trading_by_broker_and_date(securities_trader, date) - 依券商中文名與日期取得該券商當日分點日報
+
+**需要 core/database/stock.db 才能執行**，故標記為 slow：CI 環境沒有資料庫，
+未標記會在 `pytest -m "not slow"` 直接以 sqlite3.OperationalError 失敗。
 """
 
 import datetime
@@ -29,8 +32,11 @@ project_root: Path = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
 import pandas as pd
+import pytest
 
 from core.api.finmind_api import FinMindAPI
+
+pytestmark = pytest.mark.slow
 
 
 def test_finmind_api() -> bool:
@@ -52,7 +58,7 @@ def test_finmind_api() -> bool:
                 print(f"    前 {n} 筆（共 {len(df)} 筆）：")
                 print(df.head(5).to_string(index=False))
             else:
-                print(f"    筆數: 0（空 DataFrame）")
+                print("    筆數: 0（空 DataFrame）")
             print()
         except Exception as e:
             print(f"[X] {name}: {e}")
@@ -97,7 +103,7 @@ def test_finmind_api() -> bool:
     try:
         assert isinstance(df_empty, pd.DataFrame) and len(df_empty) == 0
         print("[OK] get_broker_trading_range(start > end) 回傳空 DataFrame")
-        print(f"    筆數: 0（空 DataFrame）")
+        print("    筆數: 0（空 DataFrame）")
         print()
     except Exception as e:
         print(f"[X] get_broker_trading_range(start > end): {e}")
@@ -116,7 +122,7 @@ def test_finmind_api() -> bool:
         print(
             "[OK] get_broker_trading_for_stock_in_range(start > end) 回傳空 DataFrame"
         )
-        print(f"    筆數: 0（空 DataFrame）")
+        print("    筆數: 0（空 DataFrame）")
         print()
     except Exception as e:
         print(f"[X] get_broker_trading_for_stock_in_range(start > end): {e}")

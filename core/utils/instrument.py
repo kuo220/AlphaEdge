@@ -5,8 +5,9 @@ from typing import List, Tuple
 import numpy as np
 import shioaji as sj
 
-from .constant import PRICE_TICK_TABLE, Commission, Units
 from core.backtest.datafeed.market_calendar import MarketCalendar
+
+from .constant import PRICE_TICK_TABLE, Commission, Units
 
 """
 instrument.py
@@ -106,8 +107,8 @@ class StockUtils:
         - Notes:
         - ⚠️ **記帳的唯一入口是 `StockCostModel`**，不要從 `core/managers/`、
           `core/backtest/` 或策略層直接呼叫本函式。本函式保留為底層純計算，
-          僅供 `StockCostModel` 與研究腳本使用（見
-          `backlog/LONG成本模型口徑收斂.md` S4）。
+          僅供 `StockCostModel` 與研究腳本使用（`StockUtils` 各函式的歸屬拆解
+          尚未處理，見 `docs/backtest/multi-market-engine.md`〈已知簡化〉）。
             For long position, the commission costs:
             - buy fee (券買手續費 = 成交價 x 成交股數 x 手續費率 x discount)
             - sell fee (券賣手續費 = 成交價 x 成交股數 x 手續費率 x discount)
@@ -144,8 +145,8 @@ class StockUtils:
         - Notes:
         - ⚠️ **記帳的唯一入口是 `StockCostModel`**，不要從 `core/managers/`、
           `core/backtest/` 或策略層直接呼叫本函式。本函式保留為底層純計算，
-          僅供 `StockCostModel` 與研究腳本使用（見
-          `backlog/LONG成本模型口徑收斂.md` S4）。
+          僅供 `StockCostModel` 與研究腳本使用（`StockUtils` 各函式的歸屬拆解
+          尚未處理，見 `docs/backtest/multi-market-engine.md`〈已知簡化〉）。
             - 一般賣出證交稅 = 成交價 x 成交股數 x 0.3%
             - 現股當沖賣出證交稅 = 成交價 x 成交股數 x 0.15%（減半優惠）
             - 放空的證交稅課在「賣出（開倉）」這端，與做多相反

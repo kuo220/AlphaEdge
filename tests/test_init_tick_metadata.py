@@ -8,22 +8,21 @@ from loguru import logger
 
 from core.config import TICK_DOWNLOADS_PATH, TICK_METADATA_PATH
 from core.pipeline.crawlers.stock_info_crawler import StockInfoCrawler
-from core.pipeline.utils.stock_tick_utils import StockTickUtils
 
 """測試初始化 tick_metadata.json：爬取股票代號、建立預設 last_date、掃描 CSV 並更新 metadata"""
 
 
 def init_tick_metadata_with_default_date(default_date: str = "2024-5-10") -> None:
     """初始化 tick_metadata.json，使用預設日期（格式 YYYY-M-D 或 YYYY-MM-DD）"""
-    print(f"\n{'='*60}")
-    print(f"初始化 tick_metadata.json")
-    print(f"{'='*60}")
+    print(f"\n{'=' * 60}")
+    print("初始化 tick_metadata.json")
+    print(f"{'=' * 60}")
 
     # 確保 metadata 目錄存在
     TICK_METADATA_PATH.parent.mkdir(parents=True, exist_ok=True)
 
     # 1. 爬取所有上市櫃公司代號
-    print(f"\n步驟 1: 爬取所有上市櫃公司代號...")
+    print("\n步驟 1: 爬取所有上市櫃公司代號...")
     try:
         stock_list: List[str] = StockInfoCrawler.crawl_stock_list()
         print(f"✅ 成功爬取 {len(stock_list)} 檔股票")
@@ -39,14 +38,14 @@ def init_tick_metadata_with_default_date(default_date: str = "2024-5-10") -> Non
         ).date()
         default_date_str: str = default_date_obj.isoformat()  # "YYYY-MM-DD"
         print(f"\n步驟 2: 設定預設日期為 {default_date_str}")
-    except ValueError as e:
+    except ValueError:
         logger.error(
             f"❌ 日期格式錯誤: {default_date}，請使用 YYYY-M-D 或 YYYY-MM-DD 格式"
         )
         raise
 
     # 3. 創建預設的 metadata 結構
-    print(f"\n步驟 3: 創建預設的 metadata 結構...")
+    print("\n步驟 3: 創建預設的 metadata 結構...")
     metadata: Dict[str, Any] = {"stocks": {}}
 
     # 為每個股票設定預設日期
@@ -56,7 +55,7 @@ def init_tick_metadata_with_default_date(default_date: str = "2024-5-10") -> Non
     print(f"✅ 已為 {len(stock_list)} 檔股票設定預設日期 {default_date_str}")
 
     # 4. 掃描 CSV 檔案並更新對應股票的 last_date
-    print(f"\n步驟 4: 掃描 CSV 檔案並更新 last_date...")
+    print("\n步驟 4: 掃描 CSV 檔案並更新 last_date...")
 
     # 確保 tick 下載資料夾存在
     if not TICK_DOWNLOADS_PATH.exists():
@@ -113,7 +112,7 @@ def init_tick_metadata_with_default_date(default_date: str = "2024-5-10") -> Non
         print(f"✅ 成功更新 {updated_count} 檔股票的 last_date（從 CSV 檔案）")
 
     # 5. 寫入 metadata 檔案
-    print(f"\n步驟 5: 寫入 tick_metadata.json...")
+    print("\n步驟 5: 寫入 tick_metadata.json...")
     try:
         with open(TICK_METADATA_PATH, "w", encoding="utf-8") as f:
             json.dump(metadata, f, ensure_ascii=False, indent=4)
@@ -123,16 +122,16 @@ def init_tick_metadata_with_default_date(default_date: str = "2024-5-10") -> Non
         raise
 
     # 6. 統計資訊
-    print(f"\n{'='*60}")
-    print(f"初始化完成！")
-    print(f"{'='*60}")
+    print(f"\n{'=' * 60}")
+    print("初始化完成！")
+    print(f"{'=' * 60}")
     print(f"總股票數: {len(metadata['stocks'])}")
     print(
         f"使用預設日期 ({default_date_str}) 的股票數: {len(metadata['stocks']) - updated_count}"
     )
     print(f"從 CSV 更新日期的股票數: {updated_count}")
     print(f"Metadata 檔案位置: {TICK_METADATA_PATH}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
 
 if __name__ == "__main__":

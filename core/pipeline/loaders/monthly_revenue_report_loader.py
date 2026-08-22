@@ -1,4 +1,3 @@
-import shutil
 import sqlite3
 from pathlib import Path
 from typing import List, Optional
@@ -129,6 +128,8 @@ class MonthlyRevenueReportLoader(BaseDataLoader):
         self.create_missing_tables()
 
         file_cnt: int = 0
+
+        failed_files: List[str] = []
         for file_path in self.mrr_dir.iterdir():
             # Skip non-CSV files
             if file_path.suffix != ".csv":
@@ -194,10 +195,15 @@ class MonthlyRevenueReportLoader(BaseDataLoader):
                 file_cnt += 1
             except Exception as e:
                 logger.warning(f"Error saving {file_path}: {e}")
+                failed_files.append(str(file_path))
 
         self.conn.commit()
         self.disconnect()
 
-        if remove_files:
-            shutil.rmtree(self.mrr_dir)
-        logger.info(f"Total file processed: {file_cnt}")
+        self.finish_load(
+            source="mrr",
+            succeeded=file_cnt,
+            failed_files=failed_files,
+            remove_files=remove_files,
+            downloads_path=self.mrr_dir,
+        )

@@ -11,7 +11,7 @@ class BaseQuote:
     報價資訊的共用骨架
 
     識別欄位命名為 symbol 而非 stock_id：引擎骨架不應該知道自己在跑哪個市場，
-    台股的 stock_id 由 StockQuote 以 property 別名維持相容（見 backlog Phase1-1）。
+    台股的 stock_id 由 StockQuote 以 property 別名維持相容。
     """
 
     def __init__(
@@ -52,7 +52,7 @@ class BaseQuote:
             訊號計算專用的收盤價：啟用還原時為還原價，否則退回原始收盤價
 
             **策略算漲跌幅／均線／動能一律用這個 property**，不要直接用 `close`——
-            除權息造成的跳空會被當成真實漲跌（見 `backlog/股價還原與除權息調整.md`）。
+            除權息造成的跳空會被當成真實漲跌（見 `docs/exchanges/data_coverage.md`〈股價還原〉）。
             反過來，成交價、手續費、證交稅、漲跌停與檔位判定**一律用 `close`**，
             因為稅費是對實際成交金額課徵的。
 

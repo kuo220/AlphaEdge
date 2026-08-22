@@ -11,7 +11,6 @@ from core.backtest.report.base import BaseBacktestReporter
 from core.models.stock.record import StockTradeRecord
 from core.pipeline.utils import FileEncoding
 from core.strategies.stock import BaseStockStrategy
-from core.utils.time import TimeUtils
 
 """Generates performance reports based on backtest results"""
 
@@ -250,6 +249,7 @@ class StockBacktestReporter(BaseBacktestReporter):
             "Transaction Cost",
             "Borrow Fee",
             "Interest",
+            "Dividend Compensation",
             "Margin",
             "Holding Days",
             "Short Method",
@@ -313,6 +313,7 @@ class StockBacktestReporter(BaseBacktestReporter):
                 "Transaction Cost": record.transaction_cost,
                 "Borrow Fee": record.borrow_fee,
                 "Interest": record.interest,
+                "Dividend Compensation": record.dividend_compensation,
                 "Margin": record.margin,
                 "Holding Days": record.holding_days,
                 "Short Method": (
@@ -362,6 +363,9 @@ class StockBacktestReporter(BaseBacktestReporter):
                     "Total Tax": round(group["Tax"].sum(), 2),
                     "Total Borrow Fee": round(group["Borrow Fee"].sum(), 2),
                     "Total Interest": round(group["Interest"].sum(), 2),
+                    "Total Dividend Compensation": round(
+                        group["Dividend Compensation"].sum(), 2
+                    ),
                     "Avg Holding Days": round(group["Holding Days"].mean(), 2),
                 }
             )
@@ -482,7 +486,7 @@ class StockBacktestReporter(BaseBacktestReporter):
         ]
 
         if len(benchmark_price_clean) == 0:
-            logger.warning(f"benchmark_price 數據異常，無法繪製 benchmark 曲線")
+            logger.warning("benchmark_price 數據異常，無法繪製 benchmark 曲線")
             return
 
         # === 計算調整後價格（處理股票分割） ===
@@ -598,7 +602,7 @@ class StockBacktestReporter(BaseBacktestReporter):
         ]
 
         if len(benchmark_price_clean) == 0:
-            logger.warning(f"benchmark_price 數據異常，無法繪製 benchmark MDD")
+            logger.warning("benchmark_price 數據異常，無法繪製 benchmark MDD")
             return
 
         # === 計算調整後價格（處理股票分割） ===

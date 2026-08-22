@@ -1,22 +1,14 @@
-import shutil
 import sqlite3
-from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 import pandas as pd
-from loguru import logger
 
 from core.api.base import BaseDataAPI
 from core.config import (
     DB_PATH,
-    MONTHLY_REVENUE_REPORT_DOWNLOADS_PATH,
-    MONTHLY_REVENUE_REPORT_META_DIR_PATH,
     MONTHLY_REVENUE_TABLE_NAME,
 )
 from core.utils.log_manager import LogManager
-from core.pipeline.utils import DataType
-from core.pipeline.utils.data_utils import DataUtils
-from core.pipeline.utils.sqlite_utils import SQLiteUtils
 
 """Monthly Revenue Report Data API: query SQLite monthly revenue table"""
 
@@ -25,7 +17,7 @@ class MonthlyRevenueReportAPI(BaseDataAPI):
     """Monthly Revenue Report Data API"""
 
     def __init__(self, conn: Optional[sqlite3.Connection] = None):
-        # 由 DataFeed 傳入共用連線；未指定時自行建立（見 backlog Phase2-7）
+        # 由 DataFeed 傳入共用連線；未指定時自行建立
         self.conn: Optional[sqlite3.Connection] = conn
         self.owns_conn: bool = conn is None
 

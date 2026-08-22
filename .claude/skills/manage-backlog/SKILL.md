@@ -1,4 +1,5 @@
 ---
+name: manage-backlog
 description: 在 AlphaEdge 專案中新增、更新或維護 backlog/ 待辦與規劃文件時使用。當使用者提到「backlog」、「待辦」、「規劃文件」、「進度表」、「index.md」，或要在 backlog/ 底下新增/修改 .md、更新步驟狀態、記錄中斷點時觸發。
 when_to_use: 使用者想要新增一份 backlog 規劃文件、更新既有 backlog 文件的步驟狀態（完成／中斷／暫緩）、維護 backlog/index.md 索引、詢問 backlog 文件該怎麼寫，或實作過程中需要把發現的問題寫回 backlog 時。
 ---
@@ -7,7 +8,9 @@ when_to_use: 使用者想要新增一份 backlog 規劃文件、更新既有 bac
 
 `backlog/` 存放**尚未實作**的待辦與規劃紀錄；說明文件（API 文檔、教學）放 `docs/`。完成後的處理方式見第 5 節。
 
-本 skill 是 backlog 文件撰寫與維護的權威規範，對應 `CLAUDE.md` §3 的指標。
+**本檔是 backlog 規範的唯一來源**，對應 `CLAUDE.md` §3 的指標。
+其他工具的同名 skill（`.cursor/skills/manage-backlog/`）一律只放指標，內容不得複製一份，
+否則兩邊會各自漂移、最後沒人知道哪份才算數。
 
 ## 1. 狀態圖例（全專案統一）
 

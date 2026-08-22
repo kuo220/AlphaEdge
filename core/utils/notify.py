@@ -73,7 +73,7 @@ class Notification:
         """每日帳戶資訊"""
 
         msg: str = "\n"
-        msg += f"【Today's Stock Info】\n"
+        msg += "【Today's Stock Info】\n"
         msg += (
             "".join(
                 f"{title:<{len(title) + 5}}" for title in info.columns if title != "pnl"

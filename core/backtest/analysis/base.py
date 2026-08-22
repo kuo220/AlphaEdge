@@ -6,9 +6,12 @@ from core.strategies.base import BaseStrategy
 
 
 class BaseBacktestAnalyzer(ABC):
-    """Backtest Performance Analyzer Framework (Base Template)"""
+    """
+    Backtest Performance Analyzer Framework (Base Template)
 
-    # TODO: 計算 Cumulative Capital (Equity Curve), MDD, ROI, Sharpe Ratio
+    定位：Analyzer 供測試與研究驗算指標，正式回測輸出走 `report/reporter.py`
+    （雙軌關係見 `core/backtest/README.md`〈績效指標〉）。
+    """
 
     def __init__(self, strategy: BaseStrategy):
         self.strategy: BaseStrategy = strategy  # Backtest strategy

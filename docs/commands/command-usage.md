@@ -20,7 +20,9 @@ If `--target` is omitted, the default is `no_tick` (all updates except tick data
 | `tick` | Tick-by-tick trades (Shioaji ticks) |
 | `chip` | Institutional chip data |
 | `price` | Closing prices |
-| `fs` | Financial statements |
+| `margin` | Margin trading balances (financing / short-selling balances) |
+| `dividend` | Ex-dividend / ex-rights table (adjustment factors + cash dividends) |
+| `fs` | Financial statements（含權益變動表；該表逐檔查詢，首次回補以小時計，見下方說明） |
 | `mrr` | Monthly revenue report |
 | `finmind` | All FinMind datasets (stock info + brokers + broker trading) |
 | `stock_info` | FinMind stock info (without warrants) |
@@ -42,7 +44,16 @@ python -m tasks.update_db --target chip
 # closing prices
 python -m tasks.update_db --target price
 
+# margin trading balances
+python -m tasks.update_db --target margin
+
+# ex-dividend / ex-rights table (TWSE for listed, TPEx for OTC; full history)
+python -m tasks.update_db --target dividend
+
 # financial statements
+# 四張報表中的權益變動表（equity_change）是逐檔查詢：一個年季約 2,000 次請求，
+# 尚未回補過歷史時整段跑完要 60 小時以上。中斷後重跑只補差集（resume 以「該年季
+# 已入庫的 stock_id」為準），要分段跑就直接呼叫 update_equity_changes() 指定較窄的年季。
 python -m tasks.update_db --target fs
 
 # monthly revenue report
