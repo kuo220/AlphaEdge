@@ -3,6 +3,7 @@ from .callback import Callback
 from .constant import (
     DAY_TRADE_TAX_EXPIRY,
     DAYS_PER_YEAR,
+    FUTURES_MULTIPLIER,
     PRICE_LIMIT_RATIO,
     PRICE_LIMIT_RATIO_LEGACY,
     PRICE_LIMIT_WIDENED_DATE,
@@ -11,6 +12,8 @@ from .constant import (
     BarExecutionOrder,
     Commission,
     DayTradeUncoveredPolicy,
+    FuturesProduct,
+    FuturesSession,
     MarginCallPolicy,
     MarginCost,
     Market,

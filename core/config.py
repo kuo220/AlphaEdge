@@ -217,6 +217,35 @@ STOCK_TRADING_DAILY_REPORT_TABLE_NAME: str = (
 
 
 # -----------------------------------------------------------------------
+# === 台期貨爬取範圍 ===
+# -----------------------------------------------------------------------
+#
+# 「有哪些商品」定義在 `core/utils/constant.py` 的 `FuturesProduct`；
+# 「這次要抓哪些」則是本清單——兩者刻意分開，否則想暫時只跑一檔就得改 Enum。
+#
+# **此處刻意寫字面值而不 import `FuturesProduct`**：`core.config` 是最底層模組，
+# 而 `core.utils` 反過來相依它（`core/utils/account.py` → `core.config`），
+# import 進來會造成循環。值本身是 TAIFEX 的外部代碼、不會改名，風險低；
+# 拼錯的防呆由 `FuturesPriceCrawler.validate_product()` 在送出請求前比對
+# `FuturesProduct` 擋下，並有 `test_configured_targets_are_all_valid` 釘住本清單。
+#
+# **每加一檔的成本是乘出來的**：這個來源一次只能查一個商品，且日盤與夜盤要分開查，
+# 故請求數 = 商品數 × 2 × 交易日數（以 2013 年起算約 3,300 日 → 每檔約 6,600 次）。
+# 目前 1 檔 ≈ 13,800 次請求（1998-07 起算約 6,900 個交易日）。
+#
+# **先跑通單檔再擴充**：TX 驗證無誤後再加碼，crawler／updater 一行都不用改。
+# 下一批候選（乘數皆已查證，見 `FUTURES_MULTIPLIER`）：
+#   MTX 小型臺指(50)、TMF 微型臺指(10)、TE 電子(4000)、TF 金融(1000)
+#   ZEF 小型電子(500)、ZFF 小型金融(250)
+#
+# 收錄門檻：**契約乘數已查證**。乘數未登錄的商品即使爬回來也算不出 PnL，
+# 會拖到回測階段才 KeyError，不如一開始就不收。
+FUTURES_TARGET_PRODUCTS: List[str] = [
+    "TX",  # 臺股期貨（大台）  乘數 200
+]
+
+
+# -----------------------------------------------------------------------
 # === Default dates for update_db / pipeline（資料更新預設區間）===
 # -----------------------------------------------------------------------
 #
@@ -224,6 +253,17 @@ DEFAULT_CHIP_START_DATE: datetime.date = datetime.date(2013, 1, 1)
 DEFAULT_MARGIN_START_DATE: datetime.date = datetime.date(2013, 1, 1)
 DEFAULT_DIVIDEND_START_DATE: datetime.date = datetime.date(2013, 1, 1)
 DEFAULT_PRICE_START_DATE: datetime.date = datetime.date(2013, 1, 1)
+
+# 台期貨回補起點：**1998-07-21 是 TX 臺股期貨的上市日**，也是 TAIFEX 每日行情
+# 實測能查到的最早一天（2026-08-29 逐日確認：07/20 無資料、07/21 起有）。
+#
+# 刻意**不對齊台股資料的 2013-01-01**：那條線是股票各來源的取得限制，不是設計選擇。
+# 期貨策略多為趨勢／波動型，1998~2012 涵蓋網路泡沫、SARS 與 2008 金融海嘯，
+# 正是這類策略最需要的尾部風險樣本，現在不取、日後回補的代價高得多。
+#
+# 副作用：1998~2012 只有期貨資料、沒有對應的台股籌碼與除權息，
+# 需要期現搭配的策略（價差、避險）其可用區間仍受限於 2013 起。
+DEFAULT_FUTURES_START_DATE: datetime.date = datetime.date(1998, 7, 21)
 DEFAULT_START_YEAR: int = 2013
 DEFAULT_END_MONTH: int = 12
 TICK_UPDATE_START_DATE: datetime.date = datetime.date(2024, 5, 10)

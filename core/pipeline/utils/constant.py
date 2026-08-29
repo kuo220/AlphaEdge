@@ -20,6 +20,7 @@ class DataType(str, Enum):
     MRR = "MONTHLY_REVENUE_REPORT"
     FS = "FINANCIAL_STATEMENT"
     FINMIND = "FINMIND"
+    FUTURES_PRICE = "FUTURES_PRICE"  # 台期貨每日行情（寫入 futures.db）
 
 
 class MarketType(str, Enum):

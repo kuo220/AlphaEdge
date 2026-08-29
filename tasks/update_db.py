@@ -10,6 +10,7 @@ from core.config import (
     DEFAULT_CHIP_START_DATE,
     DEFAULT_DIVIDEND_START_DATE,
     DEFAULT_END_MONTH,
+    DEFAULT_FUTURES_START_DATE,
     DEFAULT_MARGIN_START_DATE,
     DEFAULT_PRICE_START_DATE,
     DEFAULT_START_YEAR,
@@ -20,6 +21,7 @@ from core.pipeline.updaters.financial_statement_updater import (
     FinancialStatementUpdater,
 )
 from core.pipeline.updaters.finmind_updater import FinMindUpdater
+from core.pipeline.updaters.futures_price_updater import FuturesPriceUpdater
 from core.pipeline.updaters.monthly_revenue_report_updater import (
     MonthlyRevenueReportUpdater,
 )
@@ -97,6 +99,9 @@ Target 對照表
 
   # 收盤價
   python -m tasks.update_db --target price
+
+  # 更新台期貨每日行情（寫入 futures.db，商品見 FUTURES_TARGET_PRODUCTS）
+  python -m tasks.update_db --target futures_price
 
   # 財報
   python -m tasks.update_db --target fs
@@ -196,6 +201,11 @@ def get_update_time_config(
     elif data_type == DataType.PRICE:
         return {
             "start_date": DEFAULT_PRICE_START_DATE,
+            "end_date": datetime.date.today(),
+        }
+    elif data_type == DataType.FUTURES_PRICE:
+        return {
+            "start_date": DEFAULT_FUTURES_START_DATE,
             "end_date": datetime.date.today(),
         }
     elif data_type == DataType.FS:
@@ -324,6 +334,16 @@ def main() -> None:
             )
             stock_price_updater: StockPriceUpdater = StockPriceUpdater()
             stock_price_updater.update(
+                start_date=time_config["start_date"], end_date=time_config["end_date"]
+            )
+
+    if DataType.FUTURES_PRICE.name.lower() in targets:
+        with target_guard("futures_price", failed_targets):
+            time_config: Dict[str, datetime.date | int] = get_update_time_config(
+                DataType.FUTURES_PRICE
+            )
+            futures_price_updater: FuturesPriceUpdater = FuturesPriceUpdater()
+            futures_price_updater.update(
                 start_date=time_config["start_date"], end_date=time_config["end_date"]
             )
 

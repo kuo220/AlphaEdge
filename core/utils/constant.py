@@ -47,6 +47,36 @@ DAY_TRADE_UNCOVERED_RAISE = "RAISE"  # 直接拋出錯誤
 MARGIN_CALL_FORCE_COVER = "FORCE_COVER"  # 強制回補（斷頭）
 MARGIN_CALL_WARN_ONLY = "WARN_ONLY"  # 僅記錄不強制回補
 
+# 定義台期貨商品代碼常量（＝ TAIFEX 每日行情頁的 commodity_id）
+# 2026-08-29 自 TAIFEX 表單實查共 30 檔，本表只收**臺股相關的 15 檔**。
+# 不收的 15 檔：海外指數（SPF／UDF／UNF／SXF／F1F／TJF）、商品（GDF／TGF／BRF）、
+# 匯率（RHF／RTF／XAF／XBF／XEF／XJF）——本專案是台股研究框架，這些商品與
+# stock.db 的籌碼、除權息完全對不上，抓進來也沒有下游能用；日後要用再補。
+# 股票期貨（295 檔）與 ETF 期貨（24 檔）不在此列：兩者會隨掛牌／下市變動，
+# 且乘數會因除權息調整，須走 futures_stock_universe 表而非寫死。
+# 定義台期貨交易時段常量
+# 夜盤自 2017-05-15 開始，之前僅有日盤。
+# **兩個時段是各自獨立的行情**（OHLC 不同、欄位結構也不同），資料層一律分開存，
+# 是否合併成單一序列屬回測層的參數（見 backlog/台期貨ETL與回測架構規劃.md §5.8）
+FUTURES_SESSION_DAY = "day"  # 一般交易時段 08:45–13:45
+FUTURES_SESSION_NIGHT = "night"  # 盤後交易時段 15:00–次日 05:00
+
+FUTURES_PRODUCT_TX = "TX"  # 臺股期貨（大台）
+FUTURES_PRODUCT_MTX = "MTX"  # 小型臺指
+FUTURES_PRODUCT_TMF = "TMF"  # 微型臺指
+FUTURES_PRODUCT_TE = "TE"  # 電子期貨
+FUTURES_PRODUCT_ZEF = "ZEF"  # 小型電子期貨
+FUTURES_PRODUCT_TF = "TF"  # 金融期貨
+FUTURES_PRODUCT_ZFF = "ZFF"  # 小型金融期貨
+FUTURES_PRODUCT_XIF = "XIF"  # 非金電期貨
+FUTURES_PRODUCT_M1F = "M1F"  # 臺灣中型100期貨
+FUTURES_PRODUCT_SOF = "SOF"  # 半導體30期貨
+FUTURES_PRODUCT_GTF = "GTF"  # 櫃買期貨
+FUTURES_PRODUCT_G2F = "G2F"  # 富櫃200期貨
+FUTURES_PRODUCT_BTF = "BTF"  # 臺灣生技期貨
+FUTURES_PRODUCT_E4F = "E4F"  # 臺灣永續期貨
+FUTURES_PRODUCT_SHF = "SHF"  # 航運期貨
+
 # 現股當沖證交稅減半的落日日期（放 module-level：float Enum 無法承載 date）
 DAY_TRADE_TAX_EXPIRY: datetime.date = datetime.date(2027, 12, 31)
 
@@ -209,3 +239,66 @@ class Units(int, Enum):
 
     SHARE = 1  # 1 Share = 1 Share
     LOT = 1000  # 1 Lot = 1000 Shares
+
+
+class FuturesProduct(str, Enum):
+    """
+    台期貨商品代碼（＝ TAIFEX 每日行情頁查詢時要帶的 commodity_id）
+
+    分組即為爬取範圍，見 `FUTURES_TARGET_PRODUCTS`（`core/config.py`）
+    """
+
+    # 大盤指數
+    TX = FUTURES_PRODUCT_TX
+    MTX = FUTURES_PRODUCT_MTX
+    TMF = FUTURES_PRODUCT_TMF
+
+    # 類股指數
+    TE = FUTURES_PRODUCT_TE
+    ZEF = FUTURES_PRODUCT_ZEF
+    TF = FUTURES_PRODUCT_TF
+    ZFF = FUTURES_PRODUCT_ZFF
+
+    # 其他臺股指數（尚未排入任何 Phase，代碼先登錄）
+    XIF = FUTURES_PRODUCT_XIF
+    M1F = FUTURES_PRODUCT_M1F
+    SOF = FUTURES_PRODUCT_SOF
+    GTF = FUTURES_PRODUCT_GTF
+    G2F = FUTURES_PRODUCT_G2F
+    BTF = FUTURES_PRODUCT_BTF
+    E4F = FUTURES_PRODUCT_E4F
+    SHF = FUTURES_PRODUCT_SHF
+
+
+# 台期貨契約乘數（元／點）：PnL = 價格變動 × 乘數 × 口數
+#
+# **只登錄已查證且乘數未曾變動的商品**。查表一律直接用 `FUTURES_MULTIPLIER[code]`，
+# **不要用 `.get(code, 預設值)`**——未登錄者讓它 KeyError 當場炸掉，是刻意的設計：
+# 乘數猜錯不會有任何徵兆，只會讓整條 PnL 靜默偏掉，那比中斷難查得多。
+#
+# 為什麼放程式碼而不是 DB：回測的 `InstrumentSpec` 是純規則層、不持有連線
+# （見 `TwStockSpec.to_units()` 也是寫死的「張 → 股 ×1000」）。乘數改成查 DB，
+# 就得讓 `InstrumentSpec` 抱著連線，會破壞它的定位。
+#
+# ⚠️ **未登錄清單與原因**（登錄前必須先查證，不可憑印象填）：
+# - XIF 非金電：TAIFEX 現行規格為每點 10 元，但**曾為 100 元**。乘數變更過的商品
+#   不能用單一數值表達，否則跨越變更日的回測會靜默算錯。要登錄它必須先查到
+#   變更生效日，並比照 `PRICE_LIMIT_RATIO` ／ `_LEGACY` ／ `_WIDENED_DATE`
+#   改成帶生效日的表達方式。
+# - M1F／SOF／GTF／G2F／BTF／E4F／SHF：尚未查證，且未排入任何 Phase。
+FUTURES_MULTIPLIER: dict = {
+    FUTURES_PRODUCT_TX: 200,
+    FUTURES_PRODUCT_MTX: 50,
+    FUTURES_PRODUCT_TMF: 10,
+    FUTURES_PRODUCT_TE: 4000,
+    FUTURES_PRODUCT_ZEF: 500,
+    FUTURES_PRODUCT_TF: 1000,
+    FUTURES_PRODUCT_ZFF: 250,
+}
+
+
+class FuturesSession(str, Enum):
+    """台期貨交易時段；值即為 futures_price_daily 的 session 欄位內容"""
+
+    DAY = FUTURES_SESSION_DAY
+    NIGHT = FUTURES_SESSION_NIGHT
