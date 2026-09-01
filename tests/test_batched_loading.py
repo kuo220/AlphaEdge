@@ -6,7 +6,7 @@ from typing import List, Optional
 import pandas as pd
 import pytest
 
-from core.pipeline.loaders.base import BaseDataLoader
+from core.pipeline.shared.base_loader import BaseDataLoader
 
 """分批入庫：長時間回補中斷時，只損失最後一批而非全部
 
@@ -38,10 +38,10 @@ MARGIN_COLUMNS: List[str] = [
 ]
 
 
-def write_margin_csv(directory: Path, market: str, date: str) -> Path:
+def write_margin_csv(directory: Path, exchange: str, date: str) -> Path:
     """在 downloads 目錄寫一個單列的 margin CSV，檔名比照實際慣例"""
 
-    path: Path = directory / f"{market}_{date}.csv"
+    path: Path = directory / f"{exchange}_{date}.csv"
     pd.DataFrame(
         [
             [f"{date[:4]}-{date[4:6]}-{date[6:]}", "2330", "台積電"]
@@ -94,11 +94,11 @@ def test_select_csv_files_ignores_unknown_dates(tmp_path: Path) -> None:
 def make_margin_loader(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """建立指向暫存 DB 與暫存 downloads 的 margin loader"""
 
-    import core.pipeline.loaders.stock_margin_loader as loader_module
+    import core.pipeline.tw.loaders.stock_margin_loader as loader_module
 
     downloads: Path = tmp_path / "margin"
     downloads.mkdir(exist_ok=True)
-    monkeypatch.setattr(loader_module, "DB_PATH", str(tmp_path / "test.db"))
+    monkeypatch.setattr(loader_module, "TW_STOCK_DB_PATH", str(tmp_path / "test.db"))
     monkeypatch.setattr(loader_module, "MARGIN_DOWNLOADS_PATH", downloads)
 
     loader = loader_module.StockMarginLoader()
@@ -168,7 +168,7 @@ def test_updater_load_batch_passes_only_its_dates(
 ) -> None:
     """updater 的 load_batch() 必須把本批日期往下傳，而不是讓 loader 全掃"""
 
-    from core.pipeline.updaters.stock_margin_updater import StockMarginUpdater
+    from core.pipeline.tw.updaters.stock_margin_updater import StockMarginUpdater
 
     received: List[Optional[set]] = []
 
@@ -187,9 +187,9 @@ def test_updater_load_batch_passes_only_its_dates(
 def test_batch_size_is_bounded() -> None:
     """批量必須是有限值，否則等同回到「整段跑完才入庫」"""
 
-    from core.pipeline.updaters.stock_chip_updater import StockChipUpdater
-    from core.pipeline.updaters.stock_margin_updater import StockMarginUpdater
-    from core.pipeline.updaters.stock_price_updater import StockPriceUpdater
+    from core.pipeline.tw.updaters.stock_chip_updater import StockChipUpdater
+    from core.pipeline.tw.updaters.stock_margin_updater import StockMarginUpdater
+    from core.pipeline.tw.updaters.stock_price_updater import StockPriceUpdater
 
     for updater_cls in (StockPriceUpdater, StockChipUpdater, StockMarginUpdater):
         size: int = updater_cls.LOAD_BATCH_SIZE
@@ -199,9 +199,9 @@ def test_batch_size_is_bounded() -> None:
 def test_all_three_updaters_expose_load_batch() -> None:
     """三個高風險 updater 都要有分批入庫，不可只改其中一個"""
 
-    from core.pipeline.updaters.stock_chip_updater import StockChipUpdater
-    from core.pipeline.updaters.stock_margin_updater import StockMarginUpdater
-    from core.pipeline.updaters.stock_price_updater import StockPriceUpdater
+    from core.pipeline.tw.updaters.stock_chip_updater import StockChipUpdater
+    from core.pipeline.tw.updaters.stock_margin_updater import StockMarginUpdater
+    from core.pipeline.tw.updaters.stock_price_updater import StockPriceUpdater
 
     for updater_cls in (StockPriceUpdater, StockChipUpdater, StockMarginUpdater):
         assert hasattr(updater_cls, "load_batch"), updater_cls.__name__

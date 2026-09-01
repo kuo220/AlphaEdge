@@ -13,7 +13,7 @@ STOCK_INFO_WITH_WARRANT_TABLE_NAME = "taiwan_stock_info_with_warrant"
 SECURITIES_TRADER_INFO_TABLE_NAME = "taiwan_securities_trader_info"
 STOCK_TRADING_DAILY_REPORT_TABLE_NAME = "taiwan_stock_trading_daily_report_secid_agg"
 
-# 嘗試從 config 獲取 DB_PATH，如果失敗則使用預設路徑
+# 嘗試從 config 獲取 TW_STOCK_DB_PATH，如果失敗則使用預設路徑
 try:
     # 載入 .env 檔案（在導入 config 之前）
     try:
@@ -28,13 +28,13 @@ try:
     except ImportError:
         pass
 
-    from core.config import DB_PATH
+    from core.config import TW_STOCK_DB_PATH
 except (ImportError, ModuleNotFoundError):
     # 如果無法導入 config，使用預設路徑
-    DB_PATH = project_root / "core" / "database" / "stock.db"
+    TW_STOCK_DB_PATH = project_root / "core" / "database" / "tw_stock.db"
 
 
-"""測試 stock.db 中是否存在指定資料表"""
+"""測試 tw_stock.db 中是否存在指定資料表"""
 
 
 def check_table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
@@ -64,23 +64,23 @@ def get_table_row_count(conn: sqlite3.Connection, table_name: str) -> int:
 
 def test_db_tables() -> bool:
     """
-    測試 stock.db 中是否存在指定的資料表
+    測試 tw_stock.db 中是否存在指定的資料表
     """
     print(f"\n{'=' * 60}")
-    print("測試 stock.db 資料表存在性")
+    print("測試 tw_stock.db 資料表存在性")
     print(f"{'=' * 60}")
-    print(f"\n資料庫路徑: {DB_PATH}")
+    print(f"\n資料庫路徑: {TW_STOCK_DB_PATH}")
 
     # 檢查資料庫檔案是否存在
-    if not DB_PATH.exists():
-        print(f"\n[錯誤] 資料庫檔案不存在於 {DB_PATH}")
+    if not TW_STOCK_DB_PATH.exists():
+        print(f"\n[錯誤] 資料庫檔案不存在於 {TW_STOCK_DB_PATH}")
         return False
 
     print("[OK] 資料庫檔案存在")
 
     # 連接資料庫
     try:
-        conn: sqlite3.Connection = sqlite3.connect(DB_PATH)
+        conn: sqlite3.Connection = sqlite3.connect(TW_STOCK_DB_PATH)
         print("[OK] 成功連接到資料庫\n")
     except sqlite3.Error as e:
         print(f"\n[錯誤] 無法連接到資料庫: {e}")
@@ -159,18 +159,18 @@ def test_broker_trading_data(limit: int = 5) -> None:
     print(f"\n{'=' * 60}")
     print("測試 broker_trading 資料表資料")
     print(f"{'=' * 60}")
-    print(f"\n資料庫路徑: {DB_PATH}")
+    print(f"\n資料庫路徑: {TW_STOCK_DB_PATH}")
 
     # 檢查資料庫檔案是否存在
-    if not DB_PATH.exists():
-        print(f"\n[錯誤] 資料庫檔案不存在於 {DB_PATH}")
+    if not TW_STOCK_DB_PATH.exists():
+        print(f"\n[錯誤] 資料庫檔案不存在於 {TW_STOCK_DB_PATH}")
         return
 
     print("[OK] 資料庫檔案存在")
 
     # 連接資料庫
     try:
-        conn: sqlite3.Connection = sqlite3.connect(DB_PATH)
+        conn: sqlite3.Connection = sqlite3.connect(TW_STOCK_DB_PATH)
         print("[OK] 成功連接到資料庫\n")
     except sqlite3.Error as e:
         print(f"\n[錯誤] 無法連接到資料庫: {e}")
@@ -253,7 +253,7 @@ def parse_args() -> argparse.Namespace:
         python -m tests.test_db_tables --broker-trading
         python -m tests.test_db_tables --broker-trading --limit 10
     """
-    parser = argparse.ArgumentParser(description="測試 stock.db 資料表與抽樣查詢")
+    parser = argparse.ArgumentParser(description="測試 tw_stock.db 資料表與抽樣查詢")
     parser.add_argument(
         "--broker-trading",
         action="store_true",

@@ -120,7 +120,7 @@ ideas/           data_analysis/      strategies/<name>/      core/strategies/sto
 
 ### StockPriceAPI — 日線價格資料 (SQLite)
 
-來源：`core/database/stock.db` 之 price 表。
+來源：`core/database/tw_stock.db` 之 price 表。
 
 ```python
 import datetime
@@ -315,15 +315,16 @@ buy_fee  = notional * Commission.CommRate * Commission.Discount  # ≈ 256.5 →
 sell_tax = notional * Commission.TaxRate            # 1,800
 ```
 
-### Action / Scale / PositionType / Market — 列舉常數
+### Action / Scale / PositionType / Market / InstrumentType — 列舉常數
 
 ```python
-from core.utils import Action, Scale, PositionType, Market
+from core.utils import Action, InstrumentType, Market, PositionType, Scale
 
 Action.BUY, Action.SELL                  # 'Buy', 'Sell'
-Scale.DAY, Scale.TICK, Scale.MIX         # 回測級別
+Scale.DAY, Scale.TICK                    # 回測級別
 PositionType.LONG, PositionType.SHORT    # 部位方向
-Market.STOCK, Market.FUTURE, Market.OPTION
+Market.TW, Market.US                     # 市場（地區）
+InstrumentType.STOCK, InstrumentType.FUTURE, InstrumentType.OPTION  # 商品類別
 ```
 
 研究階段通常**不需要直接用**這些；但若要把研究結果包成正式策略，這些就是必要的。
@@ -342,14 +343,14 @@ Market.STOCK, Market.FUTURE, Market.OPTION
 | 海外 ADR / FX  | yfinance       | 直接 `import yfinance as yf`  | 即時抓取（無本地表）                       |
 | 交易日／前一日 | 視 API 而定   | `MarketCalendar`              | 透過 `StockPriceAPI` 推算                 |
 
-> **資料庫位置**：`core/database/stock.db`（SQLite）。
+> **資料庫位置**：`core/database/tw_stock.db`（SQLite）。
 > 想知道目前 DB 內有哪些表，可以快速跑：
 >
 > ```python
 > import sqlite3
-> from core.config import DB_PATH
+> from core.config import TW_STOCK_DB_PATH
 >
-> with sqlite3.connect(DB_PATH) as conn:
+> with sqlite3.connect(TW_STOCK_DB_PATH) as conn:
 >     for (name,) in conn.execute("SELECT name FROM sqlite_master WHERE type='table'"):
 >         print(name)
 > ```

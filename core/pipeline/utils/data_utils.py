@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 from loguru import logger
 
-from core.pipeline.utils import FileEncoding
+from core.utils import FileEncoding
 
 # 全專案 JSON 儲存預設縮排
 DEFAULT_JSON_INDENT: int = 2

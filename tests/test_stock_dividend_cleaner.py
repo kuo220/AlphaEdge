@@ -6,7 +6,7 @@ from typing import List
 import pandas as pd
 import pytest
 
-from core.pipeline.cleaners.stock_dividend_cleaner import StockDividendCleaner
+from core.pipeline.tw.cleaners.stock_dividend_cleaner import StockDividendCleaner
 
 """
 除權除息計算結果表清洗測試

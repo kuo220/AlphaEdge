@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from core.pipeline.cleaners.stock_margin_cleaner import StockMarginCleaner
+from core.pipeline.tw.cleaners.stock_margin_cleaner import StockMarginCleaner
 
 """
 信用交易（融資融券餘額）清洗測試

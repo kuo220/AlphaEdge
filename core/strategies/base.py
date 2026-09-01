@@ -3,13 +3,13 @@ from abc import ABC, abstractmethod
 from typing import List, Optional, Set
 
 from core.models import BaseAccount, BaseOrder, BaseQuote
-from core.utils import BarExecutionOrder, PositionType, Scale
+from core.utils import BarExecutionOrder, InstrumentType, Market, PositionType, Scale
 
-"""BaseStrategy: 市場無關的策略骨架（market 欄位為 factory 的分派鍵）"""
+"""BaseStrategy: 市場與商品皆無關的策略骨架（market ＋ instrument_type 為 factory 的分派鍵）"""
 
 
 class BaseStrategy(ABC):
-    """Strategy Framework (Market-agnostic Base Template)"""
+    """Strategy Framework (Market/Instrument-agnostic Base Template)"""
 
     def __init__(self):
         """=== Account Setting ==="""
@@ -17,9 +17,11 @@ class BaseStrategy(ABC):
 
         """ === Strategy Setting === """
         self.strategy_name: str = ""  # Strategy name
-        self.market: Optional[str] = (
-            None  # 市場別；由各市場的策略基底填入，是 factory 的分派鍵
-        )
+        # 市場（地區）與商品類別是兩條正交的軸，兩者的**組合**才是 factory 的分派鍵：
+        # model 組合本來就是按組合實作的（`TwStockSpec` ＝ TW ＋ STOCK）。
+        # 兩者皆由各市場的策略基底填入，策略本身不需設定。
+        self.market: Optional[Market] = None  # 市場（地區）
+        self.instrument_type: Optional[InstrumentType] = None  # 商品類別
         # 策略主要方向（推導預設值用）
         self.position_type: PositionType = PositionType.LONG
         # 策略是否為當沖：只是**推導預設值的輸入**，不是硬性開關。
@@ -36,7 +38,7 @@ class BaseStrategy(ABC):
         - allowed_directions 是訂單方向的白名單，None 時等同 {position_type}
         - 實際記帳與成本路徑一律看每一張 order 的 position_type
 
-        方向（LONG／SHORT）與市場（股票／期貨）是兩條獨立的軸，故本區塊屬市場無關。
+        方向（LONG／SHORT）與商品類別（股票／期貨）是兩條獨立的軸，故本區塊與商品無關。
 
         執行順序的推導（`Backtester.get_execution_order()`，完整對照表在該處）：
 

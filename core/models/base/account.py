@@ -4,14 +4,14 @@ from core.models.base.position import BasePosition
 from core.models.base.record import BaseTradeRecord
 from core.utils import PositionType
 
-"""BaseAccount: 市場無關的帳戶骨架（部位查詢一律以 symbol 為鍵）"""
+"""BaseAccount: 市場與商品皆無關的帳戶骨架（部位查詢一律以 symbol 為鍵）"""
 
 
 class BaseAccount:
     """
     庫存及餘額資訊的共用骨架
 
-    FIFO 取倉、方向篩選與績效彙總都與市場無關，故全部留在此；
+    FIFO 取倉、方向篩選與績效彙總都與市場與商品皆無關，故全部留在此；
     保證金佔用與空頭曝險屬台股信用交易，由 StockAccount 補上。
     """
 

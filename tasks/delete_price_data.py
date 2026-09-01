@@ -7,7 +7,7 @@ from typing import List
 
 from loguru import logger
 
-from core.config import DB_PATH, PRICE_TABLE_NAME
+from core.config import PRICE_TABLE_NAME, TW_STOCK_DB_PATH
 
 
 def parse_date(date_str: str) -> str:
@@ -42,7 +42,7 @@ def delete_price_data_by_date(date_str: str) -> None:
     logger.info(f"準備刪除 price table 中日期為 {formatted_date} 的資料...")
 
     # 連接資料庫
-    conn: sqlite3.Connection = sqlite3.connect(DB_PATH)
+    conn: sqlite3.Connection = sqlite3.connect(TW_STOCK_DB_PATH)
     cursor: sqlite3.Cursor = conn.cursor()
 
     try:

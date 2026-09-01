@@ -5,7 +5,7 @@ from typing import List
 import pandas as pd
 import pytest
 
-from core.pipeline.cleaners.financial_statement_cleaner import (
+from core.pipeline.tw.cleaners.financial_statement_cleaner import (
     FinancialStatementCleaner,
 )
 

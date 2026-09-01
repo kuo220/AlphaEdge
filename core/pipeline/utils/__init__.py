@@ -1,11 +1,10 @@
 from .constant import (
     ChipColumn,
     DataType,
-    FileEncoding,
     FinancialStatementType,
     FinMindDataType,
-    InstrumentType,
-    MarketType,
+    IssuerOrigin,
+    ListingBoard,
     PriceColumn,
     UpdateStatus,
 )

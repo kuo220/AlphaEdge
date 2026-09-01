@@ -6,7 +6,7 @@ import pandas as pd
 
 from core.api.base import BaseDataAPI
 from core.api.stock_dividend_api import StockDividendAPI
-from core.config import DB_PATH, PRICE_TABLE_NAME
+from core.config import PRICE_TABLE_NAME, TW_STOCK_DB_PATH
 from core.pipeline.utils.constant import PriceColumn
 from core.utils.constant import Units
 from core.utils.log_manager import LogManager
@@ -35,7 +35,7 @@ class StockPriceAPI(BaseDataAPI):
         """Set Up the Config of Data API"""
 
         if self.owns_conn:
-            self.conn = sqlite3.connect(DB_PATH)
+            self.conn = sqlite3.connect(TW_STOCK_DB_PATH)
         LogManager.setup_logger("stock_price_api.log")
 
     def get_dividend_api(self) -> StockDividendAPI:

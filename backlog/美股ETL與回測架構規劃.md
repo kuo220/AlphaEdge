@@ -21,7 +21,7 @@
 | Phase2-3 | 資料品質檢核與異常告警 | `core/pipeline/us/*` | 缺洞天數、成交量異常可被偵測 | ⬜ | 相依 Phase1-2 |
 | Phase3-1 | `us_fundamentals` ETL 支援因子策略 | `core/pipeline/us/*`、`core/api/us/fundamentals_api.py` | 財報欄位可查詢且無未來資料污染 | ⬜ | 相依 Phase2-1 |
 | Phase3-2 | 參數掃描框架（walk-forward / grid search） | `core/backtest/` | 可批次產出參數組合的績效比較 | ⬜ | 相依 Phase2-2 |
-| Phase3-3 | 多市場共用介面，台股逐步歸位 `tw/` | 全專案 | 台股回歸測試逐筆相同 | ⏸ | 暫緩：影響面大，等美股閉環驗證後再啟動。**引擎層的共用介面已由 [多市場回測引擎架構](../docs/backtest/multi-market-engine.md) 提前完成**，本步驟只剩目錄歸位 |
+| Phase3-3 | 多市場共用介面，台股逐步歸位 `tw/` | 全專案 | 台股回歸測試逐筆相同 | 🔄 | **2026-08-31：`pipeline/` 的歸位已由命名軸線收斂工作提前完成**（軸線定案見 [命名軸線](../docs/dev/naming-axes.md)）——`core/pipeline/shared/` ＋ `core/pipeline/tw/{crawlers,cleaners,loaders,updaters}/` 已就位，`us/` 可直接平行新增。**引擎層共用介面**亦已由 [多市場回測引擎架構](../docs/backtest/multi-market-engine.md) 完成。本步驟剩下 `api/`／`models/`／`strategies/`／`managers/` 的歸位 |
 
 ---
 
@@ -158,6 +158,14 @@ core/
 - `us_corporate_actions`：`(ticker, action_date, action_type, source)`
 - `us_fundamentals_quarterly`：`(ticker, fiscal_period_end, source)`
 
+> **⚠️ 欄位語言必須在美股落地之前定案**（2026-09-01 由命名軸線收斂工作交接過來，
+> 軸線定案見 [命名軸線](../docs/dev/naming-axes.md)）：既有台股與台期貨的資料表一律是
+> **「英文鍵 ＋ 中文資料欄」**（`date`／`stock_id`／`product`／`session` 配 `開盤價`／`結算價`），
+> 兩邊一致；上表規劃的卻是 `ticker`／`trade_date` 全英文。若不先定案，落地後會變成
+> **三套欄位規則**（台股中文欄、期貨中文欄、美股英文欄），所有跨市場查詢與 API
+> 都要各寫一份對照。選項有二：美股沿用中文資料欄，或全專案改英文欄（後者要改
+> 15 張表，屬 [PostgreSQL遷移計畫](PostgreSQL遷移計畫.md) 的 schema 批次）。
+
 ---
 
 ## 四、美股回測架構設計（業界常見模式）
@@ -276,7 +284,7 @@ core/
 - **驗證方式**：可對一支策略批次跑出參數矩陣與績效表。
 - **相依**：Phase2-2。
 
-### Phase3-3. 多市場共用介面，台股逐步歸位 `tw/` ⏸
+### Phase3-3. 多市場共用介面，台股逐步歸位 `tw/` 🔄
 
 - **目的**：把驗證過的共用元件抽出，讓台股與美股共享核心。
 - **做法**：規劃多市場共用介面，逐步把台股流程整理為 `tw/` 子模組。

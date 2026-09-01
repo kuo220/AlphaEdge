@@ -5,13 +5,13 @@ import pandas as pd
 import pytest
 
 from core.config import FUTURES_PRICE_DAILY_TABLE_NAME
-from core.pipeline.loaders.futures_price_loader import FuturesPriceLoader
+from core.pipeline.tw.loaders.futures_price_loader import FuturesPriceLoader
 
 """
 台期貨行情入庫測試
 
 以暫存 DB 與暫存 downloads 目錄驗證建表、NULL 保留與重跑冪等，
-不連網路、不碰正式的 futures.db。
+不連網路、不碰正式的 tw_futures.db。
 """
 
 
@@ -20,8 +20,8 @@ def loader(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> FuturesPriceLoade
     """入庫器 fixture，DB 與 downloads 目錄都改為暫存"""
 
     monkeypatch.setattr(
-        "core.pipeline.loaders.futures_price_loader.FUTURES_DB_PATH",
-        tmp_path / "futures.db",
+        "core.pipeline.tw.loaders.futures_price_loader.TW_FUTURES_DB_PATH",
+        tmp_path / "tw_futures.db",
     )
     futures_price_loader: FuturesPriceLoader = FuturesPriceLoader()
     futures_price_loader.futures_price_dir = tmp_path / "price"
@@ -102,7 +102,7 @@ def test_night_row_keeps_null(loader: FuturesPriceLoader, tmp_path: Path) -> Non
     make_csv(loader.futures_price_dir, "TX_night_20260827.csv", NIGHT_ROW)
     loader.add_to_db()
 
-    conn = sqlite3.connect(tmp_path / "futures.db")
+    conn = sqlite3.connect(tmp_path / "tw_futures.db")
     row = conn.execute(
         f"SELECT 結算價, 未沖銷契約量, 成交量 FROM {FUTURES_PRICE_DAILY_TABLE_NAME}"
     ).fetchone()
@@ -119,7 +119,7 @@ def test_day_and_night_coexist(loader: FuturesPriceLoader, tmp_path: Path) -> No
     make_csv(loader.futures_price_dir, "TX_night_20260827.csv", NIGHT_ROW)
     loader.add_to_db()
 
-    conn = sqlite3.connect(tmp_path / "futures.db")
+    conn = sqlite3.connect(tmp_path / "tw_futures.db")
     count = conn.execute(
         f"SELECT COUNT(*) FROM {FUTURES_PRICE_DAILY_TABLE_NAME}"
     ).fetchone()[0]
@@ -134,7 +134,7 @@ def test_reload_is_idempotent(loader: FuturesPriceLoader, tmp_path: Path) -> Non
     loader.add_to_db()
     loader.add_to_db()
 
-    conn = sqlite3.connect(tmp_path / "futures.db")
+    conn = sqlite3.connect(tmp_path / "tw_futures.db")
     count = conn.execute(
         f"SELECT COUNT(*) FROM {FUTURES_PRICE_DAILY_TABLE_NAME}"
     ).fetchone()[0]
@@ -156,7 +156,7 @@ def test_expiry_stays_string(loader: FuturesPriceLoader, tmp_path: Path) -> None
     make_csv(loader.futures_price_dir, "MTX_day_20260827.csv", rows)
     loader.add_to_db()
 
-    conn = sqlite3.connect(tmp_path / "futures.db")
+    conn = sqlite3.connect(tmp_path / "tw_futures.db")
     expiries = [
         r[0]
         for r in conn.execute(
@@ -179,7 +179,7 @@ def test_only_dates_filters_batch(loader: FuturesPriceLoader, tmp_path: Path) ->
 
     loader.add_to_db(only_dates={"20260827"})
 
-    conn = sqlite3.connect(tmp_path / "futures.db")
+    conn = sqlite3.connect(tmp_path / "tw_futures.db")
     dates = [
         r[0] for r in conn.execute(f"SELECT date FROM {FUTURES_PRICE_DAILY_TABLE_NAME}")
     ]
@@ -190,7 +190,7 @@ def test_only_dates_filters_batch(loader: FuturesPriceLoader, tmp_path: Path) ->
 def test_dataframe_columns_match_table(loader: FuturesPriceLoader) -> None:
     """cleaner 的輸出欄位須與資料表完全一致，否則 insert 會錯位"""
 
-    from core.pipeline.cleaners.futures_price_cleaner import FuturesPriceCleaner
+    from core.pipeline.tw.cleaners.futures_price_cleaner import FuturesPriceCleaner
 
     loader.connect()
     table_cols = [

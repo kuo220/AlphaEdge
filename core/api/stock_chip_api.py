@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional
 import pandas as pd
 
 from core.api.base import BaseDataAPI
-from core.config import CHIP_TABLE_NAME, DB_PATH
+from core.config import CHIP_TABLE_NAME, TW_STOCK_DB_PATH
 from core.pipeline.utils.constant import ChipColumn
 from core.utils.log_manager import LogManager
 
@@ -26,7 +26,7 @@ class StockChipAPI(BaseDataAPI):
         """Set Up the Config of Data API"""
 
         if self.owns_conn:
-            self.conn = sqlite3.connect(DB_PATH)
+            self.conn = sqlite3.connect(TW_STOCK_DB_PATH)
         LogManager.setup_logger("stock_chip_api.log")
 
     def get(self, date: datetime.date) -> pd.DataFrame:

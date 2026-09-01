@@ -1,6 +1,10 @@
 import datetime
 from enum import Enum
 
+# 定義市場（地區）常量
+MARKET_TW = "TW"  # 臺灣
+MARKET_US = "US"  # 美國
+
 # 定義動作類型常量
 ACTION_BUY = "Buy"
 ACTION_SELL = "Sell"
@@ -51,7 +55,7 @@ MARGIN_CALL_WARN_ONLY = "WARN_ONLY"  # 僅記錄不強制回補
 # 2026-08-29 自 TAIFEX 表單實查共 30 檔，本表只收**臺股相關的 15 檔**。
 # 不收的 15 檔：海外指數（SPF／UDF／UNF／SXF／F1F／TJF）、商品（GDF／TGF／BRF）、
 # 匯率（RHF／RTF／XAF／XBF／XEF／XJF）——本專案是台股研究框架，這些商品與
-# stock.db 的籌碼、除權息完全對不上，抓進來也沒有下游能用；日後要用再補。
+# tw_stock.db 的籌碼、除權息完全對不上，抓進來也沒有下游能用；日後要用再補。
 # 股票期貨（295 檔）與 ETF 期貨（24 檔）不在此列：兩者會隨掛牌／下市變動，
 # 且乘數會因除權息調整，須走 futures_stock_universe 表而非寫死。
 # 定義台期貨交易時段常量
@@ -76,6 +80,21 @@ FUTURES_PRODUCT_G2F = "G2F"  # 富櫃200期貨
 FUTURES_PRODUCT_BTF = "BTF"  # 臺灣生技期貨
 FUTURES_PRODUCT_E4F = "E4F"  # 臺灣永續期貨
 FUTURES_PRODUCT_SHF = "SHF"  # 航運期貨
+
+# 定義股票期貨／ETF 期貨的商品類型常量
+# 值即為 futures_stock_universe 的 product_type 欄位內容。
+#
+# **分類依據是「標準型證券股數／受益權單位」而不是商品名稱**：TAIFEX 標的清單頁
+# 沒有類型欄位，只有這個數量欄，且四種類型的數量彼此不重疊（2026-08-29 實查：
+# 2000 → 249 檔、100 → 47 檔、10000 → 21 檔、1000 → 3 檔），故以它反推類型不會誤判。
+#
+# ⚠️ **這個數量不等於契約乘數**：它是「掛牌時的標準契約單位」，標的除權息後
+# TAIFEX 會調整契約乘數或另掛新契約，實際乘數會偏離本值（見 Phase6-2）。
+# 算 PnL 一律走 futures_stock_universe 的歷史序列，不要拿這個欄位當乘數用。
+STOCK_FUTURES_TYPE_SINGLE = "個股期貨"  # 標準型，2,000 股
+STOCK_FUTURES_TYPE_MINI_SINGLE = "小型個股期貨"  # 100 股
+STOCK_FUTURES_TYPE_ETF = "ETF期貨"  # 10,000 受益權單位
+STOCK_FUTURES_TYPE_MINI_ETF = "小型ETF期貨"  # 1,000 受益權單位
 
 # 現股當沖證交稅減半的落日日期（放 module-level：float Enum 無法承載 date）
 DAY_TRADE_TAX_EXPIRY: datetime.date = datetime.date(2027, 12, 31)
@@ -183,7 +202,25 @@ class MarginCost(float, Enum):
 
 
 class Market(str, Enum):
-    """市場類別"""
+    """
+    市場（地區）
+
+    與 `InstrumentType` 是**兩條互相正交的軸**，不要混用：
+    本軸管地區差異（交易日曆、開盤時間、幣別），`InstrumentType` 管商品差異
+    （契約乘數、報價單位、結算規則）。回測的 model 組合由「兩者的組合」決定，
+    例如 `TwStockSpec` ＝（`Market.TW`, `InstrumentType.STOCK`）。
+    """
+
+    TW = MARKET_TW
+    US = MARKET_US
+
+
+class InstrumentType(str, Enum):
+    """
+    金融商品類別
+
+    軸線分工見 `Market` 的 docstring。
+    """
 
     STOCK = "Stock"
     FUTURE = "Future"
@@ -241,6 +278,14 @@ class Units(int, Enum):
     LOT = 1000  # 1 Lot = 1000 Shares
 
 
+class FileEncoding(str, Enum):
+    """檔案編碼類型"""
+
+    UTF8 = "utf-8"
+    UTF8_SIG = "utf-8-sig"  # UTF-8 with BOM，用於 Excel 等軟體正確識別中文
+    BIG5 = "big5"
+
+
 class FuturesProduct(str, Enum):
     """
     台期貨商品代碼（＝ TAIFEX 每日行情頁查詢時要帶的 commodity_id）
@@ -294,6 +339,36 @@ FUTURES_MULTIPLIER: dict = {
     FUTURES_PRODUCT_ZEF: 500,
     FUTURES_PRODUCT_TF: 1000,
     FUTURES_PRODUCT_ZFF: 250,
+}
+
+
+class StockFuturesType(str, Enum):
+    """
+    股票期貨（single stock futures）／ETF 期貨的商品類型
+
+    名稱是「Stock Futures」而非「Futures Stock」——它是**期貨**的一種，
+    以個股／ETF 為標的，不是股票的一種。
+
+    由標的清單頁的「標準型證券股數／受益權單位」反推，見
+    `STOCK_FUTURES_TYPE_BY_CONTRACT_SIZE`
+    """
+
+    SINGLE = STOCK_FUTURES_TYPE_SINGLE
+    MINI_SINGLE = STOCK_FUTURES_TYPE_MINI_SINGLE
+    ETF = STOCK_FUTURES_TYPE_ETF
+    MINI_ETF = STOCK_FUTURES_TYPE_MINI_ETF
+
+
+# 標準型證券股數／受益權單位 → 商品類型
+#
+# 查表一律直接用 `STOCK_FUTURES_TYPE_BY_CONTRACT_SIZE[size]`，**不要 `.get()` 帶預設值**：
+# 出現沒見過的數量代表 TAIFEX 新增了商品類型，那時該當場中斷讓人去查，
+# 而不是靜靜歸到某個既有類型裡（理由同 `FUTURES_MULTIPLIER`）。
+STOCK_FUTURES_TYPE_BY_CONTRACT_SIZE: dict = {
+    2000: STOCK_FUTURES_TYPE_SINGLE,
+    100: STOCK_FUTURES_TYPE_MINI_SINGLE,
+    10000: STOCK_FUTURES_TYPE_ETF,
+    1000: STOCK_FUTURES_TYPE_MINI_ETF,
 }
 
 

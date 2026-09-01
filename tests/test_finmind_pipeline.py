@@ -38,7 +38,7 @@ def test_finmind_pipeline():
     )
     temp_config.LOGS_DIR_PATH = project_root / "core" / "logs"
     # 設置其他可能需要的屬性（使用合理的預設值）
-    temp_config.DB_PATH = project_root / "core" / "database" / "stock.db"
+    temp_config.TW_STOCK_DB_PATH = project_root / "core" / "database" / "tw_stock.db"
     temp_config.FINMIND_DOWNLOADS_PATH = (
         project_root / "core" / "pipeline" / "downloads" / "tw_stock" / "finmind"
     )
@@ -52,8 +52,8 @@ def test_finmind_pipeline():
     sys.modules["core.config"] = temp_config
 
     # 現在導入其他模組（它們會使用臨時的 config）
-    from core.pipeline.cleaners.finmind_cleaner import FinMindCleaner
-    from core.pipeline.crawlers.finmind_crawler import FinMindCrawler
+    from core.pipeline.tw.cleaners.finmind_cleaner import FinMindCleaner
+    from core.pipeline.tw.crawlers.finmind_crawler import FinMindCrawler
 
     # 現在嘗試導入真正的 config（此時所有依賴的模組都已經初始化）
     # 如果成功，替換臨時的 config
@@ -65,7 +65,7 @@ def test_finmind_pipeline():
         import core.config as real_config
 
         # 更新臨時 config 的屬性為真實值
-        temp_config.DB_PATH = real_config.DB_PATH
+        temp_config.TW_STOCK_DB_PATH = real_config.TW_STOCK_DB_PATH
         temp_config.FINMIND_DOWNLOADS_PATH = real_config.FINMIND_DOWNLOADS_PATH
         # 將真實的 config 放回 sys.modules
         sys.modules["core.config"] = real_config
@@ -75,7 +75,7 @@ def test_finmind_pipeline():
         sys.modules["core.config"] = temp_config
 
     # 現在導入 loader（使用真正的或臨時的 config）
-    from core.pipeline.loaders.finmind_loader import FinMindLoader
+    from core.pipeline.tw.loaders.finmind_loader import FinMindLoader
 
     print(f"\n{'=' * 60}")
     print("測試 FinMind 完整流程（使用臨時資料庫）")
@@ -101,11 +101,13 @@ def test_finmind_pipeline():
     print(f"📁 臨時資料庫路徑: {temp_db_path}")
 
     try:
-        # 使用 mock 替換 DB_PATH，讓 loader 使用臨時資料庫
-        # 需要同時 patch 多個地方，因為 DB_PATH 可能在不同模組中被導入
+        # 使用 mock 替換 TW_STOCK_DB_PATH，讓 loader 使用臨時資料庫
+        # 需要同時 patch 多個地方，因為 TW_STOCK_DB_PATH 可能在不同模組中被導入
         with (
-            patch("core.config.DB_PATH", temp_db_path),
-            patch("core.pipeline.loaders.finmind_loader.DB_PATH", temp_db_path),
+            patch("core.config.TW_STOCK_DB_PATH", temp_db_path),
+            patch(
+                "core.pipeline.tw.loaders.finmind_loader.TW_STOCK_DB_PATH", temp_db_path
+            ),
         ):
             # 初始化各個組件
             print("\n1️⃣ 初始化組件...")

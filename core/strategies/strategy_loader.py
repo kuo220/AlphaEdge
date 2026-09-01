@@ -17,10 +17,10 @@ class StrategyLoader:
     def load_strategies() -> Dict[str, Type[BaseStrategy]]:
         """
         - Description:
-            掃描 `core/strategies/` 下的所有市場子套件並載入其中的策略
+            掃描 `core/strategies/` 下的所有商品類別子套件並載入其中的策略
 
             原本寫死只掃 `stock` 子套件；改為逐一掃描所有子套件後，
-            新增一個市場（如 `core/strategies/futures/`）不需要修改本檔案。
+            新增一個商品類別（如 `core/strategies/futures/`）不需要修改本檔案。
         - Return:
             - Dict[str, Type[BaseStrategy]]
                 類別名稱 → 策略類別
@@ -28,17 +28,17 @@ class StrategyLoader:
 
         strategies: Dict[str, Type[BaseStrategy]] = {}
 
-        for _, market_name, is_pkg in pkgutil.iter_modules(strategies_pkg.__path__):
+        for _, instrument_name, is_pkg in pkgutil.iter_modules(strategies_pkg.__path__):
             if not is_pkg:
                 continue
 
-            market_pkg: ModuleType = importlib.import_module(
-                f"{strategies_pkg.__name__}.{market_name}"
+            instrument_pkg: ModuleType = importlib.import_module(
+                f"{strategies_pkg.__name__}.{instrument_name}"
             )
 
-            for _, module_name, _ in pkgutil.iter_modules(market_pkg.__path__):
+            for _, module_name, _ in pkgutil.iter_modules(instrument_pkg.__path__):
                 module: ModuleType = importlib.import_module(
-                    f"{market_pkg.__name__}.{module_name}"
+                    f"{instrument_pkg.__name__}.{module_name}"
                 )
 
                 for name, obj in inspect.getmembers(module, inspect.isclass):

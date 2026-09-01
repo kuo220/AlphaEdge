@@ -9,7 +9,7 @@ from loguru import logger
 from core.backtest.datafeed.base import BaseDataFeed
 from core.models import StockAccount, StockOrder, StockPosition, StockQuote
 from core.strategies.stock import BaseStockStrategy
-from core.utils import Action, Market, PositionType, Scale, Units
+from core.utils import Action, PositionType, Scale, Units
 
 
 class OvernightLeadEventStrategy(BaseStockStrategy):
@@ -40,7 +40,6 @@ class OvernightLeadEventStrategy(BaseStockStrategy):
 
         # Strategy meta
         self.strategy_name: str = "OvernightLeadEvent"
-        self.market: str = Market.STOCK
         self.position_type: str = PositionType.LONG
         self.enable_intraday: bool = False
 

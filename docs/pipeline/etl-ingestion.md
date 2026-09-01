@@ -40,6 +40,8 @@ CSV，程序中斷後資料庫仍是 0 列。
 | `FinancialStatementUpdater`（equity_change） | **每 100 檔** | 逐年季查已入庫的 `stock_id` | `INSERT OR IGNORE` | `DataLoadError` |
 | `FinMindUpdater`（broker_trading） | 逐組合、每 50 組 commit | metadata ＋ DB | 先查既有鍵再過濾 | — |
 | `StockTickUpdater` | 全部跑完 | 固定起日 ＋ `tick_metadata.json` | **無**（`keepDuplicates=ALL`） | — |
+| `FuturesPriceUpdater` | **每 100 天** | 逐**商品**查該商品在表內的最新 `date` +1 | `INSERT OR IGNORE` | `DataLoadError` |
+| `FuturesStockUniverseUpdater` | 一次（單次請求） | 當日快照是否已入庫 | `INSERT OR IGNORE` | `DataLoadError` |
 
 **未分批的四個並非疏漏**：dividend／mrr／fs 的量級是十餘年 × 數十個年月或年季，
 單次執行以分鐘計，中斷重跑的成本可接受。tick 走 DolphinDB，語意與 SQLite 組不同。
@@ -49,6 +51,12 @@ CSV，程序中斷後資料庫仍是 0 列。
 同一等級，所以入庫時機與 resume 依據都得比照它們，而不是比照同一支 updater 裡的另外三張報表。
 Resume 尤其不能沿用「表最大年季 +1」：一個年季爬到一半中斷時，該年季已經有資料，
 會被判定為已完成而整季跳過，沒爬到的公司永遠補不回來。
+
+**兩支期貨 updater 寫的是 `tw_futures.db` 不是 `tw_stock.db`**（主鍵語意不同，見
+`futures_price_loader` 的說明）。`FuturesPriceUpdater` 的 resume **以商品為單位而非
+全表最新日**：各商品上市日不同、且會陸續加進爬取範圍，用全表最新日會讓新加的商品
+被既有商品的進度擋住而整段歷史都補不到。`FuturesStockUniverseUpdater` 則沒有回補
+區間——來源是一張當下的完整清單，一次請求就結束，故「resume」退化成「今天抓過沒有」。
 
 **`StockTickUpdater` 是目前唯一沒有重載防護的**：DolphinDB 建表時
 `keepDuplicates=ALL` 是 tick 語意的刻意選擇（同一時間戳可以有多筆成交），
@@ -155,6 +163,7 @@ log 也沒有任何錯誤——只有一行 `first 30 stocks have no data` 語�
 ## 相關文件
 
 - [指令教學](../commands/command-usage.md)——`update_db` 的完整 target 對照與範例
+- [權益變動表](equity-change.md)——`equity_change` 的資料形狀、涵蓋範圍、已知限制與爬取節流
 - [券商分點 NO_DATA 的 metadata 語意](broker-trading-no-data.md)——選型紀錄，尚未實作
 - [程式碼品質工具鏈與基線](../dev/code-quality.md)——§二〈例外處理現況〉記錄了全專案 85 條盲捕，4.2 是其中的第一個收斂案例
 - [資料覆蓋範圍](../exchanges/data_coverage.md)——各資料來源的時間涵蓋與已知限制

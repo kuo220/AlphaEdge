@@ -7,7 +7,7 @@ import pandas as pd
 from loguru import logger
 
 from core.config import TICK_DOWNLOADS_PATH, TICK_METADATA_PATH
-from core.pipeline.crawlers.stock_info_crawler import StockInfoCrawler
+from core.pipeline.tw.crawlers.stock_info_crawler import StockInfoCrawler
 
 """測試初始化 tick_metadata.json：爬取股票代號、建立預設 last_date、掃描 CSV 並更新 metadata"""
 

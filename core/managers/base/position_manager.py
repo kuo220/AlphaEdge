@@ -6,14 +6,14 @@ from loguru import logger
 from core.models import BaseAccount, BaseOrder, BasePosition, BaseTradeRecord
 from core.utils import Action, PositionType
 
-"""BasePositionManager: 市場無關的部位管理骨架（FIFO 拆單與方向篩選）"""
+"""BasePositionManager: 市場與商品皆無關的部位管理骨架（FIFO 拆單與方向篩選）"""
 
 
 class BasePositionManager(ABC):
     """
     Base Class of Position Manager
 
-    FIFO 拆單、方向篩選與「平倉量不足時只平已有部位」的處理都與市場無關，
+    FIFO 拆單、方向篩選與「平倉量不足時只平已有部位」的處理都與市場與商品皆無關，
     故收在此；單筆部位的記帳（成本攤提、損益公式）由各市場自行實作。
     """
 
@@ -83,7 +83,7 @@ class BasePositionManager(ABC):
         - Description:
             下單平倉（支援 FIFO 拆倉與部分平倉）
 
-            主幹與市場無關：依方向篩出該商品的未平倉部位，由最早開倉者依序
+            主幹與市場與商品皆無關：依方向篩出該商品的未平倉部位，由最早開倉者依序
             平掉，單筆部位的記帳交給 `close_single_position()`。
         - Parameters:
             - order: BaseOrder

@@ -64,7 +64,7 @@ class Backtester:
     """
     Backtest Framework: Tick and Daily price intervals
 
-    **唯一引擎，市場無關，無子類**：市場差異全部由注入的 model 決定
+    **唯一引擎，市場與商品皆無關，無子類**：兩者的差異全部由注入的 model 決定
     （`InstrumentSpec` / `FillModel` / `CostModel` / `SettlementModel` / `DataFeed`）。
     新增一個市場不需要修改本檔案，只需在 factory 組出另一組 model。
     """

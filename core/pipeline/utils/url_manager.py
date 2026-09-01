@@ -62,11 +62,11 @@ class URLManager:
         # 上櫃收盤行情（Ex: date = 2025/08/01）
         "TPEX_CLOSING_QUOTE_URL": "https://www.tpex.org.tw/www/zh-tw/afterTrading/otc?date={date}&type=EW&id=&response=html&order=0&sort=asc",
 
-        # 上市月營收財報（month: m, market_type: {0: 國內上市, 1: 國外上市}）
-        "TWSE_MONTHLY_REVENUE_REPORT_URL": "https://mopsov.twse.com.tw/nas/t21/sii/t21sc03_{roc_year}_{month}_{market_type}.html",
+        # 上市月營收財報（month: m, issuer_origin: {0: 國內發行, 1: 國外發行}）
+        "TWSE_MONTHLY_REVENUE_REPORT_URL": "https://mopsov.twse.com.tw/nas/t21/sii/t21sc03_{roc_year}_{month}_{issuer_origin}.html",
 
-        # 上櫃月營收財報（month: m, market_type: {0: 國內上櫃, 1: 國外上櫃}）
-        "TPEX_MONTHLY_REVENUE_REPORT_URL": "https://mopsov.twse.com.tw/nas/t21/otc/t21sc03_{roc_year}_{month}_{market_type}.html",
+        # 上櫃月營收財報（month: m, issuer_origin: {0: 國內發行, 1: 國外發行}）
+        "TPEX_MONTHLY_REVENUE_REPORT_URL": "https://mopsov.twse.com.tw/nas/t21/otc/t21sc03_{roc_year}_{month}_{issuer_origin}.html",
 
         # === 上市上櫃財報（四大報表）爬蟲網站（新方式）===
         # 資產負債表
@@ -93,6 +93,13 @@ class URLManager:
         # 且各自是獨立行情，須分別查詢後以 session 區分入庫
         # 一次僅能查一個商品；非交易日回傳的頁面無表格（`pd.read_html` 會拋 ValueError）
         "TAIFEX_FUTURES_PRICE_URL": "https://www.taifex.com.tw/cht/3/futDailyMarketReport",
+
+        # 股票期貨、選擇權標的證券一覽表（TAIFEX）
+        # 純 GET 頁面，整份清單一次回傳，不帶查詢參數
+        # 表格為「當下快照」：**沒有掛牌日／下市日欄位**，兩者須由快照序列差分推得
+        # 頁面給的是 2 碼商品代碼（Ex: CD 台積電期），行情頁的 commodity_id 要加尾碼 F
+        # 解析時 `keep_default_na=False` 不可省：穩懋的代碼就是 `NA`，會被當成 NaN
+        "TAIFEX_STOCK_FUTURES_LIST_URL": "https://www.taifex.com.tw/cht/2/stockLists",
     }
     # fmt: on
 

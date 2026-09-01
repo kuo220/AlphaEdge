@@ -20,7 +20,7 @@ from tests.backtest.make_short_baseline import (
 SHORT 路徑回歸測試：多市場抽象重構的第二條回歸線
 
 與 LONG 回歸的分工：
-- LONG 走真實 stock.db、驗的是「換了引擎後既有做多策略的結果不變」（約 54 秒）
+- LONG 走真實 tw_stock.db、驗的是「換了引擎後既有做多策略的結果不變」（約 54 秒）
 - SHORT 全部由腳本驅動、不連 DB，驗的是「放空記帳的每一項攤提與計提不變」（秒級）
 """
 

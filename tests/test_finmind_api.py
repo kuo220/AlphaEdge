@@ -1,7 +1,7 @@
 """
 測試 FinMindAPI 的每一個 function 是否正常運作
 
-直接使用 stock.db 唯讀查詢，不更動資料庫
+直接使用 tw_stock.db 唯讀查詢，不更動資料庫
 
 使用方法（從專案根目錄執行）：
     python -m tests.test_finmind_api
@@ -19,7 +19,7 @@
     10. get_broker_trading_for_stock_in_range(stock_id, start_date, end_date) - 指定股票區間券商分點（多日）
     11. get_broker_trading_by_broker_and_date(securities_trader, date) - 依券商中文名與日期取得該券商當日分點日報
 
-**需要 core/database/stock.db 才能執行**，故標記為 slow：CI 環境沒有資料庫，
+**需要 core/database/tw_stock.db 才能執行**，故標記為 slow：CI 環境沒有資料庫，
 未標記會在 `pytest -m "not slow"` 直接以 sqlite3.OperationalError 失敗。
 """
 
@@ -40,9 +40,9 @@ pytestmark = pytest.mark.slow
 
 
 def test_finmind_api() -> bool:
-    """測試 FinMindAPI 所有方法（唯讀，使用 stock.db）"""
+    """測試 FinMindAPI 所有方法（唯讀，使用 tw_stock.db）"""
     print("\n" + "=" * 60)
-    print("測試 FinMindAPI 各 function（使用 stock.db 唯讀）")
+    print("測試 FinMindAPI 各 function（使用 tw_stock.db 唯讀）")
     print("=" * 60)
 
     api = FinMindAPI()

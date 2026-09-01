@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from core.api.base import BaseDataAPI
-from core.config import DB_PATH, DIVIDEND_TABLE_NAME
+from core.config import DIVIDEND_TABLE_NAME, TW_STOCK_DB_PATH
 from core.utils.log_manager import LogManager
 
 """
@@ -39,7 +39,7 @@ class StockDividendAPI(BaseDataAPI):
         """Set Up the Config of Data API"""
 
         if self.owns_conn:
-            self.conn = sqlite3.connect(DB_PATH)
+            self.conn = sqlite3.connect(TW_STOCK_DB_PATH)
         LogManager.setup_logger("stock_dividend_api.log")
 
     def get(self, date: datetime.date) -> pd.DataFrame:

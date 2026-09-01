@@ -4,7 +4,7 @@ from typing import Optional
 import pandas as pd
 
 from core.api.base import BaseDataAPI
-from core.config import DB_PATH
+from core.config import TW_STOCK_DB_PATH
 from core.utils.log_manager import LogManager
 
 """Financial Statement Data API: query SQLite financial statement tables"""
@@ -24,7 +24,7 @@ class FinancialStatementAPI(BaseDataAPI):
         """Set Up the Config of Data API"""
 
         if self.owns_conn:
-            self.conn = sqlite3.connect(DB_PATH)
+            self.conn = sqlite3.connect(TW_STOCK_DB_PATH)
         LogManager.setup_logger("financial_statement_api.log")
 
     def get(

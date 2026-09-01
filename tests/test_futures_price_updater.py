@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 
 from core.config import FUTURES_PRICE_DAILY_TABLE_NAME
-from core.pipeline.updaters.futures_price_updater import FuturesPriceUpdater
+from core.pipeline.tw.updaters.futures_price_updater import FuturesPriceUpdater
 from core.utils import FuturesSession
 
 """
@@ -15,7 +15,7 @@ from core.utils import FuturesSession
 
 **逐商品續跑**是本檔的重點——各商品上市日不同且會陸續加入設定檔，
 若以全表最新日當起點，新商品的歷史會整段補不到且不會有任何錯誤訊息。
-不連網路（crawler 以 stub 取代）、不碰正式的 futures.db。
+不連網路（crawler 以 stub 取代）、不碰正式的 tw_futures.db。
 """
 
 DATE: datetime.date = datetime.date(2026, 8, 27)
@@ -25,12 +25,12 @@ DATE: datetime.date = datetime.date(2026, 8, 27)
 def updater(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> FuturesPriceUpdater:
     """Updater fixture，DB 與 downloads 目錄都改為暫存"""
 
-    db_path: Path = tmp_path / "futures.db"
+    db_path: Path = tmp_path / "tw_futures.db"
     monkeypatch.setattr(
-        "core.pipeline.updaters.futures_price_updater.FUTURES_DB_PATH", db_path
+        "core.pipeline.tw.updaters.futures_price_updater.TW_FUTURES_DB_PATH", db_path
     )
     monkeypatch.setattr(
-        "core.pipeline.loaders.futures_price_loader.FUTURES_DB_PATH", db_path
+        "core.pipeline.tw.loaders.futures_price_loader.TW_FUTURES_DB_PATH", db_path
     )
 
     futures_price_updater: FuturesPriceUpdater = FuturesPriceUpdater()
@@ -92,15 +92,98 @@ def test_resume_is_per_product(updater: FuturesPriceUpdater) -> None:
 
 
 # === 商品防呆 ===
-def test_update_rejects_unknown_product(updater: FuturesPriceUpdater) -> None:
-    """
-    商品代碼拼錯必須在送出任何請求之前擋下
+def test_update_rejects_malformed_product(updater: FuturesPriceUpdater) -> None:
+    """明顯不合法的代碼在送出任何請求之前就擋下"""
 
-    否則整段回補會安靜地全部查無資料，看起來就像「這幾年一直都是假日」。
+    with pytest.raises(ValueError, match="格式不正確"):
+        updater.update(start_date=DATE, end_date=DATE, products=["tx-1"])
+
+
+def test_aborts_when_product_yields_nothing(
+    updater: FuturesPriceUpdater, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    連續多日查無資料要中止，不可跑完數千次請求才發現整張表是空的
+
+    這是「代碼拼錯」的真正防線——crawler 只擋格式，因為合法代碼沒有可靠的
+    靜態清單（TAIFEX 的下拉內容不穩定）。拼錯的代碼會安靜地每天查無資料，
+    看起來就像「這幾年一直都是假日」。
     """
 
-    with pytest.raises(ValueError, match="未知的期貨商品代碼"):
-        updater.update(start_date=DATE, end_date=DATE, products=["TXX"])
+    monkeypatch.setattr(updater.crawler, "crawl_futures_price", lambda *_: None)
+    monkeypatch.setattr(updater, "get_traded_weekend_dates", lambda *_: set())
+    updater.BATCH_RANDOM_DELAY_MIN = 0
+    updater.BATCH_RANDOM_DELAY_MAX = 0
+    updater.EMPTY_PRODUCT_ABORT_THRESHOLD = 3
+
+    with pytest.raises(ValueError, match="連續 3 個候選日皆無資料"):
+        updater.update(
+            start_date=datetime.date(2026, 8, 3),
+            end_date=datetime.date(2026, 8, 14),
+            products=["TXX"],
+        )
+
+
+def test_does_not_abort_when_data_resumes(
+    updater: FuturesPriceUpdater, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    中間穿插的無資料日（國定假日）不可觸發中止
+
+    保險絲算的是**連續**空產出，有資料就歸零；否則連假會被誤判成代碼錯誤。
+    """
+
+    day_raw = pd.DataFrame(
+        [
+            [
+                "TX",
+                "202609",
+                46175,
+                46517,
+                46006,
+                46078,
+                "▲75",
+                "▲0.16%",
+                26057,
+                50701,
+                76758,
+                46064,
+                104881,
+                46077,
+                46088,
+                49651,
+                24962,
+            ]
+        ]
+    )
+    calls: List[int] = []
+
+    def fake_crawl(date, product, session):
+        calls.append(1)
+        # 前兩個交易日放假，之後恢復
+        if date <= datetime.date(2026, 8, 4):
+            return None
+        return day_raw.copy() if session == FuturesSession.DAY else None
+
+    monkeypatch.setattr(updater.crawler, "crawl_futures_price", fake_crawl)
+    monkeypatch.setattr(updater, "get_traded_weekend_dates", lambda *_: set())
+    updater.BATCH_RANDOM_DELAY_MIN = 0
+    updater.BATCH_RANDOM_DELAY_MAX = 0
+    updater.EMPTY_PRODUCT_ABORT_THRESHOLD = 3
+
+    updater.update(
+        start_date=datetime.date(2026, 8, 3),
+        end_date=datetime.date(2026, 8, 7),
+        products=["TX"],
+    )
+
+    conn = sqlite3.connect(updater.loader.futures_price_dir.parent / "tw_futures.db")
+    assert (
+        conn.execute(
+            f"SELECT COUNT(*) FROM {FUTURES_PRICE_DAILY_TABLE_NAME}"
+        ).fetchone()[0]
+        > 0
+    )
 
 
 # === 日期挑選 ===
@@ -196,7 +279,7 @@ def test_update_writes_rows_end_to_end(
 
     updater.update(start_date=DATE, end_date=DATE, products=["TX"])
 
-    conn = sqlite3.connect(tmp_path / "futures.db")
+    conn = sqlite3.connect(tmp_path / "tw_futures.db")
     rows = conn.execute(
         f"SELECT session, 結算價 FROM {FUTURES_PRICE_DAILY_TABLE_NAME} ORDER BY session"
     ).fetchall()

@@ -3,7 +3,7 @@ import datetime
 import pandas as pd
 import pytest
 
-from core.pipeline.crawlers.futures_price_crawler import FuturesPriceCrawler
+from core.pipeline.tw.crawlers.futures_price_crawler import FuturesPriceCrawler
 from core.utils import FuturesSession
 
 """
@@ -110,11 +110,26 @@ def test_returns_none_when_only_spread_table_present() -> None:
 
 
 # === 商品防呆 ===
-def test_unknown_product_raises() -> None:
-    """FUTURES_TARGET_PRODUCTS 是手寫字面值，拼錯要在送出請求前就擋下"""
+def test_malformed_product_raises() -> None:
+    """明顯不合法的字串要在送出請求前擋下"""
 
-    with pytest.raises(ValueError, match="未知的期貨商品代碼"):
-        FuturesPriceCrawler.validate_product("TXX")
+    for bad in ("", "tx", "T", "TX-1", "A" * 11):
+        with pytest.raises(ValueError, match="格式不正確"):
+            FuturesPriceCrawler.validate_product(bad)
+
+
+def test_stock_and_etf_futures_are_allowed() -> None:
+    """
+    股票期貨與 ETF 期貨不可被擋
+
+    它們不在 `FuturesProduct`（只收 15 檔臺股指數期貨）內，但實測
+    `CDF`（台積電期）、`NYF`（0050 期貨）走 `commodity_id` 都能正常取得行情，
+    且 Phase6 本來就要爬。拿 Enum 當白名單會把它們一起擋掉。
+    """
+
+    FuturesPriceCrawler.validate_product("CDF")
+    FuturesPriceCrawler.validate_product("NYF")
+    FuturesPriceCrawler.validate_product("EEF")
 
 
 def test_known_product_passes() -> None:

@@ -72,7 +72,7 @@ core/strategies/
 ├── strategy_loader.py             # 策略自動載入器（掃描所有市場子套件）
 └── stock/                         # 台股策略目錄
     ├── __init__.py
-    ├── base.py                    # BaseStockStrategy（設定 self.market = Market.STOCK）
+    ├── base.py                    # BaseStockStrategy（設定 self.market ＋ self.instrument_type）
     ├── momentum_strategy_1.py     # 動能策略 1（日線）
     └── overnight_lead_event_strategy.py  # 隔夜領先事件策略
 ```
@@ -125,7 +125,7 @@ def __init__(self):
     self.end_date: datetime.date = datetime.date(2025, 5, 31)
 ```
 
-> `self.market` **不需要自己設**：`BaseStockStrategy` 已填入 `Market.STOCK`。
+> `self.market` 與 `self.instrument_type` **不需要自己設**：`BaseStockStrategy` 已填入 `Market.TW` 與 `InstrumentType.STOCK`。
 >
 > **`__init__` 內不要呼叫 `setup_apis()`**：它需要引擎傳入的 `DataFeed`，由
 > `Backtester.load_datasets()` 在建立 `DataFeed` 之後呼叫。
@@ -439,7 +439,8 @@ def calculate_position_size(
 | 參數 | 類型 | 說明 | 預設值 |
 |------|------|------|--------|
 | `strategy_name` | `str` | 策略名稱，用於識別和報告 | `""` |
-| `market` | `str` | 市場別，**由 `BaseStockStrategy` 填入，策略不需自己設**；是 `factory` 組裝 model 組合的分派鍵 | `Market.STOCK` |
+| `market` | `Market` | 市場（地區），**由 `BaseStockStrategy` 填入，策略不需自己設**；與 `instrument_type` **兩者的組合**才是 `factory` 組裝 model 組合的分派鍵 | `Market.TW` |
+| `instrument_type` | `InstrumentType` | 商品類別，**由 `BaseStockStrategy` 填入，策略不需自己設**；見上列 | `InstrumentType.STOCK` |
 | `position_type` | `str` | 部位方向，`PositionType.LONG`（做多）或 `PositionType.SHORT`（做空） | `PositionType.LONG` |
 | `enable_intraday` | `bool` | 是否為當沖策略；**只是推導預設執行順序與台股當沖成本的輸入，不是硬性開關**（見[單根 bar 的執行順序](#單根-bar-的執行順序)） | `True` |
 | `bar_execution_order` | `Optional[BarExecutionOrder]` | 單根 bar 內開平倉的先後，`None` 由引擎推導 | `None` |

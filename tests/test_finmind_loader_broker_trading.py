@@ -50,10 +50,10 @@ def test_load_broker_trading_from_dataframe_optimization():
     temp_db_path: str = str(temp_dir / f"test_finmind_loader_opt_{timestamp}.db")
 
     with (
-        patch("core.config.DB_PATH", temp_db_path),
-        patch("core.pipeline.loaders.finmind_loader.DB_PATH", temp_db_path),
+        patch("core.config.TW_STOCK_DB_PATH", temp_db_path),
+        patch("core.pipeline.tw.loaders.finmind_loader.TW_STOCK_DB_PATH", temp_db_path),
     ):
-        from core.pipeline.loaders.finmind_loader import FinMindLoader
+        from core.pipeline.tw.loaders.finmind_loader import FinMindLoader
 
         loader: FinMindLoader = FinMindLoader()
         loader.connect()

@@ -29,8 +29,8 @@ python -m pip install -e ".[dev]"           # 追加 pytest / pytest-cov / ruff
 
 ruff check .                        # lint
 ruff format .                       # 格式化
-pytest -m "not slow"                # 略過需要 stock.db 與外部 API 的測試
-pytest                              # 全部（需 core/database/stock.db）
+pytest -m "not slow"                # 略過需要 tw_stock.db 與外部 API 的測試
+pytest                              # 全部（需 core/database/tw_stock.db）
 ./scripts/run_regression.sh         # LONG ＋ SHORT 回歸，必須逐筆相同
 ```
 
@@ -175,10 +175,10 @@ pytest                              # 全部（需 core/database/stock.db）
 
 ### 4.2 CI 只能跑 `-m "not slow"`
 
-`core/database/stock.db` 未進版控（`.gitignore` 有 `*.db`），CI 也沒有 Shioaji／FinMind 金鑰。
+`core/database/tw_stock.db` 未進版控（`.gitignore` 有 `*.db`），CI 也沒有 Shioaji／FinMind 金鑰。
 需要這些的測試一律標 `@pytest.mark.slow` 或 `pytestmark = pytest.mark.slow`。
 
-目前標為 slow 的有：`test_long_regression.py`、`test_finmind_api.py`（需 `stock.db`）、
+目前標為 slow 的有：`test_long_regression.py`、`test_finmind_api.py`（需 `tw_stock.db`）、
 `test_tick_crawler.py`、`test_tick_updater.py`（**是手動執行的腳本，不是可被 pytest 直接跑的測試**——
 `test_*` 函式帶必填參數，pytest 會當成 fixture 而報 `fixture not found`）。
 

@@ -6,11 +6,11 @@ import pandas as pd
 
 from core.api.base import BaseDataAPI
 from core.config import (
-    DB_PATH,
     SECURITIES_TRADER_INFO_TABLE_NAME,
     STOCK_INFO_TABLE_NAME,
     STOCK_INFO_WITH_WARRANT_TABLE_NAME,
     STOCK_TRADING_DAILY_REPORT_TABLE_NAME,
+    TW_STOCK_DB_PATH,
 )
 from core.utils.log_manager import LogManager
 
@@ -52,7 +52,7 @@ class FinMindAPI(BaseDataAPI):
     def setup(self) -> None:
         """設定連線與 log"""
 
-        self.conn = sqlite3.connect(DB_PATH)
+        self.conn = sqlite3.connect(TW_STOCK_DB_PATH)
         LogManager.setup_logger("finmind_api.log")
 
     # -----------------------------------------------------------------------

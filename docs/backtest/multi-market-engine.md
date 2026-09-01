@@ -8,7 +8,7 @@
 
 ## 概觀
 
-`Backtester` 是**唯一的回測引擎，市場無關，沒有子類**。市場之間的差異全部下沉為五個可插拔的 model，由 factory 依策略宣告的 `market` 組裝：
+`Backtester` 是**唯一的回測引擎，市場與商品皆無關，沒有子類**。兩者的差異全部下沉為五個可插拔的 model，由 factory 依策略宣告的 `market` ＋ `instrument_type` 組合組裝：
 
 ```
 Backtester                      ← 唯一引擎，市場無關，無子類（約 680 行）
@@ -21,7 +21,7 @@ Backtester                      ← 唯一引擎，市場無關，無子類（�
 
 這是 Backtrader `Cerebro`、Zipline `run_algorithm`、QuantConnect Lean `Engine`、Nautilus `BacktestEngine` 的一致做法：**引擎唯一，行為注入**。
 
-**新增一個市場不需要修改 `core/backtest/backtester.py` 一行。**
+**新增一個（市場, 商品）組合不需要修改 `core/backtest/backtester.py` 一行。**
 
 ---
 
@@ -110,9 +110,9 @@ def execute_bar(self, date: datetime.date, quotes: List[BaseQuote]) -> None:
 
 **已知限制**：Tick 級別的 `order.date` 只到「日」（`StockQuote.date` 對 tick 也是 `datetime.date`），因此同一 bar 內的 tick 委託無法依成交時間排序，會被壓成依代號排序。要恢復真正的時間序，得讓 `check_*_signal` 回傳帶時間戳的委託事件——屬事件迴圈的範圍，見 [§5.1](#51-事件驅動迴圈長期方向)。
 
-### 2.3 方向與市場是兩條獨立的軸
+### 2.3 方向與商品類別是兩條獨立的軸
 
-**方向（LONG／SHORT）與市場（股票／期貨）互不相干。** `validate_orders()`、`resolve_open_action()`、`resolve_close_action()` 與市場無關（期貨的多空語意與股票相同），一律留在引擎內。
+**方向（LONG／SHORT）與商品類別（股票／期貨）互不相干。** `validate_orders()`、`resolve_open_action()`、`resolve_close_action()` 與商品類別無關（期貨的多空語意與股票相同），一律留在引擎內。
 
 [放空回測框架規格](short-selling-framework.md) §1 原則 2「方向來自訂單，策略只做白名單」是本架構的**基礎**，不是被取代的對象。
 
@@ -128,7 +128,7 @@ def execute_bar(self, date: datetime.date, quotes: List[BaseQuote]) -> None:
 | | `core/backtest/models/settlement_model.py` | `BaseSettlementModel` ＋ `TwStockSettlementModel` |
 | 資料源 | `core/backtest/datafeed/base.py`／`tw_stock_datafeed.py`／`market_calendar.py` | `BaseDataFeed` ＋ `TwStockDataFeed` |
 | 資料模型 | `core/models/base/` | `BaseQuote`／`BaseOrder`／`BasePosition`／`BaseTradeRecord`／`BaseAccount`，識別欄位一律 `symbol` |
-| 策略 | `core/strategies/base.py` | `BaseStrategy`，`market` 欄位為 factory 的分派鍵 |
+| 策略 | `core/strategies/base.py` | `BaseStrategy`，`market` ＋ `instrument_type` 兩欄位為 factory 的分派鍵 |
 | 部位 | `core/managers/base/position_manager.py` | FIFO 拆單主幹 ＋ `settle_daily()` 掛點 |
 
 ---
@@ -154,16 +154,16 @@ model 之間刻意**不互相依賴**，需要共享的狀態以 dict 參照傳�
 
 ---
 
-## 四、新增一個市場要做什麼
+## 四、新增一個（市場, 商品）組合要做什麼
 
-1. `core/models/<market>/`：繼承 `core/models/base/` 的五個 model（識別欄位用 `symbol`）。
-2. `core/strategies/<market>/base.py`：繼承 `BaseStrategy`，設定 `self.market`。
-3. `core/backtest/models/`：實作該市場的 `InstrumentSpec`／`FillModel`／`CostModel`／`SettlementModel`。
-4. `core/backtest/datafeed/`：實作該市場的 `DataFeed`。
-5. `core/managers/<market>/position_manager.py`：繼承 `BasePositionManager`，實作 `close_single_position()` 與 `settle_daily()`。
-6. `core/backtest/factory.py`：加一個 `elif strategy.market == Market.FUTURE:` 分支。
+1. `core/models/<instrument>/`：繼承 `core/models/base/` 的五個 model（識別欄位用 `symbol`）。
+2. `core/strategies/<instrument>/base.py`：繼承 `BaseStrategy`，設定 `self.market` 與 `self.instrument_type`。
+3. `core/backtest/models/`：實作該組合的 `InstrumentSpec`／`FillModel`／`CostModel`／`SettlementModel`（命名帶市場前綴，如 `TwStockSpec`）。
+4. `core/backtest/datafeed/`：實作該組合的 `DataFeed`。
+5. `core/managers/<instrument>/position_manager.py`：繼承 `BasePositionManager`，實作 `close_single_position()` 與 `settle_daily()`。
+6. `core/backtest/factory.py`：加一個 `elif (strategy.market, strategy.instrument_type) == (Market.TW, InstrumentType.FUTURE):` 分支。
 
-**既有檔案的改動量：`factory.py` 一個分支。** `backtester.py`、`StrategyLoader`、`run.py` 皆為 0 行——`StrategyLoader` 會自動掃描 `core/strategies/` 下的所有市場子套件，CLI 也不需要 `--market`（市場由策略類別自己宣告）。
+**既有檔案的改動量：`factory.py` 一個分支。** `backtester.py`、`StrategyLoader`、`run.py` 皆為 0 行——`StrategyLoader` 會自動掃描 `core/strategies/` 下的所有子套件，CLI 也不需要 `--market`（市場與商品皆由策略類別自己宣告）。
 
 > **注意**：`core/backtest/__init__.py` 與 `core/strategies/__init__.py` 刻意**不做套件層 eager import**。任何在此 re-export 的模組都會讓「引擎的相依項無法反向 import 引擎底下的模組」，兩處都因此發生過循環 import。呼叫端一律使用完整模組路徑。
 
@@ -265,7 +265,7 @@ model 之間刻意**不互相依賴**，需要共享的狀態以 dict 參照傳�
 | 回歸線 | 內容 | 需求 | 耗時 |
 |---|---|---|---|
 | SHORT | 12 組腳本情境、3 份快照（交易紀錄／期末未平倉部位／帳戶與事件計數） | 純記憶體，不連 DB | 0.06 秒 |
-| LONG | `MomentumStrategy1` 2024-01~06，915 筆 × 13 欄逐筆比對 | 需 `core/database/stock.db` | 約 54 秒 |
+| LONG | `MomentumStrategy1` 2024-01~06，915 筆 × 13 欄逐筆比對 | 需 `core/database/tw_stock.db` | 約 54 秒 |
 
 SHORT 的 12 組情境刻意各只動一個變因，任一情境快照有變即可直接指向出問題的掛點：當沖同日回補（稅率減半）、融券留倉 10 天、FIFO 部分回補的等比例攤提、維持率斷頭、當沖鎖漲停轉留倉、當沖遇停券回補日（釘住結算順序）、SBL 與 MARGIN 借券費對照、除權息停券日的 MARGIN／SBL 對照、跨除息日的股利補償（含部分回補攤提）。
 

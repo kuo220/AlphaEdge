@@ -14,7 +14,7 @@ from core.api.stock_price_api import StockPriceAPI
 from core.api.stock_tick_api import StockTickAPI
 from core.backtest.datafeed.base import BaseDataFeed
 from core.backtest.datafeed.market_calendar import MarketCalendar
-from core.config import DB_PATH
+from core.config import TW_STOCK_DB_PATH
 from core.models import StockQuote
 from core.strategies.base import BaseStrategy
 from core.utils import Scale
@@ -61,7 +61,7 @@ class TwStockDataFeed(BaseDataFeed):
     def setup(self, strategy: BaseStrategy) -> None:
         """從資料庫載入資料；Tick 級別才建立 DolphinDB 連線"""
 
-        self.conn = sqlite3.connect(DB_PATH)
+        self.conn = sqlite3.connect(TW_STOCK_DB_PATH)
         self.start_date = strategy.start_date
         self.end_date = strategy.end_date
 

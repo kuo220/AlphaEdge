@@ -3,7 +3,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from core.config import DB_PATH
+from core.config import TW_STOCK_DB_PATH
 from tests.backtest.make_baseline import (
     BASELINE_FILE_NAME,
     SNAPSHOT_DIR,
@@ -17,7 +17,7 @@ pytestmark = pytest.mark.slow
 
 
 @pytest.mark.skipif(
-    not Path(DB_PATH).exists(), reason="需要 stock.db 才能重跑 LONG 回歸"
+    not Path(TW_STOCK_DB_PATH).exists(), reason="需要 tw_stock.db 才能重跑 LONG 回歸"
 )
 def test_long_regression_snapshot() -> None:
     """重跑 MomentumStrategy1 並與 baseline 逐筆比對"""

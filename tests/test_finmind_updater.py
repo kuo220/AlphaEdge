@@ -76,7 +76,7 @@ def test_finmind_updater():
         project_root / "core" / "backtest" / "results" / "logs"
     )
     temp_config.LOGS_DIR_PATH = project_root / "core" / "logs"
-    temp_config.DB_PATH = project_root / "core" / "database" / "stock.db"
+    temp_config.TW_STOCK_DB_PATH = project_root / "core" / "database" / "tw_stock.db"
     temp_config.FINMIND_DOWNLOADS_PATH = (
         project_root / "core" / "pipeline" / "downloads" / "tw_stock" / "finmind"
     )
@@ -99,7 +99,7 @@ def test_finmind_updater():
         import core.config as real_config
 
         # 更新臨時 config 的屬性為真實值
-        temp_config.DB_PATH = real_config.DB_PATH
+        temp_config.TW_STOCK_DB_PATH = real_config.TW_STOCK_DB_PATH
         temp_config.FINMIND_DOWNLOADS_PATH = real_config.FINMIND_DOWNLOADS_PATH
         # 將真實的 config 放回 sys.modules
         sys.modules["core.config"] = real_config
@@ -109,7 +109,7 @@ def test_finmind_updater():
         sys.modules["core.config"] = temp_config
 
     # 現在導入 updater（使用真正的或臨時的 config）
-    from core.pipeline.updaters.finmind_updater import FinMindUpdater
+    from core.pipeline.tw.updaters.finmind_updater import FinMindUpdater
 
     # 創建臨時資料庫檔案
     temp_dir: Path = project_root / "tests" / "temp"
@@ -121,11 +121,16 @@ def test_finmind_updater():
     print(f"📁 臨時資料庫路徑: {temp_db_path}")
 
     try:
-        # 使用 mock 替換 DB_PATH
+        # 使用 mock 替換 TW_STOCK_DB_PATH
         with (
-            patch("core.config.DB_PATH", temp_db_path),
-            patch("core.pipeline.updaters.finmind_updater.DB_PATH", temp_db_path),
-            patch("core.pipeline.loaders.finmind_loader.DB_PATH", temp_db_path),
+            patch("core.config.TW_STOCK_DB_PATH", temp_db_path),
+            patch(
+                "core.pipeline.tw.updaters.finmind_updater.TW_STOCK_DB_PATH",
+                temp_db_path,
+            ),
+            patch(
+                "core.pipeline.tw.loaders.finmind_loader.TW_STOCK_DB_PATH", temp_db_path
+            ),
         ):
             # ===== 測試 1: update_stock_info_with_warrant =====
             print(f"\n{'=' * 60}")

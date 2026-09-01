@@ -17,19 +17,22 @@ from core.config import (
     FINMIND_BROKER_TRADING_START_DATE,
     TICK_UPDATE_START_DATE,
 )
-from core.pipeline.updaters.financial_statement_updater import (
+from core.pipeline.tw.updaters.financial_statement_updater import (
     FinancialStatementUpdater,
 )
-from core.pipeline.updaters.finmind_updater import FinMindUpdater
-from core.pipeline.updaters.futures_price_updater import FuturesPriceUpdater
-from core.pipeline.updaters.monthly_revenue_report_updater import (
+from core.pipeline.tw.updaters.finmind_updater import FinMindUpdater
+from core.pipeline.tw.updaters.futures_price_updater import FuturesPriceUpdater
+from core.pipeline.tw.updaters.futures_stock_universe_updater import (
+    FuturesStockUniverseUpdater,
+)
+from core.pipeline.tw.updaters.monthly_revenue_report_updater import (
     MonthlyRevenueReportUpdater,
 )
-from core.pipeline.updaters.stock_chip_updater import StockChipUpdater
-from core.pipeline.updaters.stock_dividend_updater import StockDividendUpdater
-from core.pipeline.updaters.stock_margin_updater import StockMarginUpdater
-from core.pipeline.updaters.stock_price_updater import StockPriceUpdater
-from core.pipeline.updaters.stock_tick_updater import StockTickUpdater
+from core.pipeline.tw.updaters.stock_chip_updater import StockChipUpdater
+from core.pipeline.tw.updaters.stock_dividend_updater import StockDividendUpdater
+from core.pipeline.tw.updaters.stock_margin_updater import StockMarginUpdater
+from core.pipeline.tw.updaters.stock_price_updater import StockPriceUpdater
+from core.pipeline.tw.updaters.stock_tick_updater import StockTickUpdater
 from core.pipeline.utils import DataLoadError, DataType, FinMindDataType
 
 """
@@ -71,6 +74,8 @@ Target 對照表
   margin                      信用交易（融資融券餘額）
   dividend                    除權除息計算結果表（含還原係數、現金股利）
   price                       收盤價
+  futures_price               台期貨每日行情（寫入 tw_futures.db）
+  futures_stock_universe      股票期貨標的池（寫入 tw_futures.db）
   fs                          財報 (Financial Statement)
   mrr                         月營收報表 (Monthly Revenue Report)
   finmind                     全部 FinMind（台股總覽 + 證券商 + 券商分點）
@@ -100,8 +105,11 @@ Target 對照表
   # 收盤價
   python -m tasks.update_db --target price
 
-  # 更新台期貨每日行情（寫入 futures.db，商品見 FUTURES_TARGET_PRODUCTS）
+  # 更新台期貨每日行情（寫入 tw_futures.db，商品見 FUTURES_TARGET_PRODUCTS）
   python -m tasks.update_db --target futures_price
+
+  # 更新股票期貨標的池（寫入 tw_futures.db；每次執行留下一份當日快照）
+  python -m tasks.update_db --target futures_stock_universe
 
   # 財報
   python -m tasks.update_db --target fs
@@ -346,6 +354,14 @@ def main() -> None:
             futures_price_updater.update(
                 start_date=time_config["start_date"], end_date=time_config["end_date"]
             )
+
+    if DataType.FUTURES_STOCK_UNIVERSE.name.lower() in targets:
+        with target_guard("futures_stock_universe", failed_targets):
+            # 標的池是「當下快照」，沒有回補區間，故不取 time_config
+            futures_stock_universe_updater: FuturesStockUniverseUpdater = (
+                FuturesStockUniverseUpdater()
+            )
+            futures_stock_universe_updater.update()
 
     if DataType.FS.name.lower() in targets:
         with target_guard("fs", failed_targets):

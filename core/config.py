@@ -63,7 +63,7 @@ PIPELINE_DOWNLOADS_PATH: Path = get_static_resolved_path(
     base_dir=BASE_DIR_PATH, dir_name="pipeline/downloads"
 )
 
-# 中繼檔依「市場」分層，與 core/database/ 的 stock.db／futures.db 同一個維度。
+# 中繼檔依「市場」分層，與 core/database/ 的 tw_stock.db／tw_futures.db 同一個維度。
 # 程式碼（pipeline / api / adapters）維持命名平行不分目錄——兩者搬遷成本差一個量級，
 # 決策理由見 backlog/台期貨ETL與回測架構規劃.md §3.0
 TW_STOCK_DOWNLOADS_PATH: Path = get_static_resolved_path(
@@ -168,19 +168,22 @@ BROKER_INFO_CSV_PATH: Path = get_static_resolved_path(
 # -----------------------------------------------------------------------
 # === Database Files Full Paths ===
 # -----------------------------------------------------------------------
-#
-DB_NAME: str = "stock.db"
+# 常數名與檔名皆帶市場軸（TW_）：`core/database/` 是按市場分庫，
+# 美股進來時會是 us_stock.db，泛用的檔名（stock.db）會失去指向
+TW_STOCK_DB_NAME: str = "tw_stock.db"
 TICK_DB_NAME: str = "tickDB"
 
-DB_PATH: Path = get_static_resolved_path(base_dir=DATABASE_DIR_PATH, dir_name=DB_NAME)
+TW_STOCK_DB_PATH: Path = get_static_resolved_path(
+    base_dir=DATABASE_DIR_PATH, dir_name=TW_STOCK_DB_NAME
+)
 TICK_DB_PATH: str = f"{os.getenv('DDB_PATH')}{TICK_DB_NAME}"
 
 # 期貨與股票分庫：合約碼（contract_id）與 stock_id 語意不同，混在同一個 DB
 # 會讓「這張表的主鍵到底是什麼」失去單一答案
-FUTURES_DB_NAME: str = "futures.db"
+TW_FUTURES_DB_NAME: str = "tw_futures.db"
 
-FUTURES_DB_PATH: Path = get_static_resolved_path(
-    base_dir=DATABASE_DIR_PATH, dir_name=FUTURES_DB_NAME
+TW_FUTURES_DB_PATH: Path = get_static_resolved_path(
+    base_dir=DATABASE_DIR_PATH, dir_name=TW_FUTURES_DB_NAME
 )
 
 
@@ -201,7 +204,7 @@ EQUITY_CHANGE_TABLE_NAME: str = "equity_change"
 STOCK_INFO_TABLE_NAME: str = "taiwan_stock_info"
 STOCK_INFO_WITH_WARRANT_TABLE_NAME: str = "taiwan_stock_info_with_warrant"
 SECURITIES_TRADER_INFO_TABLE_NAME: str = "taiwan_securities_trader_info"
-# 台期貨（皆位於 futures.db）
+# 台期貨（皆位於 tw_futures.db）
 FUTURES_CONTRACT_TABLE_NAME: str = "futures_contract"  # 合約／商品規格
 FUTURES_PRICE_DAILY_TABLE_NAME: str = "futures_price_daily"  # 各月份合約日 K
 FUTURES_CONTINUOUS_TABLE_NAME: str = "futures_continuous"  # 連續合約（換月接續後）
@@ -254,16 +257,16 @@ DEFAULT_MARGIN_START_DATE: datetime.date = datetime.date(2013, 1, 1)
 DEFAULT_DIVIDEND_START_DATE: datetime.date = datetime.date(2013, 1, 1)
 DEFAULT_PRICE_START_DATE: datetime.date = datetime.date(2013, 1, 1)
 
-# 台期貨回補起點：**1998-07-21 是 TX 臺股期貨的上市日**，也是 TAIFEX 每日行情
-# 實測能查到的最早一天（2026-08-29 逐日確認：07/20 無資料、07/21 起有）。
+# 台期貨回補起點（2026-08-29 由使用者決定）。
 #
-# 刻意**不對齊台股資料的 2013-01-01**：那條線是股票各來源的取得限制，不是設計選擇。
-# 期貨策略多為趨勢／波動型，1998~2012 涵蓋網路泡沫、SARS 與 2008 金融海嘯，
-# 正是這類策略最需要的尾部風險樣本，現在不取、日後回補的代價高得多。
+# **來源能給的更早**：TX 臺股期貨可回溯到 1998-07-21（其上市日，逐日實測確認
+# 07/20 無資料、07/21 起有），亦即 TAIFEX 提供完整歷史、沒有截斷。
+# 此處取 2015-01-01 是**刻意收窄**，不是資料限制。
 #
-# 副作用：1998~2012 只有期貨資料、沒有對應的台股籌碼與除權息，
-# 需要期現搭配的策略（價差、避險）其可用區間仍受限於 2013 起。
-DEFAULT_FUTURES_START_DATE: datetime.date = datetime.date(1998, 7, 21)
+# 要改回更早的起點，改這一行即可——**已入庫的資料不受影響**（loader 走
+# INSERT OR IGNORE），續跑會從表內該商品的最新日接續，
+# 故往前擴張需要另行指定區間重跑，見 `FuturesPriceUpdater.update()`。
+DEFAULT_FUTURES_START_DATE: datetime.date = datetime.date(2015, 1, 1)
 DEFAULT_START_YEAR: int = 2013
 DEFAULT_END_MONTH: int = 12
 TICK_UPDATE_START_DATE: datetime.date = datetime.date(2024, 5, 10)

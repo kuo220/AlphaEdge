@@ -78,7 +78,7 @@
 
 ## 實作規格
 
-動工時照這五條做，全部集中在 `core/pipeline/updaters/finmind_updater.py` 的 metadata 讀寫處。
+動工時照這五條做，全部集中在 `core/pipeline/tw/updaters/finmind_updater.py` 的 metadata 讀寫處。
 
 1. **決定請求區間**：起始日 = `max(latest_date + 1, last_attempted_date + 1)`。
 2. **API 有資料並寫入 DB**：照現有流程從 DB 更新 `earliest_date` / `latest_date`，
@@ -106,5 +106,5 @@
 
 ## 相關
 
-- `core/pipeline/updaters/finmind_updater.py`、broker trading metadata JSON
+- `core/pipeline/tw/updaters/finmind_updater.py`、broker trading metadata JSON
 - [FinMind 爬蟲清洗儲存流程優化](../../backlog/FinMind爬蟲清洗儲存流程優化.md)——同一條 pipeline 的其他優化，其範圍界線刻意排除本文件的主題

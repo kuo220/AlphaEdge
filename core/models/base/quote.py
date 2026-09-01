@@ -3,7 +3,7 @@ from typing import Optional, Union
 
 from core.utils import Scale
 
-"""BaseQuote: 市場無關的報價骨架（識別欄位一律為 symbol）"""
+"""BaseQuote: 市場與商品皆無關的報價骨架（識別欄位一律為 symbol）"""
 
 
 class BaseQuote:

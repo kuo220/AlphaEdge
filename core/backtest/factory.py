@@ -9,9 +9,9 @@ from core.managers.stock.position_manager import StockPositionManager
 from core.models import StockAccount
 from core.strategies.base import BaseStrategy
 from core.strategies.stock import BaseStockStrategy
-from core.utils import Market, PositionType, ShortMethod
+from core.utils import InstrumentType, Market, PositionType, ShortMethod
 
-"""Backtester factory: 全專案唯一一處依市場分派的地方"""
+"""Backtester factory: 全專案唯一一處依（市場, 商品）組合分派的地方"""
 
 
 def build_backtester(
@@ -20,13 +20,17 @@ def build_backtester(
 ) -> Backtester:
     """
     - Description:
-        依策略宣告的市場組裝對應的 model 組合
+        依策略宣告的（市場, 商品）組合組裝對應的 model 組合
 
-        這是全專案唯一的 `if market ==`。新增一個市場只需在此加一個分支，
+        這是全專案唯一的分派點。新增一個組合只需在此加一個分支，
         `Backtester` 本身一行都不用改。
+
+        **分派鍵是兩個欄位的組合而非單一欄位**：model 組合本來就是按組合
+        實作的（`TwStockSpec`／`TwStockFillModel` ＝ TW ＋ STOCK），
+        單靠 `market` 無法區分台股與美股的股票策略。
     - Parameters:
         - strategy: BaseStrategy
-            要回測的策略；其 `market` 欄位為分派鍵
+            要回測的策略；其 `market` ＋ `instrument_type` 兩欄位為分派鍵
         - adjusted_price: bool
             訊號是否使用還原價（後復權）。**預設 True**：未還原時除權息跳空會被
             當成真實漲跌，是資料正確性問題而非可選功能
@@ -35,13 +39,18 @@ def build_backtester(
             要用哪種價格由 factory 這個「政策層」決定
     - Return:
         - Backtester
-            已注入該市場 model 組合的引擎
+            已注入該（市場, 商品）組合對應 model 組合的引擎
     """
 
-    if strategy.market == Market.STOCK:
+    if (strategy.market, strategy.instrument_type) == (
+        Market.TW,
+        InstrumentType.STOCK,
+    ):
         return build_tw_stock_backtester(strategy, adjusted_price)
 
-    raise ValueError(f"尚未支援的市場：{strategy.market}")
+    raise ValueError(
+        f"尚未支援的（市場, 商品）組合：{strategy.market}, {strategy.instrument_type}"
+    )
 
 
 def build_tw_stock_backtester(

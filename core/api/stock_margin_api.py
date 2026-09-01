@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional
 import pandas as pd
 
 from core.api.base import BaseDataAPI
-from core.config import DB_PATH, MARGIN_TABLE_NAME
+from core.config import MARGIN_TABLE_NAME, TW_STOCK_DB_PATH
 from core.pipeline.utils.sqlite_utils import SQLiteUtils
 from core.utils.log_manager import LogManager
 
@@ -26,7 +26,7 @@ class StockMarginAPI(BaseDataAPI):
         """Set Up the Config of Data API"""
 
         if self.owns_conn:
-            self.conn = sqlite3.connect(DB_PATH)
+            self.conn = sqlite3.connect(TW_STOCK_DB_PATH)
         LogManager.setup_logger("stock_margin_api.log")
 
     def get(self, date: datetime.date) -> pd.DataFrame:

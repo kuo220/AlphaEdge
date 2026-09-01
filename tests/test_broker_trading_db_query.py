@@ -9,9 +9,9 @@ import pandas as pd
 project_root: Path = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
-from core.config import DB_PATH, STOCK_TRADING_DAILY_REPORT_TABLE_NAME
+from core.config import STOCK_TRADING_DAILY_REPORT_TABLE_NAME, TW_STOCK_DB_PATH
 
-"""查詢 stock.db 中 broker_trading 資料，確認是否已寫入"""
+"""查詢 tw_stock.db 中 broker_trading 資料，確認是否已寫入"""
 
 
 def test_broker_trading_db_query(
@@ -25,16 +25,16 @@ def test_broker_trading_db_query(
     print(f"{'=' * 60}")
 
     # 檢查資料庫檔案是否存在
-    if not DB_PATH.exists():
-        print(f"❌ 資料庫檔案不存在: {DB_PATH}")
+    if not TW_STOCK_DB_PATH.exists():
+        print(f"❌ 資料庫檔案不存在: {TW_STOCK_DB_PATH}")
         return
 
-    print(f"\n📁 資料庫路徑: {DB_PATH}")
+    print(f"\n📁 資料庫路徑: {TW_STOCK_DB_PATH}")
     print(f"📊 資料表名稱: {STOCK_TRADING_DAILY_REPORT_TABLE_NAME}")
 
     try:
         # 連接資料庫
-        conn = sqlite3.connect(str(DB_PATH))
+        conn = sqlite3.connect(str(TW_STOCK_DB_PATH))
 
         # 1. 檢查表是否存在
         cursor = conn.cursor()

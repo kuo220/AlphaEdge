@@ -182,7 +182,7 @@ sequenceDiagram
 
 ---
 
-## 五、新增一個市場要動哪些檔案
+## 五、新增一個（市場, 商品）組合要動哪些檔案
 
 既有檔案的改動量是**一個 `elif` 分支**：
 
@@ -193,7 +193,7 @@ sequenceDiagram
 | 新增 | `core/backtest/models/` 的該市場 `InstrumentSpec`／`FillModel`／`CostModel`／`SettlementModel` |
 | 新增 | `core/backtest/datafeed/` 的該市場 `DataFeed` |
 | 新增 | `core/managers/<market>/position_manager.py` |
-| **修改** | `core/backtest/factory.py`：加一個 `elif strategy.market == Market.FUTURE:` |
+| **修改** | `core/backtest/factory.py`：加一個 `elif (strategy.market, strategy.instrument_type) == (Market.TW, InstrumentType.FUTURE):` |
 
 `backtester.py`、`strategy_loader.py`、`run.py` 皆為 **0 行改動**——`StrategyLoader` 會自動掃描新的市場子套件，CLI 也不需要 `--market`（市場由策略類別自己宣告）。
 

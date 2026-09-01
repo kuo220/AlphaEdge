@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from core.pipeline.cleaners.futures_price_cleaner import FuturesPriceCleaner
+from core.pipeline.tw.cleaners.futures_price_cleaner import FuturesPriceCleaner
 from core.utils import FuturesSession
 
 """

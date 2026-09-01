@@ -81,7 +81,7 @@ python -m tasks.update_db --help
 ```bash
 ruff check .            # lint
 ruff format .           # 格式化
-pytest -m "not slow"    # 略過需要 stock.db 與外部 API 憑證的測試
+pytest -m "not slow"    # 略過需要 tw_stock.db 與外部 API 憑證的測試
 ```
 
 可安裝 pre-commit 讓每次 commit 前自動跑同一組檢查：

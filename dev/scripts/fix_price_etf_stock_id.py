@@ -41,7 +41,7 @@ import argparse
 import sqlite3
 from typing import Dict, List, Tuple
 
-from core.config import DB_PATH
+from core.config import TW_STOCK_DB_PATH
 
 # 4 碼舊代號 → (正確的 6 碼代號, 該代號下屬於 ETF 的證券名稱)
 ETF_CODE_FIXES: Dict[str, Tuple[str, Tuple[str, ...]]] = {
@@ -96,7 +96,7 @@ def main() -> None:
     parser.add_argument("--dry-run", action="store_true", help="只報告，不寫入資料庫")
     args = parser.parse_args()
 
-    conn: sqlite3.Connection = sqlite3.connect(DB_PATH)
+    conn: sqlite3.Connection = sqlite3.connect(TW_STOCK_DB_PATH)
 
     print("=== 動手前 ===")
     for code, count in find_ambiguous_codes(conn):

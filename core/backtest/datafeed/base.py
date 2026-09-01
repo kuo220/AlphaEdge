@@ -14,7 +14,7 @@ class BaseDataFeed(ABC):
     資料源：把某個市場的原始資料變成引擎看得懂的報價
 
     不算「行為 model」，但必須一起抽——否則引擎的資料載入仍會直接 import
-    各市場的具體 API，`Backtester` 就不可能與市場無關。
+    各（市場, 商品）組合的具體 API，`Backtester` 就不可能與兩者無關。
     """
 
     @abstractmethod

@@ -2,7 +2,7 @@ import datetime
 
 from core.utils import PositionType
 
-"""BaseTradeRecord: 市場無關的交易紀錄骨架（識別欄位一律為 symbol）"""
+"""BaseTradeRecord: 市場與商品皆無關的交易紀錄骨架（識別欄位一律為 symbol）"""
 
 
 class BaseTradeRecord:
@@ -15,7 +15,7 @@ class BaseTradeRecord:
     - ⚠ 報表與統計的時間軸一律使用 exit_date，不要用 sell_date
       （SHORT 的 sell_date 是開倉日，用它會把損益畫在開倉那天）
 
-    方向推導與市場無關（期貨的多空語意與股票相同），故 setup_entry_exit() 留在此。
+    方向推導與商品類別無關（期貨的多空語意與股票相同），故 setup_entry_exit() 留在此。
     """
 
     def __init__(

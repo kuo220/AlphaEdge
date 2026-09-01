@@ -7,8 +7,8 @@ import shioaji as sj
 from loguru import logger
 
 from core.config import API_KEY, API_SECRET_KEY, TICK_DOWNLOADS_PATH
-from core.pipeline.cleaners.stock_tick_cleaner import StockTickCleaner
-from core.pipeline.crawlers.stock_tick_crawler import StockTickCrawler
+from core.pipeline.tw.cleaners.stock_tick_cleaner import StockTickCleaner
+from core.pipeline.tw.crawlers.stock_tick_crawler import StockTickCrawler
 from core.utils import ShioajiAccount, TimeUtils
 
 """測試 StockTickCrawler：爬取與清洗，不寫入資料庫

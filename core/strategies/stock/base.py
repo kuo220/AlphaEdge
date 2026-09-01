@@ -16,6 +16,7 @@ from core.strategies.base import BaseStrategy
 from core.utils import (
     Action,
     DayTradeUncoveredPolicy,
+    InstrumentType,
     MarginCallPolicy,
     Market,
     ShortMethod,
@@ -31,12 +32,13 @@ class BaseStockStrategy(BaseStrategy):
         super().__init__()
 
         """ === Strategy Setting === """
-        self.market: str = Market.STOCK  # 市場別：台股
+        self.market: Market = Market.TW  # 市場：台灣
+        self.instrument_type: InstrumentType = InstrumentType.STOCK  # 商品：股票
 
         """
         === Short Setting ===
 
-        台股信用交易專屬；方向白名單與執行順序屬市場無關，已上移至 BaseStrategy
+        台股信用交易專屬；方向白名單與執行順序屬市場與商品皆無關，已上移至 BaseStrategy
         （`enable_intraday` 與 `bar_execution_order` 的對應表見 `BaseStrategy.__init__`
         的〈Direction Setting〉區塊，推導由 `Backtester.get_execution_order()` 執行）。
 

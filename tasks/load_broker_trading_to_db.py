@@ -1,13 +1,13 @@
-"""將 broker_trading CSV 寫入 stock.db 之 taiwan_stock_trading_daily_report_secid_agg 表"""
+"""將 broker_trading CSV 寫入 tw_stock.db 之 taiwan_stock_trading_daily_report_secid_agg 表"""
 
 from loguru import logger
 
-from core.pipeline.loaders.finmind_loader import FinMindLoader
+from core.pipeline.tw.loaders.finmind_loader import FinMindLoader
 
 
 def main() -> None:
-    """將 broker_trading 資料載入到 stock.db"""
-    logger.info("開始載入 broker_trading 資料到 stock.db...")
+    """將 broker_trading 資料載入到 tw_stock.db"""
+    logger.info("開始載入 broker_trading 資料到 tw_stock.db...")
 
     loader: FinMindLoader | None = None
 
