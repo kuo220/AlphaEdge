@@ -29,7 +29,7 @@
 |------|----------|----------|----------|:----:|--------------|
 | S1 | 常數與兩張表的 schema 定案 | `core/config.py` | 兩個表名常數與中繼目錄可解析 | ✅ | **2026-09-01 完成**。比例欄定案為**小數**（見該步驟） |
 | S2 | 現行保證金快照 ETL（指數類，四層） | `core/pipeline/tw/*/futures_margin_*.py`、`tasks/update_db.py` | 19 條測試 ＋ `--target futures_margin` 端對端驗過 | ✅ | **2026-09-01 完成**：7 個商品入庫、重跑 0 新增 |
-| S3 | 現行保證金快照 ETL（股票類） | `core/pipeline/tw/*/stock_futures_margin_*.py` | 17 條測試 ＋ 端對端；320 檔對回標的池 320/320 | ✅ | **2026-09-01 完成**。**分表依據修正為「金額 vs 比例」**，見該步驟 |
+| S3 | 現行保證金快照 ETL（股票類） | `core/pipeline/tw/*/futures_margin_*.py`（與 S2 同檔） | 17 條測試 ＋ 端對端；320 檔對回標的池 320/320 | ✅ | **2026-09-01 完成**。**分表依據修正為「金額 vs 比例」**，見該步驟 |
 | S4 | 歷史回補：2020/03 起的公告 CSV | `core/pipeline/tw/*/futures_margin_*.py` | 鏈式驗證通過（見驗收標準） | ⬜ | 相依 S2；44 筆 TX 公告有 CSV 附件 |
 | S5 | `FuturesMarginAPI` ＋ 接進 `FuturesMarginConfig` | `core/api/futures_margin_api.py`、`core/managers/futures/position_manager.py` | 既有 23 條部位測試全綠；查表值取代固定比率 | ⬜ | 相依 S4 |
 | S6 | 2015~2019 補完（OCR） | — | OCR 值與下一次公告的「調整前」欄吻合 | ⏸ | **暫緩**：來源為掃描影像，需系統套件 ＋ 有靜默錯誤風險，解除條件見該步驟 |
@@ -205,7 +205,13 @@
 > - 某一段表頭對不上時**只有該段回 None，另一段照常入庫**——兩段的來源與更新日期
 >   本來就獨立，一段壞掉不該連累另一段。
 >
-> **驗證**：`tests/test_stock_futures_margin.py` 17 條 ＋ 端對端實跑——
+> **檔案與 S2 合併**（2026-09-01）：一個資料類型一組四層檔案，與 `futures_price_*`／
+> `futures_stock_universe_*` 的既有慣例一致。`FuturesMarginCleaner` 同時有
+> `clean_index_margin()` 與 `clean_stock_margin()`，`FuturesMarginLoader` 同時管兩張表
+> （`add_to_db()` 寫金額表、`add_rates_to_db()` 寫比例表，共用 `insert_ignore()`）。
+> 合併前後跑同一組 36 條測試，集合逐字相同。
+>
+> **驗證**：`tests/test_futures_margin.py` 的股票類 17 條 ＋ 端對端實跑——
 > 比例 296 列（生效日 2026-08-28）、ETF 金額 24 列（2026-08-12）入庫，
 > 第二次執行兩者皆新增 0 列；**320 檔與 `futures_stock_universe` 雙向完全吻合**
 > （只在保證金表 0 檔、只在標的池 0 檔）。

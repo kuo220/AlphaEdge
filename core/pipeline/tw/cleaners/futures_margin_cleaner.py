@@ -3,7 +3,7 @@ import datetime
 import re
 from io import StringIO
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, NamedTuple, Optional
 
 import pandas as pd
 from loguru import logger
@@ -13,27 +13,74 @@ from core.pipeline.shared.base_cleaner import BaseDataCleaner
 from core.utils import FUTURES_MULTIPLIER, FileEncoding
 
 """
-台期貨保證金清洗（指數類）
+台期貨保證金清洗（指數類 ＋ 股票類）
 
-1. **生效日取自檔案第一行的「更新日期」，不是抓取日**
+**兩支來源、三條產出**，分表依據是「金額 vs 比例」而不是「指數 vs 股票」：
+
+| 來源 | 段落 | 產出 |
+|------|------|------|
+| 指數類一覽表 | 全份 | 每口金額 → `futures_margin_history` |
+| 股票類一覽表 | 一(一) 股期（股票） | **適用比例** → `stock_futures_margin_rate_history` |
+| 股票類一覽表 | 一(二) 股期（ETF） | **每口金額** → `futures_margin_history`（與指數期貨同表） |
+
+ETF 股期給的是每口固定金額，語意與臺股期貨相同；若因為它掛在「股票類」檔案裡
+就塞進比例表，比例欄會永遠是 NULL。
+
+---
+
+**共通的四個坑**（兩支來源都適用）：
+
+1. **生效日取自「更新日期」，不是抓取日**
     那是這組保證金**開始適用**的日子。同一組保證金連抓 30 天只會產生 1 列
     （主鍵相同被 loader 的 `INSERT OR IGNORE` 擋掉），本表是**變動序列**
     不是每日快照——這正是它能回答「某日生效的保證金是多少」的原因。
+    解析不到一律整批放棄，**不可退回今天**。
 
 2. **一律用 `csv` 模組解析，不可 `split(",")`**
-    每列尾端有多餘的逗號，且股票類（S3）的公司名稱含 `"...Co., Ltd."`；
+    每列尾端有多餘的逗號，且股票類的公司名稱含 `"...Co., Ltd."`；
     用 split 會靜默錯位（實測把 `Ltd.` 讀成級距值）。
 
-3. **契約乘數比例是免費的正確性檢查，但只在同一標的指數內成立**
+3. **表頭對不上就中止**，那代表站方改版；硬解只會把錯的數字寫進去。
+
+4. **代碼帶尾端空白**（`DFF    `），必須 strip 才對得回 `futures_stock_universe`。
+
+---
+
+**指數類專屬**：
+
+5. **契約乘數比例是免費的正確性檢查，但只在同一標的指數內成立**
     同一個標的指數的大小台，保證金與乘數等比例——2026-09-01 實測
     加權指數 TX(200) 701,000／MTX(50) 175,250／TMF(10) 35,050 皆為每點 3,505 元。
     **但跨指數不成立**：電子每點 244.50、金融每點 158.00，因為那是三個不同的指數。
     故檢查必須**分家族做**，拿 TX 去比 TE 會誤判成解析錯誤。
 
-4. **只收得進 `FUTURES_MULTIPLIER` 的商品**
+6. **只收得進 `FUTURES_MULTIPLIER` 的商品**
     一覽表含選擇權的風險保證金 A／B／C 值與尚未登錄乘數的商品；
     前者語意完全不同（不是每口金額），後者連 PnL 都算不出來。
-    兩者一律不入庫，並在 log 列出被濾掉的名稱供人工複查。
+
+---
+
+**股票類專屬**：
+
+7. **一份 CSV 有四個段落，欄位語意與更新日期都不同**（2026-09-01 實查）
+
+    | 段落 | 內容 | 欄位型態 | 該段更新日期 |
+    |------|------|----------|--------------|
+    | 一(一) | 股期（標的為**股票**） | **適用比例** ＋ 級距 | 2026/08/28 |
+    | 一(二) | 股期（標的為 **ETF**） | **每口固定金額** | 2026/08/12 |
+    | 二(一) | 股**選擇權**（股票） | 比例，`a%`／`b%` 雙欄 | 2026/08/14 |
+    | 二(二) | 股選擇權（ETF） | `A值`／`B值`，一商品佔兩列 | 2026/08/12 |
+
+    **選擇權兩段一律不收**（語意是風險保證金參數，不是每口保證金），且要
+    **先切掉「二、」之後的全部內容再解析**——選擇權代碼與股期只差一個字母
+    （`DFF` vs `DFO`、`NYF` vs `NYA`），混進來完全不會報錯。
+    **生效日逐段各自解析**：用第一個找到的日期套用到全部會讓 ETF 段錯 16 天。
+
+8. **級距欄可以是空的，而且那不是解析錯誤**
+    2026-09-01 實查 296 檔中有 15 檔（台玻、旺宏、南亞科、穩懋…）級距為空且
+    比例更高（21.60%／22.95%／30.38%），那是**處置／注意股票的加成措施**。
+    正常三個級距是 13.50%／16.20%／20.25%。空級距一律存 NULL，
+    **不可因此把該檔丟掉**。
 """
 
 # 「更新日期:2026/08/12」——冒號可能是全形或半形
@@ -76,9 +123,47 @@ PRODUCT_INDEX_FAMILY: Dict[str, str] = {
     "ZFF": "FINANCE",
 }
 
+# 段落標記；以「開頭是否為此字串」比對，避免全形空白等細節差異
+FUTURES_SECTION_MARKER: str = "一、股票期貨契約保證金一覽表"
+OPTIONS_SECTION_MARKER: str = "二、股票選擇權契約保證金一覽表"
+STOCK_UNDERLYING_MARKER: str = "(一) 標的證券為股票"
+ETF_UNDERLYING_MARKER: str = "(二) 標的證券為受益憑證"
+
+# 一(一) 的表頭：比例型
+RATE_HEADER: List[str] = [
+    "序號",
+    "股票期貨英文代碼",
+    "股票期貨標的證券代號",
+    "股票期貨中文簡稱",
+    "股票期貨標的證券",
+    "保證金所屬級距",
+    "結算保證金適用比例",
+    "維持保證金適用比例",
+    "原始保證金適用比例",
+]
+
+# 一(二) 的表頭：金額型
+AMOUNT_HEADER: List[str] = [
+    "序號",
+    "股票期貨英文代碼",
+    "股票期貨標的證券代號",
+    "股票期貨中文簡稱",
+    "股票期貨標的證券",
+    "結算保證金",
+    "維持保證金",
+    "原始保證金",
+]
+
+
+class MarginSection(NamedTuple):
+    """一個段落的解析結果：生效日 ＋ 資料列"""
+
+    effective_date: datetime.date
+    rows: List[List[str]]
+
 
 class FuturesMarginCleaner(BaseDataCleaner):
-    """Futures Margin Cleaner（指數類）"""
+    """Futures Margin Cleaner（指數類 ＋ 股票類）"""
 
     # 乘數比例檢查的容許誤差；TAIFEX 的數值是整數且等比例，實務上誤差為 0
     MULTIPLIER_RATIO_TOLERANCE: float = 1e-6
@@ -94,7 +179,8 @@ class FuturesMarginCleaner(BaseDataCleaner):
     def setup(self) -> None:
         """Set Up the Config of Cleaner"""
 
-        # 主鍵為 (effective_date, product)：本表是變動序列，不是每日快照
+        # 金額型的欄位（指數期貨與 ETF 股期共用）；
+        # 主鍵為 (effective_date, product)，本表是變動序列不是每日快照
         self.margin_cleaned_cols: List[str] = [
             "effective_date",
             "product",
@@ -102,6 +188,18 @@ class FuturesMarginCleaner(BaseDataCleaner):
             "結算保證金",
             "維持保證金",
             "原始保證金",
+            "source",
+        ]
+        # 比例型的欄位（股票股期）；主鍵為 (effective_date, product_id)
+        self.rate_cleaned_cols: List[str] = [
+            "effective_date",
+            "product_id",
+            "underlying_stock_id",
+            "product_name",
+            "保證金所屬級距",
+            "結算保證金適用比例",
+            "維持保證金適用比例",
+            "原始保證金適用比例",
             "source",
         ]
 
@@ -289,3 +387,235 @@ class FuturesMarginCleaner(BaseDataCleaner):
                 return False
 
         return True
+
+    def clean_stock_margin(
+        self, text: str
+    ) -> Optional[Dict[str, Optional[pd.DataFrame]]]:
+        """
+        - Description:
+            清洗股票期貨保證金一覽表，回傳比例與金額兩個 DataFrame
+
+            **選擇權段落一律不解析**，在切段時就被丟掉。
+        - Parameters:
+            - text: str
+                crawler 取得的 CSV 原文（已 big5 解碼）
+        - Return:
+            - Optional[Dict[str, Optional[pd.DataFrame]]]
+                `{"rate": ..., "amount": ...}`；整份無法解析時為 None。
+                個別段落解析不出時該項為 None，另一項仍會回傳——兩段的
+                更新日期不同、來源獨立，一段壞掉不該讓另一段也不入庫。
+        """
+
+        if not text or not text.strip():
+            logger.warning("[Stock Futures Margin] CSV 為空")
+            return None
+
+        rows: List[List[str]] = [
+            [cell.strip() for cell in row] for row in csv.reader(StringIO(text))
+        ]
+
+        futures_rows: List[List[str]] = self.take_futures_section(rows)
+        if not futures_rows:
+            logger.warning("[Stock Futures Margin] 找不到股票期貨段落，可能為站方改版")
+            return None
+
+        rate_section: Optional[MarginSection] = self.take_subsection(
+            futures_rows, STOCK_UNDERLYING_MARKER, RATE_HEADER
+        )
+        amount_section: Optional[MarginSection] = self.take_subsection(
+            futures_rows, ETF_UNDERLYING_MARKER, AMOUNT_HEADER
+        )
+
+        return {
+            "rate": self.build_rate_df(rate_section),
+            "amount": self.build_amount_df(amount_section),
+        }
+
+    @staticmethod
+    def take_futures_section(rows: List[List[str]]) -> List[List[str]]:
+        """
+        取出「一、股票期貨」段落，丟掉「二、股票選擇權」之後的全部內容
+
+        選擇權的代碼（`DFO`／`CAO`／`NYA`…）與股期高度相似，不先切掉的話
+        很容易混進來——它們的保證金語意是風險保證金參數，不是每口保證金。
+        """
+
+        start: Optional[int] = None
+        end: int = len(rows)
+
+        for i, row in enumerate(rows):
+            if not row or not row[0]:
+                continue
+            if row[0].startswith(FUTURES_SECTION_MARKER):
+                start = i
+            elif row[0].startswith(OPTIONS_SECTION_MARKER):
+                end = i
+                break
+
+        return [] if start is None else rows[start:end]
+
+    @staticmethod
+    def take_subsection(
+        rows: List[List[str]], marker: str, header: List[str]
+    ) -> Optional[MarginSection]:
+        """
+        - Description:
+            自段落內取出指定子節的生效日與資料列
+
+            **生效日逐節各自解析**：四個子節的更新日期不同，用全檔第一個日期
+            套用到全部會讓 ETF 股期的生效日錯 16 天（2026-09-01 實查）。
+        - Parameters:
+            - rows: List[List[str]]
+                段落內的所有列
+            - marker: str
+                子節標題的起始字串
+            - header: List[str]
+                該子節的表頭；對不上代表站方改版
+        - Return:
+            - Optional[MarginSection]
+                生效日與資料列；找不到子節或表頭不符時為 None
+        """
+
+        start: Optional[int] = None
+        for i, row in enumerate(rows):
+            if row and row[0].startswith(marker):
+                start = i
+                break
+        if start is None:
+            return None
+
+        effective_date: Optional[datetime.date] = None
+        header_index: Optional[int] = None
+
+        for i in range(start + 1, len(rows)):
+            row = rows[i]
+            if not row or not any(row):
+                continue
+            # 下一個子節開始，代表本子節沒有表頭
+            if row[0].startswith("(") and i != start:
+                break
+            if effective_date is None:
+                found: Optional[re.Match] = re.search(EFFECTIVE_DATE_PATTERN, row[0])
+                if found:
+                    year, month, day = (int(g) for g in found.groups())
+                    effective_date = datetime.date(year, month, day)
+                    continue
+            if row[: len(header)] == header:
+                header_index = i
+                break
+
+        if effective_date is None or header_index is None:
+            return None
+
+        data_rows: List[List[str]] = []
+        for row in rows[header_index + 1 :]:
+            if not row or not any(row):
+                continue
+            # 遇到下一個子節標題就停
+            if row[0].startswith("("):
+                break
+            if not row[0].isdigit():
+                continue
+            data_rows.append(row)
+
+        return MarginSection(effective_date=effective_date, rows=data_rows)
+
+    def build_rate_df(self, section: Optional[MarginSection]) -> Optional[pd.DataFrame]:
+        """把一(一) 的比例列組成 DataFrame；比例一律轉成**小數**"""
+
+        if section is None or not section.rows:
+            logger.warning("[Stock Futures Margin] 比例段落解析不出資料")
+            return None
+
+        records: List[Dict[str, object]] = []
+        for row in section.rows:
+            if len(row) < len(RATE_HEADER):
+                continue
+            rates: Optional[List[float]] = self.parse_rates(row[6:9])
+            if rates is None:
+                continue
+            records.append(
+                {
+                    "effective_date": section.effective_date,
+                    "product_id": row[1],
+                    "underlying_stock_id": row[2],
+                    "product_name": row[3],
+                    # 空級距存 None：處置股票沒有級距但仍有（更高的）比例，
+                    # 見本檔說明第 3 點。**pandas 會把它正規化成 NaN**，
+                    # 入庫時由 sqlite3 轉成真正的 NULL（已驗證）
+                    "保證金所屬級距": row[5] or None,
+                    "結算保證金適用比例": rates[0],
+                    "維持保證金適用比例": rates[1],
+                    "原始保證金適用比例": rates[2],
+                    "source": "snapshot",
+                }
+            )
+
+        if not records:
+            return None
+
+        df: pd.DataFrame = pd.DataFrame(records)[self.rate_cleaned_cols]
+        self.save_csv(df, f"stock_futures_margin_rate_{section.effective_date:%Y%m%d}")
+        return df
+
+    def build_amount_df(
+        self, section: Optional[MarginSection]
+    ) -> Optional[pd.DataFrame]:
+        """把一(二) 的金額列組成 DataFrame，欄位與 `futures_margin_history` 相同"""
+
+        if section is None or not section.rows:
+            logger.warning("[Stock Futures Margin] 金額段落解析不出資料")
+            return None
+
+        records: List[Dict[str, object]] = []
+        for row in section.rows:
+            if len(row) < len(AMOUNT_HEADER):
+                continue
+            amounts: Optional[List[int]] = self.parse_amounts(row[5:8])
+            if amounts is None:
+                continue
+            records.append(
+                {
+                    "effective_date": section.effective_date,
+                    "product": row[1],
+                    "product_name": row[3],
+                    "結算保證金": amounts[0],
+                    "維持保證金": amounts[1],
+                    "原始保證金": amounts[2],
+                    "source": "snapshot",
+                }
+            )
+
+        if not records:
+            return None
+
+        df: pd.DataFrame = pd.DataFrame(records)[self.margin_cleaned_cols]
+        self.save_csv(df, f"etf_futures_margin_{section.effective_date:%Y%m%d}")
+        return df
+
+    @staticmethod
+    def parse_rates(cells: List[str]) -> Optional[List[float]]:
+        """
+        `13.50%` → `0.1350`
+
+        **存小數而非百分比數值**：下游直接乘不必再除以 100，
+        而「忘記除 100」會讓保證金差 100 倍卻不會報錯。
+        """
+
+        rates: List[float] = []
+        for cell in cells:
+            value: str = cell.replace("%", "").replace(",", "").strip()
+            try:
+                rates.append(round(float(value) / 100, 6))
+            except ValueError:
+                return None
+        return rates
+
+    def save_csv(self, df: pd.DataFrame, stem: str) -> None:
+        """中繼檔落地，供人工核對"""
+
+        df.to_csv(
+            self.margin_dir / f"{stem}.csv",
+            index=False,
+            encoding=FileEncoding.UTF8_SIG.value,
+        )

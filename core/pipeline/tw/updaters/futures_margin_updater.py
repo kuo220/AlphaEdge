@@ -11,14 +11,8 @@ from core.config import (
 )
 from core.pipeline.shared.base_updater import BaseDataUpdater
 from core.pipeline.tw.cleaners.futures_margin_cleaner import FuturesMarginCleaner
-from core.pipeline.tw.cleaners.stock_futures_margin_cleaner import (
-    StockFuturesMarginCleaner,
-)
 from core.pipeline.tw.crawlers.futures_margin_crawler import FuturesMarginCrawler
 from core.pipeline.tw.loaders.futures_margin_loader import FuturesMarginLoader
-from core.pipeline.tw.loaders.stock_futures_margin_loader import (
-    StockFuturesMarginLoader,
-)
 from core.utils.log_manager import LogManager
 
 """
@@ -62,10 +56,6 @@ class FuturesMarginUpdater(BaseDataUpdater):
         self.crawler: FuturesMarginCrawler = FuturesMarginCrawler()
         self.cleaner: FuturesMarginCleaner = FuturesMarginCleaner()
         self.loader: FuturesMarginLoader = FuturesMarginLoader()
-
-        # 股票類（比例 ＋ ETF 金額）
-        self.stock_cleaner: StockFuturesMarginCleaner = StockFuturesMarginCleaner()
-        self.stock_loader: StockFuturesMarginLoader = StockFuturesMarginLoader()
 
         self.setup()
 
@@ -135,7 +125,7 @@ class FuturesMarginUpdater(BaseDataUpdater):
             return
 
         cleaned: Optional[Dict[str, Optional[pd.DataFrame]]] = (
-            self.stock_cleaner.clean_stock_margin(text)
+            self.cleaner.clean_stock_margin(text)
         )
         if cleaned is None:
             logger.warning("[Stock Futures Margin] 股票類清洗結果為空，跳過")
@@ -143,7 +133,7 @@ class FuturesMarginUpdater(BaseDataUpdater):
 
         rate_df: Optional[pd.DataFrame] = cleaned.get("rate")
         if rate_df is not None and not rate_df.empty:
-            inserted: int = self.stock_loader.add_to_db(rate_df)
+            inserted: int = self.loader.add_rates_to_db(rate_df)
             logger.info(
                 f"* 股票股期（比例）生效日 {rate_df['effective_date'].iloc[0]}："
                 f"抓到 {len(rate_df)} 檔、新增 {inserted} 列"
