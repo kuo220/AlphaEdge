@@ -28,7 +28,7 @@
 | Phase1-6 | 實作期貨 model 組（不新增引擎） | `core/backtest/models/`、`core/backtest/datafeed/`、`core/backtest/factory.py` | 台股回歸雙線逐筆相同且引擎 0 行改動；期貨策略可跑完 | ⬜ | 相依 Phase1-5 ＋ [多市場回測引擎架構](../docs/backtest/multi-market-engine.md) 全部完成 |
 | Phase1-7 | 連續合約構建（先做一種調整方式） | `core/pipeline/tw/*/futures_continuous_*.py` | 換月接點的 `roll_flag` 正確 | ⬜ | 相依 Phase1-2 |
 | Phase2-1 | 期貨成本模型（期交稅、手續費、滑價） | `core/backtest/models/cost_model.py` | **不可複用證交稅**；有單元測試 | ⬜ | 相依 Phase1-6 |
-| Phase2-2 | 保證金歷史序列與槓桿／部位控管 | `core/pipeline/*`、`core/managers/futures/` | 保證金調整生效日對齊 | ⬜ | 相依 Phase2-1 |
+| Phase2-2 | 槓桿／部位控管（保證金 ETL 已分家） | `core/managers/futures/` | 追繳／可開口數依當時生效的保證金計算 | ⬜ | **保證金歷史序列已於 2026-09-01 拆到 [台期貨保證金ETL](台期貨保證金ETL.md)**（來源已調查完、端點已寫進 `url_manager.py`）；本步驟只剩控管邏輯，相依該文件的 S5 |
 | Phase2-3 | 期貨交易日曆（日盤 ＋ 夜盤、結算日） | `core/backtest/datafeed/futures_calendar.py` | 不沿用股票 calendar | ⬜ | 相依 Phase1-6 |
 | Phase2-4 | 換月規則參數化 | `core/backtest/` | 三種換月規則可切換 | ⬜ | 相依 Phase1-7、Phase2-3 |
 | Phase3-1 | 籌碼訊號 ETL（三大法人、大額交易人、PCR） | `core/pipeline/tw/*/futures_chip_*.py` | 前視偏差對齊（T+1 可用） | ⬜ | 相依 Phase1-2 |
