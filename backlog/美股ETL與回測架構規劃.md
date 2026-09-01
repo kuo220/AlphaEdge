@@ -158,13 +158,14 @@ core/
 - `us_corporate_actions`：`(ticker, action_date, action_type, source)`
 - `us_fundamentals_quarterly`：`(ticker, fiscal_period_end, source)`
 
-> **⚠️ 欄位語言必須在美股落地之前定案**（2026-09-01 由命名軸線收斂工作交接過來，
-> 軸線定案見 [命名軸線](../docs/dev/naming-axes.md)）：既有台股與台期貨的資料表一律是
-> **「英文鍵 ＋ 中文資料欄」**（`date`／`stock_id`／`product`／`session` 配 `開盤價`／`結算價`），
-> 兩邊一致；上表規劃的卻是 `ticker`／`trade_date` 全英文。若不先定案，落地後會變成
-> **三套欄位規則**（台股中文欄、期貨中文欄、美股英文欄），所有跨市場查詢與 API
-> 都要各寫一份對照。選項有二：美股沿用中文資料欄，或全專案改英文欄（後者要改
-> 15 張表，屬 [PostgreSQL遷移計畫](PostgreSQL遷移計畫.md) 的 schema 批次）。
+> **✅ 欄位語言已定案（2026-09-01）：美股一律用英文欄名**，即上表的
+> `ticker`／`trade_date`／`open`…，直接沿用 provider 回傳的欄名。
+>
+> 規則寫死為**「欄位語言跟著資料來源走」**：交易所網頁／檔案爬來的保留中文欄
+> （`price` 的 `開盤價`、`futures_price_daily` 的 `結算價`），API 來源用其原始英文欄。
+> 專案裡已經有**五張全英文的表**（四張 FinMind ＋ `futures_stock_universe`），
+> 美股用英文是延用既有那一套，不是新增第三套規則。完整理由與對照表見
+> [ETL 入庫約定 §3.4](../docs/pipeline/etl-ingestion.md)。
 
 ---
 

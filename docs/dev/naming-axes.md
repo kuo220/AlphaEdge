@@ -99,6 +99,6 @@
 | 項目 | 現況 | 歸屬 |
 |------|------|------|
 | `core/pipeline/downloads/` | 仍是 `tw_stock/`／`tw_futures/` 的壓縮形式。純目錄名的話 `tw/stock/` 才與程式碼側同構，但那是第二次資料搬遷，不值得為一致性單獨做 | 待 PostgreSQL 遷移或下次動 `downloads/` 時順手收斂 |
-| 資料表欄位語言 | 「英文鍵 ＋ 中文資料欄」混用（`date`／`product`／`session` 配 `開盤價`／`結算價`），台股與期貨兩邊一致；但美股規劃的是 `ticker`／`trade_date` 全英文 | 應在美股落地**之前**定案，否則會變成三套規則——歸 `backlog/美股ETL與回測架構規劃.md` |
+| 資料表欄位語言 | **已於 2026-09-01 定案**：跟著**資料來源**走，不跟市場走——交易所網頁／檔案爬來的保留中文欄，API 來源用其原始英文欄。分界線本來就是來源（15 張表中已有 5 張全英文） | 規則與理由見 [ETL 入庫約定 §3.4](../pipeline/etl-ingestion.md) |
 | `core/utils/instrument.py` 的 `StockUtils` 歸屬 | 未動 | 取捨表在 [多市場回測引擎架構](../backtest/multi-market-engine.md) |
 | `stock_id` → `symbol` 的資料層改名 | 未動，本次刻意不做 | 歸 `backlog/PostgreSQL遷移計畫.md` 的 schema 批次 |

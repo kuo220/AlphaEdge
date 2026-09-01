@@ -96,6 +96,26 @@ loader **每次都掃整個 `downloads/` 目錄**，已入庫的檔案必然會�
 以 `date.weekday()` 判斷會整天漏掉這些日子。
 正確做法是以 `price` 表實際有資料的日期為準（見 `StockMarginUpdater.get_candidate_dates()`）。
 
+### 3.4 欄位語言跟著資料來源走
+
+**定案（2026-09-01）：資料表的欄位語言由來源決定，不由市場決定。**
+
+| 來源 | 欄位語言 | 現有例子 |
+|------|----------|----------|
+| 交易所網頁／檔案（TWSE、TPEX、TAIFEX、MOPS） | **保留來源的中文欄名** | `price` 的 `開盤價`、`chip` 的 `外資買進股數`、`futures_price_daily` 的 `結算價` |
+| API（FinMind、未來的美股 provider） | **用來源的英文欄名** | `taiwan_stock_info` 的 `stock_id`／`stock_name`、規劃中的 `us_price_daily` 的 `ticker`／`trade_date` |
+
+兩者皆**以英文命名主鍵欄**（`date`、`stock_id`、`product`、`session`），這是既有慣例。
+
+**為什麼不統一成英文**：15 張表裡 10 張是中文欄（`balance_sheet` 一張就 75 欄），
+程式側有 277 處中文欄位字面值橫跨 33 個檔。改成英文要同時動 schema、2.3 GB 資料與
+所有下游，而 [PostgreSQL 遷移](../../backlog/PostgreSQL遷移計畫.md) 本來就會重寫這一層——
+真要收斂就在那個批次做，不值得為它單獨開一次遷移。
+
+**為什麼不讓美股用中文**：`開盤價` 這種欄名對 AAPL 沒有來源依據（美股 provider 回的
+本來就是 `open`／`close`），硬翻是憑空造一套對照表；而且專案裡已經有五張全英文的表，
+美股用英文不是新增第三套規則，是延用既有的那一套。
+
 ---
 
 ## 四、五次事故與其教訓
