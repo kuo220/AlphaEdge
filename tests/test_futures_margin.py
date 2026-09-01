@@ -662,3 +662,517 @@ def _clean_rates_with(rate_loader: FuturesMarginLoader) -> pd.DataFrame:
     cleaner.margin_dir = rate_loader.margin_dir
     cleaner.setup()
     return cleaner.clean_stock_margin(STOCK_MARGIN_CSV)["rate"]
+
+
+# ============================================================
+# 調整公告：歷史回補的來源（S4）
+# ============================================================
+
+# 2026-09-01 自 TAIFEX 實際取得的附件縮影。
+# **金額欄的順序與一覽表相反**（公告是原始→維持→結算），且**選擇權列的
+# 「契約ABC值」非空**。
+ANNOUNCEMENT_CSV: str = """契約中文簡稱,契約代碼,契約ABC值,調整後原始保證金,調整後維持保證金,調整後結算保證金,調整前原始保證金,調整前維持保證金,調整前結算保證金
+臺股期貨,TX, ,526000,403000,389000,477000,366000,353000
+小型臺指期貨,MTX, ,131500,100750,97250,119250,91500,88250
+臺指選擇權風險保證金,TXO,A,187000,143000,138000,170000,130000,125000
+"""
+
+# 股票期貨的公告用**同一個表頭**，但值是「適用比例」不是金額
+ANNOUNCEMENT_RATE_CSV: str = """契約中文簡稱,契約代碼,契約ABC值,調整後原始保證金,調整後維持保證金,調整後結算保證金,調整前原始保證金,調整前維持保證金,調整前結算保證金
+晶技期貨,ITF, ,0.27,0.207,0.2,0.135,0.1035,0.1
+信昌電期貨,PKF, ,0.243,0.1863,0.18,0.162,0.1242,0.12
+"""
+
+ANNOUNCEMENT_TITLE: str = (
+    "公告調整臺股期貨(TX)等13檔股價指數類契約之保證金，"
+    "並自115年4月22日一般交易時段結束後起實施，請查照。"
+)
+ANNOUNCEMENT_DATE: datetime.date = datetime.date(2026, 4, 21)
+
+
+# === 生效日（民國年）===
+def test_effective_date_comes_from_the_title(cleaner: FuturesMarginCleaner) -> None:
+    """
+    生效日取自標題的民國年，**不是公告日**
+
+    TAIFEX 的規則是「自公告日之次一一般交易時段結束後起實施」。
+    """
+
+    out = cleaner.clean_margin_announcement(
+        ANNOUNCEMENT_CSV, ANNOUNCEMENT_TITLE, ANNOUNCEMENT_DATE
+    )
+
+    assert set(out["margin"]["effective_date"]) == {datetime.date(2026, 4, 22)}
+
+
+def test_reference_letter_date_is_not_mistaken_for_effective_date(
+    cleaner: FuturesMarginCleaner,
+) -> None:
+    """
+    標題前段引用主管機關來函的日期不帶「自」字，不可被當成生效日
+
+    Ex:「依金管會115年6月10日金管證期字第…函…並自115年7月6日…起實施」
+    """
+
+    title: str = (
+        "依金融監督管理委員會115年6月10日金管證期字第1150343223號函辦理，"
+        "公告調整臺股期貨(TX)之保證金，並自115年7月6日一般交易時段起實施。"
+    )
+    out = cleaner.clean_margin_announcement(
+        ANNOUNCEMENT_CSV, title, datetime.date(2026, 7, 1)
+    )
+
+    assert set(out["margin"]["effective_date"]) == {datetime.date(2026, 7, 6)}
+
+
+def test_unparsable_title_falls_back_to_announcement_date_plus_one(
+    cleaner: FuturesMarginCleaner,
+) -> None:
+    """標題解不出生效日時退回公告日 +1，不猜也不中止"""
+
+    out = cleaner.clean_margin_announcement(
+        ANNOUNCEMENT_CSV, "公告調整保證金", ANNOUNCEMENT_DATE
+    )
+
+    assert set(out["margin"]["effective_date"]) == {datetime.date(2026, 4, 22)}
+
+
+def test_out_of_range_effective_date_falls_back(
+    cleaner: FuturesMarginCleaner,
+) -> None:
+    """
+    解出的生效日離公告日太遠就視為解錯
+
+    標題裡混進其他年份的日期時，用錯的日期會讓整條變動序列錯位。
+    """
+
+    title: str = "公告調整臺股期貨(TX)之保證金，並自100年1月1日起實施。"
+    out = cleaner.clean_margin_announcement(ANNOUNCEMENT_CSV, title, ANNOUNCEMENT_DATE)
+
+    assert set(out["margin"]["effective_date"]) == {datetime.date(2026, 4, 22)}
+
+
+# === 欄位順序與過濾 ===
+def test_announcement_column_order_is_reversed_from_the_listing(
+    cleaner: FuturesMarginCleaner,
+) -> None:
+    """
+    **公告是「原始→維持→結算」，一覽表是「結算→維持→原始」**
+
+    照抄一覽表的取值位置會讓三個數字互換而不會報錯。
+    """
+
+    df = cleaner.clean_margin_announcement(
+        ANNOUNCEMENT_CSV, ANNOUNCEMENT_TITLE, ANNOUNCEMENT_DATE
+    )["margin"].set_index("product")
+
+    assert df.loc["TX", "原始保證金"] == 526000
+    assert df.loc["TX", "維持保證金"] == 403000
+    assert df.loc["TX", "結算保證金"] == 389000
+
+
+def test_option_rows_are_filtered_by_abc_column(
+    cleaner: FuturesMarginCleaner,
+) -> None:
+    """`契約ABC值` 非空者是選擇權的風險保證金參數，不是每口保證金"""
+
+    df = cleaner.clean_margin_announcement(
+        ANNOUNCEMENT_CSV, ANNOUNCEMENT_TITLE, ANNOUNCEMENT_DATE
+    )["margin"]
+
+    assert set(df["product"]) == {"TX", "MTX"}
+    assert "TXO" not in set(df["product"])
+
+
+def test_previous_values_are_kept_for_chain_validation(
+    cleaner: FuturesMarginCleaner,
+) -> None:
+    """
+    「調整前」三欄必須保留——它是鏈式驗證的唯一依據
+
+    入庫時才丟掉（只取 `margin_cleaned_cols`）。
+    """
+
+    df = cleaner.clean_margin_announcement(
+        ANNOUNCEMENT_CSV, ANNOUNCEMENT_TITLE, ANNOUNCEMENT_DATE
+    )["margin"].set_index("product")
+
+    assert df.loc["TX", "調整前原始保證金"] == 477000
+    assert df.loc["TX", "調整前結算保證金"] == 353000
+
+
+def test_source_is_marked_as_announcement(cleaner: FuturesMarginCleaner) -> None:
+    """公告來源標為 announcement，與現行一覽表的 snapshot 區分"""
+
+    df = cleaner.clean_margin_announcement(
+        ANNOUNCEMENT_CSV, ANNOUNCEMENT_TITLE, ANNOUNCEMENT_DATE
+    )["margin"]
+
+    assert set(df["source"]) == {"announcement"}
+
+
+# === 同一表頭兩種值 ===
+def test_stock_futures_announcements_are_routed_to_the_rate_table(
+    cleaner: FuturesMarginCleaner,
+) -> None:
+    """
+    **股票期貨的公告用同一個表頭，但值是「適用比例」不是金額**
+
+    把 `0.27` 當成 27 元寫進金額表不會報錯，只會讓保證金差六個數量級。
+    唯一可靠的區分是看值有沒有小數點。
+    """
+
+    out = cleaner.clean_margin_announcement(
+        ANNOUNCEMENT_RATE_CSV, ANNOUNCEMENT_TITLE, ANNOUNCEMENT_DATE
+    )
+
+    assert out["margin"] is None
+    assert out["rate"] is not None
+    rates = out["rate"].set_index("product_id")
+    assert rates.loc["ITF", "原始保證金適用比例"] == 0.27
+    assert rates.loc["ITF", "調整前原始保證金適用比例"] == 0.135
+
+
+def test_announcement_rates_are_already_decimals(
+    cleaner: FuturesMarginCleaner,
+) -> None:
+    """
+    公告的比例本來就是小數（`0.27`），不像一覽表帶百分號
+
+    再除以 100 會讓比例差 100 倍。
+    """
+
+    rates = cleaner.clean_margin_announcement(
+        ANNOUNCEMENT_RATE_CSV, ANNOUNCEMENT_TITLE, ANNOUNCEMENT_DATE
+    )["rate"].set_index("product_id")
+
+    assert rates.loc["PKF", "原始保證金適用比例"] == 0.243
+
+
+def test_announcement_rate_rows_have_no_tier(cleaner: FuturesMarginCleaner) -> None:
+    """公告不提供級距，只給比例——級距為 NULL 不代表解析失敗"""
+
+    rates = cleaner.clean_margin_announcement(
+        ANNOUNCEMENT_RATE_CSV, ANNOUNCEMENT_TITLE, ANNOUNCEMENT_DATE
+    )["rate"]
+
+    assert rates["保證金所屬級距"].isna().all()
+
+
+# === 新增商品型與雜訊 ===
+def test_six_column_variant_is_accepted(cleaner: FuturesMarginCleaner) -> None:
+    """
+    「新增商品」型的公告只有前六欄（沒有調整前）
+
+    2026-09-01 盤點 81 份附件中有 1 份如此，不可因此整份放棄。
+    """
+
+    six_col: str = (
+        "契約中文簡稱,契約代碼,契約ABC值,調整後原始保證金,調整後維持保證金,調整後結算保證金\n"
+        "元大台灣50ETF期貨,NYF, ,40000,31000,29000\n"
+    )
+    df = cleaner.clean_margin_announcement(
+        six_col, ANNOUNCEMENT_TITLE, ANNOUNCEMENT_DATE
+    )["margin"]
+
+    assert len(df) == 1
+    assert df.set_index("product").loc["NYF", "原始保證金"] == 40000
+    assert pd.isna(df.set_index("product").loc["NYF", "調整前原始保證金"])
+
+
+def test_non_margin_announcement_yields_none(cleaner: FuturesMarginCleaner) -> None:
+    """
+    只有選擇權列的附件回傳 None——那是「沒有期貨列」不是解析失敗
+
+    寬關鍵字會抓到部位限制、SPAN 參數等公告，靠這一關擋掉。
+    """
+
+    options_only: str = (
+        "契約中文簡稱,契約代碼,契約ABC值,調整後原始保證金,調整後維持保證金,調整後結算保證金,"
+        "調整前原始保證金,調整前維持保證金,調整前結算保證金\n"
+        "臺指選擇權風險保證金,TXO,A,187000,143000,138000,170000,130000,125000\n"
+    )
+
+    assert (
+        cleaner.clean_margin_announcement(
+            options_only, ANNOUNCEMENT_TITLE, ANNOUNCEMENT_DATE
+        )
+        is None
+    )
+
+
+def test_wrong_header_yields_none(cleaner: FuturesMarginCleaner) -> None:
+    """表頭不符代表不是保證金調整附件，跳過而不硬解"""
+
+    assert (
+        cleaner.clean_margin_announcement(
+            "欄一,欄二\n1,2\n", ANNOUNCEMENT_TITLE, ANNOUNCEMENT_DATE
+        )
+        is None
+    )
+
+
+# === 入庫：公告覆蓋一覽表 ===
+def test_announcement_overrides_snapshot_on_the_same_key(
+    loader: FuturesMarginLoader,
+) -> None:
+    """
+    **公告比一覽表權威**：同一個 (生效日, 商品) 以公告為準
+
+    一覽表只說「現在是多少」，公告明載生效日與調整前／後。先寫入的 snapshot
+    若擋住公告，該次調整就查無 `source='announcement'` 的列，
+    鏈式驗證會因此出現假斷點。
+    """
+
+    snapshot: pd.DataFrame = _clean(loader)
+    loader.add_to_db(snapshot)
+    before: int = loader.count_rows()
+
+    announcement: pd.DataFrame = snapshot.copy()
+    announcement["source"] = "announcement"
+    announcement["原始保證金"] = 999999
+    loader.add_announcements_to_db(announcement)
+
+    assert loader.count_rows() == before  # 覆蓋不是新增
+    row = loader.conn.execute(
+        f"SELECT 原始保證金, source FROM {FUTURES_MARGIN_HISTORY_TABLE_NAME} "
+        f"WHERE product = 'TX'"
+    ).fetchone()
+    assert row == (999999, "announcement")
+
+
+def test_snapshot_does_not_override_announcement(
+    loader: FuturesMarginLoader,
+) -> None:
+    """反向不成立：一覽表不可覆蓋公告"""
+
+    announcement: pd.DataFrame = _clean(loader)
+    announcement["source"] = "announcement"
+    loader.add_announcements_to_db(announcement)
+
+    snapshot: pd.DataFrame = announcement.copy()
+    snapshot["source"] = "snapshot"
+    snapshot["原始保證金"] = 111111
+    loader.add_to_db(snapshot)
+
+    row = loader.conn.execute(
+        f"SELECT source FROM {FUTURES_MARGIN_HISTORY_TABLE_NAME} WHERE product = 'TX'"
+    ).fetchone()
+    assert row[0] == "announcement"
+
+
+def test_effective_dates_can_be_filtered_by_source(
+    loader: FuturesMarginLoader,
+) -> None:
+    """
+    續跑判斷必須能限定 source
+
+    不限定的話，snapshot 恰好同一天會讓該則公告被整則跳過，
+    其餘商品因此全部沒進表（2026-09-01 實測踩到）。
+    """
+
+    loader.add_to_db(_clean(loader))
+
+    assert loader.get_effective_dates() == {"2026-08-12"}
+    assert loader.get_effective_dates(source="announcement") == set()
+    assert loader.get_effective_dates(source="snapshot") == {"2026-08-12"}
+
+
+# ============================================================
+# 回補的兩道防線：附件網址去重 ＋ 缺口回報
+# ============================================================
+
+
+def make_updater(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """不連網、不碰正式 DB 的 updater（只用到 loader 與純函式）"""
+
+    from core.pipeline.tw.updaters.futures_margin_updater import FuturesMarginUpdater
+
+    monkeypatch.setattr(
+        "core.pipeline.tw.loaders.futures_margin_loader.TW_FUTURES_DB_PATH",
+        tmp_path / "tw_futures.db",
+    )
+    monkeypatch.setattr(
+        "core.pipeline.tw.loaders.futures_margin_loader.FUTURES_MARGIN_DOWNLOADS_PATH",
+        tmp_path / "margin",
+    )
+    updater = FuturesMarginUpdater.__new__(FuturesMarginUpdater)
+    updater.loader = FuturesMarginLoader()
+    updater.conn = updater.loader.conn
+    updater.ANNOUNCEMENT_DELAY_SECONDS = 0
+    return updater
+
+
+def test_shared_attachment_url_keeps_only_the_latest(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    **多則公告共用同一個附件網址時，只有最新那則的內容可信**
+
+    部分附件用固定檔名（`保證金調整情形列表.csv`），站方會覆寫它——
+    2026-09-01 實測，2022/04/14 與 2026/03/31 共用同一個網址，
+    今天下載舊公告拿到的是 2026 的內容。照單全收會把 2026 的金額寫成 2022 的歷史。
+    """
+
+    updater = make_updater(tmp_path, monkeypatch)
+    shared: str = "https://taifex/attach/保證金調整情形列表.csv"
+    announcements = [
+        {"date": "2022/04/14", "link": "a", "title": "t"},
+        {"date": "2024/01/01", "link": "b", "title": "t"},
+        {"date": "2026/03/31", "link": "c", "title": "t"},
+    ]
+    urls = {"a": shared, "b": "https://taifex/attach/0101.csv", "c": shared}
+
+    class Stub:
+        def resolve_announcement_csv(self, link: str):
+            return urls[link]
+
+    updater.crawler = Stub()
+    resolved = updater.resolve_csv_urls(announcements)
+
+    assert resolved[0][1] is None  # 2022 那則被排除
+    assert resolved[1][1] == "https://taifex/attach/0101.csv"  # 專屬檔名不受影響
+    assert resolved[2][1] == shared  # 最新那則保留
+
+
+def test_unique_attachment_urls_are_all_kept(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """檔名各自不同時全部保留，不可誤殺"""
+
+    updater = make_updater(tmp_path, monkeypatch)
+    announcements = [
+        {"date": "2024/01/01", "link": "a", "title": "t"},
+        {"date": "2024/02/01", "link": "b", "title": "t"},
+    ]
+
+    class Stub:
+        def resolve_announcement_csv(self, link: str):
+            return f"https://taifex/attach/{link}.csv"
+
+    updater.crawler = Stub()
+    resolved = updater.resolve_csv_urls(announcements)
+
+    assert [url for _, url in resolved] == [
+        "https://taifex/attach/a.csv",
+        "https://taifex/attach/b.csv",
+    ]
+
+
+def test_chain_mismatch_is_reported_not_rejected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    「調整前」對不上只回報缺口，**不可拒收**
+
+    公告載明的「調整後」本來就是權威；對不上代表我們的歷史有缺口
+    （前面某則的附件被站方覆寫而取不到），不代表這一則的值有問題。
+    2026-09-01 實測：拒收會讓一個缺口往後連鎖成 46 則，表內只剩 186 列。
+    """
+
+    updater = make_updater(tmp_path, monkeypatch)
+    updater.loader.add_to_db(
+        pd.DataFrame(
+            [
+                {
+                    "effective_date": datetime.date(2024, 1, 1),
+                    "product": "TX",
+                    "product_name": "臺股期貨",
+                    "結算保證金": 100000,
+                    "維持保證金": 110000,
+                    "原始保證金": 120000,
+                    "source": "announcement",
+                }
+            ]
+        )
+    )
+
+    # 這則公告說「調整前是 200000」，但表內是 120000 → 中間有缺口
+    df = pd.DataFrame(
+        [
+            {
+                "effective_date": "2024-06-01",
+                "product": "TX",
+                "product_name": "臺股期貨",
+                "結算保證金": 210000,
+                "維持保證金": 220000,
+                "原始保證金": 230000,
+                "source": "announcement",
+                "調整前結算保證金": 180000,
+                "調整前維持保證金": 190000,
+                "調整前原始保證金": 200000,
+            }
+        ]
+    )
+    ok, mismatches = updater.check_announcement_consistency(df)
+
+    assert ok is False
+    assert len(mismatches) == 1
+    assert "TX" in mismatches[0]
+
+
+def test_first_appearance_of_a_product_is_not_a_mismatch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """表內查無前值的商品（第一次出現）不參與比對，不算缺口"""
+
+    updater = make_updater(tmp_path, monkeypatch)
+    df = pd.DataFrame(
+        [
+            {
+                "effective_date": "2024-06-01",
+                "product": "NEW",
+                "product_name": "新商品",
+                "結算保證金": 1,
+                "維持保證金": 2,
+                "原始保證金": 3,
+                "source": "announcement",
+                "調整前結算保證金": 10,
+                "調整前維持保證金": 20,
+                "調整前原始保證金": 30,
+            }
+        ]
+    )
+    ok, mismatches = updater.check_announcement_consistency(df)
+
+    assert ok is True
+    assert mismatches == []
+
+
+def test_margin_in_effect_uses_strictly_earlier_dates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    「這次調整之前是多少」用 `<` 不是 `<=`
+
+    用 `<=` 會拿到這次調整本身的值，比對永遠成立，守門形同虛設。
+    """
+
+    updater = make_updater(tmp_path, monkeypatch)
+    updater.loader.add_to_db(
+        pd.DataFrame(
+            [
+                {
+                    "effective_date": datetime.date(2024, 1, 1),
+                    "product": "TX",
+                    "product_name": "臺股期貨",
+                    "結算保證金": 1,
+                    "維持保證金": 2,
+                    "原始保證金": 100,
+                    "source": "announcement",
+                },
+                {
+                    "effective_date": datetime.date(2024, 6, 1),
+                    "product": "TX",
+                    "product_name": "臺股期貨",
+                    "結算保證金": 1,
+                    "維持保證金": 2,
+                    "原始保證金": 200,
+                    "source": "announcement",
+                },
+            ]
+        )
+    )
+
+    assert updater.get_margin_in_effect("TX", "2024-06-01") == 100
+    assert updater.get_margin_in_effect("TX", "2024-01-01") is None

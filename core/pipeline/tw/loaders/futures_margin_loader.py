@@ -126,7 +126,9 @@ class FuturesMarginLoader(BaseDataLoader):
             CREATE TABLE IF NOT EXISTS {STOCK_FUTURES_MARGIN_RATE_HISTORY_TABLE_NAME}(
                 "effective_date" TEXT NOT NULL,
                 "product_id" TEXT NOT NULL,
-                "underlying_stock_id" TEXT NOT NULL,
+                -- 公告來源不提供標的證券代號，故可為 NULL；
+                -- 一覽表（snapshot）來源一定有值
+                "underlying_stock_id" TEXT,
                 "product_name" TEXT,
                 "保證金所屬級距" TEXT,
                 "結算保證金適用比例" REAL,
@@ -183,9 +185,9 @@ class FuturesMarginLoader(BaseDataLoader):
                 實際新增的列數
         """
 
-        return self.insert_ignore(df, FUTURES_MARGIN_HISTORY_TABLE_NAME, "保證金")
+        return self.insert_rows(df, FUTURES_MARGIN_HISTORY_TABLE_NAME, "保證金")
 
-    def add_rates_to_db(self, df: pd.DataFrame) -> int:
+    def add_rates_to_db(self, df: pd.DataFrame, replace: bool = False) -> int:
         """
         - Description:
             將比例型保證金寫入 `stock_futures_margin_rate_history`（股票股期）
@@ -197,18 +199,45 @@ class FuturesMarginLoader(BaseDataLoader):
                 實際新增的列數
         """
 
-        return self.insert_ignore(
-            df, STOCK_FUTURES_MARGIN_RATE_HISTORY_TABLE_NAME, "股期保證金比例"
+        return self.insert_rows(
+            df,
+            STOCK_FUTURES_MARGIN_RATE_HISTORY_TABLE_NAME,
+            "股期保證金比例",
+            replace=replace,
         )
 
-    def insert_ignore(self, df: pd.DataFrame, table: str, label: str) -> int:
+    def add_announcements_to_db(self, df: pd.DataFrame) -> int:
         """
         - Description:
-            兩張表共用的寫入：`INSERT OR IGNORE` ＋ 前後列數差
+            將調整公告的保證金寫入金額表，**同一主鍵時覆蓋既有列**
+
+            **公告比現行一覽表權威**：它明載生效日與「調整前／調整後」兩組數字，
+            而一覽表只說「現在是多少」。若同一個 `(生效日, 商品)` 兩者都有，
+            應以公告為準——否則先寫入的 snapshot 會擋住公告，
+            讓該次調整在表中查無 `source='announcement'` 的列，
+            鏈式驗證因此出現假斷點（2026-09-01 實測踩到）。
+        - Parameters:
+            - df: pd.DataFrame
+                cleaner 產出的公告 DataFrame（僅 `margin_cleaned_cols`）
+        - Return:
+            - int
+                實際新增的列數（覆蓋既有列時不計入）
+        """
+
+        return self.insert_rows(
+            df, FUTURES_MARGIN_HISTORY_TABLE_NAME, "保證金（公告）", replace=True
+        )
+
+    def insert_rows(
+        self, df: pd.DataFrame, table: str, label: str, replace: bool = False
+    ) -> int:
+        """
+        - Description:
+            兩張表共用的寫入：`INSERT OR IGNORE`／`INSERT OR REPLACE` ＋ 前後列數差
 
             同一組保證金重複抓到時整批被忽略，這正是「變動序列」的實現方式，
             不需要另外判斷有沒有變。**回傳的是實際新增列數而非 `rowcount`**——
-            後者在 `INSERT OR IGNORE` 下會把被忽略的也算進去。
+            後者會把被忽略／被覆蓋的也算進去。
         - Parameters:
             - df: pd.DataFrame
                 要寫入的資料
@@ -216,6 +245,8 @@ class FuturesMarginLoader(BaseDataLoader):
                 目標資料表
             - label: str
                 log 用的人話名稱
+            - replace: bool
+                True 時同主鍵覆蓋（公告用），False 時同主鍵忽略（一覽表用）
         - Return:
             - int
                 實際新增的列數
@@ -235,8 +266,9 @@ class FuturesMarginLoader(BaseDataLoader):
 
         cursor: sqlite3.Cursor = self.conn.cursor()
         before: int = self.count_rows(table)
+        conflict: str = "REPLACE" if replace else "IGNORE"
         cursor.executemany(
-            f"INSERT OR IGNORE INTO {table} ({quoted}) VALUES ({placeholders})",
+            f"INSERT OR {conflict} INTO {table} ({quoted}) VALUES ({placeholders})",
             # 第一欄是 datetime.date，轉成 ISO 字串與其他表一致
             [
                 tuple(str(v) if i == 0 else v for i, v in enumerate(row))
@@ -259,15 +291,26 @@ class FuturesMarginLoader(BaseDataLoader):
         return self.conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
 
     def get_effective_dates(
-        self, table: str = FUTURES_MARGIN_HISTORY_TABLE_NAME
+        self,
+        table: str = FUTURES_MARGIN_HISTORY_TABLE_NAME,
+        source: Optional[str] = None,
     ) -> Set[str]:
-        """指定資料表已有的所有生效日；預設為金額表"""
+        """
+        指定資料表已有的所有生效日；預設為金額表
+
+        **`source` 不可省略地當成「全部」用**：回補時要問的是「這則公告入庫了嗎」，
+        若把 snapshot 的日期也算進來，恰好同一天的公告會被誤判為已處理而整則跳過
+        （2026-09-01 實測踩到，該則的其餘 25 個商品因此全部沒進表）。
+        """
 
         if self.conn is None:
             self.connect()
         self.create_missing_tables()
 
-        return {
-            row[0]
-            for row in self.conn.execute(f"SELECT DISTINCT effective_date FROM {table}")
-        }
+        query: str = f"SELECT DISTINCT effective_date FROM {table}"
+        params: tuple = ()
+        if source is not None:
+            query += " WHERE source = ?"
+            params = (source,)
+
+        return {row[0] for row in self.conn.execute(query, params)}

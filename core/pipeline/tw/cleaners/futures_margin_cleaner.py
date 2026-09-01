@@ -22,6 +22,7 @@ from core.utils import FUTURES_MULTIPLIER, FileEncoding
 | 指數類一覽表 | 全份 | 每口金額 → `futures_margin_history` |
 | 股票類一覽表 | 一(一) 股期（股票） | **適用比例** → `stock_futures_margin_rate_history` |
 | 股票類一覽表 | 一(二) 股期（ETF） | **每口金額** → `futures_margin_history`（與指數期貨同表） |
+| **調整公告附件** | 全份 | **歷史**每口金額 → `futures_margin_history`（`source='announcement'`） |
 
 ETF 股期給的是每口固定金額，語意與臺股期貨相同；若因為它掛在「股票類」檔案裡
 就塞進比例表，比例欄會永遠是 NULL。
@@ -142,6 +143,32 @@ RATE_HEADER: List[str] = [
     "原始保證金適用比例",
 ]
 
+# 調整公告附件的表頭。2026-09-01 盤點 2020~2026 的 81 份附件，**80 份用這一種**；
+# 另 1 份（2025/06/04）是「新增商品」而非調整，只有前六欄（沒有「調整前」）。
+#
+# ⚠️ **金額欄的順序與一覽表相反**：一覽表是「結算→維持→原始」，
+# 公告是「原始→維持→結算」。照抄一覽表的取值位置會讓三個數字互換而不會報錯。
+#
+# ⚠️⚠️ **同一個表頭底下有兩種值**（2026-09-01 實測踩到）：指數期貨／ETF 期貨的
+# 公告給「每口金額」（`526000`），**股票期貨的公告給「適用比例」**（`0.27`），
+# 標題與欄位名完全相同，只能**看值有沒有小數點**來分。把 `0.27` 當成 27 元
+# 寫進金額表不會報錯，只會讓保證金差六個數量級。
+ANNOUNCEMENT_HEADER: List[str] = [
+    "契約中文簡稱",
+    "契約代碼",
+    "契約ABC值",
+    "調整後原始保證金",
+    "調整後維持保證金",
+    "調整後結算保證金",
+]
+
+# 生效日：標題的「並自115年4月1日…起實施」，民國年
+ROC_EFFECTIVE_DATE_PATTERN: str = (
+    r"自\s*(\d{2,3})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日"
+)
+ROC_YEAR_OFFSET: int = 1911
+
+
 # 一(二) 的表頭：金額型
 AMOUNT_HEADER: List[str] = [
     "序號",
@@ -167,6 +194,9 @@ class FuturesMarginCleaner(BaseDataCleaner):
 
     # 乘數比例檢查的容許誤差；TAIFEX 的數值是整數且等比例，實務上誤差為 0
     MULTIPLIER_RATIO_TOLERANCE: float = 1e-6
+
+    # 生效日與公告日的最大合理落差（天）；超過視為標題解析錯誤
+    MAX_EFFECTIVE_DATE_LAG: int = 30
 
     def __init__(self):
         super().__init__()
@@ -201,6 +231,18 @@ class FuturesMarginCleaner(BaseDataCleaner):
             "維持保證金適用比例",
             "原始保證金適用比例",
             "source",
+        ]
+
+        # 公告附件多帶「調整前」三欄，供鏈式驗證用；**入庫時只取 margin_cleaned_cols**
+        self.announcement_cleaned_cols: List[str] = self.margin_cleaned_cols + [
+            "調整前結算保證金",
+            "調整前維持保證金",
+            "調整前原始保證金",
+        ]
+
+        # 公告的比例列：不提供級距與標的證券代號，且「調整前」只留原始比例
+        self.announcement_rate_cleaned_cols: List[str] = self.rate_cleaned_cols + [
+            "調整前原始保證金適用比例",
         ]
 
         self.margin_dir.mkdir(parents=True, exist_ok=True)
@@ -619,3 +661,219 @@ class FuturesMarginCleaner(BaseDataCleaner):
             index=False,
             encoding=FileEncoding.UTF8_SIG.value,
         )
+
+    # === 調整公告 ===
+    @classmethod
+    def parse_announcement_effective_date(
+        cls, title: str, announcement_date: datetime.date
+    ) -> datetime.date:
+        """
+        - Description:
+            自公告標題解析生效日（民國年）
+
+            標題形如「…並自115年4月1日一般交易時段結束後起實施」。
+            **生效日不是公告日**：TAIFEX 的規則是「自公告日之次一一般交易時段
+            結束後起實施」，實測 2020/03/05 的公告生效日是 109/3/6。
+
+            取**最後一個**符合的日期：標題前段常引用主管機關來函的日期
+            （「依金管會115年6月10日…函」），但那些不帶「自」字。
+
+            解析結果若不在 `[公告日, 公告日 + 30 天]` 內就視為解錯，退回公告日 +1
+            並警告——標題裡混進其他日期時，用錯的日期會讓整條變動序列錯位。
+        - Parameters:
+            - title: str
+                公告標題
+            - announcement_date: datetime.date
+                公告日
+        - Return:
+            - datetime.date
+                生效日
+        """
+
+        fallback: datetime.date = announcement_date + datetime.timedelta(days=1)
+        matches: List[tuple] = re.findall(ROC_EFFECTIVE_DATE_PATTERN, title)
+
+        if not matches:
+            logger.warning(
+                f"[Futures Margin] {announcement_date} 標題無生效日，退回公告日 +1"
+            )
+            return fallback
+
+        roc_year, month, day = (int(g) for g in matches[-1])
+        try:
+            effective_date = datetime.date(roc_year + ROC_YEAR_OFFSET, month, day)
+        except ValueError:
+            logger.warning(
+                f"[Futures Margin] {announcement_date} 生效日不合法，退回公告日 +1"
+            )
+            return fallback
+
+        if not (
+            announcement_date
+            <= effective_date
+            <= announcement_date + datetime.timedelta(days=cls.MAX_EFFECTIVE_DATE_LAG)
+        ):
+            logger.warning(
+                f"[Futures Margin] {announcement_date} 解出的生效日 {effective_date} "
+                f"不在合理區間，退回公告日 +1"
+            )
+            return fallback
+
+        return effective_date
+
+    def clean_margin_announcement(
+        self, text: str, title: str, announcement_date: datetime.date
+    ) -> Optional[Dict[str, Optional[pd.DataFrame]]]:
+        """
+        - Description:
+            清洗保證金調整公告的 CSV 附件
+
+            **金額欄的順序與一覽表相反**（公告是原始→維持→結算），
+            照抄一覽表的取值位置會讓三個數字互換而不會報錯。
+
+            **只收期貨**：`契約ABC值` 欄非空者是選擇權的 A／B／C 值，
+            語意不是每口保證金。
+        - Parameters:
+            - text: str
+                附件 CSV 原文（已 big5 解碼）
+            - title: str
+                公告標題，用來解生效日
+            - announcement_date: datetime.date
+                公告日
+        - Return:
+            - Optional[Dict[str, Optional[pd.DataFrame]]]
+                `{"margin": 金額列, "rate": 比例列}`，兩者皆含「調整前」欄供鏈式驗證；
+                **入庫時只取各自的 cleaned_cols**。完全沒有期貨列時為 None
+        """
+
+        if not text or not text.strip():
+            return None
+
+        rows: List[List[str]] = [
+            [cell.strip() for cell in row]
+            for row in csv.reader(StringIO(text))
+            if any(cell.strip() for cell in row)
+        ]
+        if not rows or rows[0][: len(ANNOUNCEMENT_HEADER)] != ANNOUNCEMENT_HEADER:
+            logger.warning(f"[Futures Margin] {announcement_date} 附件表頭不符，跳過")
+            return None
+
+        effective_date: datetime.date = self.parse_announcement_effective_date(
+            title, announcement_date
+        )
+
+        margin_records: List[Dict[str, object]] = []
+        rate_records: List[Dict[str, object]] = []
+
+        for row in rows[1:]:
+            if len(row) < len(ANNOUNCEMENT_HEADER):
+                continue
+            # 契約ABC值非空 → 選擇權的風險保證金參數，不是每口保證金
+            if row[2]:
+                continue
+
+            # **同一個表頭底下有兩種值**：含小數點的是股票期貨的「適用比例」，
+            # 純整數的是指數／ETF 期貨的「每口金額」。見本檔常數區的說明。
+            if self.is_rate_row(row[3:6]):
+                after_rates: Optional[List[float]] = self.parse_plain_rates(row[3:6])
+                if after_rates is None:
+                    continue
+                before_rates: Optional[List[float]] = (
+                    self.parse_plain_rates(row[6:9]) if len(row) >= 9 else None
+                )
+                rate_records.append(
+                    {
+                        "effective_date": effective_date,
+                        "product_id": row[1],
+                        "underlying_stock_id": None,
+                        "product_name": row[0],
+                        # 公告不提供級距，只給比例
+                        "保證金所屬級距": None,
+                        "結算保證金適用比例": after_rates[2],
+                        "維持保證金適用比例": after_rates[1],
+                        "原始保證金適用比例": after_rates[0],
+                        "source": "announcement",
+                        "調整前原始保證金適用比例": (
+                            None if before_rates is None else before_rates[0]
+                        ),
+                    }
+                )
+                continue
+
+            after: Optional[List[int]] = self.parse_amounts(row[3:6])
+            if after is None:
+                continue
+            # 「新增商品」型的公告只有前六欄，沒有調整前
+            before: Optional[List[int]] = (
+                self.parse_amounts(row[6:9]) if len(row) >= 9 else None
+            )
+
+            margin_records.append(
+                {
+                    "effective_date": effective_date,
+                    "product": row[1],
+                    "product_name": row[0],
+                    # 公告的順序是原始→維持→結算，此處還原成表的欄位語意
+                    "結算保證金": after[2],
+                    "維持保證金": after[1],
+                    "原始保證金": after[0],
+                    "source": "announcement",
+                    "調整前結算保證金": None if before is None else before[2],
+                    "調整前維持保證金": None if before is None else before[1],
+                    "調整前原始保證金": None if before is None else before[0],
+                }
+            )
+
+        if not margin_records and not rate_records:
+            logger.info(
+                f"* {announcement_date} 附件無期貨列（多為選擇權或部位限制公告），跳過"
+            )
+            return None
+
+        result: Dict[str, Optional[pd.DataFrame]] = {"margin": None, "rate": None}
+
+        if margin_records:
+            df: pd.DataFrame = pd.DataFrame(margin_records)[
+                self.announcement_cleaned_cols
+            ]
+            self.save_csv(df, f"futures_margin_announcement_{effective_date:%Y%m%d}")
+            result["margin"] = df
+
+        if rate_records:
+            rate_df: pd.DataFrame = pd.DataFrame(rate_records)[
+                self.announcement_rate_cleaned_cols
+            ]
+            self.save_csv(
+                rate_df, f"stock_futures_margin_announcement_{effective_date:%Y%m%d}"
+            )
+            result["rate"] = rate_df
+
+        return result
+
+    @staticmethod
+    def is_rate_row(cells: List[str]) -> bool:
+        """
+        判斷一列給的是比例還是金額
+
+        **只看有沒有小數點**：保證金金額一律是整數元（最小也有數千），
+        比例則一律小於 1（`0.27`）。這是兩者唯一可靠的區分方式——
+        欄位名與表頭完全相同。
+        """
+
+        return any("." in cell for cell in cells)
+
+    @staticmethod
+    def parse_plain_rates(cells: List[str]) -> Optional[List[float]]:
+        """
+        公告裡的比例已經是小數（`0.27`），不像一覽表帶百分號
+
+        故此處只做型別轉換，不再除以 100。
+        """
+
+        rates: List[float] = []
+        for cell in cells:
+            try:
+                rates.append(round(float(cell.replace(",", "").strip()), 6))
+            except ValueError:
+                return None
+        return rates
