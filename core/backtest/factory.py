@@ -5,11 +5,13 @@ from core.backtest.datafeed.futures_datafeed import TwFuturesDataFeed
 from core.backtest.datafeed.tw_stock_datafeed import TwStockDataFeed
 from core.backtest.models.cost_model import (
     CostConfig,
+    FuturesCostConfig,
     StockCostModel,
     TwFuturesCostModel,
 )
 from core.backtest.models.fill_model import (
     FillConfig,
+    FuturesFillConfig,
     TwFuturesFillModel,
     TwStockFillModel,
 )
@@ -21,7 +23,6 @@ from core.backtest.models.settlement_model import (
 from core.backtest.report.futures_reporter import FuturesBacktestReporter
 from core.backtest.report.reporter import StockBacktestReporter
 from core.managers.futures.position_manager import (
-    FuturesCostConfig,
     FuturesMarginConfig,
     FuturesPositionManager,
 )
@@ -175,7 +176,7 @@ def build_tw_futures_backtester(strategy: BaseFuturesStrategy) -> Backtester:
     cost_model: TwFuturesCostModel = TwFuturesCostModel(cost_config)
     position_manager: FuturesPositionManager = FuturesPositionManager(
         account,
-        cost_config=cost_config,
+        cost_model=cost_model,
         margin_config=margin_config,
     )
 
@@ -186,7 +187,7 @@ def build_tw_futures_backtester(strategy: BaseFuturesStrategy) -> Backtester:
     fill_model: TwFuturesFillModel = TwFuturesFillModel(
         instrument=instrument,
         event_counts=event_counts,
-        config=strategy.fill_config or FillConfig(),
+        config=strategy.fill_config or FuturesFillConfig(),
     )
 
     settlement: TwFuturesSettlementModel = TwFuturesSettlementModel(

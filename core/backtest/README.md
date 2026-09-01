@@ -121,6 +121,26 @@ class MyStrategy(BaseStockStrategy):
 券源檢核另由 `ShortConstraint.check_borrowable` 開啟（預設 `False`），資料來自
 `margin` 表的融券今日餘額。
 
+#### 期貨：滑價以**跳動點**表達（`FuturesFillConfig`）
+
+```python
+from core.backtest.models.fill_model import FuturesFillConfig
+
+class MyFuturesStrategy(BaseFuturesStrategy):
+    def __init__(self):
+        super().__init__()
+        self.fill_config = FuturesFillConfig(
+            slippage_ticks_buy=1,                        # 買進滑一檔
+            slippage_ticks_sell=1,                       # 賣出滑一檔
+            slippage_ticks_by_product={"MTX": 2},        # 小台流動性較差，滑兩檔
+            max_volume_share=0.1,                        # 單筆不超過當日成交量（口）10%
+        )
+```
+
+**為什麼不沿用基點**：期貨的價差本來就以「幾檔」報價，而同一個基點數在不同價位
+換算出的檔數不同——TX 在 12,000 點時 1 bps 是 1.2 點、24,000 點時是 2.4 點，
+同一組設定跨年份回測會靜默變成不同的滑價假設。兩種都設時**以跳動點為準**。
+
 ### 計算順序：先滑價，再算費用
 
 ```
@@ -129,6 +149,10 @@ class MyStrategy(BaseStockStrategy):
 ```
 
 手續費與證交稅一律以**含滑價的成交價**計算，兩者的假設因此一致。
+
+期貨同理，但收的是**期交稅（買賣各一次、稅基為契約價值）與每口手續費**，
+與證交稅沒有一項共用——設定見 `FuturesCostConfig`，費率常數見 `FuturesCost`。
+`FuturesCostConfig.free()` 是零成本口徑，**只用於驗證引擎接線**，不可拿來評估績效。
 
 ### 兩個容易誤解的地方
 

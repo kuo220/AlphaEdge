@@ -3,8 +3,8 @@ from typing import List, Optional
 
 import pytest
 
+from core.backtest.models.cost_model import FuturesCostConfig, TwFuturesCostModel
 from core.managers.futures.position_manager import (
-    FuturesCostConfig,
     FuturesMarginConfig,
     FuturesPositionManager,
 )
@@ -42,10 +42,18 @@ DAY_3: datetime.date = datetime.date(2026, 1, 7)
 
 @pytest.fixture
 def manager() -> FuturesPositionManager:
-    """成本全為 0 的部位管理器，讓 PnL 恰好等於價格公式"""
+    """
+    成本全為 0 的部位管理器，讓 PnL 恰好等於價格公式
+
+    **刻意用 `FuturesCostConfig.free()` 而非預設值**：Phase2-1 之後預設帶有
+    期交稅與手續費，本檔驗的是「記帳本身」，成本一旦不為 0，任何斷言的偏差
+    都要先扣掉費用才知道是不是記帳錯了。成本本身另有 `tests/test_futures_cost.py`。
+    """
 
     account: FuturesAccount = FuturesAccount(init_capital=INIT_CAPITAL)
-    return FuturesPositionManager(account)
+    return FuturesPositionManager(
+        account, cost_model=TwFuturesCostModel(FuturesCostConfig.free())
+    )
 
 
 def make_order(
@@ -419,11 +427,13 @@ def test_roi_is_based_on_margin_not_contract_value(
 
 
 # === 成本掛點 ===
-def test_costs_are_zero_by_default(manager: FuturesPositionManager) -> None:
+def test_free_config_makes_pnl_equal_the_price_formula(
+    manager: FuturesPositionManager,
+) -> None:
     """
-    本階段成本一律為 0（Phase2-1 才填實際費率）
+    `FuturesCostConfig.free()` 之下 PnL 恰好等於價格公式
 
-    在查證到期交稅與手續費之前填任何數字都是憑空捏造，會讓 PnL 靜默偏掉。
+    這是驗證引擎接線用的口徑：任何偏差都必定來自記帳本身而非費用。
     """
 
     manager.open_position(make_order(Action.BUY, PositionType.LONG, price=18000))
@@ -432,6 +442,29 @@ def test_costs_are_zero_by_default(manager: FuturesPositionManager) -> None:
     )
 
     assert records[0].transaction_cost == 0
+    assert records[0].realized_pnl == (18100 - 18000) * MULTIPLIER
+
+
+def test_default_config_charges_real_fees() -> None:
+    """
+    **預設設定不再是零成本**（Phase2-1 起）
+
+    零成本回測會系統性高估短線期貨策略；預設帶上期交稅（法規值）與
+    每口手續費（市場常見值），要跑純價格公式必須明確改用 `free()`。
+    """
+
+    account: FuturesAccount = FuturesAccount(init_capital=INIT_CAPITAL)
+    manager: FuturesPositionManager = FuturesPositionManager(account)
+
+    manager.open_position(make_order(Action.BUY, PositionType.LONG, price=18000))
+    records: List[FuturesTradeRecord] = manager.close_position(
+        make_order(Action.SELL, PositionType.LONG, price=18100, date=DAY_2)
+    )
+
+    # 手續費 50 × 2 ＋ 期交稅（18000 ＋ 18100）× 200 × 0.00002 取整後各 72 元
+    assert records[0].commission == 100.0
+    assert records[0].tax == 72 + 72
+    assert records[0].realized_pnl == (18100 - 18000) * MULTIPLIER - 244.0
 
 
 def test_costs_are_deducted_when_configured() -> None:
@@ -440,7 +473,9 @@ def test_costs_are_deducted_when_configured() -> None:
     account: FuturesAccount = FuturesAccount(init_capital=INIT_CAPITAL)
     manager: FuturesPositionManager = FuturesPositionManager(
         account,
-        cost_config=FuturesCostConfig(commission_per_lot=50.0, tax_rate=0.0),
+        cost_model=TwFuturesCostModel(
+            FuturesCostConfig(commission_per_lot=50.0, tax_rate=0.0)
+        ),
         margin_config=FuturesMarginConfig(initial_margin_ratio=0.1),
     )
 

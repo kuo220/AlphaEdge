@@ -7,7 +7,7 @@ import pytest
 from core.backtest.backtester import Backtester, new_event_counts
 from core.backtest.datafeed.futures_datafeed import TwFuturesDataFeed
 from core.backtest.factory import build_backtester
-from core.backtest.models.cost_model import TwFuturesCostModel
+from core.backtest.models.cost_model import FuturesCostConfig, TwFuturesCostModel
 from core.backtest.models.fill_model import (
     FillConfig,
     TwFuturesFillModel,
@@ -70,6 +70,10 @@ class ScriptedFuturesStrategy(BaseFuturesStrategy):
         self.scale: Scale = Scale.DAY
         self.start_date: datetime.date = DAY_1
         self.end_date: datetime.date = datetime.date(2024, 3, 31)
+
+        # **本檔驗的是接線不是成本**：預設費率（Phase2-1）會讓每個斷言都要先扣掉
+        # 手續費與期交稅，成本本身另有 `tests/test_futures_cost.py`
+        self.cost_config: FuturesCostConfig = FuturesCostConfig.free()
 
         self.open_script: Dict[datetime.date, List[FuturesOrder]] = open_script or {}
         self.close_script: Dict[datetime.date, List[FuturesOrder]] = close_script or {}

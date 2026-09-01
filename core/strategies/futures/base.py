@@ -7,11 +7,9 @@ from loguru import logger
 from core.api.futures_margin_api import FuturesMarginAPI
 from core.api.futures_price_api import FuturesPriceAPI
 from core.backtest.datafeed.base import BaseDataFeed
-from core.backtest.models.fill_model import FillConfig
-from core.managers.futures.position_manager import (
-    FuturesCostConfig,
-    FuturesMarginConfig,
-)
+from core.backtest.models.cost_model import FuturesCostConfig
+from core.backtest.models.fill_model import FuturesFillConfig
+from core.managers.futures.position_manager import FuturesMarginConfig
 from core.models import FuturesAccount, FuturesOrder, FuturesQuote
 from core.strategies.base import BaseStrategy
 from core.utils import Action, FuturesSession, InstrumentType, Market
@@ -85,7 +83,7 @@ class BaseFuturesStrategy(BaseStrategy):
         self.cost_config: Optional[FuturesCostConfig] = None
         self.margin_config: Optional[FuturesMarginConfig] = None
         # 成交假設（滑價、成交量上限）；None 時全部關閉，成交價即策略給的委託價
-        self.fill_config: Optional[FillConfig] = None
+        self.fill_config: Optional[FuturesFillConfig] = None
 
         """ === Datasets Setting === """
         self.futures_price: Optional[FuturesPriceAPI] = None  # 期貨行情

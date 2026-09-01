@@ -14,6 +14,7 @@ from .constant import (
     Commission,
     DayTradeUncoveredPolicy,
     FileEncoding,
+    FuturesCost,
     FuturesProduct,
     FuturesSession,
     InstrumentType,

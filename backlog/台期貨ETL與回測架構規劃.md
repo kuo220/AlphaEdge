@@ -27,7 +27,7 @@
 | Phase1-5 | `BaseFuturesStrategy` ＋ 一支示範策略 | `core/strategies/futures/` | 19 條測試 ＋ 實資料產生訂單 | ✅ | **2026-09-01 完成**。**`load_futures_strategies()` 與 `run.py` 分流皆不需要**，理由見完成紀錄 |
 | Phase1-6 | 實作期貨 model 組（不新增引擎） | `core/backtest/models/`、`core/backtest/datafeed/futures_datafeed.py`、`core/backtest/report/futures_reporter.py`、`core/backtest/factory.py` | 台股回歸雙線逐筆相同；期貨策略可跑完 | ✅ | **2026-09-02 完成**：LONG 915 筆與 SHORT 快照逐筆相同（快照重產後 0 diff）、493 條測試通過、`--strategy MomentumFuturesStrategy` 可跑完並產出五張圖與四份 CSV。**偏離原規格：引擎改了一處**（`snapshot_daily_equity()` 的部位計價 16 行，下沉為 1 行呼叫 `SettlementModel.mark_position()`），理由見下方步驟章節 |
 | Phase1-7 | 連續合約構建（先做一種調整方式） | `core/pipeline/tw/*/futures_continuous_*.py` | 換月接點的 `roll_flag` 正確 | ⬜ | 相依 Phase1-2 |
-| Phase2-1 | 期貨成本模型（期交稅、手續費、滑價） | `core/backtest/models/cost_model.py` | **不可複用證交稅**；有單元測試 | ⬜ | 相依 Phase1-6 |
+| Phase2-1 | 期貨成本模型（期交稅、手續費、滑價） | `core/backtest/models/cost_model.py`、`fill_model.py`、`core/utils/constant.py` | **不可複用證交稅**；有單元測試 | ✅ | **2026-09-02 完成**：期交稅（法規值十萬分之二、**買賣各課一次**、稅基為契約價值）、每口手續費（市場常見值 50 元，可逐商品指定）、滑價改以**跳動點**表達並可逐商品設定。16 條測試；`FuturesCostConfig` 一併從 `managers/` 移到 `cost_model.py`（與股票的 `CostConfig` 同位置），部位管理層改為一律問 CostModel，費率不再有第二份 |
 | Phase2-2 | 槓桿／部位控管（保證金 ETL 已分家） | `core/managers/futures/` | 追繳／可開口數依當時生效的保證金計算 | ⬜ | **保證金歷史序列已於 2026-09-01 拆到 [台期貨保證金ETL](台期貨保證金ETL.md)**（來源已調查完、端點已寫進 `url_manager.py`）；本步驟只剩控管邏輯，相依該文件的 S5 |
 | Phase2-3 | 期貨交易日曆（日盤 ＋ 夜盤、結算日） | `core/backtest/datafeed/futures_calendar.py` | 不沿用股票 calendar | ⬜ | 相依 Phase1-6 |
 | Phase2-4 | 換月規則參數化 | `core/backtest/` | 三種換月規則可切換 | ⬜ | 相依 Phase1-7、Phase2-3 |
@@ -1055,13 +1055,46 @@ PRIMARY KEY `(date, product, expiry, session)`。
 
 ### Phase 2：成本模型、保證金與期貨日曆
 
-#### Phase2-1. 期貨成本模型 ⬜
+#### Phase2-1. 期貨成本模型 ✅
 
 - **目的**：期貨成本結構與股票完全不同，**不可複用證交稅**。
 - **做法**：加入期交稅（買賣各一次，現行十萬分之二）、手續費（依券商參數化）、滑價（大台與小台流動性不同，需分別設定）。
 - **產出**：`core/backtest/models/cost_model.py`（`FuturesCostModel`）。
 - **驗證方式**：各項費用有單元測試；稅率以參數化設定，不寫死。
 - **相依**：Phase1-6。
+
+> **✅ 完成紀錄（2026-09-02）**
+>
+> **費率的可信度分兩級，已在 `FuturesCost` 分別註明**：`TaxRate = 0.00002` 是
+> **法規值**（期貨交易稅條例：股價類期貨契約按契約金額十萬分之二，買賣各課一次）；
+> `CommissionPerLot = 50.0` 是**市場常見值**——手續費由券商議定，實務上大台單邊
+> 常見 30~70 元、小型契約更低，故另提供 `commission_per_lot_by_product`
+> 逐商品指定，**不要改預設值**。
+>
+> **三個與股票沒有一項共用的地方**（測試逐一釘住，見 `tests/test_futures_cost.py`）：
+> ① 期交稅**買賣各課一次**（證交稅只課賣出，複用會讓開倉少收一次）；
+> ② 稅基是**契約價值**（價格 × 乘數 × 口數）而非成交金額，乘數沒帶會少收 200 倍；
+> ③ 手續費是**每口固定金額**，沒有費率、折扣與最低收費。
+>
+> **滑價改以跳動點表達**（`FuturesFillConfig`）：期貨的價差本來就以「幾檔」報價，
+> 而同一個基點數在不同價位是不同的檔數——TX 在 12,000 點時 1 bps 是 1.2 點、
+> 24,000 點時是 2.4 點，沿用基點會讓同一組設定跨年份靜默變成不同的假設。
+> 並提供 `slippage_ticks_by_product`，滿足本步驟「大台與小台需分別設定」的要求。
+>
+> **順帶收斂了一個會漂移的地方**：`FuturesCostConfig` 原本放在
+> `core/managers/futures/position_manager.py`，而 `TwFuturesCostModel` 在
+> `cost_model.py`，兩處各有一份手續費／稅的算式。現已把 config 移到 `cost_model.py`
+> （與股票的 `CostConfig` 同位置），`FuturesPositionManager` 改為持有 CostModel
+> 並一律轉呼叫，費率只剩一份。這同時解掉 `cost_model` ←→ `managers.futures`
+> 的循環 import 隱患。
+>
+> **預設值改變的影響**：Phase1-6 之前費率全為 0，現在預設帶費用。示範策略
+> 2024 年的實測由 −304,400 變為 −330,107（94 口，手續費 9,400 ＋ 期交稅 16,307）。
+> 要跑「PnL 恰好等於價格公式」的驗證口徑請明確使用 `FuturesCostConfig.free()`。
+>
+> **驗證**：510 條測試通過（新增 16 條）；台股 LONG 915 筆與 SHORT 快照皆未受影響
+> （快照重產 0 diff）；示範策略端對端可跑，交易明細的稅費逐筆手算對得上
+> （首筆 2 口來回：手續費 200、稅 141 ＋ 142 ＝ 283）。
 
 #### Phase2-2. 保證金歷史序列與槓桿／部位控管 ⬜
 

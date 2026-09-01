@@ -58,6 +58,44 @@ class FillConfig:
     volume_cap_policy: VolumeCapPolicy = VolumeCapPolicy.TRUNCATE
 
 
+@dataclass
+class FuturesFillConfig(FillConfig):
+    """
+    期貨的成交假設：**滑價改以跳動點（tick）表達**
+
+    為什麼不沿用基點：期貨的價差報價本來就是「幾檔」，而同一個基點數在不同價位
+    換算出的檔數不同——TX 在 12,000 點時 1 bps 是 1.2 點、在 24,000 點時是 2.4 點，
+    同一組設定跨年份回測會靜默變成不同的滑價假設。
+
+    **大台與小台要分開設**（Phase2-1 的明文要求）：MTX 的價差與成交量都與 TX 不同，
+    用同一個數字會低估小台的成本，故提供 `slippage_ticks_by_product`。
+
+    `slippage_ticks_*` 為 0 且未逐商品指定時，退回基底的基點設定（同樣預設關閉），
+    行為與未啟用任何假設時完全相同。
+    """
+
+    slippage_ticks_buy: float = 0.0  # 買進滑價（跳動點數）
+    slippage_ticks_sell: float = 0.0  # 賣出滑價（跳動點數）
+    # 逐商品的滑價跳動點數；未列的商品沿用上面兩個共用值
+    slippage_ticks_by_product: Optional[Dict[str, float]] = None
+
+    def get_slippage_ticks(
+        self, action: Action, product: Optional[str] = None
+    ) -> float:
+        """取得該商品該方向的滑價跳動點數；逐商品設定優先"""
+
+        if product and self.slippage_ticks_by_product:
+            ticks: Optional[float] = self.slippage_ticks_by_product.get(product)
+            if ticks is not None:
+                return ticks
+
+        return (
+            self.slippage_ticks_buy
+            if action == Action.BUY
+            else self.slippage_ticks_sell
+        )
+
+
 class BaseFillModel(ABC):
     """
     成交價模型：判斷一張訂單在該根 bar 是否可能以指定價格成交
@@ -432,12 +470,12 @@ class TwFuturesFillModel(BaseFillModel):
         self,
         instrument: Optional[InstrumentSpec] = None,
         event_counts: Optional[Dict[str, int]] = None,
-        config: Optional[FillConfig] = None,
+        config: Optional[FuturesFillConfig] = None,
     ):
         self.instrument: InstrumentSpec = instrument or TwFuturesSpec()
 
         # 成交假設（滑價、成交量上限）；預設全關
-        self.config: FillConfig = config or FillConfig()
+        self.config: FillConfig = config or FuturesFillConfig()
 
         # 與引擎共用同一個 dict，拒單計數才會反映到報表（傳 None 時自行持有，供單獨測試）
         self.event_counts: Dict[str, int] = (
@@ -535,7 +573,24 @@ class TwFuturesFillModel(BaseFillModel):
         return filled_order
 
     def get_filled_price(self, order: BaseOrder) -> float:
-        """依訂單方向套用滑價；係數為 0 時原價回傳"""
+        """
+        - Description:
+            依訂單方向套用滑價，**跳動點優先於基點**
+
+            兩者都設時以跳動點為準：期貨的價差本來就以檔數報價，
+            基點只是為了與基底介面相容而保留（見 `FuturesFillConfig`）。
+            方向一律往對下單者不利的一側，這點與台股相同。
+        - Parameters:
+            - order: BaseOrder
+                策略產生的訂單
+        - Return:
+            - float
+                含滑價的成交價
+        """
+
+        ticks: float = self.get_slippage_ticks(order)
+        if ticks:
+            return self.apply_tick_slippage(order.price, order.action, ticks)
 
         bps: float = (
             self.config.slippage_bps_buy
@@ -543,6 +598,33 @@ class TwFuturesFillModel(BaseFillModel):
             else self.config.slippage_bps_sell
         )
         return self.instrument.apply_slippage(order.price, order.action, bps)
+
+    def get_slippage_ticks(self, order: BaseOrder) -> float:
+        """取得該筆訂單的滑價跳動點數；設定不是 `FuturesFillConfig` 時為 0"""
+
+        if not isinstance(self.config, FuturesFillConfig):
+            return 0.0
+
+        return self.config.get_slippage_ticks(
+            order.action, getattr(order, "product", None)
+        )
+
+    def apply_tick_slippage(self, price: float, action: Action, ticks: float) -> float:
+        """
+        以跳動點數套用滑價：買進往上加、賣出往下減
+
+        **方向寫死不由呼叫端決定符號**，理由同 `InstrumentSpec.apply_slippage()`
+        ——滑價的意義是「你拿不到理想價」，允許負值等於允許「滑價讓績效變好」。
+        """
+
+        tick_size: float = getattr(
+            self.instrument, "tick_size", TwFuturesSpec.DEFAULT_TICK_SIZE
+        )
+        offset: float = ticks * tick_size
+
+        if action == Action.BUY:
+            return self.instrument.round_to_tick(price + offset, "up")
+        return self.instrument.round_to_tick(price - offset, "down")
 
     def get_filled_volume(self, order: BaseOrder, quote: BaseQuote) -> Optional[int]:
         """

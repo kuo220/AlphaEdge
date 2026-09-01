@@ -5,6 +5,7 @@ from typing import Optional, Union
 from loguru import logger
 
 from core.api.futures_margin_api import FuturesMarginAPI
+from core.backtest.models.cost_model import FuturesCostConfig, TwFuturesCostModel
 from core.managers.base.position_manager import BasePositionManager
 from core.models import (
     FuturesAccount,
@@ -27,27 +28,6 @@ FuturesPositionManager: 期貨部位管理（口數、保證金、逐日盯市�
    早就留好的掛點（股票側為 no-op）。
 3. **沒有證交稅、沒有股數換算**。PnL = 價格變動 × 乘數 × 口數，方向由多空決定。
 """
-
-
-@dataclass
-class FuturesCostConfig:
-    """
-    期貨交易成本設定
-
-    **本階段一律為 0，是刻意的**：Phase2-1 才是期貨成本模型（期交稅、手續費、滑價）
-    的所屬步驟，且該步驟明載「**不可複用證交稅**」。在查證到實際費率之前填任何
-    數字都是憑空捏造，會讓 PnL 靜默偏掉。此處只把掛點準備好，
-    讓 Phase2-1 有地方接上，並讓本階段的 PnL 恰好等於價格公式。
-    """
-
-    commission_per_lot: float = 0.0  # 每口手續費（買賣各收一次）
-    tax_rate: float = 0.0  # 期交稅率（對契約價值課徵，買賣各收一次）
-
-    @staticmethod
-    def default() -> "FuturesCostConfig":
-        """預設設定：全部為 0，見 class docstring"""
-
-        return FuturesCostConfig()
 
 
 @dataclass
@@ -106,15 +86,23 @@ class FuturesPositionManager(BasePositionManager):
     def __init__(
         self,
         account: FuturesAccount,
-        cost_config: Optional[FuturesCostConfig] = None,
+        cost_model: Optional[TwFuturesCostModel] = None,
         margin_config: Optional[FuturesMarginConfig] = None,
     ):
         super().__init__(account)
         self.account: FuturesAccount = account
-        self.cost_config: FuturesCostConfig = cost_config or FuturesCostConfig.default()
+        # 成本一律走 CostModel（與 `StockPositionManager` 同一種接法）：
+        # 本層只決定「什麼時候收」，費率與公式全在 model，兩處各算一份必然漂移
+        self.cost_model: TwFuturesCostModel = cost_model or TwFuturesCostModel()
         self.margin_config: FuturesMarginConfig = (
             margin_config or FuturesMarginConfig.default()
         )
+
+    @property
+    def cost_config(self) -> FuturesCostConfig:
+        """費率設定；唯一來源是 `cost_model.config`"""
+
+        return self.cost_model.config
 
     def setup(self, *args, **kwargs) -> None:
         """Set Up the Config of Futures Position Manager"""
@@ -194,16 +182,15 @@ class FuturesPositionManager(BasePositionManager):
 
         return float(per_lot * volume)
 
-    def calculate_commission(self, volume: int) -> float:
-        """手續費：每口固定金額"""
+    def calculate_commission(self, volume: int, product: Optional[str] = None) -> float:
+        """手續費：每口固定金額（可逐商品指定，見 `FuturesCostConfig`）"""
 
-        return self.cost_config.commission_per_lot * volume
+        return self.cost_model.commission(price=0.0, volume=volume, product=product)
 
     def calculate_tax(self, price: float, volume: int, multiplier: int) -> float:
         """期交稅：對契約價值課徵（**不是證交稅**，費率見 `FuturesCostConfig`）"""
 
-        contract_value: float = self.calculate_contract_value(price, volume, multiplier)
-        return contract_value * self.cost_config.tax_rate
+        return self.cost_model.tax(price=price, volume=volume, multiplier=multiplier)
 
     def calculate_pnl(
         self,
@@ -296,7 +283,7 @@ class FuturesPositionManager(BasePositionManager):
             product=order.product,
             date=order.date,
         )
-        commission: float = self.calculate_commission(order.volume)
+        commission: float = self.calculate_commission(order.volume, order.product)
         tax: float = self.calculate_tax(order.price, order.volume, multiplier)
         open_cost: float = commission + tax
 
@@ -420,7 +407,9 @@ class FuturesPositionManager(BasePositionManager):
         # 開倉成本依平倉口數等比例攤提（與股票側同一套做法）
         proportional_open_commission: float = position.commission * close_ratio
         proportional_open_tax: float = position.tax * close_ratio
-        close_commission: float = self.calculate_commission(close_volume)
+        close_commission: float = self.calculate_commission(
+            close_volume, position.product
+        )
         close_tax: float = self.calculate_tax(
             order.price, close_volume, position.multiplier
         )
