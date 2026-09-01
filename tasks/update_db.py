@@ -21,6 +21,7 @@ from core.pipeline.tw.updaters.financial_statement_updater import (
     FinancialStatementUpdater,
 )
 from core.pipeline.tw.updaters.finmind_updater import FinMindUpdater
+from core.pipeline.tw.updaters.futures_margin_updater import FuturesMarginUpdater
 from core.pipeline.tw.updaters.futures_price_updater import FuturesPriceUpdater
 from core.pipeline.tw.updaters.futures_stock_universe_updater import (
     FuturesStockUniverseUpdater,
@@ -76,6 +77,7 @@ Target 對照表
   price                       收盤價
   futures_price               台期貨每日行情（寫入 tw_futures.db）
   futures_stock_universe      股票期貨標的池（寫入 tw_futures.db）
+  futures_margin              台期貨保證金（變動序列，寫入 tw_futures.db）
   fs                          財報 (Financial Statement)
   mrr                         月營收報表 (Monthly Revenue Report)
   finmind                     全部 FinMind（台股總覽 + 證券商 + 券商分點）
@@ -110,6 +112,9 @@ Target 對照表
 
   # 更新股票期貨標的池（寫入 tw_futures.db；每次執行留下一份當日快照）
   python -m tasks.update_db --target futures_stock_universe
+
+  # 更新台期貨保證金（寫入 tw_futures.db；保證金沒調整時不會新增列）
+  python -m tasks.update_db --target futures_margin
 
   # 財報
   python -m tasks.update_db --target fs
@@ -362,6 +367,13 @@ def main() -> None:
                 FuturesStockUniverseUpdater()
             )
             futures_stock_universe_updater.update()
+
+    if DataType.FUTURES_MARGIN.name.lower() in targets:
+        with target_guard("futures_margin", failed_targets):
+            # 保證金是「現行一覽表」，一次請求就結束，沒有回補區間，故不取 time_config；
+            # 沒有調整時不會新增列（主鍵相同被 INSERT OR IGNORE 擋掉），那是正常狀態
+            futures_margin_updater: FuturesMarginUpdater = FuturesMarginUpdater()
+            futures_margin_updater.update()
 
     if DataType.FS.name.lower() in targets:
         with target_guard("fs", failed_targets):

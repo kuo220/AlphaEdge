@@ -113,6 +113,9 @@ FUTURES_UNIVERSE_DOWNLOADS_PATH: Path = get_static_resolved_path(
 FUTURES_TICK_DOWNLOADS_PATH: Path = get_static_resolved_path(
     base_dir=TW_FUTURES_DOWNLOADS_PATH, dir_name="tick"
 )
+FUTURES_MARGIN_DOWNLOADS_PATH: Path = get_static_resolved_path(
+    base_dir=TW_FUTURES_DOWNLOADS_PATH, dir_name="margin"
+)
 
 # -----------------------------------------------------------------------
 # === Crawler Downloads Metadata Directory Path ===
@@ -211,7 +214,16 @@ FUTURES_CONTINUOUS_TABLE_NAME: str = "futures_continuous"  # 連續合約（換�
 FUTURES_INSTITUTIONAL_CHIP_TABLE_NAME: str = (
     "futures_institutional_chip"  # 三大法人／大額交易人
 )
-FUTURES_MARGIN_HISTORY_TABLE_NAME: str = "futures_margin_history"  # 保證金歷史序列
+# 保證金**分兩張表**：指數類等商品給的是「每口固定金額」，股票期貨給的是
+# 「適用比例 ＋ 級距」（每檔標的股價不同，固定金額沒有意義）。硬塞同一張表會讓
+# 一半欄位永遠是 NULL，且下游得先判斷「這是哪一類」才知道讀哪一組欄位。
+# 規劃見 `backlog/台期貨保證金ETL.md`
+FUTURES_MARGIN_HISTORY_TABLE_NAME: str = (
+    "futures_margin_history"  # 保證金歷史序列（每口金額）
+)
+STOCK_FUTURES_MARGIN_RATE_HISTORY_TABLE_NAME: str = (
+    "stock_futures_margin_rate_history"  # 股票期貨保證金歷史序列（適用比例）
+)
 FUTURES_STOCK_UNIVERSE_TABLE_NAME: str = "futures_stock_universe"  # 股票期貨標的池
 
 STOCK_TRADING_DAILY_REPORT_TABLE_NAME: str = (

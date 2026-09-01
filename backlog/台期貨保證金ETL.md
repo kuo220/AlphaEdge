@@ -27,8 +27,8 @@
 
 | 編號 | 步驟名稱 | 產出檔案 | 驗證方式 | 狀態 | 備註／中斷點 |
 |------|----------|----------|----------|:----:|--------------|
-| S1 | 常數與兩張表的 schema 定案 | `core/config.py` | 兩個表名常數與中繼目錄可解析 | ⬜ | `FUTURES_MARGIN_HISTORY_TABLE_NAME` 已存在，只需補股票類那張 |
-| S2 | 現行保證金快照 ETL（指數類，四層） | `core/pipeline/tw/*/futures_margin_*.py` | 表內有當期資料且重跑冪等 | ⬜ | 相依 S1；來源已驗證可爬（見 §2） |
+| S1 | 常數與兩張表的 schema 定案 | `core/config.py` | 兩個表名常數與中繼目錄可解析 | ✅ | **2026-09-01 完成**。比例欄定案為**小數**（見該步驟） |
+| S2 | 現行保證金快照 ETL（指數類，四層） | `core/pipeline/tw/*/futures_margin_*.py`、`tasks/update_db.py` | 19 條測試 ＋ `--target futures_margin` 端對端驗過 | ✅ | **2026-09-01 完成**：7 個商品入庫、重跑 0 新增 |
 | S3 | 現行保證金快照 ETL（股票類，比例） | 同上 | 級距與比例正確、選擇權列被濾掉 | ⬜ | 相依 S2（共用 crawler／updater 骨架） |
 | S4 | 歷史回補：2020/03 起的公告 CSV | `core/pipeline/tw/*/futures_margin_*.py` | 鏈式驗證通過（見驗收標準） | ⬜ | 相依 S2；44 筆 TX 公告有 CSV 附件 |
 | S5 | `FuturesMarginAPI` ＋ 接進 `FuturesMarginConfig` | `core/api/futures_margin_api.py`、`core/managers/futures/position_manager.py` | 既有 23 條部位測試全綠；查表值取代固定比率 | ⬜ | 相依 S4 |
@@ -61,7 +61,7 @@
 
 ---
 
-## S1. 常數與兩張表的 schema 定案 ⬜
+## S1. 常數與兩張表的 schema 定案 ✅
 
 - **目的**：先把表名、欄位與中繼目錄定下來，S2 之後才不會邊做邊改 schema。
 - **做法**：
@@ -106,9 +106,16 @@
 - **驗證方式**：兩個表名常數與 `FUTURES_MARGIN_DOWNLOADS_PATH` 可正確解析。
 - **相依**：無。
 
+> **✅ 完成紀錄（2026-09-01）**
+> - 新增 `STOCK_FUTURES_MARGIN_RATE_HISTORY_TABLE_NAME` 與 `FUTURES_MARGIN_DOWNLOADS_PATH`
+>   （`core/pipeline/downloads/tw_futures/margin`）；`FUTURES_MARGIN_HISTORY_TABLE_NAME` 沿用。
+> - **比例欄定案為小數**（`0.1350`）：下游直接乘不需要再除以 100，
+>   而「忘記除 100」會讓保證金差 100 倍卻不會報錯。S3 實作時寫進建表註解。
+> - 兩個表名常數上方補了分兩張表的理由，避免日後有人想合併。
+
 ---
 
-## S2. 現行保證金快照 ETL（指數類）⬜
+## S2. 現行保證金快照 ETL（指數類）✅
 
 - **目的**：把「現在這一組」保證金落地，並建立往後累積歷史的機制。
 - **做法**：四層比照 `futures_stock_universe`（同樣是「來源只給現況」的快照序列）：
@@ -128,6 +135,25 @@
   `tasks/update_db.py`。
 - **驗證方式**：跑完可在 `futures_margin_history` 查到當期資料；同日重跑列數不變。
 - **相依**：S1。
+
+> **✅ 完成紀錄（2026-09-01）**
+> - 四層 ＋ `--target futures_margin` 已上線。**端對端實跑**：首次入庫 7 個商品
+>   （TX／MTX／TMF／TE／ZEF／TF／ZFF，生效日 2026-08-12），
+>   **第二次執行新增 0 列**——冪等靠主鍵 ＋ `INSERT OR IGNORE`，不需要另外判斷有沒有變。
+> - **crawler 回傳的是解碼後的字串而不是 `Response`**：來源是 big5 CSV，
+>   `requests` 猜的編碼不可信，把解碼點收斂在一處，下游不必再操心。
+> - **乘數比例檢查只在同一標的指數家族內成立**（實作時先寫錯、實測抓到）：
+>   加權每點 3,505、電子 244.50、金融 158.00，**三者本來就不同**。
+>   拿 TX 去比 TE 會誤判成解析錯誤，故 `PRODUCT_INDEX_FAMILY` 分家族比對。
+>   這是本層唯一能自動偵測「數字都對但欄位錯位」的手段。
+> - **只收乘數已登錄的商品**，本次濾掉 22 項並列在 log 供人工複查：選擇權的風險保證金
+>   A／B／C 值（語意不是每口金額）、`客製化小型臺指期貨`（MXFFX 乘數未登錄）、
+>   以及櫃買／半導體30／美國道瓊等尚未登錄乘數的商品。
+>   要收錄它們**必須先在 `FUTURES_MULTIPLIER` 登錄乘數**，那是 Phase4-1 的範圍。
+> - **生效日解析不到就整批放棄，不退回今天**——退回今天會產生一列日期錯誤
+>   但看起來完全正常的資料。測試有釘。
+> - **驗證**：`tests/test_futures_margin.py` 19 條（生效日、欄位錯位、變動序列語意、
+>   `effective_date <= 該日` 的查詢語意先行釘住供 S5 用）＋ 端對端實跑。
 
 ---
 

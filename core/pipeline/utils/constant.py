@@ -14,6 +14,7 @@ class DataType(str, Enum):
     FINMIND = "FINMIND"
     FUTURES_PRICE = "FUTURES_PRICE"  # 台期貨每日行情（寫入 tw_futures.db）
     FUTURES_STOCK_UNIVERSE = "FUTURES_STOCK_UNIVERSE"  # 股票期貨標的池
+    FUTURES_MARGIN = "FUTURES_MARGIN"  # 台期貨保證金（變動序列，寫入 tw_futures.db）
 
 
 class ListingBoard(str, Enum):
