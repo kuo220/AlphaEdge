@@ -1,7 +1,9 @@
 import datetime
 import sqlite3
+from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from core.config import FUTURES_STOCK_UNIVERSE_TABLE_NAME
 from core.pipeline.tw.cleaners.futures_stock_universe_cleaner import (
@@ -73,6 +75,23 @@ UNIVERSE_HTML: str = """
   </tr>
 </table>
 """
+
+
+@pytest.fixture(autouse=True)
+def isolate_downloads_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    把 cleaner 的落地目錄導到暫存區
+
+    cleaner 清完就把結果寫成 CSV，預設落在真實的
+    `core/pipeline/downloads/tw_futures/universe/`——本檔的 fixture 只有 5 列，
+    跑一次測試就會把同名的真實快照整份覆蓋掉，且不會有任何徵兆。
+    """
+
+    monkeypatch.setattr(
+        "core.pipeline.tw.cleaners.futures_stock_universe_cleaner."
+        "FUTURES_UNIVERSE_DOWNLOADS_PATH",
+        tmp_path / "universe",
+    )
 
 
 def crawl_and_clean() -> pd.DataFrame:
