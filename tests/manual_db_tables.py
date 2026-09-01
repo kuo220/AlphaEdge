@@ -151,7 +151,7 @@ def test_broker_trading_data(limit: int = 5) -> None:
     測試 broker_trading 資料表並顯示幾筆資料
 
     使用方法（從專案根目錄執行）：
-        python -m tests.test_db_tables --broker-trading --limit 10
+        python -m tests.manual_db_tables --broker-trading --limit 10
 
     Args:
         limit: 要顯示的資料筆數（預設為 5 筆）
@@ -249,9 +249,9 @@ def parse_args() -> argparse.Namespace:
     解析命令列參數
 
     範例：
-        python -m tests.test_db_tables
-        python -m tests.test_db_tables --broker-trading
-        python -m tests.test_db_tables --broker-trading --limit 10
+        python -m tests.manual_db_tables
+        python -m tests.manual_db_tables --broker-trading
+        python -m tests.manual_db_tables --broker-trading --limit 10
     """
     parser = argparse.ArgumentParser(description="測試 tw_stock.db 資料表與抽樣查詢")
     parser.add_argument(

@@ -381,4 +381,4 @@ if __name__ == "__main__":
 
     else:
         print(f"\n❌ 無效的選項: {choice}")
-        print("請執行: python test_tick_updater.py [1-5]")
+        print("請執行: python manual_tick_updater.py [1-5]")

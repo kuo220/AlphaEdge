@@ -135,7 +135,7 @@ ignore = [
 # 這幾處的 import 是「可用性探測」，不是沒用到的 import
 "core/pipeline/utils/stock_tick_utils.py" = ["F401"]
 "core/pipeline/loaders/stock_tick_loader.py" = ["F401"]
-"tests/test_tick_updater.py" = ["F401"]
+"tests/manual_tick_updater.py" = ["F401"]
 
 
 [tool.ruff.format]

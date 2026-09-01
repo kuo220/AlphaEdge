@@ -84,7 +84,7 @@ pytest                              # 全部（需 core/database/tw_stock.db）
 |------|------|------|
 | `__init__.py` | `F401` | 套件的 re-export 門面，import 就是對外介面 |
 | `tests/*`、`strategy_lab/*` | `E402` | 獨立執行的腳本，import 前有 `sys.path` 設定或條件式 mock |
-| `stock_tick_utils.py`、`stock_tick_loader.py`、`test_tick_updater.py` | `F401` | `dolphindb` 是選用相依，該處 import 是「可用性探測」 |
+| `stock_tick_utils.py`、`stock_tick_loader.py`、`manual_tick_updater.py` | `F401` | `dolphindb` 是選用相依，該處 import 是「可用性探測」 |
 
 `*.md` 已加入 `extend-exclude`：ruff 0.16 起會連 Markdown 內的 Python 程式碼區塊一起格式化，
 而文件裡的範例常刻意對齊註解以利閱讀。`CLAUDE.md` §2.5／§2.10 規範的對象是程式碼，不是文件。
@@ -134,7 +134,7 @@ pytest                              # 全部（需 core/database/tw_stock.db）
 | E722 ×3 | `stock_tick_cleaner.py:155/163`、`stock_tick_utils.py:209` | 裸 `except`，會連 `KeyboardInterrupt` 一起吞 |
 | F841 ×3 | `stock_price_crawler.py:39/40`、`generate_docs.py:65` | **`crawl_price()` 把 `crawl_twse_price()`／`crawl_tpex_price()` 的回傳值指派後完全沒用**，看起來像未完成的函式，需確認是否為缺陷 |
 | F811 ×1 | `callback.py:7` | `OrderState` 同時從 `shioaji.constant` 與 `.constant` import，後者覆蓋前者 |
-| B007 ×2 | `test_db_tables.py:129/142` | 未使用的迴圈變數，無害 |
+| B007 ×2 | `manual_db_tables.py:129/142` | 未使用的迴圈變數，無害 |
 
 ---
 
@@ -178,9 +178,30 @@ pytest                              # 全部（需 core/database/tw_stock.db）
 `core/database/tw_stock.db` 未進版控（`.gitignore` 有 `*.db`），CI 也沒有 Shioaji／FinMind 金鑰。
 需要這些的測試一律標 `@pytest.mark.slow` 或 `pytestmark = pytest.mark.slow`。
 
-目前標為 slow 的有：`test_long_regression.py`、`test_finmind_api.py`（需 `tw_stock.db`）、
-`test_tick_crawler.py`、`test_tick_updater.py`（**是手動執行的腳本，不是可被 pytest 直接跑的測試**——
-`test_*` 函式帶必填參數，pytest 會當成 fixture 而報 `fixture not found`）。
+目前標為 slow 的有：`test_long_regression.py`、`test_short_regression.py`（需 `tw_stock.db`）。
+
+### 4.2.1 `tests/manual_*.py` 是手動腳本，**不會被 pytest 收集**
+
+`tests/` 底下有九支 `manual_*.py`，它們是**手動執行的驗證腳本**而不是測試：
+沒有斷言（或斷言包在 `try/except` 裡）、大量 `print`、結尾有
+`if __name__ == "__main__"` 區塊要人自己填參數。
+
+**2026-09-01 之前它們叫 `test_*.py`，因而被 pytest 收走，造成兩種壞結果**：
+
+| 症狀 | 檔案 | 危險度 |
+|------|------|:------:|
+| 收集期就 `fixture 'stock_id' not found`（函式帶必填參數，pytest 當成 fixture） | `tick_crawler`（3 個）、`tick_updater`（1 個） | 低——**吵但誠實**，看得出來壞了 |
+| 整段包在 `try/except` 且失敗時 `return False`，pytest 判定 **passed** | `broker_trading_updater`、`finmind_api` | **高**——**永遠不會紅**，會被誤當成通過的證據 |
+
+第二種在 2026-09-01 的 FinMind S8 重構時真的害到人：原定驗收是
+「`test_broker_trading_updater.py` 通過」，實測那一檔連呼叫不存在的方法都能 passed。
+
+改名為 `manual_*` 之後 pytest 不再收集（預設樣式是 `test_*.py`），基線因此變成
+**乾淨的 `N passed, 0 errors`**——之後任何一個 error 都是真的出事。腳本本身沒有改，
+仍可用 `python -m tests.manual_db_tables` 之類的方式手動執行。
+
+**新增測試時的判準**：**沒有會失敗的斷言就不是測試**。要驗證行為就寫真的斷言，
+要人工探勘就取名 `manual_*`，不要放一支永遠綠的檔案佔著位置。
 
 驗證 CI 是否真的會綠，可用「移除資料庫與金鑰的副本」在本機模擬：
 
