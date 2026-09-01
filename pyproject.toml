@@ -13,6 +13,11 @@ requires-python = ">=3.12"
 # 版本下限取當前實測可用的版本；鎖定的精確版本見 requirements.txt。
 dependencies = [
     "FinMind>=1.9",
+    # FinMind 1.9.8 **自己 import 了 tqdm 卻沒有宣告它**（`Requires:` 內沒有），
+    # 故必須由本專案代為列出——CI 以 `pip install -e ".[dev]"` 安裝，
+    # 少了它整個 `tests/` 會在 collect 階段就 ImportError（2026-09-01 CI 全紅的成因）。
+    # 本專案自己的程式碼沒有 import tqdm，這是**代宣告的傳遞相依**，不是漏列。
+    "tqdm>=4.67",
     "fake-useragent>=2.2",
     "loguru>=0.7",
     "numpy>=2.4",
