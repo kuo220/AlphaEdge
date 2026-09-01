@@ -4,7 +4,11 @@ from typing import Dict, Optional
 import requests
 from fake_useragent import UserAgent
 from loguru import logger
-from requests.exceptions import ChunkedEncodingError, ReadTimeout
+from requests.exceptions import (
+    ChunkedEncodingError,
+    ReadTimeout,
+)
+from requests.exceptions import ConnectionError as RequestsConnectionError
 
 
 class RequestUtils:
@@ -18,6 +22,23 @@ class RequestUtils:
     HTTP_RETRY_DELAY_SECONDS: int = 60
 
     ses: Optional[requests.Session] = None  # Session
+
+    # 重試要攔的例外。
+    #
+    # ⚠️ **`requests.exceptions.ConnectionError` 不是內建 `ConnectionError` 的子類**
+    # ——兩者是 `OSError` 底下的**兄弟**。本檔原本只 import 了 `ChunkedEncodingError`
+    # 與 `ReadTimeout`，`except ConnectionError` 抓到的是內建那個，
+    # 於是 requests 拋的連線中斷完全沒被攔到，直接把行程打死。
+    #
+    # 2026-09-01 實測：台期貨歷史回補跑到第 9 年（2024-10-29）時因
+    # `RemoteDisconnected` 整個中止，前面 23,599 列雖已入庫，但中斷點要人工找。
+    # 兩個都列進來，內建那個保留是因為底層 socket 也可能直接拋它。
+    RETRYABLE_EXCEPTIONS: tuple = (
+        RequestsConnectionError,
+        ConnectionError,
+        ReadTimeout,
+        ChunkedEncodingError,
+    )
 
     @staticmethod
     def generate_random_header() -> Dict[str, str]:
@@ -47,7 +68,7 @@ class RequestUtils:
                 cls.ses = ses
 
                 return ses
-            except (ConnectionError, ReadTimeout) as error:
+            except cls.RETRYABLE_EXCEPTIONS as error:
                 logger.info(error)
                 logger.info("失敗,10秒後重試")
                 time.sleep(cls.SESSION_RETRY_DELAY_SECONDS)
@@ -66,7 +87,7 @@ class RequestUtils:
         for i in range(cls.HTTP_MAX_RETRIES):
             try:
                 return cls.ses.get(url, timeout=cls.REQUEST_TIMEOUT_SECONDS, **kwargs)
-            except (ConnectionError, ReadTimeout, ChunkedEncodingError) as error:
+            except cls.RETRYABLE_EXCEPTIONS as error:
                 logger.info(error)
                 logger.info(
                     f"retry one more time after 60s {cls.HTTP_MAX_RETRIES - 1 - i} times left"
@@ -85,7 +106,7 @@ class RequestUtils:
         for i in range(cls.HTTP_MAX_RETRIES):
             try:
                 return cls.ses.post(url, timeout=cls.REQUEST_TIMEOUT_SECONDS, **kwargs)
-            except (ConnectionError, ReadTimeout) as error:
+            except cls.RETRYABLE_EXCEPTIONS as error:
                 logger.info(error)
                 logger.info(
                     f"retry one more time after 60s {cls.HTTP_MAX_RETRIES - 1 - i} times left"
