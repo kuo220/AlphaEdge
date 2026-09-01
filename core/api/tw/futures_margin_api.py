@@ -89,13 +89,18 @@ class FuturesMarginAPI(BaseDataAPI):
                 `{"結算保證金", "維持保證金", "原始保證金"}`；查無資料時為 None
         """
 
-        row = self.conn.execute(
-            f"SELECT 結算保證金, 維持保證金, 原始保證金 "
-            f"FROM {FUTURES_MARGIN_HISTORY_TABLE_NAME} "
-            f"WHERE product = ? AND effective_date <= ? "
-            f"ORDER BY effective_date DESC LIMIT 1",
-            (product, str(date)),
-        ).fetchone()
+        try:
+            row = self.conn.execute(
+                f"SELECT 結算保證金, 維持保證金, 原始保證金 "
+                f"FROM {FUTURES_MARGIN_HISTORY_TABLE_NAME} "
+                f"WHERE product = ? AND effective_date <= ? "
+                f"ORDER BY effective_date DESC LIMIT 1",
+                (product, str(date)),
+            ).fetchone()
+        except sqlite3.OperationalError:
+            # 表不存在（尚未跑過保證金 ETL）：與「查無該商品」同樣回 None，
+            # 由呼叫端決定要中止還是退回比率近似
+            return None
 
         if row is None and fallback_to_earliest:
             row = self.conn.execute(
@@ -278,11 +283,16 @@ class FuturesMarginAPI(BaseDataAPI):
         查不到**，那是來源限制（2020/03 之前的公告附件是掃描影像）。
         """
 
-        row = self.conn.execute(
-            f"SELECT MIN(effective_date), MAX(effective_date) "
-            f"FROM {FUTURES_MARGIN_HISTORY_TABLE_NAME} WHERE product = ?",
-            (product,),
-        ).fetchone()
+        try:
+            row = self.conn.execute(
+                f"SELECT MIN(effective_date), MAX(effective_date) "
+                f"FROM {FUTURES_MARGIN_HISTORY_TABLE_NAME} WHERE product = ?",
+                (product,),
+            ).fetchone()
+        except sqlite3.OperationalError:
+            # 表還不存在＝尚未跑過 `--target futures_margin`；那是「還沒有資料」
+            # 不是查詢寫錯，全新環境（CI、剛 clone）本來就會走到這裡
+            return None
 
         if row is None or row[0] is None:
             return None

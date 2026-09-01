@@ -3,6 +3,7 @@ import sqlite3
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
+from loguru import logger
 
 from core.api.base import BaseDataAPI
 from core.config import FUTURES_PRICE_DAILY_TABLE_NAME, TW_FUTURES_DB_PATH
@@ -221,11 +222,21 @@ class FuturesPriceAPI(BaseDataAPI):
         WHERE date BETWEEN ? AND ?{product_clause}
         ORDER BY date
         """
-        df: pd.DataFrame = pd.read_sql_query(
-            query,
-            self.conn,
-            params=[start_date, end_date, *product_params],
-        )
+        try:
+            df: pd.DataFrame = pd.read_sql_query(
+                query,
+                self.conn,
+                params=[start_date, end_date, *product_params],
+            )
+        except pd.errors.DatabaseError:
+            # 表還不存在＝尚未跑過 `--target futures_price`。**回空清單而不是拋錯**：
+            # 「還沒有資料」與「查詢寫錯」是兩件事，前者在全新環境（CI、剛 clone）
+            # 是正常狀態，讓它中斷只會讓人以為程式壞了
+            logger.warning(
+                f"[Futures Price] {FUTURES_PRICE_DAILY_TABLE_NAME} 不存在，"
+                f"回傳空交易日清單（請先執行 --target futures_price）"
+            )
+            return []
 
         if df.empty:
             return []
