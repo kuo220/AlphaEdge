@@ -102,7 +102,9 @@ class MomentumFuturesStrategy(BaseFuturesStrategy):
             expiry=quote.expiry,
             start_date=date - datetime.timedelta(days=self.LOOKBACK_DAYS),
             end_date=date,
-            session=self.session,
+            # **不可傳 self.session**：整併模式的 COMBINED 不是資料表裡的值，
+            # 查歷史行情一律走日盤（見 `price_query_session`）
+            session=self.price_query_session,
         )
         if len(series) < 2:
             return False

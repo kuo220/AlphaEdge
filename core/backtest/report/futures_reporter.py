@@ -42,8 +42,11 @@ class FuturesBacktestReporter(StockBacktestReporter):
         self.benchmark_product: str = (
             strategy.products[0] if getattr(strategy, "products", None) else "TX"
         )
-        self.benchmark_session: FuturesSession = getattr(
-            strategy, "session", FuturesSession.DAY
+        # 對標序列一律取**日盤**：`COMBINED` 不是資料表裡的值（見 `FuturesSession`），
+        # 直接拿去查會回空表，圖上只會出現一行「benchmark 數據異常」的警告
+        session: FuturesSession = getattr(strategy, "session", FuturesSession.DAY)
+        self.benchmark_session: FuturesSession = (
+            FuturesSession.DAY if session == FuturesSession.COMBINED else session
         )
 
         super().__init__(strategy, output_dir)

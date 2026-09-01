@@ -232,6 +232,17 @@ class TwFuturesDataFeed(BaseDataFeed):
         quotes: List[FuturesQuote] = []
         # products 為空時以 [None] 跑一輪，代表「不過濾商品」
         for product in self.products or [None]:
+            if self.session == FuturesSession.COMBINED:
+                quotes.extend(
+                    FuturesQuoteAdapter.convert_to_combined_quotes(
+                        self.futures_price,
+                        date,
+                        self.get_night_session_date(date),
+                        product=product,
+                    )
+                )
+                continue
+
             quotes.extend(
                 FuturesQuoteAdapter.convert_to_day_quotes(
                     self.futures_price,
@@ -242,6 +253,29 @@ class TwFuturesDataFeed(BaseDataFeed):
             )
 
         return quotes
+
+    def get_night_session_date(self, date: datetime.date) -> Optional[datetime.date]:
+        """
+        - Description:
+            取得要與當日日盤整併的那一段夜盤所在的日期（＝**前一交易日**）
+
+            夜盤 15:00 開盤、次日 05:00 收盤，制度上屬於次一交易日——星期五晚上
+            那一段屬於星期一。資料表把夜盤存在它開始的那個日曆日，故整併時
+            往前取一個交易日。
+
+            **2017-05-15 之前沒有夜盤**，此時回傳 None，整併結果等於日盤本身。
+        - Parameters:
+            - date: datetime.date
+                交易日
+        - Return:
+            - Optional[datetime.date]
+                前一交易日；日曆未建立或無夜盤制度時為 None
+        """
+
+        if self.calendar is None or not self.calendar.has_night_session(date):
+            return None
+
+        return self.calendar.get_previous_trading_day(date)
 
     def close(self) -> None:
         """關閉資料連線（回測結束時由引擎呼叫）"""

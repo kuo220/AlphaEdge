@@ -276,7 +276,9 @@ class FuturesPriceUpdater(BaseDataUpdater):
 
         crawled: bool = False
 
-        for session in FuturesSession:
+        # **不可寫 `for session in FuturesSession`**：那會連整併用的
+        # `COMBINED` 也一起爬，而來源根本沒有那個時段（見 `data_sessions()`）
+        for session in FuturesSession.data_sessions():
             raw_df: Optional[pd.DataFrame] = self.crawler.crawl_futures_price(
                 date, product, session
             )

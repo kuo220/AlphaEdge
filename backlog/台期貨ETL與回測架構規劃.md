@@ -33,7 +33,7 @@
 | Phase2-4 | 換月規則參數化 | `core/backtest/datafeed/futures_roll.py`、`settlement_model.py`、`core/strategies/futures/base.py` | 三種換月規則可切換 | ✅ | **2026-09-02 完成**：`FuturesRollConfig` 由 factory 建立並由**策略、結算模型、DataFeed 三方共用**；結算模型在換月時自動轉倉（平舊倉 ＋ 同口數同方向開新倉，展期價差如實入帳）。13 條測試，含以真實資料驗「回測換月接點 ＝ `futures_continuous` 的 `roll_flag`」完全一致 |
 | Phase3-1 | 籌碼訊號 ETL（三大法人、大額交易人、PCR） | `core/pipeline/tw/*/futures_chip_*.py` | 前視偏差對齊（T+1 可用） | ⬜ | 相依 Phase1-2 |
 | Phase4-1 | 多商品擴充（MTX、TMF、TE、TF） | `core/config.py`、`tests/test_futures_products.py` | 各商品點值／乘數正確 | ✅ | **2026-09-02 完成（程式面）**：`FUTURES_TARGET_PRODUCTS` 擴為 7 檔（TX／MTX／TMF／TE／ZEF／TF／ZFF），六檔新商品逐一實測可爬可清可入庫，**crawler／updater 一行都沒改**。15 條測試。⏳ **歷史回補進行中**（背景執行，約 40 小時），進度查 `SELECT product, MIN(date), MAX(date), COUNT(*) FROM futures_price_daily GROUP BY product` |
-| Phase4-2 | 日盤／夜盤整併 | `core/pipeline/*`、日曆 | 跨盤別跳空被保留 | ⬜ | 相依 Phase2-3；`session` 欄位已由 Phase1-2 建立，本步驟只剩整併政策 |
+| Phase4-2 | 日盤／夜盤整併 | `core/utils/constant.py`、`core/adapters/futures_quote_adapter.py`、`core/backtest/datafeed/futures_datafeed.py` | 跨盤別跳空被保留 | ✅ | **2026-09-02 完成**：策略把 `session` 設為 `FuturesSession.COMBINED` 即得整併序列（**前一交易日夜盤 ＋ 當日日盤**，open 取夜盤故跨盤別跳空留在 bar 內）。12 條測試。實作時踩到兩個「不會報錯」的坑：`COMBINED` 被拿去查資料表（整場零交易）、ETL 直接迭代 `FuturesSession` 而去爬不存在的時段，兩者皆已固化為測試 |
 | Phase5-1 | 分 K 與 Tick（Shioaji futures ticks） | `core/pipeline/tw/*/futures_tick_*.py` | 日內策略可回測 | ⬜ | 相依 Phase4-1；可參考 `StockTickUpdater` 多 key／執行緒 |
 | Phase5-2 | frontend 期貨專屬指標（保證金曲線、口數曝險） | `frontend/` | 指標可顯示 | ⬜ | 相依 Phase2-2 |
 | Phase5-3 | **程式碼**目錄收斂 | 全專案 | 台股回歸逐筆相同 | 🔄 | **2026-08-31：`pipeline/` 已由命名軸線收斂工作完成**（軸線定案見 [命名軸線](../docs/dev/naming-axes.md)），剩 `api/`／`adapters/`／`backtest/datafeed/`。**形狀偏離原規格**：改為 `pipeline/tw/`（純市場軸）而非原定 `pipeline/tw_stock`／`tw_futures`——每層目錄只承載一條軸，商品類別由檔名承載，與美股 §3.1 一致；原路徑 B 會把市場與商品壓成單一目錄名。理由見該文件〈每層目錄只承載一條軸〉 |
@@ -1294,7 +1294,7 @@ PRIMARY KEY `(date, product, expiry, session)`。
 > 依現行節流估約 40 小時，於 2026-09-02 背景開跑。**回補未完成不影響程式面
 > 驗收**——`--target futures_price` 續跑會從各商品表內的最新日接續。
 > 新商品的連續合約要等該商品的行情補完後再跑 `--target futures_continuous`。
-#### Phase4-2. 日盤／夜盤整併 ⬜
+#### Phase4-2. 日盤／夜盤整併 ✅
 
 - **目的**：決定是否合併為單一連續序列或分開回測，並保留跨盤別跳空。
 - **範圍已縮小（2026-08-22）**：`session` 欄位由 **Phase1-2 建表時就建立**（決策見 §5.8），本步驟**只做整併政策**，不再需要改 schema。
@@ -1303,6 +1303,34 @@ PRIMARY KEY `(date, product, expiry, session)`。
 - **驗證方式**：跨盤別跳空未被平滑掉；整併前後的日 K OHLC 可對帳。
 - **相依**：Phase2-3。
 
+
+> **✅ 完成紀錄（2026-09-02）**
+>
+> **整併在報價層而不是資料表**：資料表維持「日盤與夜盤各一列」的忠實記錄，
+> 整併是回測要不要合併的**政策**——策略把 `session` 設為
+> `FuturesSession.COMBINED`，DataFeed 就把「前一交易日夜盤 ＋ 當日日盤」
+> 合成一根 bar。不另建一張整併表，因為那會讓同一份行情有兩個真相。
+>
+> **夜盤屬於哪一天是本步驟最容易錯的地方**：夜盤 15:00 開盤、次日 05:00 收盤，
+> 制度上屬於**次一交易日**——星期五晚上那一段屬於星期一。資料表把它存在**開始**
+> 的那個日曆日，故整併要往前取一個**交易日**（不是前一個曆日，週一要取到週五）。
+> 取錯的話價格看起來都很合理，不會有任何異常。
+>
+> **跨盤別跳空被保留**（驗收條件）：整併後的 `open` 取**夜盤開盤**而非日盤開盤。
+> 實測 2024-03-04 的 TX 近月：整併 open 18,961（週五夜盤）、日盤 open 19,144，
+> 中間 183 點的隔夜跳空若用日盤 open 就整段消失；low 也由 19,137 變成 18,891
+> （夜盤的低點才是當根 bar 的真實低點）。
+>
+> **實作時踩到兩個「不會報錯」的坑，皆已固化為測試**：
+>
+> 1. **`COMBINED` 被拿去查資料表**：它不是 `session` 欄位裡的值，查詢一律回空表。
+>    症狀是策略整場零交易卻沒有任何錯誤訊息（示範策略實測就是這樣）。
+>    已加 `BaseFuturesStrategy.price_query_session`（查歷史行情一律退回日盤），
+>    報表的對標序列同樣處理。
+> 2. **ETL 直接 `for session in FuturesSession`**：加入 `COMBINED` 之後，
+>    爬蟲會去爬一個來源根本沒有的時段，清洗器則 `KeyError: 'combined'`。
+>    已加 `FuturesSession.data_sessions()` 並改用它，測試直接檢查原始碼裡
+>    不存在那個寫法。
 ### Phase 5：分 K 與 Tick、前端指標
 
 #### Phase5-1. 分 K 與 Tick ⬜

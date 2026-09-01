@@ -65,7 +65,9 @@ class BaseFuturesStrategy(BaseStrategy):
         策略自己過濾。乘數一律查 `FUTURES_MULTIPLIER`，不要寫死在策略裡。
         """
         self.products: List[str] = []  # 要交易的商品代碼（Ex: ["TX"]）
-        # 交易時段。**日盤與夜盤是兩筆獨立行情**，混用會讓同一契約一天出現兩筆報價
+        # 交易時段。**日盤與夜盤是兩筆獨立行情**，混用會讓同一契約一天出現兩筆報價。
+        # 設為 `FuturesSession.COMBINED` 則由 DataFeed 整併成單一序列
+        # （前一交易日夜盤 ＋ 當日日盤，跨盤別跳空保留在 bar 內，見 Phase4-2）
         self.session: FuturesSession = FuturesSession.DAY
         self.max_lots: int = 0  # 總口數上限（0 表示不開倉）
         # 期貨限制的是**總口數**不是持倉檔數，故解除引擎的檔數上限。
@@ -94,6 +96,23 @@ class BaseFuturesStrategy(BaseStrategy):
         self.margin: Optional[FuturesMarginAPI] = None  # 保證金（可選）
         # 期貨交易日曆（結算日、最後交易日、交易時段）；由 DataFeed 提供
         self.calendar: Optional[FuturesCalendar] = None
+
+    @property
+    def price_query_session(self) -> FuturesSession:
+        """
+        查**歷史行情**時要用的時段
+
+        **`COMBINED` 不是資料表裡的值**（見 `FuturesSession`），它是報價層的組合
+        結果。拿它去查 `FuturesPriceAPI` 只會得到空結果——而空結果在策略裡通常
+        表現為「訊號永遠不成立」，不會有任何錯誤訊息。
+        2026-09-02 實測：示範策略在整併模式下整場零交易，成因就是這個。
+        """
+
+        return (
+            FuturesSession.DAY
+            if self.session == FuturesSession.COMBINED
+            else self.session
+        )
 
     # === 契約選擇：與結算模型的轉倉共用同一份換月規則 ===
     def select_near_month(

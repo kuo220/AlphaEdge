@@ -81,7 +81,9 @@ class FuturesPriceCrawler(BaseDataCrawler):
         """依 `FUTURES_TARGET_PRODUCTS` 逐商品、逐時段爬取單日行情"""
 
         for product in FUTURES_TARGET_PRODUCTS:
-            for session in FuturesSession:
+            # **不可寫 `for session in FuturesSession`**：那會連整併用的
+            # `COMBINED` 也一起爬，而來源根本沒有那個時段（見 `data_sessions()`）
+            for session in FuturesSession.data_sessions():
                 self.crawl_futures_price(date, product, session)
 
     def crawl_futures_price(

@@ -64,6 +64,9 @@ MARGIN_CALL_WARN_ONLY = "WARN_ONLY"  # 僅記錄不強制回補
 # 是否合併成單一序列屬回測層的參數（見 backlog/台期貨ETL與回測架構規劃.md §5.8）
 FUTURES_SESSION_DAY = "day"  # 一般交易時段 08:45–13:45
 FUTURES_SESSION_NIGHT = "night"  # 盤後交易時段 15:00–次日 05:00
+# 整併後的單一序列（Phase4-2）。**這個值不會出現在資料表裡**，
+# 它是報價層才有的組合結果：前一交易日的夜盤 ＋ 當日日盤合成一根 bar
+FUTURES_SESSION_COMBINED = "combined"
 
 # 定義連續合約的價格調整方式（Phase1-7）
 FUTURES_ADJUST_NONE = "NONE"  # 不調整：直接接起來，換月接點會有假跳空
@@ -442,7 +445,33 @@ STOCK_FUTURES_TYPE_BY_CONTRACT_SIZE: dict = {
 
 
 class FuturesSession(str, Enum):
-    """台期貨交易時段；值即為 futures_price_daily 的 session 欄位內容"""
+    """
+    台期貨交易時段
+
+    `DAY` 與 `NIGHT` 的值即為 `futures_price_daily` 的 `session` 欄位內容；
+    **`COMBINED` 不是資料表裡的值**，而是 Phase4-2 的整併結果——
+    「前一交易日的夜盤 ＋ 當日日盤」合成的一根 bar，只存在於報價層。
+    拿 `COMBINED` 去查資料庫一律查不到東西，那是刻意的。
+
+    **為什麼整併要用「前一交易日的夜盤」**：TAIFEX 的夜盤 15:00 開盤、
+    次日 05:00 收盤，它在制度上屬於**次一交易日**的一部分——星期五晚上的那一段
+    屬於星期一。資料表為了忠實記錄來源，把夜盤存在它開始的那個日曆日，
+    整併時因此要往前取一個交易日，不是取同一天。
+    """
 
     DAY = FUTURES_SESSION_DAY
     NIGHT = FUTURES_SESSION_NIGHT
+    COMBINED = FUTURES_SESSION_COMBINED
+
+    @classmethod
+    def data_sessions(cls) -> tuple:
+        """
+        **來源真的有的兩個時段**（日盤與夜盤）
+
+        ETL 要「逐時段爬一次」時一律用本方法，**不要直接 `for s in FuturesSession`**
+        ——那會把 `COMBINED` 也算進去，於是去爬一個不存在的時段。
+        2026-09-02 加入 `COMBINED` 時就是這樣讓爬蟲與清洗器一起壞掉的
+        （`KeyError: 'combined'`）。
+        """
+
+        return (cls.DAY, cls.NIGHT)

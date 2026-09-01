@@ -85,6 +85,112 @@ class FuturesQuoteAdapter:
         return FuturesQuoteAdapter.generate_futures_quotes(price_df, date, Scale.DAY)
 
     @staticmethod
+    def convert_to_combined_quotes(
+        data_api: FuturesPriceAPI,
+        date: datetime.date,
+        night_date: Optional[datetime.date],
+        product: Optional[str] = None,
+    ) -> List[FuturesQuote]:
+        """
+        - Description:
+            把「前一交易日的夜盤 ＋ 當日日盤」整併成一根 bar（Phase4-2）
+
+            **為什麼是前一交易日的夜盤**：TAIFEX 的夜盤 15:00 開盤、次日 05:00
+            收盤，制度上屬於**次一交易日**——星期五晚上那一段屬於星期一。
+            資料表忠實記錄來源，把夜盤存在它開始的那個日曆日，
+            整併時因此要往前取一個交易日。
+
+            **跨盤別的跳空被保留在 bar 內**：整併後的 `open` 是**夜盤開盤價**，
+            不是日盤開盤價——前一個日盤收盤到夜盤開盤之間的跳空，
+            正是隔夜風險的來源，用日盤開盤當 open 會把它整段抹掉。
+
+            | 欄位 | 取值 | 理由 |
+            |------|------|------|
+            | `open` | 夜盤開盤（無夜盤時為日盤開盤） | 這段 bar 的第一筆成交 |
+            | `high` / `low` | 兩盤的極值 | 夜盤的極端價常常就是當日的極值 |
+            | `close` | **日盤收盤** | 這段 bar 的最後一筆成交 |
+            | `volume` | 兩盤相加 | 同一根 bar 的總量 |
+            | `settlement_price` / `open_interest` | **只取日盤** | 夜盤根本沒有這兩項 |
+
+            **2017-05-15 之前沒有夜盤**，此時整併結果等於日盤本身——那是制度
+            而非資料缺漏（見 `FuturesCalendar.NIGHT_SESSION_LAUNCH_DATE`）。
+        - Parameters:
+            - data_api: FuturesPriceAPI
+                行情 API
+            - date: datetime.date
+                交易日（取其日盤）
+            - night_date: Optional[datetime.date]
+                前一交易日（取其夜盤）；None 時只取日盤
+            - product: Optional[str]
+                商品代碼；None 表示所有商品
+        - Return:
+            - List[FuturesQuote]
+                整併後的報價；當日無日盤資料時為空 list
+        """
+
+        day_quotes: List[FuturesQuote] = FuturesQuoteAdapter.convert_to_day_quotes(
+            data_api, date, product=product, session=FuturesSession.DAY
+        )
+        if night_date is None:
+            return [FuturesQuoteAdapter.mark_combined(quote) for quote in day_quotes]
+
+        night_quotes: List[FuturesQuote] = FuturesQuoteAdapter.convert_to_day_quotes(
+            data_api, night_date, product=product, session=FuturesSession.NIGHT
+        )
+        night_by_contract: dict = {quote.contract_id: quote for quote in night_quotes}
+
+        return [
+            FuturesQuoteAdapter.combine_quote(
+                quote, night_by_contract.get(quote.contract_id)
+            )
+            for quote in day_quotes
+        ]
+
+    @staticmethod
+    def mark_combined(quote: FuturesQuote) -> FuturesQuote:
+        """把單一時段的報價標記為整併結果（沒有夜盤可併時使用）"""
+
+        quote.session = FuturesSession.COMBINED
+        return quote
+
+    @staticmethod
+    def combine_quote(
+        day_quote: FuturesQuote, night_quote: Optional[FuturesQuote]
+    ) -> FuturesQuote:
+        """
+        - Description:
+            合併同一契約的日盤與夜盤報價
+
+            **就地修改日盤那一筆並回傳**：日盤報價是本方法剛從 adapter 建出來的
+            新物件，沒有其他持有者。
+
+            夜盤缺該契約（多數契約夜盤不交易）時原樣回傳日盤——
+            **不可補 0**，那會讓 `low` 變成 0、`open` 變成 0。
+        - Parameters:
+            - day_quote: FuturesQuote
+                當日日盤報價
+            - night_quote: Optional[FuturesQuote]
+                前一交易日的夜盤報價
+        - Return:
+            - FuturesQuote
+                整併後的報價
+        """
+
+        if night_quote is None or not night_quote.close:
+            return FuturesQuoteAdapter.mark_combined(day_quote)
+
+        # 夜盤先發生，故 open 取夜盤；close 取日盤（bar 的最後一筆成交）
+        day_quote.open = night_quote.open or day_quote.open
+        day_quote.high = max(day_quote.high or 0, night_quote.high or 0)
+        day_quote.low = min(
+            [value for value in (day_quote.low, night_quote.low) if value]
+            or [day_quote.low]
+        )
+        day_quote.volume = (day_quote.volume or 0) + (night_quote.volume or 0)
+
+        return FuturesQuoteAdapter.mark_combined(day_quote)
+
+    @staticmethod
     def generate_futures_quotes(
         data: pd.DataFrame,
         date: datetime.date,
