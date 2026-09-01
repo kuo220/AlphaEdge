@@ -40,7 +40,7 @@ from core.pipeline.shared.base_loader import BaseDataLoader
 ⚠️ **本檔的寫入路徑尚未於本機實測**：DolphinDB server 未啟動
 （`localhost:8848` 連線被拒），`dolphindb` 套件也未安裝（屬 `[tick]` 選用相依）。
 結構完全比照已在生產跑過的 `StockTickLoader`，但**在真的跑起來之前不要當成
-已驗證**——見 `backlog/台期貨ETL與回測架構規劃.md` Phase5-1 的紀錄。
+已驗證**——見 `docs/futures/tw-futures-platform.md` Phase5-1 的紀錄。
 """
 
 

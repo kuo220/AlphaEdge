@@ -155,7 +155,7 @@ model 之間刻意**不互相依賴**，需要共享的狀態以 dict 參照傳�
 
 ### `mark_position()`：引擎為期貨補開的唯一掛點（2026-09-02）
 
-台期貨 model 組（`backlog/台期貨ETL與回測架構規劃.md` Phase1-6）落地時發現，
+台期貨 model 組（`docs/futures/tw-futures-platform.md` Phase1-6）落地時發現，
 `snapshot_daily_equity()` 有一段**不是市場無關的**：做多部位計入權益的金額寫死為
 「市價 × 計價單位」。那是**現金帳戶**的語意（買進即把現金換成標的），期貨是保證金交易
 ——契約價值本身不佔用資金，部位價值只有「保證金 ＋ 尚未結算的損益」
@@ -309,6 +309,6 @@ SHORT 的 12 組情境刻意各只動一個變因，任一情境快照有變即�
 
 - [模組使用關係](module-map.md)——回測路徑上誰呼叫誰、逐檔案職責、輸出檔案與動手前的注意事項
 - [放空回測框架規格](short-selling-framework.md)——方向驅動的記帳原則，是本架構的基礎
-- `backlog/台期貨ETL與回測架構規劃.md`——期貨 model 組的實作（阻塞已解除）
+- `docs/futures/tw-futures-platform.md`——期貨 model 組的實作（阻塞已解除）
 - `backlog/美股ETL與回測架構規劃.md`——美股 model 組的實作（阻塞已解除）
 - [`core/backtest/README.md`](../../core/backtest/README.md)〈成交假設〉——滑價、成交量上限與券源檢核的使用說明（「回測引擎執行真實度補強」與「回測滑價與執行係數」均已於 2026-08-15 完成並移出 `backlog/`）

@@ -61,7 +61,7 @@ MARGIN_CALL_WARN_ONLY = "WARN_ONLY"  # 僅記錄不強制回補
 # 定義台期貨交易時段常量
 # 夜盤自 2017-05-15 開始，之前僅有日盤。
 # **兩個時段是各自獨立的行情**（OHLC 不同、欄位結構也不同），資料層一律分開存，
-# 是否合併成單一序列屬回測層的參數（見 backlog/台期貨ETL與回測架構規劃.md §5.8）
+# 是否合併成單一序列屬回測層的參數（見 docs/futures/tw-futures-platform.md §5.8）
 FUTURES_SESSION_DAY = "day"  # 一般交易時段 08:45–13:45
 FUTURES_SESSION_NIGHT = "night"  # 盤後交易時段 15:00–次日 05:00
 # 整併後的單一序列（Phase4-2）。**這個值不會出現在資料表裡**，

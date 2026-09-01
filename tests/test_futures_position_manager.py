@@ -20,7 +20,7 @@ from core.utils.constant import FUTURES_MULTIPLIER
 """
 期貨部位記帳測試
 
-**驗收公式（`backlog/台期貨ETL與回測架構規劃.md` Phase1-4）：
+**驗收公式（`docs/futures/tw-futures-platform.md` Phase1-4）：
 PnL = 價格變動 × 乘數 × 口數**。本檔把三件與股票根本不同的事釘住：
 
 1. **開倉只凍結保證金**，不買下契約價值——`balance` 減少的是保證金而非契約價值，

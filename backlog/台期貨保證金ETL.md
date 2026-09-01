@@ -13,7 +13,7 @@
   改為查表；指數類（每口金額）與股票類（適用比例）**分兩張表**。
 - **範圍界線**（**不做**）：
   - **不做 2015~2019 的 OCR**（S6 ⏸，理由與解除條件見該步驟）。
-  - 不做槓桿控管與追繳／斷頭模擬——那是 [台期貨ETL與回測架構規劃](台期貨ETL與回測架構規劃.md)
+  - 不做槓桿控管與追繳／斷頭模擬——那是 [台期貨平台](../docs/futures/tw-futures-platform.md)
     Phase2-2 的另一半，相依本文件。
   - 不做選擇權保證金（SPAN 參數、A／B／C 值）：目前無選擇權回測需求。
   - 不改 `futures_price_daily` 或 `futures_stock_universe` 的既有 schema。
@@ -394,9 +394,9 @@
 ## 關聯與狀態
 
 - **優先級**：P3（保證金影響資金效率與可開口數，**不影響 PnL 本身**，
-  故不擋 [台期貨ETL與回測架構規劃](台期貨ETL與回測架構規劃.md) 的 Phase1-5／1-6 主線）
+  故不擋 [台期貨平台](../docs/futures/tw-futures-platform.md) 的 Phase1-5／1-6 主線）
 - **相關程式**：`core/managers/futures/position_manager.py`（`FuturesMarginConfig`）、
   `core/pipeline/utils/url_manager.py`（四個端點與解析坑）、`core/config.py`
-- **相關 backlog**：[台期貨ETL與回測架構規劃](台期貨ETL與回測架構規劃.md) Phase2-2
+- **相關 backlog**：[台期貨平台](../docs/futures/tw-futures-platform.md) Phase2-2
   的另一半（槓桿／部位控管）相依本文件；本文件不含那部分
 - **相關文件**：[ETL 入庫約定](../docs/pipeline/etl-ingestion.md)（§3.4 欄位語言、§4 事故樣式）

@@ -65,7 +65,7 @@ PIPELINE_DOWNLOADS_PATH: Path = get_static_resolved_path(
 
 # 中繼檔依「市場」分層，與 core/database/ 的 tw_stock.db／tw_futures.db 同一個維度。
 # 程式碼（pipeline / api / adapters）維持命名平行不分目錄——兩者搬遷成本差一個量級，
-# 決策理由見 backlog/台期貨ETL與回測架構規劃.md §3.0
+# 決策理由見 docs/futures/tw-futures-platform.md §3.0
 TW_STOCK_DOWNLOADS_PATH: Path = get_static_resolved_path(
     base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="tw_stock"
 )

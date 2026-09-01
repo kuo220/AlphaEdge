@@ -15,7 +15,7 @@ from core.utils.log_manager import LogManager
 Futures Price API: query SQLite futures_price_daily table
 
 **只讀 `tw_futures.db`，不讀 `downloads/` 下的中繼檔**（見
-`backlog/台期貨ETL與回測架構規劃.md` §6.3）。
+`docs/futures/tw-futures-platform.md` §6.3）。
 
 與 `StockPriceAPI` 的三個結構性差異，用之前務必先看懂：
 

@@ -1,12 +1,33 @@
-# 台期貨 ETL 與回測架構規劃
+# 台期貨平台：ETL、回測與策略
 
-## Abstract
+> **本文件是「已完成工作的實作紀錄」，不是待辦**。原為
+> `backlog/台期貨ETL與回測架構規劃.md`，21 個步驟於 2026-09-02 全數完成後
+> 依 [`manage-backlog` 規範](../../.claude/skills/manage-backlog/SKILL.md) 移入
+> `docs/`。保留完整的步驟章節，是因為每一步的**完成紀錄裡都是實測踩到的坑**
+> ——那些坑幾乎都「不會報錯、只會讓數字靜默偏掉」，比結論本身更值得留著。
 
-- **背景／問題**（撰寫當時）：專案只支援台股，沒有期貨目錄、TAIFEX crawler、期貨表／API 與期貨部位管理；合約生命週期、保證金、點值、夜盤日曆皆未建模。當時連一筆台指期日線都沒有，所以最大宗的缺口在 ETL，不在回測引擎。
-  > **現況（2026-09-02）**：Phase0-1／1-1／1-2／**6-1** 已完成——`tw_futures.db` 已建、TAIFEX crawler 四層可跑、`--target futures_price` 與 `--target futures_stock_universe` 皆可用，股期標的池 320 檔已入庫。**仍缺**：全部的 Phase2 之後、Phase1-7 與 Phase6-2。**2026-09-02 Phase1-6 完成**——期貨 model 組已接進既有引擎，`--strategy MomentumFuturesStrategy` 可端對端跑完並產出報表。**2026-09-01：Phase1-3a／1-3b／1-4 全數完成**——`FuturesPriceAPI`、`FuturesQuoteAdapter`、`models/futures`、`managers/futures` 已就位（含逐日盯市），TX 歷史回補進行中。
-- **目標**：以「平行垂直切片」把台灣期貨（台指期系列 ＋ 股票期貨）加入專案：pipeline → `tw_futures.db` → API → models/managers → strategies → **既有的單一 `Backtester`**（透過 [多市場回測引擎架構](../docs/backtest/multi-market-engine.md) 建立的 model 掛點接入），並與 [美股ETL與回測架構規劃.md](美股ETL與回測架構規劃.md) 共用「平行市場模組、共享核心、不共享市場細節」原則。
-- **範圍界線**：**保留現有台股流程不動**，不在 `Stock*` 類上硬接期貨分支；**不新增第二支 backtester**（原規劃的 `FuturesBacktester` 已作廢，理由見 §一）；本規劃**不含**選擇權策略回測（PCR 僅作輔助訊號）、不含實盤下單、不含跨市場組合回測；股票期貨先鎖定流動性前 N 大標的，不一次攤開 250+ 檔。
-- **驗收標準**：`--target futures_price` 跑完後可用 `sqlite3 core/database/tw_futures.db` 直接查到資料且重跑冪等；一支期貨示範策略可經 `python run.py --strategy XXX` 跑完並產出報表；台股既有回歸雙線（LONG 915 筆 ＋ SHORT 快照）逐筆不受影響，且**回測引擎本身 0 行改動**（2026-09-02 修正為「一處」——`snapshot_daily_equity()` 的部位計價下沉成掛點，預設實作逐字不動故雙線仍逐筆相同，理由見 Phase1-6 的完成紀錄）。
+## 這套東西現在能做什麼
+
+| 面向 | 現況 |
+|------|------|
+| 資料 | `tw_futures.db`：日行情（7 檔指數期貨 ＋ 股期）、連續合約（3 種調整 × 3 種換月）、保證金歷史（金額表 ＋ 比例表）、籌碼（三大法人／大額交易人／PCR）、股期標的池、逐筆成交（Shioaji） |
+| 指令 | `--target futures_price`／`futures_continuous`／`futures_margin`／`futures_chip`／`futures_stock_universe`／`futures_stock_price`／`futures_tick` |
+| 回測 | 與台股**共用同一支引擎**：`(TW, FUTURE)` 的 model 組（規格／成交／成本／結算／資料源）由 `core/backtest/factory.py` 注入 |
+| 期貨語意 | 逐日盯市、保證金查表與追繳、換月轉倉、日夜盤整併、期交稅與跳動點滑價 |
+| 策略 | `MomentumFuturesStrategy`（示範），`python run.py --strategy MomentumFuturesStrategy` |
+
+## 還沒做的事
+
+- **DolphinDB 的期貨 tick 寫入路徑尚未實測**（Phase5-1）：本機 server 未啟動、
+  `dolphindb` 屬選用相依。解除條件見該步驟的完成紀錄。
+- **歷史回補仍在進行**：六檔新增商品的日行情與三個籌碼資料集的歷史（背景作業）。
+  進度查 `SELECT product, MIN(date), MAX(date), COUNT(*) FROM futures_price_daily GROUP BY product`。
+- **保證金 2015~2019 的歷史**：來源是掃描影像，需 OCR，見
+  [台期貨保證金ETL](../../backlog/台期貨保證金ETL.md) S6（⏸）。
+
+---
+
+## 原始規劃（保留）
 
 涵蓋範圍：連續合約構建（換月接續）與展期價差、日盤與夜盤資料整併、三大法人與大額交易人籌碼訊號、保證金制度變動下的槓桿與部位控管、交易成本模型（期交稅、手續費、滑價）、股票期貨標的池管理與流動性分級。
 
@@ -28,7 +49,7 @@
 | Phase1-6 | 實作期貨 model 組（不新增引擎） | `core/backtest/models/`、`core/backtest/datafeed/futures_datafeed.py`、`core/backtest/report/futures_reporter.py`、`core/backtest/factory.py` | 台股回歸雙線逐筆相同；期貨策略可跑完 | ✅ | **2026-09-02 完成**：LONG 915 筆與 SHORT 快照逐筆相同（快照重產後 0 diff）、493 條測試通過、`--strategy MomentumFuturesStrategy` 可跑完並產出五張圖與四份 CSV。**偏離原規格：引擎改了一處**（`snapshot_daily_equity()` 的部位計價 16 行，下沉為 1 行呼叫 `SettlementModel.mark_position()`），理由見下方步驟章節 |
 | Phase1-7 | 連續合約構建（先做一種調整方式） | `core/pipeline/tw/{loaders,updaters}/futures_continuous_*.py`、`core/backtest/datafeed/futures_roll.py` | 換月接點的 `roll_flag` 正確 | ✅ | **2026-09-02 完成**：`--target futures_continuous` 可跑，TX 2015~2026 建出 2,842 個交易日、140 次換月、8,526 列（3 種調整方式）。**三種調整方式全做**（原規格只要求一種）、換月規則三種可切換並與 Phase2-4 共用同一份實作。12 條測試，含以真實表驗「還原一致 ＋ 接點無假跳空」 |
 | Phase2-1 | 期貨成本模型（期交稅、手續費、滑價） | `core/backtest/models/cost_model.py`、`fill_model.py`、`core/utils/constant.py` | **不可複用證交稅**；有單元測試 | ✅ | **2026-09-02 完成**：期交稅（法規值十萬分之二、**買賣各課一次**、稅基為契約價值）、每口手續費（市場常見值 50 元，可逐商品指定）、滑價改以**跳動點**表達並可逐商品設定。16 條測試；`FuturesCostConfig` 一併從 `managers/` 移到 `cost_model.py`（與股票的 `CostConfig` 同位置），部位管理層改為一律問 CostModel，費率不再有第二份 |
-| Phase2-2 | 槓桿／部位控管（保證金 ETL 已分家） | `core/managers/futures/`、`core/backtest/models/settlement_model.py`、`core/backtest/datafeed/futures_datafeed.py` | 追繳／可開口數依當時生效的保證金計算 | ✅ | **2026-09-02 完成**：查表改為**預設模式**（API 由 DataFeed 注入策略與部位管理層**共用的同一個設定物件**）、追繳以**權益 vs 維持保證金**判斷並可選強制平倉／僅標記、可開口數隨生效日改變。14 條測試（含一條以真實表驗證 TX 2024-08-09 → 08-22 由 265,000 調為 292,000）。保證金歷史序列本身見 [台期貨保證金ETL](台期貨保證金ETL.md) S1~S5 |
+| Phase2-2 | 槓桿／部位控管（保證金 ETL 已分家） | `core/managers/futures/`、`core/backtest/models/settlement_model.py`、`core/backtest/datafeed/futures_datafeed.py` | 追繳／可開口數依當時生效的保證金計算 | ✅ | **2026-09-02 完成**：查表改為**預設模式**（API 由 DataFeed 注入策略與部位管理層**共用的同一個設定物件**）、追繳以**權益 vs 維持保證金**判斷並可選強制平倉／僅標記、可開口數隨生效日改變。14 條測試（含一條以真實表驗證 TX 2024-08-09 → 08-22 由 265,000 調為 292,000）。保證金歷史序列本身見 [台期貨保證金ETL](../../backlog/台期貨保證金ETL.md) S1~S5 |
 | Phase2-3 | 期貨交易日曆（日盤 ＋ 夜盤、結算日） | `core/backtest/datafeed/futures_calendar.py` | 不沿用股票 calendar | ✅ | **2026-09-02 完成**：交易日取自行情表（臨時休市／補行交易日自動涵蓋）、結算日為第三個星期三且**遇休市順延到期貨自己的下一個開盤日**、週契約另有規則、夜盤跨日與 2017-05-15 上線日皆已處理。14 條測試，含一條以真實表比對 **140 個已到期 TX 月契約的最後交易日，140/140 完全相同** |
 | Phase2-4 | 換月規則參數化 | `core/backtest/datafeed/futures_roll.py`、`settlement_model.py`、`core/strategies/futures/base.py` | 三種換月規則可切換 | ✅ | **2026-09-02 完成**：`FuturesRollConfig` 由 factory 建立並由**策略、結算模型、DataFeed 三方共用**；結算模型在換月時自動轉倉（平舊倉 ＋ 同口數同方向開新倉，展期價差如實入帳）。13 條測試，含以真實資料驗「回測換月接點 ＝ `futures_continuous` 的 `roll_flag`」完全一致 |
 | Phase3-1 | 籌碼訊號 ETL（三大法人、大額交易人、PCR） | `core/pipeline/tw/*/futures_chip_*.py`、`core/api/futures_chip_api.py` | 前視偏差對齊（T+1 可用） | ✅ | **2026-09-02 完成**：`--target futures_chip` 上線，三個資料集三張表，**一天三次請求即涵蓋全市場**（不逐商品打）。`FuturesChipAPI.get_available()` 只回傳「查詢日**之前**」已公布的籌碼——那一個等號就是前視偏差。13 條測試。⏳ 歷史回補背景進行中 |
@@ -63,7 +84,7 @@
   **2026-09-01 更新**：crawler／cleaner／loader／updater 與 `tw_futures.db`（Phase1-2）、`FuturesPriceAPI`／`FuturesQuoteAdapter`（Phase1-3）、期貨 models 與 `FuturesPositionManager`（Phase1-4）**皆已完成**；下一步為策略層（Phase1-5）。
 - 資料模型與成本幾乎全是台股語意（`stock_id`、手續費 + 證交稅、全額持股）。
 - `core/backtest/backtester.py` 目前是純股票實作：`StockAccount`、`StockPositionManager`、`StockQuoteAdapter`、`BaseStockStrategy`、`StockOrder/Position/TradeRecord` 全部寫死，連 `MarketCalendar.check_stock_market_open()` 都是股票專屬判斷，**無法直接餵期貨資料**。
-  - **原規劃是「平行建一支 `FuturesBacktester`」，此做法已作廢**（2026-08-02）。逐段分類後，那 838 行裡約 4 成是市場無關的骨架（日期迴圈、執行順序、方向驗證、訊號執行、報表），複製一份會讓兩邊永久漂移；而看似非分家不可的台股信用交易邏輯，全部都能對應到可插拔的 model 掛點。改採 [多市場回測引擎架構](../docs/backtest/multi-market-engine.md) 的「單一引擎 ＋ 可插拔 model」，對齊 Backtrader `Cerebro`、Zipline、Lean `Engine`、Nautilus `BacktestEngine` 的一致做法。期貨端因此只需寫 model 實作，引擎 0 行改動。
+  - **原規劃是「平行建一支 `FuturesBacktester`」，此做法已作廢**（2026-08-02）。逐段分類後，那 838 行裡約 4 成是市場無關的骨架（日期迴圈、執行順序、方向驗證、訊號執行、報表），複製一份會讓兩邊永久漂移；而看似非分家不可的台股信用交易邏輯，全部都能對應到可插拔的 model 掛點。改採 [多市場回測引擎架構](../backtest/multi-market-engine.md) 的「單一引擎 ＋ 可插拔 model」，對齊 Backtrader `Cerebro`、Zipline、Lean `Engine`、Nautilus `BacktestEngine` 的一致做法。期貨端因此只需寫 model 實作，引擎 0 行改動。
 - `MarketCalendar` 以股票 `price` 表／日盤代理，未涵蓋夜盤與期貨結算日。
 - 合約生命週期（近月／遠月、連續合約、換月）尚未建模。
 - `BaseStockStrategy` 註解提到 Futures，但仍綁定股票 API／模型——不宜在其上硬接 if-futures。
@@ -322,7 +343,7 @@ core/
 
 因此應平行建 `BaseFuturesStrategy` + `FuturesPositionManager` + **期貨那一組 model**，而非在 `BaseStockStrategy` / `StockPositionManager` 上加分支。
 
-**注意**：`Backtester` 是唯一例外——它經 [多市場回測引擎架構](../docs/backtest/multi-market-engine.md) 重構後已是市場無關的單一引擎，期貨**共用**它，不另建也不加分支（差異走 model 注入）。
+**注意**：`Backtester` 是唯一例外——它經 [多市場回測引擎架構](../backtest/multi-market-engine.md) 重構後已是市場無關的單一引擎，期貨**共用**它，不另建也不加分支（差異走 model 注入）。
 
 ---
 
@@ -800,7 +821,7 @@ PRIMARY KEY `(date, product, expiry, session)`。
 > 第一次回補在 **2015-03-30 中止**，錯誤訊息是「連續 20 個候選日皆無資料」——保險絲
 > 誤觸。事後把那 20 天逐日重查，**每一天都有資料**。根因：TAIFEX 擋流量時回的是
 > **HTTP 200 ＋ 一張沒有行情表的頁面**，`extract_quote_table()` 看到的與非交易日
-> 完全相同（皆為 `None`）。這正是 [ETL 入庫約定](../docs/pipeline/etl-ingestion.md) §4.2
+> 完全相同（皆為 `None`）。這正是 [ETL 入庫約定](../pipeline/etl-ingestion.md) §4.2
 > 記錄過的事故樣式，在期貨這一側又發生一次。
 >
 > 實測的觸發點：以 1~3 秒／日（每日 2 次請求，約 0.76 req/s）連跑約 **160 次請求**後開始被擋。
@@ -989,7 +1010,7 @@ PRIMARY KEY `(date, product, expiry, session)`。
 
 - **目的**：讓期貨資料能餵進**既有的單一 `Backtester`**，不新增第二支引擎。
 - **做法**：
-  - **前提**：[多市場回測引擎架構](../docs/backtest/multi-market-engine.md) 已完成，`Backtester` 已改為注入式（`InstrumentSpec` / `FillModel` / `CostModel` / `SettlementModel` / `DataFeed` 五個掛點）。
+  - **前提**：[多市場回測引擎架構](../backtest/multi-market-engine.md) 已完成，`Backtester` 已改為注入式（`InstrumentSpec` / `FillModel` / `CostModel` / `SettlementModel` / `DataFeed` 五個掛點）。
   - 實作期貨那一組 model：
 
     | Model | 期貨要做的事 |
@@ -1004,7 +1025,7 @@ PRIMARY KEY `(date, product, expiry, session)`。
   - **關鍵設計點**：期貨的損益實現語意與股票不同——股票是「開倉→持有→平倉才實現」，期貨是**每日結算**（未實現損益每天變成保證金專戶的實際現金流動，隔日成本基礎重設為結算價）。此差異由 `BasePositionManager.settle_daily()` 掛點承接（該掛點由多市場抽象的 Phase4-2 建立，股票實作為 no-op），**不得改動 FIFO 主幹**。
 - **產出**：`core/backtest/models/`（期貨 4 個 model）、`core/backtest/datafeed/futures_datafeed.py`、`core/managers/futures/position_manager.py`；修改 `core/backtest/factory.py`。
 - **驗證方式**：台股既有回歸雙線（LONG 915 筆 ＋ SHORT 快照）逐筆相同——**期貨的加入不得使既有引擎改動任何一行**；期貨示範策略可跑完並產出報表。
-- **相依**：Phase1-5、[多市場回測引擎架構](../docs/backtest/multi-market-engine.md) 全部完成。
+- **相依**：Phase1-5、[多市場回測引擎架構](../backtest/multi-market-engine.md) 全部完成。
 
 > **✅ 完成紀錄（2026-09-02）**
 >
@@ -1026,10 +1047,10 @@ PRIMARY KEY `(date, product, expiry, session)`。
 >    整段偏高一個數量級。故該段下沉為 `BaseSettlementModel.mark_position()`，
 >    **預設實作即原本那段程式碼逐字不動**，台股走預設故雙線逐筆相同。
 >    引擎的其餘部分維持 0 行改動。詳見
->    [多市場回測引擎架構](../docs/backtest/multi-market-engine.md)〈`mark_position()`〉。
+>    [多市場回測引擎架構](../backtest/multi-market-engine.md)〈`mark_position()`〉。
 > 2. **類別命名改為「地區 ＋ 商品」**：規格寫的 `TaifexInstrumentSpec`／`FuturesFillModel`
 >    早於命名軸線收斂，現一律對齊 `TwStockSpec` 的命名規則（見
->    [命名軸線](../docs/dev/naming-axes.md)）。
+>    [命名軸線](../dev/naming-axes.md)）。
 > 3. **多做了一個報表類別**：`StockBacktestReporter` 的欄位（借券費、融券利息、股利補償）
 >    與對標標的（0050）都是股票語意，期貨直接用會當場壞掉。`FuturesBacktestReporter`
 >    繼承它並只覆寫三件事（交易明細欄位、多空統計欄位、對標序列），四張圖與權益口徑共用。
@@ -1457,8 +1478,8 @@ PRIMARY KEY `(date, product, expiry, session)`。
 - **產出**：`core/pipeline/`、`core/api/`、`core/adapters/`、`core/backtest/datafeed/` 的目錄調整。
 - **驗證方式**：台股回歸雙線（LONG 915 筆 ＋ SHORT 快照）逐筆相同；全專案無殘留的舊 import 路徑。
 - **相依**：Phase1-1~Phase5-2。
-- **進度（2026-08-31，`pipeline/` 部分）**：`pipeline/` 部分已由命名軸線收斂工作完成（軸線定案見 [命名軸線](../docs/dev/naming-axes.md)）——`core/pipeline/shared/`（四層 base ＋ HTTP 工具）＋ `core/pipeline/tw/{crawlers,cleaners,loaders,updaters}/`，60 個檔案的 import 已改寫、322 項測試通過。**偏離原規格**：目錄形狀採純市場軸 `tw/` 而非 `tw_stock`／`tw_futures`，商品類別由檔名承載（`stock_price_crawler.py` vs `futures_price_crawler.py`），與美股 §3.1 一致。剩餘 `api/`／`adapters/`／`backtest/datafeed/` 未動。
-- **原暫緩原因（`pipeline/` 部分已解除）**：影響面大且會動到台股既有路徑的每一個 import；應與 [美股ETL與回測架構規劃.md](美股ETL與回測架構規劃.md) 的 Phase3-3 一起收斂，避免兩次重工。待兩邊的最小閉環都驗證完成後解除。**注意該解除條件目前不成立**：美股卡在「尚未選定 provider、`.env.example` 無任何美股憑證」，因此路徑 A 會維持相當長一段時間，命名前綴要保持一致，不要當成過渡期就隨意命名。
+- **進度（2026-08-31，`pipeline/` 部分）**：`pipeline/` 部分已由命名軸線收斂工作完成（軸線定案見 [命名軸線](../dev/naming-axes.md)）——`core/pipeline/shared/`（四層 base ＋ HTTP 工具）＋ `core/pipeline/tw/{crawlers,cleaners,loaders,updaters}/`，60 個檔案的 import 已改寫、322 項測試通過。**偏離原規格**：目錄形狀採純市場軸 `tw/` 而非 `tw_stock`／`tw_futures`，商品類別由檔名承載（`stock_price_crawler.py` vs `futures_price_crawler.py`），與美股 §3.1 一致。剩餘 `api/`／`adapters/`／`backtest/datafeed/` 未動。
+- **原暫緩原因（`pipeline/` 部分已解除）**：影響面大且會動到台股既有路徑的每一個 import；應與 [美股ETL與回測架構規劃.md](../../backlog/美股ETL與回測架構規劃.md) 的 Phase3-3 一起收斂，避免兩次重工。待兩邊的最小閉環都驗證完成後解除。**注意該解除條件目前不成立**：美股卡在「尚未選定 provider、`.env.example` 無任何美股憑證」，因此路徑 A 會維持相當長一段時間，命名前綴要保持一致，不要當成過渡期就隨意命名。
 
 > **✅ 完成紀錄（2026-09-02）**
 >
@@ -1607,7 +1628,7 @@ PRIMARY KEY `(date, product, expiry, session)`。
 
 ## 十二、最後結論
 
-- 現有台股 ETL + 日線／Tick 回測骨架健康，**不用重寫**。`core/backtest/backtester.py` 現況雖是純股票實作，但經 [多市場回測引擎架構](../docs/backtest/multi-market-engine.md) 重構為「單一引擎 ＋ 可插拔 model」後，期貨可直接沿用，只需寫 model 實作——**原規劃的平行 `FuturesBacktester` 已作廢**。
+- 現有台股 ETL + 日線／Tick 回測骨架健康，**不用重寫**。`core/backtest/backtester.py` 現況雖是純股票實作，但經 [多市場回測引擎架構](../backtest/multi-market-engine.md) 重構為「單一引擎 ＋ 可插拔 model」後，期貨可直接沿用，只需寫 model 實作——**原規劃的平行 `FuturesBacktester` 已作廢**。
 - 台期貨應以**平行垂直切片**加入：pipeline → DB → API → models/managers → strategies → backtest；其中「DB」這一關不可省略，所有資料一律先用 `sqlite3` 落地到 `core/database/tw_futures.db`，再往下游走（見 §6.3）。
 - 關鍵風險是誤用股票成本與日曆；保證金／換月／結算必須獨立建模。
 - 個股期貨（股期）已納入規劃，但因標的數量大（250+ 檔）、多數流動性偏低，建議分階段以流動性排名篩選後再擴充（見 Phase 6），避免一開始就攤開全部標的拖慢核心指數期貨閉環。
