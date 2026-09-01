@@ -62,6 +62,7 @@ class MomentumFuturesStrategy(BaseFuturesStrategy):
 
         self.futures_price = feed.futures_price
         self.margin = getattr(feed, "margin", None)
+        self.calendar = getattr(feed, "calendar", None)
 
     def check_open_signal(self, quotes: List[FuturesQuote]) -> List[FuturesOrder]:
         """開倉：近月契約相對昨收漲幅達門檻且目前無部位"""

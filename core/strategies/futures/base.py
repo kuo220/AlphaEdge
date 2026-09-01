@@ -7,6 +7,7 @@ from loguru import logger
 from core.api.futures_margin_api import FuturesMarginAPI
 from core.api.futures_price_api import FuturesPriceAPI
 from core.backtest.datafeed.base import BaseDataFeed
+from core.backtest.datafeed.futures_calendar import FuturesCalendar
 from core.backtest.models.cost_model import FuturesCostConfig
 from core.backtest.models.fill_model import FuturesFillConfig
 from core.managers.futures.position_manager import FuturesMarginConfig
@@ -88,6 +89,8 @@ class BaseFuturesStrategy(BaseStrategy):
         """ === Datasets Setting === """
         self.futures_price: Optional[FuturesPriceAPI] = None  # 期貨行情
         self.margin: Optional[FuturesMarginAPI] = None  # 保證金（可選）
+        # 期貨交易日曆（結算日、最後交易日、交易時段）；由 DataFeed 提供
+        self.calendar: Optional[FuturesCalendar] = None
 
     # === 契約選擇：這是策略的政策，不是資料層的責任 ===
     @staticmethod
@@ -205,6 +208,33 @@ class BaseFuturesStrategy(BaseStrategy):
             price=quote.close,
             volume=volume,
         )
+
+    # === 結算日：期貨獨有，沒有日曆就只能靠報價消失才發現 ===
+    def get_trading_days_to_expiry(self, quote: FuturesQuote) -> Optional[int]:
+        """
+        該契約距離最後交易日還有幾個**交易日**（當日為 0）
+
+        沒有日曆時回傳 None——**不可當成「還很久」**：那會讓策略在結算日照常開倉，
+        隔天契約就不再有報價，部位只能靠結算模型的權宜出場收尾。
+        """
+
+        if self.calendar is None:
+            return None
+
+        return self.calendar.get_trading_days_to_expiry(
+            self.normalize_quote_date(quote.date), quote.expiry
+        )
+
+    def check_near_expiry(self, quote: FuturesQuote, days: int = 0) -> bool:
+        """
+        該契約是否已進入最後 `days` 個交易日（`days=0` 即「今天就是最後交易日」）
+
+        **換月規則屬 Phase2-4**，本方法只回答「還剩幾天」這個事實，
+        要不要因此換月由策略決定。
+        """
+
+        remaining: Optional[int] = self.get_trading_days_to_expiry(quote)
+        return remaining is not None and remaining <= days
 
     def filter_session(self, quotes: List[FuturesQuote]) -> List[FuturesQuote]:
         """

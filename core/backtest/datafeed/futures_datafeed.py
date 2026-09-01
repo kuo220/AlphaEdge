@@ -1,6 +1,6 @@
 import datetime
 import sqlite3
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional
 
 from loguru import logger
 
@@ -8,6 +8,7 @@ from core.adapters.futures_quote_adapter import FuturesQuoteAdapter
 from core.api.futures_margin_api import FuturesMarginAPI
 from core.api.futures_price_api import FuturesPriceAPI
 from core.backtest.datafeed.base import BaseDataFeed
+from core.backtest.datafeed.futures_calendar import FuturesCalendar
 from core.config import TW_FUTURES_DB_PATH
 from core.managers.futures.position_manager import FuturesMarginConfig
 from core.models import FuturesQuote
@@ -35,6 +36,9 @@ class TwFuturesDataFeed(BaseDataFeed):
     真正的期貨交易日曆（結算日、夜盤跨日、與台股不一致的補班日）屬 Phase2-3。
     """
 
+    # 日曆往回測結束日之後多取的曆日數：末段契約的最後交易日可能落在區間外
+    CALENDAR_LOOKAHEAD_DAYS: int = 45
+
     def __init__(self, margin_config: Optional[FuturesMarginConfig] = None):
         # 單次回測共用一條 SQLite 連線：行情與保證金查的是同一個 DB 檔
         self.conn: Optional[sqlite3.Connection] = None
@@ -50,10 +54,10 @@ class TwFuturesDataFeed(BaseDataFeed):
         self.products: List[str] = []
         self.session: FuturesSession = FuturesSession.DAY
 
-        # 回測區間與交易日集合（整場只查一次）
+        # 回測區間與期貨交易日曆（整場只建一次）
         self.start_date: Optional[datetime.date] = None
         self.end_date: Optional[datetime.date] = None
-        self.trading_days: Optional[Set[datetime.date]] = None
+        self.calendar: Optional[FuturesCalendar] = None
 
     def setup(self, strategy: BaseStrategy) -> None:
         """建立資料 API 並記下策略宣告的商品與時段"""
@@ -68,6 +72,7 @@ class TwFuturesDataFeed(BaseDataFeed):
         self.start_date = strategy.start_date
         self.end_date = strategy.end_date
 
+        self.calendar = self.build_calendar()
         self.inject_margin_api()
 
         if not self.products:
@@ -141,36 +146,45 @@ class TwFuturesDataFeed(BaseDataFeed):
 
     def is_market_open(self, date: datetime.date) -> bool:
         """
-        期貨開盤日判定：當日表內有資料即視為開盤
+        期貨開盤日判定：交給 `FuturesCalendar`（判準是「當日表內有行情」）
 
-        交易日集合整場只建一次（回測期間資料表不會變動）；
-        **不過濾時段**——夜盤成交的那一天同樣是交易日。
+        **不沿用股票 calendar**：期貨的休市日與現貨不完全相同，且最後交易日
+        遇休市要順延到**期貨自己**的下一個開盤日。日曆整場只建一次
+        （回測期間資料表不會變動）。
         """
 
         if self.futures_price is None:
             return False
 
-        if self.trading_days is None:
-            self.trading_days = self.build_trading_days()
+        if self.calendar is None:
+            self.calendar = self.build_calendar()
 
-        return date in self.trading_days
+        return self.calendar.is_trading_day(date)
 
-    def build_trading_days(self) -> Set[datetime.date]:
+    def build_calendar(self) -> FuturesCalendar:
         """
-        由行情表建立回測區間內的交易日集合
+        - Description:
+            建立本次回測的期貨交易日曆
 
-        **以策略宣告的第一個商品為準**：不同商品的掛牌期間不同，用「任一商品有
-        資料」會把該策略根本不交易的商品的交易日也算進來。未宣告商品時才退回全表。
+            **以策略宣告的第一個商品為準**：不同商品的掛牌期間不同，用「任一商品
+            有資料」會把該策略根本不交易的商品的交易日也算進來。
+
+            **結束日往後多取 `CALENDAR_LOOKAHEAD_DAYS` 天**：落在回測末段的契約，
+            其最後交易日可能在 `end_date` 之後，只取回測區間本身會讓
+            `get_last_trading_date()` 因為「日曆涵蓋不到」而失準（換月規則會用到）。
+        - Return:
+            - FuturesCalendar
         """
 
         if self.start_date is None or self.end_date is None:
-            return set()
+            return FuturesCalendar()
 
         product: Optional[str] = self.products[0] if self.products else None
-        return set(
-            self.futures_price.get_trading_days(
-                self.start_date, self.end_date, product=product
-            )
+        return FuturesCalendar.from_api(
+            self.futures_price,
+            self.start_date,
+            self.end_date + datetime.timedelta(days=self.CALENDAR_LOOKAHEAD_DAYS),
+            product=product,
         )
 
     def get_quotes(

@@ -29,7 +29,7 @@
 | Phase1-7 | 連續合約構建（先做一種調整方式） | `core/pipeline/tw/*/futures_continuous_*.py` | 換月接點的 `roll_flag` 正確 | ⬜ | 相依 Phase1-2 |
 | Phase2-1 | 期貨成本模型（期交稅、手續費、滑價） | `core/backtest/models/cost_model.py`、`fill_model.py`、`core/utils/constant.py` | **不可複用證交稅**；有單元測試 | ✅ | **2026-09-02 完成**：期交稅（法規值十萬分之二、**買賣各課一次**、稅基為契約價值）、每口手續費（市場常見值 50 元，可逐商品指定）、滑價改以**跳動點**表達並可逐商品設定。16 條測試；`FuturesCostConfig` 一併從 `managers/` 移到 `cost_model.py`（與股票的 `CostConfig` 同位置），部位管理層改為一律問 CostModel，費率不再有第二份 |
 | Phase2-2 | 槓桿／部位控管（保證金 ETL 已分家） | `core/managers/futures/`、`core/backtest/models/settlement_model.py`、`core/backtest/datafeed/futures_datafeed.py` | 追繳／可開口數依當時生效的保證金計算 | ✅ | **2026-09-02 完成**：查表改為**預設模式**（API 由 DataFeed 注入策略與部位管理層**共用的同一個設定物件**）、追繳以**權益 vs 維持保證金**判斷並可選強制平倉／僅標記、可開口數隨生效日改變。14 條測試（含一條以真實表驗證 TX 2024-08-09 → 08-22 由 265,000 調為 292,000）。保證金歷史序列本身見 [台期貨保證金ETL](台期貨保證金ETL.md) S1~S5 |
-| Phase2-3 | 期貨交易日曆（日盤 ＋ 夜盤、結算日） | `core/backtest/datafeed/futures_calendar.py` | 不沿用股票 calendar | ⬜ | 相依 Phase1-6 |
+| Phase2-3 | 期貨交易日曆（日盤 ＋ 夜盤、結算日） | `core/backtest/datafeed/futures_calendar.py` | 不沿用股票 calendar | ✅ | **2026-09-02 完成**：交易日取自行情表（臨時休市／補行交易日自動涵蓋）、結算日為第三個星期三且**遇休市順延到期貨自己的下一個開盤日**、週契約另有規則、夜盤跨日與 2017-05-15 上線日皆已處理。14 條測試，含一條以真實表比對 **140 個已到期 TX 月契約的最後交易日，140/140 完全相同** |
 | Phase2-4 | 換月規則參數化 | `core/backtest/` | 三種換月規則可切換 | ⬜ | 相依 Phase1-7、Phase2-3 |
 | Phase3-1 | 籌碼訊號 ETL（三大法人、大額交易人、PCR） | `core/pipeline/tw/*/futures_chip_*.py` | 前視偏差對齊（T+1 可用） | ⬜ | 相依 Phase1-2 |
 | Phase4-1 | 多商品擴充（MTX、TMF、TE、TF） | `core/config.py`、`core/pipeline/*` | 各商品點值／乘數正確 | ⬜ | 相依 Phase2-2；**乘數已於 2026-08-29 全數查證登錄**，擴充只需改 `FUTURES_TARGET_PRODUCTS` |
@@ -1140,13 +1140,38 @@ PRIMARY KEY `(date, product, expiry, session)`。
 > 示範策略端對端可跑，交易明細的保證金欄位確實隨生效日變動
 > （334,000 → 368,000 → 334,000）。
 
-#### Phase2-3. 期貨交易日曆 ⬜
+#### Phase2-3. 期貨交易日曆 ✅
 
 - **目的**：股票 calendar 不涵蓋夜盤與結算日，直接沿用會算錯持倉天數與可交易時段。
 - **做法**：建立期貨日曆——日盤 08:45–13:45、夜盤 15:00–次日 05:00、結算日（每月第三個星期三）與最後交易日邏輯、臨時休市。
 - **產出**：`core/backtest/datafeed/futures_calendar.py`（多市場抽象的 Phase4-1 已把 `market_calendar.py` 移入 `core/backtest/datafeed/`，期貨日曆與其並列，不沿用股票 calendar）。
 - **驗證方式**：抽樣比對 TAIFEX 行事曆；結算日與夜盤標記正確。
 - **相依**：Phase1-6。
+
+> **✅ 完成紀錄（2026-09-02）**
+>
+> **交易日的判準是資料，規則只用來算日期**：`trading_days` 取自
+> `futures_price_daily`（實際有行情的日子），颱風假、補行交易日、臨時休市因此
+> 全部自動涵蓋——那些是公告出來的事實，推不出來。規則（第三個星期三）只用於算
+> 「應該在哪一天到期」，再用交易日順延。
+>
+> **順延必須看期貨自己的開盤日**：2023-01 契約的第三個星期三是 01-18，遇春節
+> 連休 12 天（史上最長），最後交易日一路順延到 **2023-01-30**。這個長度無法由
+> 任何規則推出來，只能查實際開盤日——這也是不能沿用股票 calendar 的直接理由。
+>
+> **驗證方式比原規格更強**：原本寫「抽樣比對 TAIFEX 行事曆」，實際改為**全量比對
+> 真實行情**——對每個已到期的 TX 月契約，日曆算出的最後交易日必須等於該契約在
+> 行情表出現的最後一天，**140 個契約 140/140 相同**（`tests/test_futures_calendar.py`
+> 的 `slow` 測試，每次跑都會重驗）。
+>
+> **另外釘住的三件事**：① 夜盤跨日（15:00 → 次日 05:00），凌晨 03:00 的成交屬於
+> 前一天開始的那段夜盤；② **2017-05-15 之前沒有夜盤**，那是制度不是資料缺漏；
+> ③ 週契約 `YYYYMMWn` 是該月第 n 個星期三，**沒有 W3**（第三週就是月契約）。
+>
+> **接線**：`TwFuturesDataFeed.is_market_open()` 改走日曆；策略基底新增
+> `calendar` 與 `get_trading_days_to_expiry()` / `check_near_expiry()`，
+> 供 Phase2-4 的換月規則使用。日曆的涵蓋區間比回測結束日多取 45 天，
+> 否則末段契約的最後交易日會落在區間外而算不出來。
 
 #### Phase2-4. 換月規則參數化 ⬜
 
