@@ -646,20 +646,12 @@ class Backtester:
             price: float = self.settlement.get_mark_price(position, quote_map)
             units: int = self.instrument.to_units(position.volume)
 
-            if position.position_type == PositionType.SHORT:
-                # 開倉時只扣了保證金與成本，賣出價款留作擔保品
-                position.unrealized_pnl = round((position.price - price) * units, 2)
-                position_value += position.margin + position.unrealized_pnl
-            else:
-                position.unrealized_pnl = round((price - position.price) * units, 2)
-                position_value += price * units
-
-            cost_basis: float = position.price * units
-            position.unrealized_roi = (
-                round(position.unrealized_pnl / cost_basis * 100, 2)
-                if cost_basis
-                else 0.0
-            )
+            # 「這個部位替權益貢獻多少」是**資金佔用方式**的問題，屬結算模型：
+            # 股票買進是把現金換成標的（部位價值＝市值），期貨開倉只凍結保證金
+            # （契約價值本身不佔用資金，部位價值＝保證金＋未結算損益）。
+            # `BaseSettlementModel.mark_position()` 的預設實作即原本寫在此處的
+            # 現金帳戶口徑，台股逐筆不變
+            position_value += self.settlement.mark_position(position, price, units)
 
         equity: float = round(self.account.balance + position_value, 2)
         self.daily_equity.append({"Date": date, "Equity": equity})

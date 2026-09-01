@@ -45,6 +45,7 @@ Backtester                      ← 唯一引擎，市場無關，無子類（�
 | `accrue_holding_cost` | `SettlementModel` | `MarginInterestRateModel` |
 | `enforce_day_trade_cover` / `convert_to_margin_position` | `SettlementModel` | `SettlementModel` |
 | `snapshot_daily_equity` 的 `convert_lot_to_share` | `InstrumentSpec.to_units()` | `SymbolProperties.ContractMultiplier` |
+| `snapshot_daily_equity` 的**部位計價**（2026-09-02 追加） | `SettlementModel.mark_position()` | `BuyingPowerModel` |
 
 **關鍵洞察**：台股的「當沖日終強制回補」與期貨的「每日結算」，在架構上是**同一個掛點的兩種實作**——「一根 bar 收盤後，市場規則強制對部位做的事」。看出這點之後，切兩個引擎就沒有理由了。
 
@@ -151,6 +152,19 @@ model 之間刻意**不互相依賴**，需要共享的狀態以 dict 參照傳�
 - **`prev_close`**：由 `FillModel` 持有（記錄前收是成交價模型的職責），`SettlementModel` 建構時取得同一個 dict 的參照，用於停牌盯市與漲停判定。
 
 `get_mark_price()` 屬 `BaseSettlementModel` 的介面方法而非 `FillModel`——**期貨的盯市價就是每日結算價**，本來就是結算模型的職責；引擎的 `snapshot_daily_equity()` 也用它算未實現損益。
+
+### `mark_position()`：引擎為期貨補開的唯一掛點（2026-09-02）
+
+台期貨 model 組（`backlog/台期貨ETL與回測架構規劃.md` Phase1-6）落地時發現，
+`snapshot_daily_equity()` 有一段**不是市場無關的**：做多部位計入權益的金額寫死為
+「市價 × 計價單位」。那是**現金帳戶**的語意（買進即把現金換成標的），期貨是保證金交易
+——契約價值本身不佔用資金，部位價值只有「保證金 ＋ 尚未結算的損益」
+（TX 一口契約價值 900 萬、保證金只有 70 萬，沿用會讓權益曲線整段偏高一個數量級）。
+
+故該段下沉為 `BaseSettlementModel.mark_position()`：**預設實作即原本那段程式碼逐字不動**
+（台股走預設，LONG 915 筆與 SHORT 快照皆逐筆相同），`TwFuturesSettlementModel` 覆寫成
+保證金口徑。引擎那一段因此由 16 行變成 1 行呼叫，`snapshot_daily_equity()` 的其餘部分
+（逐日記錄、盯市價取得）維持市場無關。
 
 ---
 

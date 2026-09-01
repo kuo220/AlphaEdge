@@ -6,7 +6,11 @@ from typing import Dict, List, Optional, Tuple
 
 from loguru import logger
 
-from core.backtest.models.instrument_spec import InstrumentSpec, TwStockSpec
+from core.backtest.models.instrument_spec import (
+    InstrumentSpec,
+    TwFuturesSpec,
+    TwStockSpec,
+)
 from core.models import BaseOrder, BaseQuote
 from core.utils import Action, PositionType, Scale, TimeUtils
 
@@ -406,3 +410,186 @@ class TwStockFillModel(BaseFillModel):
         for symbol, price in basis.items():
             if price:
                 self.prev_close[symbol] = price
+
+
+class TwFuturesFillModel(BaseFillModel):
+    """
+    台期貨成交價模型
+
+    與 `TwStockFillModel` 的三個差異：
+
+    1. **不做漲跌停檢查**：期貨沒有可事先算出的漲跌停區間（見 `TwFuturesSpec`），
+       故 `validate()` 只保留「成交價須落在當根 bar 的區間內」這道前視偏誤擋板。
+    2. **不做券源檢核**：期貨賣出開倉就是放空，不需要借券也沒有融券餘額的概念。
+    3. **成交量的單位是口**，不是張；`FillConfig.max_volume_share` 的語意不變。
+
+    ⚠️ **同一契約的日盤與夜盤 `symbol` 相同**（`{product}{expiry}`）。本 model 的
+    `prev_close` 與 `intraday_range` 以 symbol 為鍵，兩個時段混在同一根 bar 傳進來
+    會互相覆蓋。DataFeed 一律只取策略宣告的那一個時段，見 `TwFuturesDataFeed`。
+    """
+
+    def __init__(
+        self,
+        instrument: Optional[InstrumentSpec] = None,
+        event_counts: Optional[Dict[str, int]] = None,
+        config: Optional[FillConfig] = None,
+    ):
+        self.instrument: InstrumentSpec = instrument or TwFuturesSpec()
+
+        # 成交假設（滑價、成交量上限）；預設全關
+        self.config: FillConfig = config or FillConfig()
+
+        # 與引擎共用同一個 dict，拒單計數才會反映到報表（傳 None 時自行持有，供單獨測試）
+        self.event_counts: Dict[str, int] = (
+            event_counts if event_counts is not None else {"rejected_fill_price": 0}
+        )
+
+        # Tick 級別的當日累計高低點（Tick 回測屬 Phase5-1，目前不會被填入）
+        self.intraday_range: Dict[str, Tuple[float, float]] = {}
+
+        # 前一交易日收盤價；期貨沒有漲跌停檢查，此處僅供無報價時盯市與外部查詢
+        self.prev_close: Dict[str, float] = {}
+
+    def validate(self, order: BaseOrder, quote: BaseQuote) -> bool:
+        """
+        成交價合理性檢查：**只檢查是否落在當根 bar 的高低點之間**
+
+        期貨沒有漲跌停可查（見 `TwFuturesSpec.get_price_limits()`）；跳動點未對齊
+        僅記錄警告不拒單，與台股一致——資料本身的價格精度問題不該擋掉正常回測。
+        """
+
+        low, high = self.get_price_range(quote)
+        if low is not None and high is not None and not (low <= order.price <= high):
+            logger.warning(
+                f"[Validate Fill] {order.symbol} 成交價 {order.price} 超出當日區間 "
+                f"[{low}, {high}]，拒單"
+            )
+            self.event_counts["rejected_fill_price"] += 1
+            return False
+
+        if self.instrument.round_to_tick(order.price, "nearest") != order.price:
+            logger.warning(
+                f"[Validate Fill] {order.symbol} 成交價 {order.price} 未對齊跳動點"
+            )
+
+        return True
+
+    def get_price_range(
+        self, quote: BaseQuote
+    ) -> Tuple[Optional[float], Optional[float]]:
+        """取得該報價可成交的價格區間：日 K 用 OHLC，Tick 用當日累計高低點"""
+
+        if quote.scale == Scale.TICK:
+            return self.intraday_range.get(quote.symbol, (None, None))
+
+        if quote.high and quote.low:
+            return (quote.low, quote.high)
+
+        return (None, None)
+
+    def on_bar_open(self, quotes: List[BaseQuote]) -> None:
+        """一根 bar 開始：Tick 級別的累計高低點以該根 bar 為範圍，故先重置再累計"""
+
+        self.intraday_range = {}
+        self.update_intraday_range(quotes)
+
+    def update_intraday_range(self, quotes: List[BaseQuote]) -> None:
+        """更新 Tick 級別的當日累計高低點（只納入已發生的報價，本身即防前視）"""
+
+        for quote in quotes:
+            price: float = quote.cur_price or quote.close
+            if not price:
+                continue
+
+            low, high = self.intraday_range.get(quote.symbol, (price, price))
+            self.intraday_range[quote.symbol] = (min(low, price), max(high, price))
+
+    def on_bar_close(self, quotes: List[BaseQuote]) -> None:
+        """收盤後記錄當日收盤價；**不是結算價**，盯市價一律走 SettlementModel"""
+
+        for quote in quotes:
+            close: float = quote.close or quote.cur_price
+            if close:
+                self.prev_close[quote.symbol] = close
+
+    def fill(self, order: BaseOrder, quote: BaseQuote) -> Optional[BaseOrder]:
+        """
+        期貨的成交假設：滑價 → 成交量上限
+
+        兩項預設皆為關閉，此時直接回傳**原物件**（不是副本），
+        與台股同一種寫法：未啟用任何假設時行為與導入前逐筆相同。
+        """
+
+        price: float = self.get_filled_price(order)
+        volume: Optional[int] = self.get_filled_volume(order, quote)
+
+        if volume is None:
+            return None
+
+        if price == order.price and volume == order.volume:
+            return order
+
+        filled_order: BaseOrder = copy.copy(order)
+        filled_order.price = price
+        filled_order.volume = volume
+        return filled_order
+
+    def get_filled_price(self, order: BaseOrder) -> float:
+        """依訂單方向套用滑價；係數為 0 時原價回傳"""
+
+        bps: float = (
+            self.config.slippage_bps_buy
+            if order.action == Action.BUY
+            else self.config.slippage_bps_sell
+        )
+        return self.instrument.apply_slippage(order.price, order.action, bps)
+
+    def get_filled_volume(self, order: BaseOrder, quote: BaseQuote) -> Optional[int]:
+        """
+        - Description:
+            套用成交量上限：單筆訂單口數不得超過當日成交量的指定比例
+
+            與台股同一套政策（縮量或拒單），只有單位不同（口 vs 張）；
+            同樣只在 DAY 級別生效——Tick 的 `quote.volume` 是單筆量，當分母沒有意義。
+        - Parameters:
+            - order: BaseOrder
+                待檢查的訂單
+            - quote: BaseQuote
+                同一契約的當根 bar 報價
+        - Return:
+            - Optional[int]
+                可成交口數；整張拒單時為 None
+        """
+
+        share: Optional[float] = self.config.max_volume_share
+
+        if not share or quote.scale != Scale.DAY or not quote.volume:
+            return order.volume
+
+        cap: int = int(quote.volume * share)
+
+        if order.volume <= cap:
+            return order.volume
+
+        if self.config.volume_cap_policy == VolumeCapPolicy.REJECT:
+            logger.warning(
+                f"[Fill] {order.symbol} 委託 {order.volume} 口 > 當日成交量上限 "
+                f"{cap} 口（{share:.1%} × {quote.volume}），拒單"
+            )
+            self.event_counts["rejected_volume_cap"] += 1
+            return None
+
+        if cap <= 0:
+            logger.warning(
+                f"[Fill] {order.symbol} 當日成交量上限不足一口（{share:.1%} × "
+                f"{quote.volume}），拒單"
+            )
+            self.event_counts["rejected_volume_cap"] += 1
+            return None
+
+        logger.warning(
+            f"[Fill] {order.symbol} 委託 {order.volume} 口縮量至 {cap} 口"
+            f"（當日成交量 {quote.volume} 口的 {share:.1%}）"
+        )
+        self.event_counts["truncated_by_volume"] += 1
+        return cap

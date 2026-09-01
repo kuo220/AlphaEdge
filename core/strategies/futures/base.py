@@ -7,6 +7,7 @@ from loguru import logger
 from core.api.futures_margin_api import FuturesMarginAPI
 from core.api.futures_price_api import FuturesPriceAPI
 from core.backtest.datafeed.base import BaseDataFeed
+from core.backtest.models.fill_model import FillConfig
 from core.managers.futures.position_manager import (
     FuturesCostConfig,
     FuturesMarginConfig,
@@ -67,6 +68,10 @@ class BaseFuturesStrategy(BaseStrategy):
         # 交易時段。**日盤與夜盤是兩筆獨立行情**，混用會讓同一契約一天出現兩筆報價
         self.session: FuturesSession = FuturesSession.DAY
         self.max_lots: int = 0  # 總口數上限（0 表示不開倉）
+        # 期貨限制的是**總口數**不是持倉檔數，故解除引擎的檔數上限。
+        # `BaseStrategy` 的預設值是 0，而 `Backtester.check_max_holdings()` 只把
+        # `None` 當成「不限制」——沿用 0 會讓每一張期貨開倉單都被引擎剔除
+        self.max_holdings: Optional[int] = None
         # 單次開倉最多動用可動用餘額的比例；保證金交易若不設限，
         # 一次就能把帳戶壓到追繳邊緣
         self.max_capital_usage: float = 0.5
@@ -79,6 +84,8 @@ class BaseFuturesStrategy(BaseStrategy):
         """
         self.cost_config: Optional[FuturesCostConfig] = None
         self.margin_config: Optional[FuturesMarginConfig] = None
+        # 成交假設（滑價、成交量上限）；None 時全部關閉，成交價即策略給的委託價
+        self.fill_config: Optional[FillConfig] = None
 
         """ === Datasets Setting === """
         self.futures_price: Optional[FuturesPriceAPI] = None  # 期貨行情

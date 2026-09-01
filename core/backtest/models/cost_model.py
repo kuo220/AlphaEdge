@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 from loguru import logger
 
+from core.managers.futures.position_manager import FuturesCostConfig
 from core.models import BaseOrder, StockOrder
 from core.utils import (
     DAY_TRADE_TAX_EXPIRY,
@@ -618,3 +619,96 @@ class StockCostModel(BaseCostModel):
             carry_cost=carry_cost,
         )
         return round(pnl / capital * 100, 2)
+
+
+class TwFuturesCostModel(BaseCostModel):
+    """
+    台期貨成本模型（**本階段費率一律為 0**）
+
+    費率的唯一來源是 `FuturesCostConfig`
+    （`core/managers/futures/position_manager.py`）——本模型與
+    `FuturesPositionManager` **共用同一個設定物件**，兩處各填一份必然漂移。
+
+    **實際費率屬 Phase2-1**：期交稅（買賣各課一次）與每口手續費在查證到實際數字
+    之前一律留 0，此時算出的成本恰好為 0，PnL 等於純價格公式，便於驗證引擎接線。
+    **不可複用證交稅**：稅基（契約價值）與費率都與股票不同。
+
+    與 `StockCostModel` 的三個結構差異：
+
+    1. **稅基是契約價值**（價格 × 乘數 × 口數），故 `tax()` 需要 `multiplier`。
+    2. **手續費是每口固定金額**，沒有費率、折扣與最低收費。
+    3. **報酬率的分母是保證金**，不是契約價值——期貨投入的資金就是保證金，
+       用契約價值當分母會把槓桿效果整個抹掉，故 `roi()` 與 `roi_on_capital()`
+       在期貨是同一個數字。
+    """
+
+    def __init__(self, config: Optional[FuturesCostConfig] = None):
+        self.config: FuturesCostConfig = config or FuturesCostConfig.default()
+
+    def commission(self, price: float, volume: int) -> int:
+        """手續費：每口固定金額（`price` 未參與計算，僅為對齊介面）"""
+
+        return int(self.config.commission_per_lot * volume)
+
+    def tax(self, price: float, volume: int, multiplier: int = 1, **kwargs) -> int:
+        """期交稅：對**契約價值**課徵（買賣各一次）；費率見 `FuturesCostConfig`"""
+
+        return int(price * multiplier * volume * self.config.tax_rate)
+
+    def realized_pnl(
+        self,
+        entry_price: float = 0.0,
+        exit_price: float = 0.0,
+        volume: int = 0,
+        multiplier: int = 0,
+        position_type: PositionType = PositionType.LONG,
+        transaction_cost: float = 0.0,
+        **kwargs,
+    ) -> float:
+        """
+        已實現損益 ＝ 價格變動 × 乘數 × 口數 − 交易成本
+
+        **不含逐日盯市已結算的各段**：那由 `FuturesPositionManager` 依平倉口數
+        等比例攤提，見 `close_single_position()`。本方法只算單一段落的價格損益。
+        """
+
+        direction: int = 1 if position_type == PositionType.LONG else -1
+        pnl: float = (exit_price - entry_price) * multiplier * volume * direction
+        return pnl - transaction_cost
+
+    def roi(self, realized_pnl: float = 0.0, margin: float = 0.0, **kwargs) -> float:
+        """名目報酬率（%）：**分母是保證金**，保證金為 0 時回傳 0"""
+
+        if not margin:
+            return 0.0
+        return round(realized_pnl / margin * 100, 2)
+
+    def roi_on_capital(
+        self, realized_pnl: float = 0.0, margin: float = 0.0, **kwargs
+    ) -> float:
+        """
+        資金效率報酬率（%）
+
+        期貨實際投入的資金就是保證金，故與 `roi()` 相同——台股兩者不同是因為
+        放空的名目報酬率以賣出價款為分母，實際佔用的卻是保證金。
+        """
+
+        return self.roi(realized_pnl=realized_pnl, margin=margin)
+
+    def margin_required(
+        self,
+        price: float = 0.0,
+        volume: int = 0,
+        multiplier: int = 0,
+        **kwargs,
+    ) -> int:
+        """
+        開倉所需保證金
+
+        **本模型不算保證金**：期貨的原始保證金是交易所公告的每口固定金額，
+        不是任何比率算得出來的（見 `FuturesMarginConfig`），一律走
+        `FuturesPositionManager.calculate_margin()` 查表。此處維持 0 並保留簽章，
+        是為了不讓呼叫端誤以為成本模型有第二套保證金口徑。
+        """
+
+        return 0

@@ -1,13 +1,34 @@
+from loguru import logger
+
 from core.backtest.backtester import Backtester, new_event_counts
+from core.backtest.datafeed.futures_datafeed import TwFuturesDataFeed
 from core.backtest.datafeed.tw_stock_datafeed import TwStockDataFeed
-from core.backtest.models.cost_model import CostConfig, StockCostModel
-from core.backtest.models.fill_model import FillConfig, TwStockFillModel
-from core.backtest.models.instrument_spec import TwStockSpec
-from core.backtest.models.settlement_model import TwStockSettlementModel
+from core.backtest.models.cost_model import (
+    CostConfig,
+    StockCostModel,
+    TwFuturesCostModel,
+)
+from core.backtest.models.fill_model import (
+    FillConfig,
+    TwFuturesFillModel,
+    TwStockFillModel,
+)
+from core.backtest.models.instrument_spec import TwFuturesSpec, TwStockSpec
+from core.backtest.models.settlement_model import (
+    TwFuturesSettlementModel,
+    TwStockSettlementModel,
+)
+from core.backtest.report.futures_reporter import FuturesBacktestReporter
 from core.backtest.report.reporter import StockBacktestReporter
+from core.managers.futures.position_manager import (
+    FuturesCostConfig,
+    FuturesMarginConfig,
+    FuturesPositionManager,
+)
 from core.managers.stock.position_manager import StockPositionManager
-from core.models import StockAccount
+from core.models import FuturesAccount, StockAccount
 from core.strategies.base import BaseStrategy
+from core.strategies.futures import BaseFuturesStrategy
 from core.strategies.stock import BaseStockStrategy
 from core.utils import InstrumentType, Market, PositionType, ShortMethod
 
@@ -47,6 +68,14 @@ def build_backtester(
         InstrumentType.STOCK,
     ):
         return build_tw_stock_backtester(strategy, adjusted_price)
+
+    if (strategy.market, strategy.instrument_type) == (
+        Market.TW,
+        InstrumentType.FUTURE,
+    ):
+        # `adjusted_price` 不往下傳：期貨沒有除權息還原的概念，見
+        # `build_tw_futures_backtester()`
+        return build_tw_futures_backtester(strategy)
 
     raise ValueError(
         f"尚未支援的（市場, 商品）組合：{strategy.market}, {strategy.instrument_type}"
@@ -99,6 +128,84 @@ def build_tw_stock_backtester(
         reporter_cls=StockBacktestReporter,
         event_counts=event_counts,
         adjusted_price=adjusted_price,
+    )
+
+
+def build_tw_futures_backtester(strategy: BaseFuturesStrategy) -> Backtester:
+    """
+    - Description:
+        組裝台期貨的 model 組
+
+        **與台股那一組的四個差異**（都是期貨的記帳語意造成的，不是實作偏好）：
+
+        1. **`adjusted_price` 一律為 False**：期貨沒有除權息，不存在還原價。
+        2. **成本設定由 `FuturesCostConfig` 提供**，且**同一個物件**同時交給
+           `FuturesPositionManager` 與 `TwFuturesCostModel`——費率兩處各填一份
+           必然漂移。本階段費率全為 0，實際費率屬 Phase2-1。
+        3. **保證金設定由策略提供**，未提供時退回「契約價值 × 比率」的近似。
+           近似的誤差跨年份實測為 +143% ~ −38%（見
+           `backlog/台期貨保證金ETL.md` S5），故此處明確發出警告；接上
+           `FuturesMarginAPI` 查表屬 Phase2-2。
+        4. **`SettlementModel` 不需要 `cost_model`**：期貨在收盤後只做逐日盯市，
+           不像台股要在此計提借券費與稅差。
+    - Parameters:
+        - strategy: BaseFuturesStrategy
+            要回測的台期貨策略
+    - Return:
+        - Backtester
+            已注入台期貨 model 組的引擎
+    """
+
+    account: FuturesAccount = FuturesAccount(strategy.init_capital)
+    strategy.setup_account(account)
+
+    # 成本與保證金設定：與 PositionManager 共用同一個物件
+    cost_config: FuturesCostConfig = strategy.cost_config or FuturesCostConfig.default()
+    margin_config: FuturesMarginConfig = (
+        strategy.margin_config or FuturesMarginConfig.default()
+    )
+
+    if margin_config.api is None:
+        logger.warning(
+            f"[{strategy.strategy_name}] 未帶入保證金 API，本次回測以"
+            f"「契約價值 × {margin_config.initial_margin_ratio:.0%}」近似原始保證金"
+            f"——跨年份誤差實測為 +143% ~ −38%，僅適合跑通流程（查表屬 Phase2-2）"
+        )
+
+    cost_model: TwFuturesCostModel = TwFuturesCostModel(cost_config)
+    position_manager: FuturesPositionManager = FuturesPositionManager(
+        account,
+        cost_config=cost_config,
+        margin_config=margin_config,
+    )
+
+    instrument: TwFuturesSpec = TwFuturesSpec()
+
+    # 事件計數由 factory 建立，引擎與 FillModel 共用同一個 dict
+    event_counts: dict = new_event_counts()
+    fill_model: TwFuturesFillModel = TwFuturesFillModel(
+        instrument=instrument,
+        event_counts=event_counts,
+        config=strategy.fill_config or FillConfig(),
+    )
+
+    settlement: TwFuturesSettlementModel = TwFuturesSettlementModel(
+        position_manager=position_manager,
+        instrument=instrument,
+    )
+
+    return Backtester(
+        strategy=strategy,
+        account=account,
+        position_manager=position_manager,
+        instrument=instrument,
+        fill_model=fill_model,
+        cost_model=cost_model,
+        settlement=settlement,
+        data_feed=TwFuturesDataFeed(),
+        reporter_cls=FuturesBacktestReporter,
+        event_counts=event_counts,
+        adjusted_price=False,
     )
 
 
