@@ -32,7 +32,7 @@
 | Phase2-3 | 期貨交易日曆（日盤 ＋ 夜盤、結算日） | `core/backtest/datafeed/futures_calendar.py` | 不沿用股票 calendar | ✅ | **2026-09-02 完成**：交易日取自行情表（臨時休市／補行交易日自動涵蓋）、結算日為第三個星期三且**遇休市順延到期貨自己的下一個開盤日**、週契約另有規則、夜盤跨日與 2017-05-15 上線日皆已處理。14 條測試，含一條以真實表比對 **140 個已到期 TX 月契約的最後交易日，140/140 完全相同** |
 | Phase2-4 | 換月規則參數化 | `core/backtest/datafeed/futures_roll.py`、`settlement_model.py`、`core/strategies/futures/base.py` | 三種換月規則可切換 | ✅ | **2026-09-02 完成**：`FuturesRollConfig` 由 factory 建立並由**策略、結算模型、DataFeed 三方共用**；結算模型在換月時自動轉倉（平舊倉 ＋ 同口數同方向開新倉，展期價差如實入帳）。13 條測試，含以真實資料驗「回測換月接點 ＝ `futures_continuous` 的 `roll_flag`」完全一致 |
 | Phase3-1 | 籌碼訊號 ETL（三大法人、大額交易人、PCR） | `core/pipeline/tw/*/futures_chip_*.py` | 前視偏差對齊（T+1 可用） | ⬜ | 相依 Phase1-2 |
-| Phase4-1 | 多商品擴充（MTX、TMF、TE、TF） | `core/config.py`、`core/pipeline/*` | 各商品點值／乘數正確 | ⬜ | 相依 Phase2-2；**乘數已於 2026-08-29 全數查證登錄**，擴充只需改 `FUTURES_TARGET_PRODUCTS` |
+| Phase4-1 | 多商品擴充（MTX、TMF、TE、TF） | `core/config.py`、`tests/test_futures_products.py` | 各商品點值／乘數正確 | ✅ | **2026-09-02 完成（程式面）**：`FUTURES_TARGET_PRODUCTS` 擴為 7 檔（TX／MTX／TMF／TE／ZEF／TF／ZFF），六檔新商品逐一實測可爬可清可入庫，**crawler／updater 一行都沒改**。15 條測試。⏳ **歷史回補進行中**（背景執行，約 40 小時），進度查 `SELECT product, MIN(date), MAX(date), COUNT(*) FROM futures_price_daily GROUP BY product` |
 | Phase4-2 | 日盤／夜盤整併 | `core/pipeline/*`、日曆 | 跨盤別跳空被保留 | ⬜ | 相依 Phase2-3；`session` 欄位已由 Phase1-2 建立，本步驟只剩整併政策 |
 | Phase5-1 | 分 K 與 Tick（Shioaji futures ticks） | `core/pipeline/tw/*/futures_tick_*.py` | 日內策略可回測 | ⬜ | 相依 Phase4-1；可參考 `StockTickUpdater` 多 key／執行緒 |
 | Phase5-2 | frontend 期貨專屬指標（保證金曲線、口數曝險） | `frontend/` | 指標可顯示 | ⬜ | 相依 Phase2-2 |
@@ -1259,7 +1259,7 @@ PRIMARY KEY `(date, product, expiry, session)`。
 
 ### Phase 4：多商品與夜盤整併
 
-#### Phase4-1. 多商品擴充 ⬜
+#### Phase4-1. 多商品擴充 ✅
 
 - **目的**：從大台擴充到小台（MTX）、微台（TMF）與類股期貨（TE／TF）。
 - **前置已備妥（2026-08-29）**：六檔候選的契約乘數都已查證並登錄於 `FUTURES_MULTIPLIER`（MTX 50、TMF 10、TE 4000、TF 1000、ZEF 500、ZFF 250），**本步驟只需在 `core/config.py` 的 `FUTURES_TARGET_PRODUCTS` 加代碼**，crawler／updater 不必改。
@@ -1271,6 +1271,29 @@ PRIMARY KEY `(date, product, expiry, session)`。
 - **驗證方式**：各商品的 PnL 計算使用正確乘數；流動性差異反映在滑價設定上。
 - **相依**：Phase2-2。
 
+
+> **✅ 完成紀錄（2026-09-02）**
+>
+> **程式面零改動就擴充成功**：只改了 `FUTURES_TARGET_PRODUCTS` 一個清單，
+> crawler／cleaner／loader／updater 一行都沒動——商品代碼本來就是查詢參數，
+> 這正是當初分層的目的。六檔（MTX／TMF／TE／ZEF／TF／ZFF）於 2026-08-27~29
+> 逐一實測：爬得到、清得出、入得了庫。
+>
+> **收錄門檻是「乘數已查證」**，並已固化為測試：`FUTURES_TARGET_PRODUCTS` 內的
+> 每一檔都必須在 `FUTURES_MULTIPLIER` 有登錄。乘數錯了不會報錯，只會讓 PnL
+> 靜默偏掉——同樣漲 100 點，TX 賺 20,000、TMF 只賺 1,000，差 20 倍。
+>
+> **順帶釘住一個容易踩的分界**：表內的商品有**兩種乘數來源**且不可混用——
+> 指數期貨走 `FUTURES_MULTIPLIER` 常數（固定不變），股票期貨走
+> `futures_stock_universe.contract_size`（**會因除權息調整，寫死必錯**）。
+> 新增的 `slow` 測試檢查「表內每一檔商品的乘數在兩個來源之一查得到」，
+> 回補新商品時忘了查乘數會在資料進表的那一刻就失敗。
+> （實測發現表內已有 CDF／EEF／NYF 三檔股期的探索性資料，屬第二種來源，正常。）
+>
+> ⏳ **歷史回補進行中**：六檔 × 2,842 個交易日 × 日夜盤約 34,000 次請求，
+> 依現行節流估約 40 小時，於 2026-09-02 背景開跑。**回補未完成不影響程式面
+> 驗收**——`--target futures_price` 續跑會從各商品表內的最新日接續。
+> 新商品的連續合約要等該商品的行情補完後再跑 `--target futures_continuous`。
 #### Phase4-2. 日盤／夜盤整併 ⬜
 
 - **目的**：決定是否合併為單一連續序列或分開回測，並保留跨盤別跳空。
