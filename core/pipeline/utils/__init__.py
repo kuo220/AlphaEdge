@@ -3,6 +3,7 @@ from .constant import (
     DataType,
     FinancialStatementType,
     FinMindDataType,
+    FuturesPriceColumn,
     IssuerOrigin,
     ListingBoard,
     PriceColumn,

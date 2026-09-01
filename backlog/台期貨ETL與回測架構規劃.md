@@ -3,7 +3,7 @@
 ## Abstract
 
 - **背景／問題**（撰寫當時）：專案只支援台股，沒有期貨目錄、TAIFEX crawler、期貨表／API 與期貨部位管理；合約生命週期、保證金、點值、夜盤日曆皆未建模。當時連一筆台指期日線都沒有，所以最大宗的缺口在 ETL，不在回測引擎。
-  > **現況（2026-08-29）**：Phase0-1／1-1／1-2／**6-1** 已完成——`tw_futures.db` 已建、TAIFEX crawler 四層可跑、`--target futures_price` 與 `--target futures_stock_universe` 皆可用，股期標的池 320 檔已入庫。**仍缺**：API／adapter（Phase1-3）、models／managers（Phase1-4）、策略（Phase1-5）、回測 model 組（Phase1-6），以及全部的 Phase2 之後與 Phase6-2。
+  > **現況（2026-08-29）**：Phase0-1／1-1／1-2／**6-1** 已完成——`tw_futures.db` 已建、TAIFEX crawler 四層可跑、`--target futures_price` 與 `--target futures_stock_universe` 皆可用，股期標的池 320 檔已入庫。**仍缺**：adapter（Phase1-3b）、models／managers（Phase1-4）、策略（Phase1-5）、回測 model 組（Phase1-6），以及全部的 Phase2 之後與 Phase6-2。**2026-09-01：`FuturesPriceAPI`（Phase1-3a）已完成**，TX 歷史回補進行中。
 - **目標**：以「平行垂直切片」把台灣期貨（台指期系列 ＋ 股票期貨）加入專案：pipeline → `tw_futures.db` → API → models/managers → strategies → **既有的單一 `Backtester`**（透過 [多市場回測引擎架構](../docs/backtest/multi-market-engine.md) 建立的 model 掛點接入），並與 [美股ETL與回測架構規劃.md](美股ETL與回測架構規劃.md) 共用「平行市場模組、共享核心、不共享市場細節」原則。
 - **範圍界線**：**保留現有台股流程不動**，不在 `Stock*` 類上硬接期貨分支；**不新增第二支 backtester**（原規劃的 `FuturesBacktester` 已作廢，理由見 §一）；本規劃**不含**選擇權策略回測（PCR 僅作輔助訊號）、不含實盤下單、不含跨市場組合回測；股票期貨先鎖定流動性前 N 大標的，不一次攤開 250+ 檔。
 - **驗收標準**：`--target futures_price` 跑完後可用 `sqlite3 core/database/tw_futures.db` 直接查到資料且重跑冪等；一支期貨示範策略可經 `python run.py --strategy XXX` 跑完並產出報表；台股既有回歸雙線（LONG 915 筆 ＋ SHORT 快照）逐筆不受影響，且**回測引擎本身 0 行改動**。
@@ -21,8 +21,9 @@
 | Phase0-1 | `downloads/` 收斂為市場維度目錄 | `core/config.py`、`core/pipeline/downloads/` | 既有 ETL 全部跑通且落點正確；`tests/` 全綠 | ✅ | **2026-08-22 完成**：9 個常數改掛 `TW_STOCK_DOWNLOADS_PATH`，常數名稱不動；`git mv` 為純 rename。實作時多抓到 1 處漏網（`tests/test_finmind_pipeline.py`），見完成紀錄 |
 | Phase1-1 | `core/config.py` 新增期貨 DB 與表名常數 | `core/config.py` | `TW_FUTURES_DB_PATH` 可解析 | ✅ | **2026-08-22 完成**：DB 路徑 ＋ 6 個表名 ＋ 5 個中繼目錄 ＋ meta 目錄。`DEFAULT_FUTURES_START_DATE` 當時刻意未加，已於 **2026-08-29 補上為 2015-01-01**（見 Phase1-2） |
 | Phase1-2 | `futures_price` 四層 ETL（TAIFEX 日線／結算價） | `core/pipeline/tw/*/futures_price_*.py`、`tasks/update_db.py` | `--target futures_price` 跑完可查到資料且重跑冪等 | ✅ | **2026-08-29 完成**：`tw_futures.db` 已建，TX 端對端驗過（3 日 36 列），續跑零重爬。schema 較原規格多 `最後最佳買價／賣價` 兩欄（理由見該步驟）
-| Phase1-3 | `FuturesPriceAPI` ＋ `FuturesQuoteAdapter` | `core/api/futures_price_api.py`、`core/adapters/futures_quote_adapter.py` | 只從 `tw_futures.db` 讀，不讀中繼檔 | ⬜ | 相依 Phase1-2 |
-| Phase1-4 | `models/futures` ＋ `managers/futures`（簡化保證金） | `core/models/futures/`、`core/managers/futures/` | 口數、多空、未平倉語意正確 | ⬜ | 相依 Phase1-3 |
+| Phase1-3a | `FuturesPriceAPI` | `core/api/futures_price_api.py` | 只從 `tw_futures.db` 讀，不讀中繼檔 | ✅ | **2026-09-01 完成**：17 條測試 ＋ 實資料 smoke test。**不做換月／不挑近月**，當日所有到期月原樣回傳 |
+| Phase1-3b | `FuturesQuoteAdapter` | `core/adapters/futures_quote_adapter.py` | 產出的 `FuturesQuote` 欄位語意正確 | ⬜ | **相依 Phase1-4 的 `FuturesQuote`**（原表寫成 1-4 相依 1-3，方向反了，見 Phase1-3 章節）；建議與 Phase1-4 同批做 |
+| Phase1-4 | `models/futures` ＋ `managers/futures`（簡化保證金） | `core/models/futures/`、`core/managers/futures/` | 口數、多空、未平倉語意正確 | ⬜ | 相依 Phase1-3a（✅）。**Phase1-3b 反過來相依本步驟的 `FuturesQuote`**，兩者建議同批 |
 | Phase1-5 | `BaseFuturesStrategy` ＋ 一支示範策略 | `core/strategies/futures/` | 策略可被 `load_futures_strategies()` 載入 | ⬜ | 相依 Phase1-4 |
 | Phase1-6 | 實作期貨 model 組（不新增引擎） | `core/backtest/models/`、`core/backtest/datafeed/`、`core/backtest/factory.py` | 台股回歸雙線逐筆相同且引擎 0 行改動；期貨策略可跑完 | ⬜ | 相依 Phase1-5 ＋ [多市場回測引擎架構](../docs/backtest/multi-market-engine.md) 全部完成 |
 | Phase1-7 | 連續合約構建（先做一種調整方式） | `core/pipeline/tw/*/futures_continuous_*.py` | 換月接點的 `roll_flag` 正確 | ⬜ | 相依 Phase1-2 |
@@ -839,13 +840,65 @@ PRIMARY KEY `(date, product, expiry, session)`。
 >
 > - **補行交易日的偵測依賴 `stock.db`**：`get_traded_weekend_dates()` 以 `price` 表判斷，該表自 2013 起有資料。**現行起點 2015-01-01 完全落在涵蓋範圍內，此限制目前不生效**；但若日後把起點往前拉到 2013 之前，那段的補行交易日（開市的週末）會被跳過，需以明確日期重跑補上。
 
-#### Phase1-3. `FuturesPriceAPI` ＋ `FuturesQuoteAdapter` ⬜
+#### Phase1-3a. `FuturesPriceAPI` ✅
 
 - **目的**：提供回測的統一讀取層。
 - **做法**：**只從 `tw_futures.db` 讀，不讀 `downloads/` 下的中繼檔**。
-- **產出**：`core/api/futures_price_api.py`、`core/adapters/futures_quote_adapter.py`。
+- **產出**：`core/api/futures_price_api.py`。
 - **驗證方式**：查詢結果與 DB 內容一致；程式碼中無任何讀取 CSV／Parquet 的路徑。
 - **相依**：Phase1-2。
+
+> **⚠️ 原本的 Phase1-3 相依方向寫反了**（2026-09-01 發現）：進度表寫「Phase1-4 相依
+> Phase1-3」，但 `FuturesQuoteAdapter` 要產出的是 `FuturesQuote` 物件，而 `FuturesQuote`
+> 屬於 Phase1-4（對照 `StockQuoteAdapter` 就是 `from core.models import StockQuote`）。
+> 因此拆成 **1-3a（API，無相依）** 與 **1-3b（adapter，相依 1-4 的 model）**。
+
+> **✅ 完成紀錄（2026-09-01）**
+>
+> **與 `StockPriceAPI` 的三個結構性差異**（都寫進了模組說明字串，因為每一個都會讓
+> 沿用股票習慣的人踩空）：
+> 1. **一天不只一列**。股票是 `(date, stock_id)`；期貨是 `(date, product, expiry, session)`
+>    ——同一天同一商品有多個到期月在交易，日盤與夜盤又是兩筆獨立行情。
+> 2. **不做換月、不挑近月**。`get()` 回傳當日**所有**掛牌中的合約，由呼叫端決定要哪一個。
+>    把「近月」的定義藏進 API，會讓 Phase1-7 的連續合約與 API 各有一套換月邏輯。
+> 3. **夜盤沒有結算價與未沖銷契約量**（來源就沒有），值維持 NULL 不補 0。
+>
+> **介面**
+>
+> | 方法 | 用途 |
+> |------|------|
+> | `get(date, product, session)` | 單日全合約；`session` 預設日盤，傳 `None` 則日夜盤都取 |
+> | `get_range(start, end, ...)` | 區間全合約 |
+> | `get_contract_price(product, expiry, start, end, ...)` | **單一合約**的時間序列——固定三個維度後才是「一天一列」 |
+> | `get_trading_days(start, end, product)` | 表內有資料的日期；**不過濾 session**，夜盤成交的那天同樣是交易日 |
+> | `get_expiries(date, product, ...)` | 當日掛牌中的到期月（已依到期先後排序） |
+> | `get_products()` | 表內實際有資料的商品（取自資料，不是設定檔） |
+> | `get_close_map` / `get_settlement_map` / `get_volume_map` / `get_open_interest_map` | `{expiry: 值}` 對照表 |
+> | `get_close_series(product, expiry, ...)` | 單一合約的收盤價序列，技術指標的共通輸入 |
+>
+> **`session` 的預設值是刻意的**：預設日盤（一般交易時段），夜盤要明講。不設預設值
+> 會讓每個呼叫端都得寫一次；預設兩者都回傳則會讓同一個 `(product, expiry)` 出現兩列，
+> 下游 `.iloc[0]` 取到哪一筆全看運氣。
+>
+> **`build_expiry_map()` 沒有沿用 `BaseDataAPI.build_column_map()`**：後者的鍵寫死為
+> `stock_id`。期貨在固定商品之後的自然鍵是到期月，改動基底會影響股票側的既有行為。
+>
+> **新增 `FuturesPriceColumn`**（`core/pipeline/utils/constant.py`）：比照 `PriceColumn`
+> 的慣例，中文欄位名只在 `core/api/` 內引用。**與 `PriceColumn` 不可互換**——期貨的量欄是
+> `成交量`（單位為口）而非 `成交股數`。
+>
+> **驗證**：`tests/test_futures_price_api.py` 17 條（建表走真正的 loader，schema 只有一處
+> 宣告）＋ 對回補中的實資料 smoke test：2015-01-05 查到 5 個到期月、201501 合約的序列
+> 止於 2015-01-21（該月最後交易日）、2015 年查夜盤回傳 0 列（當時尚無夜盤）。
+
+#### Phase1-3b. `FuturesQuoteAdapter` ⬜
+
+- **目的**：把 `FuturesPriceAPI` 的查詢結果轉成回測引擎吃的 `FuturesQuote`。
+- **做法**：比照 `core/adapters/stock_quote_adapter.py`；**換月政策不進 adapter**——
+  它只做型別轉換，要哪一個合約由呼叫端指定。
+- **產出**：`core/adapters/futures_quote_adapter.py`。
+- **驗證方式**：產出的 `FuturesQuote` 欄位語意正確（口數、乘數、到期月）。
+- **相依**：**Phase1-4 的 `FuturesQuote` model**（見上方 ⚠️），建議與 Phase1-4 同批做。
 
 #### Phase1-4. `models/futures` ＋ `managers/futures` ⬜
 
