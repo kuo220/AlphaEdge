@@ -3,7 +3,7 @@
 ## Abstract
 
 - **背景／問題**（撰寫當時）：專案只支援台股，沒有期貨目錄、TAIFEX crawler、期貨表／API 與期貨部位管理；合約生命週期、保證金、點值、夜盤日曆皆未建模。當時連一筆台指期日線都沒有，所以最大宗的缺口在 ETL，不在回測引擎。
-  > **現況（2026-08-29）**：Phase0-1／1-1／1-2／**6-1** 已完成——`tw_futures.db` 已建、TAIFEX crawler 四層可跑、`--target futures_price` 與 `--target futures_stock_universe` 皆可用，股期標的池 320 檔已入庫。**仍缺**：策略（Phase1-5）、回測 model 組（Phase1-6），以及全部的 Phase2 之後與 Phase6-2。**2026-09-01：Phase1-3a／1-3b／1-4 全數完成**——`FuturesPriceAPI`、`FuturesQuoteAdapter`、`models/futures`、`managers/futures` 已就位（含逐日盯市），TX 歷史回補進行中。
+  > **現況（2026-08-29）**：Phase0-1／1-1／1-2／**6-1** 已完成——`tw_futures.db` 已建、TAIFEX crawler 四層可跑、`--target futures_price` 與 `--target futures_stock_universe` 皆可用，股期標的池 320 檔已入庫。**仍缺**：回測 model 組（Phase1-6），以及全部的 Phase2 之後與 Phase6-2。**2026-09-01：Phase1-3a／1-3b／1-4 全數完成**——`FuturesPriceAPI`、`FuturesQuoteAdapter`、`models/futures`、`managers/futures` 已就位（含逐日盯市），TX 歷史回補進行中。
 - **目標**：以「平行垂直切片」把台灣期貨（台指期系列 ＋ 股票期貨）加入專案：pipeline → `tw_futures.db` → API → models/managers → strategies → **既有的單一 `Backtester`**（透過 [多市場回測引擎架構](../docs/backtest/multi-market-engine.md) 建立的 model 掛點接入），並與 [美股ETL與回測架構規劃.md](美股ETL與回測架構規劃.md) 共用「平行市場模組、共享核心、不共享市場細節」原則。
 - **範圍界線**：**保留現有台股流程不動**，不在 `Stock*` 類上硬接期貨分支；**不新增第二支 backtester**（原規劃的 `FuturesBacktester` 已作廢，理由見 §一）；本規劃**不含**選擇權策略回測（PCR 僅作輔助訊號）、不含實盤下單、不含跨市場組合回測；股票期貨先鎖定流動性前 N 大標的，不一次攤開 250+ 檔。
 - **驗收標準**：`--target futures_price` 跑完後可用 `sqlite3 core/database/tw_futures.db` 直接查到資料且重跑冪等；一支期貨示範策略可經 `python run.py --strategy XXX` 跑完並產出報表；台股既有回歸雙線（LONG 915 筆 ＋ SHORT 快照）逐筆不受影響，且**回測引擎本身 0 行改動**。
@@ -24,7 +24,7 @@
 | Phase1-3a | `FuturesPriceAPI` | `core/api/futures_price_api.py` | 只從 `tw_futures.db` 讀，不讀中繼檔 | ✅ | **2026-09-01 完成**：17 條測試 ＋ 實資料 smoke test。**不做換月／不挑近月**，當日所有到期月原樣回傳 |
 | Phase1-3b | `FuturesQuoteAdapter` | `core/adapters/futures_quote_adapter.py` | 產出的 `FuturesQuote` 欄位語意正確 | ✅ | **2026-09-01 完成**（與 Phase1-4 同批）：10 條測試。**只做型別轉換不做選擇**，換月屬 Phase1-7／2-4 |
 | Phase1-4 | `models/futures` ＋ `managers/futures`（簡化保證金） | `core/models/futures/`、`core/managers/futures/` | 口數、多空、未平倉語意正確 | ✅ | **2026-09-01 完成**：23 條測試，PnL ＝ 價格變動 × 乘數 × 口數。**逐日盯市已實作**（`settle_daily()` 不再是 no-op）；保證金為簡化版，完整版仍屬 Phase2-2 |
-| Phase1-5 | `BaseFuturesStrategy` ＋ 一支示範策略 | `core/strategies/futures/` | 策略可被 `load_futures_strategies()` 載入 | ⬜ | 相依 Phase1-4 |
+| Phase1-5 | `BaseFuturesStrategy` ＋ 一支示範策略 | `core/strategies/futures/` | 19 條測試 ＋ 實資料產生訂單 | ✅ | **2026-09-01 完成**。**`load_futures_strategies()` 與 `run.py` 分流皆不需要**，理由見完成紀錄 |
 | Phase1-6 | 實作期貨 model 組（不新增引擎） | `core/backtest/models/`、`core/backtest/datafeed/`、`core/backtest/factory.py` | 台股回歸雙線逐筆相同且引擎 0 行改動；期貨策略可跑完 | ⬜ | 相依 Phase1-5 ＋ [多市場回測引擎架構](../docs/backtest/multi-market-engine.md) 全部完成 |
 | Phase1-7 | 連續合約構建（先做一種調整方式） | `core/pipeline/tw/*/futures_continuous_*.py` | 換月接點的 `roll_flag` 正確 | ⬜ | 相依 Phase1-2 |
 | Phase2-1 | 期貨成本模型（期交稅、手續費、滑價） | `core/backtest/models/cost_model.py` | **不可複用證交稅**；有單元測試 | ⬜ | 相依 Phase1-6 |
@@ -948,13 +948,42 @@ PRIMARY KEY `(date, product, expiry, session)`。
 > 凍結與釋回、餘額不足拒單、方向與動作不一致拒單、逐日盯市（含 `None` 結算價必須
 > 跳過）、部分平倉的等比例攤提、FIFO、多空不互相誤平、淨口數彙總與 ROI 分母。
 
-#### Phase1-5. `BaseFuturesStrategy` ＋ 一支示範策略 ⬜
+#### Phase1-5. `BaseFuturesStrategy` ＋ 一支示範策略 ✅
 
 - **目的**：定義期貨策略契約，對齊既有股票策略介面。
 - **做法**：至少實作 `setup_account` / `setup_apis` / `check_open_signal` / `check_close_signal` / `check_stop_loss_signal` / `calculate_position_size`（改為口數與保證金約束）；載入方式為 `StrategyLoader.load_futures_strategies()`，`run.py` 依 `Market` 分流。
 - **產出**：`core/strategies/futures/base.py` ＋ 一支示範策略。
 - **驗證方式**：策略可被 `load_futures_strategies()` 載入並產生訂單。
 - **相依**：Phase1-4。
+
+> **✅ 完成紀錄（2026-09-01）**
+>
+> **原規格的兩項要求都已不需要**（命名軸線收斂的副產品）：
+> - ~~`StrategyLoader.load_futures_strategies()`~~：`load_strategies()` 已改為
+>   **逐一掃描 `core/strategies/` 底下所有商品類別子套件**，新增 `futures/` 就自動收錄。
+> - ~~`run.py` 依 `Market` 分流~~：`run.py` 以類別名查表、`build_backtester()` 以
+>   `(market, instrument_type)` 分派，兩者都不必改。
+>
+> **`BaseFuturesStrategy` 釘住的四個與股票根本不同之處**（每一個都不會報錯）：
+>
+> | # | 差異 | 基底提供的東西 |
+> |---|------|---------------|
+> | 1 | **一天不只一個報價**（多個到期月） | `select_near_month()`；**換月是政策不是資料層責任**，真正的規則屬 Phase2-4 |
+> | 2 | **口數由保證金決定，不是契約價值** | `calculate_max_lots()`。TX 一口契約價值 900 萬、保證金只有 70 萬，用錯會低估可開口數十倍以上 |
+> | 3 | **日盤與夜盤是兩筆獨立行情** | `filter_session()`；不過濾會讓訊號被算兩次 |
+> | 4 | 沒有券源／借券費／平盤下限制 | `BaseStockStrategy` 的那一整組欄位不存在 |
+>
+> **保證金取值與 `FuturesPositionManager` 共用同一套規則**（有 API 查表、否則比率）
+> ——兩處若不一致，策略算出來的口數會開不進去或開得太少。策略層查不到時**開 0 口**
+> 而非拋錯；真正 raise 的是部位管理層，那才是「已決定開倉卻算不出保證金」的地方。
+>
+> **示範策略 `MomentumFuturesStrategy`** 以真實資料驗過：自動被載入、
+> 從當日 6 個契約挑出近月、查到該日的真實歷史保證金
+> （2024-01-17 為 167,000、02-15 為 184,000、04-19 為 179,000），
+> 動能觸發時產出 2 口訂單。**它的用途是驗證介面能跑通，不是可用的交易邏輯**——
+> 門檻是隨手取的，也沒處理結算日與換月。
+>
+> **尚不能實際回測**：`factory` 還沒有 `(TW, FUTURE)` 的 model 組，屬 Phase1-6。
 
 #### Phase1-6. 實作期貨 model 組（不新增引擎） ⬜
 

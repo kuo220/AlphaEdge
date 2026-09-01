@@ -1,0 +1,258 @@
+import datetime
+from abc import abstractmethod
+from typing import Dict, List, Optional
+
+from loguru import logger
+
+from core.api.futures_margin_api import FuturesMarginAPI
+from core.api.futures_price_api import FuturesPriceAPI
+from core.backtest.datafeed.base import BaseDataFeed
+from core.managers.futures.position_manager import (
+    FuturesCostConfig,
+    FuturesMarginConfig,
+)
+from core.models import FuturesAccount, FuturesOrder, FuturesQuote
+from core.strategies.base import BaseStrategy
+from core.utils import Action, FuturesSession, InstrumentType, Market
+
+"""
+BaseFuturesStrategy: 台期貨策略基底
+
+**與 `BaseStockStrategy` 的四個根本差異**，每一個都會讓沿用股票習慣的人寫錯：
+
+1. **一天不只一個報價**
+   同一天同一商品有多個到期月在交易（見 `FuturesPriceAPI` 的說明）。
+   引擎傳進來的 `quotes` 是「當日所有契約」，**策略必須自己挑一個**。
+   本基底提供 `select_near_month()` 作為預設政策，但**換月規則屬 Phase2-4**，
+   要別的規則就覆寫它。
+
+2. **數量單位是口，且受保證金約束**
+   股票是「用多少錢買多少股」，期貨是「繳多少保證金開幾口」。
+   可開口數 = 可動用餘額 × 資金使用上限 ÷ 每口保證金，
+   見 `calculate_max_lots()`——**不是用契約價值算**。
+
+3. **沒有 `max_holdings`，只有口數上限**
+   股票的 `max_holdings` 是「同時持有幾檔」；期貨通常只交易一兩個商品，
+   限制的是**總口數**。故本基底用 `max_lots`，`max_holdings` 維持不設。
+
+4. **沒有股票的信用交易設定**
+   放空在期貨不需要券源、不需要借券費、也沒有平盤下限制——賣出開倉就是放空。
+   `BaseStockStrategy` 的那一整組欄位在此都不存在。
+
+---
+
+**載入方式不需要特別處理**：`StrategyLoader.load_strategies()` 會逐一掃描
+`core/strategies/` 底下的所有商品類別子套件，新增 `futures/` 就會自動被收錄，
+`run.py --strategy <類別名>` 直接可用。
+"""
+
+
+class BaseFuturesStrategy(BaseStrategy):
+    """Futures Strategy Framework (Base Template)"""
+
+    def __init__(self):
+        super().__init__()
+
+        """ === Strategy Setting === """
+        self.market: Market = Market.TW  # 市場：台灣
+        self.instrument_type: InstrumentType = InstrumentType.FUTURE  # 商品：期貨
+
+        """
+        === Futures Setting ===
+
+        `products` 是本策略要交易的商品代碼；引擎傳進來的報價可能含多個商品，
+        策略自己過濾。乘數一律查 `FUTURES_MULTIPLIER`，不要寫死在策略裡。
+        """
+        self.products: List[str] = []  # 要交易的商品代碼（Ex: ["TX"]）
+        # 交易時段。**日盤與夜盤是兩筆獨立行情**，混用會讓同一契約一天出現兩筆報價
+        self.session: FuturesSession = FuturesSession.DAY
+        self.max_lots: int = 0  # 總口數上限（0 表示不開倉）
+        # 單次開倉最多動用可動用餘額的比例；保證金交易若不設限，
+        # 一次就能把帳戶壓到追繳邊緣
+        self.max_capital_usage: float = 0.5
+
+        """ === Cost & Margin ===
+
+        兩者皆為 None 時走各自的預設：成本全為 0（費率屬 Phase2-1）、
+        保證金用比率近似。**正式回測應帶入 `FuturesMarginConfig.from_api()`**，
+        固定比率跨年份的誤差實測為 +143% ~ −38%（見 `backlog/台期貨保證金ETL.md` S5）。
+        """
+        self.cost_config: Optional[FuturesCostConfig] = None
+        self.margin_config: Optional[FuturesMarginConfig] = None
+
+        """ === Datasets Setting === """
+        self.futures_price: Optional[FuturesPriceAPI] = None  # 期貨行情
+        self.margin: Optional[FuturesMarginAPI] = None  # 保證金（可選）
+
+    # === 契約選擇：這是策略的政策，不是資料層的責任 ===
+    @staticmethod
+    def select_near_month(
+        quotes: List[FuturesQuote], product: str
+    ) -> Optional[FuturesQuote]:
+        """
+        - Description:
+            從當日所有契約中挑出**最近的到期月**
+
+            **這是預設政策不是唯一解**：真正的換月規則（最後交易日前 N 日、
+            成交量交叉、未沖銷量交叉）屬 Phase2-4，屆時應改為由設定決定。
+            在那之前，本方法讓策略至少有一個明確且可解釋的選擇。
+
+            ⚠️ **近月在最後交易日當天仍是近月**，本方法不會自動跳到次月——
+            要避開結算日必須由策略自己判斷（期貨交易日曆屬 Phase2-3）。
+        - Parameters:
+            - quotes: List[FuturesQuote]
+                當日所有契約的報價
+            - product: str
+                商品代碼
+        - Return:
+            - Optional[FuturesQuote]
+                近月契約的報價；該商品當日無報價時為 None
+        """
+
+        candidates: List[FuturesQuote] = [
+            quote for quote in quotes if quote.product == product
+        ]
+        if not candidates:
+            return None
+        # 到期月為 `YYYYMM`，字典序即時間序；週契約帶 W 尾碼會排在同月月契約之後
+        return min(candidates, key=lambda quote: quote.expiry)
+
+    # === 口數計算：保證金約束，不是資金約束 ===
+    def calculate_max_lots(self, quote: FuturesQuote) -> int:
+        """
+        - Description:
+            以**保證金**算出這筆訂單最多能開幾口
+
+            股票是「用多少錢買多少股」，期貨是「繳多少保證金開幾口」——
+            拿契約價值去除可動用餘額會嚴重低估可開口數（TX 一口契約價值 900 萬、
+            保證金只有 70 萬）。
+
+            保證金取得方式與 `FuturesPositionManager` 一致：帶了 API 就查表，
+            否則用比率近似。**查表查不到會往外拋**，那是刻意的，見
+            `FuturesMarginConfig` 的說明。
+        - Parameters:
+            - quote: FuturesQuote
+                目標契約的報價
+        - Return:
+            - int
+                可開口數；帳戶或報價不足以計算時為 0
+        """
+
+        if self.account is None or quote.multiplier <= 0:
+            return 0
+
+        margin_per_lot: float = self.get_margin_per_lot(quote)
+        if margin_per_lot <= 0:
+            return 0
+
+        budget: float = self.account.balance * self.max_capital_usage
+        return max(0, int(budget // margin_per_lot))
+
+    def get_margin_per_lot(self, quote: FuturesQuote) -> float:
+        """
+        取得每口原始保證金
+
+        沒有 `margin_config` 或沒有 API 時退回「契約價值 × 比率」，
+        與 `FuturesPositionManager` 的比率模式一致——兩處若不一致，
+        策略算出來的口數會開不進去（或開得太少）。
+        """
+
+        config: FuturesMarginConfig = (
+            self.margin_config or FuturesMarginConfig.default()
+        )
+
+        if config.api is not None:
+            per_lot: Optional[int] = config.api.get_initial_margin(
+                quote.product,
+                self.normalize_quote_date(quote.date),
+                fallback_to_earliest=config.fallback_to_earliest,
+            )
+            if per_lot is None:
+                logger.warning(
+                    f"[{self.strategy_name}] 查無 {quote.product} 在 {quote.date} "
+                    f"的保證金，本次不開倉"
+                )
+                return 0.0
+            return float(per_lot)
+
+        return quote.close * quote.multiplier * config.initial_margin_ratio
+
+    @staticmethod
+    def normalize_quote_date(date) -> datetime.date:
+        """Tick 級別的報價日期會是 datetime，統一取其日期部分"""
+
+        return date.date() if isinstance(date, datetime.datetime) else date
+
+    def build_order(
+        self,
+        quote: FuturesQuote,
+        action: Action,
+        volume: int,
+    ) -> FuturesOrder:
+        """依報價組出一張訂單；方向沿用策略的 `position_type`"""
+
+        return FuturesOrder(
+            product=quote.product,
+            expiry=quote.expiry,
+            date=quote.date,
+            action=action,
+            position_type=self.position_type,
+            price=quote.close,
+            volume=volume,
+        )
+
+    def filter_session(self, quotes: List[FuturesQuote]) -> List[FuturesQuote]:
+        """
+        只留下本策略指定時段的報價
+
+        **日盤與夜盤是兩筆獨立行情**，不過濾的話同一契約一天會出現兩筆，
+        訊號會被算兩次。
+        """
+
+        return [quote for quote in quotes if quote.session == self.session]
+
+    def get_open_lots(self) -> Dict[str, int]:
+        """目前各契約的淨口數（多為正、空為負）"""
+
+        return {} if self.account is None else self.account.get_open_lots()
+
+    # === 抽象介面（對齊 BaseStockStrategy）===
+    @abstractmethod
+    def setup_account(self, account: FuturesAccount) -> None:
+        """載入虛擬帳戶資訊"""
+        pass
+
+    @abstractmethod
+    def setup_apis(self, feed: BaseDataFeed) -> None:
+        """
+        宣告本策略要用的資料源
+
+        實例一律由 DataFeed 統一持有，策略只做取用，不自行建立。
+        """
+        pass
+
+    @abstractmethod
+    def check_open_signal(self, quotes: List[FuturesQuote]) -> List[FuturesOrder]:
+        """開倉策略；`quotes` 為當日**所有契約**，策略需自行挑選"""
+        pass
+
+    @abstractmethod
+    def check_close_signal(self, quotes: List[FuturesQuote]) -> List[FuturesOrder]:
+        """平倉策略"""
+        pass
+
+    @abstractmethod
+    def check_stop_loss_signal(self, quotes: List[FuturesQuote]) -> List[FuturesOrder]:
+        """停損機制"""
+        pass
+
+    @abstractmethod
+    def calculate_position_size(
+        self, quotes: List[FuturesQuote], action: Action
+    ) -> List[FuturesOrder]:
+        """
+        計算下單**口數**（不是張數也不是股數）
+
+        受保證金約束，見 `calculate_max_lots()`。
+        """
+        pass
