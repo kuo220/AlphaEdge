@@ -21,7 +21,7 @@
 | S6 | 批次寫入 DB（進階） | `core/pipeline/tw/loaders/finmind/broker_trading_loader.py` | 同 S2 的一致性檢查 | ⬜ | 相依 S5 |
 | S7 | 其他小優化（日誌降頻、移除多餘查詢） | `core/pipeline/tw/updaters/finmind_updater.py` | 人工檢視 log 量下降 | ✅ | 完成於本文件建立進度表之前，未留下當時的驗證紀錄 |
 | S8 | 拆分 `finmind_updater.py`／`finmind_loader.py` | `core/pipeline/tw/updaters/finmind/*.py`、`core/pipeline/tw/loaders/finmind/*.py` | 新增 `tests/test_finmind_broker_trading_batch.py` 4 條護欄；拆分前後行為逐項比對 | ✅ | **2026-09-01 完成**：最大單檔由 1097 降為 483 行。**原定的「五檔測試全數通過」不是有效驗收**，理由見完成紀錄 |
-| S9 | 合併 `loaders/finmind/` 三個重複的 `load_*` | `core/pipeline/tw/loaders/finmind/*.py` | 既有測試全綠；三張表的入庫列數與訊息不變 | ⬜ | S8 刻意沒做（超出「純搬移」）；三支約 85% 重複 |
+| S9 | 合併 `loaders/finmind/` 三個重複的 `load_*` | `core/pipeline/tw/loaders/finmind/reference_table_loader.py` 等 | 新增 11 條護欄，合併前後跑同一組測試結果相同 | ✅ | **2026-09-01 完成**：三支 275 行 → 一支 131 行的共用實作 ＋ 三份 spec |
 
 ---
 
@@ -151,7 +151,7 @@
 
 ---
 
-## S9. 合併 `loaders/finmind/` 三個重複的 `load_*` ⬜
+## S9. 合併 `loaders/finmind/` 三個重複的 `load_*` ✅
 
 - **目的**：`load_stock_info()`、`load_stock_info_with_warrant()`、`load_broker_info()`
   是同一套流程的三份複本（讀 CSV → 查 DB 已存在主鍵 → 檔內去重 → 過濾新資料 →
@@ -164,6 +164,20 @@
 - **驗證方式**：`tests/test_finmind_pipeline.py` 與 `tests/test_finmind_broker_trading_batch.py`
   全綠；以同一份 CSV 跑三張表的入庫，列數與 log 訊息與合併前相同。
 - **相依**：S8（✅）。
+
+> **✅ 完成紀錄（2026-09-01）**
+> - 抽出 `reference_table_loader.py`：`ReferenceTableSpec`（frozen dataclass，帶
+>   資料表名／CSV 檔名／去重鍵／欄位順序／log 用的 `label`）＋ `load_reference_table()`。
+>   三支既有函式改為薄封裝，`FinMindLoader` 門面的呼叫方式完全不變。
+> - **275 行 → 131 行共用實作 ＋ 三份 spec**（`stock_info_loader.py` 55 行、
+>   `broker_info_loader.py` 33 行）。
+> - **驗收用「同一組測試跑合併前後」**：新增 `tests/test_finmind_reference_table_loader.py`
+>   11 條，先在 `HEAD`（合併前的三份複本）上跑過 **11 passed**，再套用合併版跑一次，
+>   結果相同。涵蓋三張表各自入庫、欄位順序、重跑不重複、只補新增鍵、檔內去重、
+>   缺檔／空檔，以及 **log 措辭逐字比對**（`Loading stock info from ...` 這三句是回補時
+>   判斷「跑到哪張表」的唯一依據，合併時最容易被弄成同一句）。
+> - `label` 這個欄位存在的唯一理由就是保住上述 log 措辭——若讓三者共用同一句話，
+>   程式行為不變但 log 會失去辨識力，那是「行為等價」查不出來的退步。
 
 ---
 
