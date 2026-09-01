@@ -9,6 +9,14 @@ import streamlit as st
 
 try:
     from config import RESULTS_ROOT
+    from services.futures_metrics import (
+        DATE_COLUMN,
+        LOTS_COLUMN,
+        MARGIN_COLUMN,
+        build_exposure_series,
+        is_futures_report,
+        summarise_margin,
+    )
     from services.report_loader import (
         BacktestReport,
         list_strategy_dirs,
@@ -17,6 +25,14 @@ try:
     )
 except ModuleNotFoundError:
     from frontend.config import RESULTS_ROOT
+    from frontend.services.futures_metrics import (
+        DATE_COLUMN,
+        LOTS_COLUMN,
+        MARGIN_COLUMN,
+        build_exposure_series,
+        is_futures_report,
+        summarise_margin,
+    )
     from frontend.services.report_loader import (
         BacktestReport,
         list_strategy_dirs,
@@ -387,6 +403,71 @@ def _render_metrics(df: pd.DataFrame) -> None:
     r3c3.metric("Information Ratio", _fmt_ratio(information_ratio))
 
 
+def _render_futures_metrics(df: pd.DataFrame) -> None:
+    """
+    期貨專屬指標：**保證金佔用與口數曝險**
+
+    股票看「投入多少錢、值多少錢」，期貨看「佔用多少保證金、留了幾口」——
+    契約價值本身不佔用資金，用股票那組指標看期貨只會看到一堆與風險無關的數字。
+    """
+
+    starting_capital, _ = _extract_starting_capital(df)
+    summary = summarise_margin(df, starting_capital)
+
+    def _fmt(value, suffix: str = "", digits: int = 2) -> str:
+        if value is None:
+            return "N/A"
+        if isinstance(value, int):
+            return f"{value:,}{suffix}"
+        return f"{value:,.{digits}f}{suffix}"
+
+    st.markdown("##### 保證金與曝險（期貨專屬）")
+    r1c1, r1c2, r1c3 = st.columns(3)
+    # **峰值而不是總和**：把每筆的保證金加起來會得到一個沒有意義的巨大數字
+    # （同一筆錢用了幾十次），真正該看的是「最多同時押了多少」
+    r1c1.metric("峰值佔用保證金", _fmt(summary["峰值佔用保證金"]))
+    r1c2.metric("峰值未平倉口數", _fmt(summary["峰值未平倉口數"]))
+    r1c3.metric("資金使用率", _fmt(summary["資金使用率"], suffix="%"))
+
+    r2c1, r2c2, r2c3 = st.columns(3)
+    r2c1.metric("平均每筆保證金", _fmt(summary["平均每筆保證金"]))
+    r2c2.metric("總交易口數", _fmt(summary["總交易口數"]))
+    # 期貨的 ROI 分母是保證金，故這個平均值才是「資金效率」
+    r2c3.metric("平均保證金報酬率", _fmt(summary["平均保證金報酬率"], suffix="%"))
+
+
+def _render_futures_exposure_chart(df: pd.DataFrame) -> None:
+    """保證金佔用與未平倉口數的時間序列（雙軸階梯圖）"""
+
+    exposure = build_exposure_series(df)
+    if exposure.empty:
+        st.info("交易明細不足以推導曝險曲線。")
+        return
+
+    theme = _get_chart_theme()
+    figure = px.line(
+        exposure,
+        x=DATE_COLUMN,
+        y=MARGIN_COLUMN,
+        markers=True,
+        title="佔用保證金",
+    )
+    # **階梯線不是美觀選擇**：保證金在兩筆交易之間是不變的，用直線內插會讓
+    # 圖上出現從未發生過的中間值
+    figure.update_traces(line_shape="hv")
+    figure.update_layout(paper_bgcolor=theme["paper_bg"], plot_bgcolor=theme["plot_bg"])
+    st.plotly_chart(figure, use_container_width=True)
+
+    lots_figure = px.line(
+        exposure, x=DATE_COLUMN, y=LOTS_COLUMN, markers=True, title="未平倉口數"
+    )
+    lots_figure.update_traces(line_shape="hv")
+    lots_figure.update_layout(
+        paper_bgcolor=theme["paper_bg"], plot_bgcolor=theme["plot_bg"]
+    )
+    st.plotly_chart(lots_figure, use_container_width=True)
+
+
 def _get_chart_theme() -> dict[str, str]:
     return {
         "paper_bg": "rgba(0,0,0,0)",
@@ -502,14 +583,21 @@ with overview_tab:
     st.divider()
     st.subheader("關鍵指標")
     _render_metrics(df)
+    # 期貨報表才有保證金與口數欄位；以**欄位**判斷而不是策略名稱
+    if is_futures_report(df):
+        st.divider()
+        _render_futures_metrics(df)
     st.caption(f"報表檔案：`{report.csv_path.name}`")
 
 with detail_tab:
     st.subheader("交易報表")
-    stock_col = "Stock ID" if "Stock ID" in df.columns else None
+    # 期貨的識別欄是 Contract ID（`{商品}{到期月}`），股票是 Stock ID
+    stock_col = next(
+        (column for column in ("Stock ID", "Contract ID") if column in df.columns), None
+    )
     if stock_col:
         stock_ids = sorted(df[stock_col].dropna().astype(str).unique().tolist())
-        selected_stock = st.multiselect("依股票代號篩選", options=stock_ids)
+        selected_stock = st.multiselect("依股票代號／契約篩選", options=stock_ids)
         filtered_df = (
             df[df[stock_col].astype(str).isin(selected_stock)] if selected_stock else df
         )
@@ -520,6 +608,10 @@ with detail_tab:
 with chart_tab:
     st.subheader("圖表")
     _render_interactive_charts(df)
+    if is_futures_report(df):
+        st.divider()
+        st.subheader("保證金與曝險")
+        _render_futures_exposure_chart(df)
 
 with image_tab:
     st.subheader("回測輸出圖片")

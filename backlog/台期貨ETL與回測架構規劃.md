@@ -35,7 +35,7 @@
 | Phase4-1 | 多商品擴充（MTX、TMF、TE、TF） | `core/config.py`、`tests/test_futures_products.py` | 各商品點值／乘數正確 | ✅ | **2026-09-02 完成（程式面）**：`FUTURES_TARGET_PRODUCTS` 擴為 7 檔（TX／MTX／TMF／TE／ZEF／TF／ZFF），六檔新商品逐一實測可爬可清可入庫，**crawler／updater 一行都沒改**。15 條測試。⏳ **歷史回補進行中**（背景執行，約 40 小時），進度查 `SELECT product, MIN(date), MAX(date), COUNT(*) FROM futures_price_daily GROUP BY product` |
 | Phase4-2 | 日盤／夜盤整併 | `core/utils/constant.py`、`core/adapters/futures_quote_adapter.py`、`core/backtest/datafeed/futures_datafeed.py` | 跨盤別跳空被保留 | ✅ | **2026-09-02 完成**：策略把 `session` 設為 `FuturesSession.COMBINED` 即得整併序列（**前一交易日夜盤 ＋ 當日日盤**，open 取夜盤故跨盤別跳空留在 bar 內）。12 條測試。實作時踩到兩個「不會報錯」的坑：`COMBINED` 被拿去查資料表（整場零交易）、ETL 直接迭代 `FuturesSession` 而去爬不存在的時段，兩者皆已固化為測試 |
 | Phase5-1 | 分 K 與 Tick（Shioaji futures ticks） | `core/pipeline/tw/*/futures_tick_*.py` | 日內策略可回測 | ⬜ | 相依 Phase4-1；可參考 `StockTickUpdater` 多 key／執行緒 |
-| Phase5-2 | frontend 期貨專屬指標（保證金曲線、口數曝險） | `frontend/` | 指標可顯示 | ⬜ | 相依 Phase2-2 |
+| Phase5-2 | frontend 期貨專屬指標（保證金曲線、口數曝險） | `frontend/services/futures_metrics.py`、`frontend/app.py` | 指標可顯示 | ✅ | **2026-09-02 完成**：以**欄位**判斷是不是期貨報表，另外顯示峰值佔用保證金／峰值口數／資金使用率／平均保證金報酬率，並繪出保證金與口數曝險的階梯曲線（由交易明細的進出場日推導，不需引擎多輸出檔案）。7 條測試（邏輯抽到不含 Streamlit 的 service 才測得到）|
 | Phase5-3 | **程式碼**目錄收斂 | 全專案 | 台股回歸逐筆相同 | 🔄 | **2026-08-31：`pipeline/` 已由命名軸線收斂工作完成**（軸線定案見 [命名軸線](../docs/dev/naming-axes.md)），剩 `api/`／`adapters/`／`backtest/datafeed/`。**形狀偏離原規格**：改為 `pipeline/tw/`（純市場軸）而非原定 `pipeline/tw_stock`／`tw_futures`——每層目錄只承載一條軸，商品類別由檔名承載，與美股 §3.1 一致；原路徑 B 會把市場與商品壓成單一目錄名。理由見該文件〈每層目錄只承載一條軸〉 |
 | Phase6-1 | `futures_stock_universe` 標的池 ETL | `core/pipeline/tw/*/futures_stock_universe_*.py`、`tasks/update_db.py` | 掛牌／下市與乘數異動可追蹤 | ✅ | **2026-08-29 完成**：`--target futures_stock_universe` 可跑，320 檔入庫、標的代號 270/270 對得上現股。**流動性前 N 檔篩選改列 Phase6-2**（需要成交量，標的池階段還沒有）
 | Phase6-2 | 股票期貨行情 ETL 與除權息乘數調整 | `core/api/futures_stock_universe_api.py`、`core/adapters/futures_quote_adapter.py`、`core/backtest/datafeed/futures_datafeed.py`、`tasks/update_db.py` | 與台股除權息處理對照，無雙重調整 | ✅ | **2026-09-02 完成**：`--target futures_stock_price` 上線（清單取自標的池、預設只爬流動性前 20 檔）；**股期的乘數改為逐日查契約單位**（除權息會調整它），adapter 新增 `multiplier_resolver` 掛點；股期行情一律用原始價，除權息由契約單位承接，**不再套還原價**（雙重調整）。11 條測試
@@ -1380,13 +1380,38 @@ PRIMARY KEY `(date, product, expiry, session)`。
 - **驗證方式**：日內策略可完成一次回測；tick 時間戳為台北時間且 timezone-aware。
 - **相依**：Phase4-1。
 
-#### Phase5-2. frontend 期貨專屬指標 ⬜
+#### Phase5-2. frontend 期貨專屬指標 ✅
 
 - **目的**：期貨的風險視角與股票不同，需要保證金與口數曝險的呈現。
 - **做法**：frontend 新增保證金曲線與口數曝險指標。
 - **產出**：`frontend/`。
 - **驗證方式**：指標可從回測結果讀取並顯示。
 - **相依**：Phase2-2。
+
+> **✅ 完成紀錄（2026-09-02）**
+>
+> **期貨的風險視角與股票不同**：股票看「投入多少錢、值多少錢」，期貨看
+> 「**佔用多少保證金、留了幾口**」——契約價值本身不佔用資金，用股票那組指標
+> 看期貨只會看到一堆與風險無關的數字。
+>
+> **三個設計決定**：
+>
+> 1. **以欄位判斷是不是期貨報表**（`Contract ID`／`Multiplier`／`Margin`），
+>    不是以策略名稱——名稱可以任意取，欄位是報表產生器決定的。
+> 2. **看峰值不是總和**：把每筆交易的保證金加起來會得到一個沒有意義的巨大數字
+>    （同一筆錢用了幾十次）。實測示範策略：三筆相加 4,090 萬、
+>    但同時佔用的峰值只有 67.6 萬，資金使用率 22.53%。
+> 3. **曝險曲線由交易明細「走」出來**（進場日佔用、出場日釋放，疊起來即為逐日
+>    曝險），不需要回測引擎多輸出一份檔案，舊報表也能直接看。
+>    ⚠️ 這是以進出場日推導的**近似**：逐日盯市會讓保證金隨結算價變動，
+>    精確版需要引擎輸出逐日保證金，成本遠高於本近似的價值。
+>
+> **邏輯抽到 `frontend/services/futures_metrics.py`**：`frontend/app.py` 在
+> import 時就會執行 Streamlit 的版面設定，無法在測試裡 import——不抽出來就
+> **一條測試都寫不了**。
+>
+> 順帶修好一個既有問題：交易明細的篩選欄寫死 `Stock ID`，期貨報表因此沒有篩選器；
+> 現改為 `Stock ID` 或 `Contract ID`。
 
 #### Phase5-3. 程式碼目錄收斂 🔄
 
