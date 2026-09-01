@@ -1,1 +1,2 @@
+from .futures_quote_adapter import FuturesQuoteAdapter
 from .stock_quote_adapter import StockQuoteAdapter
