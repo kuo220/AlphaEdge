@@ -13,7 +13,7 @@ from core.models import (
     FuturesPosition,
     FuturesTradeRecord,
 )
-from core.utils import Action, PositionType
+from core.utils import Action, MarginCallPolicy, PositionType
 from core.utils.constant import FUTURES_MULTIPLIER
 
 """
@@ -33,46 +33,72 @@ FuturesPositionManager: 期貨部位管理（口數、保證金、逐日盯市�
 @dataclass
 class FuturesMarginConfig:
     """
-    保證金設定：**有 `api` 就查表，沒有就用比率近似**
+    保證金設定：**預設查表，查不到才退回比率近似**
 
     真實的 TAIFEX 原始保證金是**每口固定金額**、依波動度每日計算、達門檻就調
     （TX 在 2015~2026 調整 62 次，間隔最短 2 天、最長 372 天），
     且**調整後溯及既往**——未沖銷部位一併適用。
 
-    | 模式 | 何時用 | 行為 |
-    |------|--------|------|
-    | `api` 為 None（預設） | 沒有保證金資料、或只想跑通流程 | 契約價值 × `initial_margin_ratio` |
-    | 帶 `api` | 正式回測 | 查 `futures_margin_history`；**查不到就 raise** |
+    | 模式 | 何時生效 | 行為 |
+    |------|----------|------|
+    | 查表（預設） | `api` 已注入 | 查 `futures_margin_history`；**查不到就 raise** |
+    | 比率近似 | `use_api=False`，或 `api` 尚未注入 | 契約價值 × `initial_margin_ratio` |
+
+    **`api` 由 DataFeed 注入**（`TwFuturesDataFeed.setup()`），不是在此自行建立
+    ——全專案的資料 API 一律由 DataFeed 統一持有並共用同一條連線。要在回測以外
+    的地方用查表模式，明確傳 `api=` 或走 `from_api()`。
 
     **查不到為什麼要 raise 而不是退回比率**：理由同 `FUTURES_MULTIPLIER` 用 `[]`
     而非 `.get()`——靜默套一個近似值會讓資金效率與可開口數整段偏掉卻毫無徵兆，
     中斷比靜默錯誤好查。資料涵蓋 2020-03 起，更早的區間會當場中止並指向
     `backlog/台期貨保證金ETL.md` S6。
 
-    比率模式的近似**跨年份會系統性偏掉**（2026-09-01 實測：現行 TX 原始保證金
-    701,000，指數 46,000 × 乘數 200 的契約價值 9.2M，隱含比率約 7.6%，
-    而 2020 年那段的比率完全不同），故它只適合「跑通流程」而非產出可信績效。
+    比率模式的近似**跨年份會系統性偏掉**（實測 2020 年 +143% 到 2026 年 −38%，
+    而且會變號），故它只適合「跑通流程」而非產出可信績效。
     """
 
-    initial_margin_ratio: float = 0.1  # 原始保證金佔契約價值的比率（無 api 時使用）
-    api: Optional[FuturesMarginAPI] = None  # 帶入後改為查表，查不到即 raise
+    initial_margin_ratio: float = 0.1  # 原始保證金佔契約價值的比率（比率模式使用）
+    api: Optional[FuturesMarginAPI] = None  # 查表用；回測時由 DataFeed 注入
     # 查詢日早於表內所有列時是否退回最早一列。**預設關閉**：
     # 它無法區分「該商品從未被調整過」（退回正確）與「查詢日早於資料涵蓋範圍」
     # （退回錯誤），見 `FuturesMarginAPI` 的說明
     fallback_to_earliest: bool = False
+    # 是否讓 DataFeed 注入保證金 API。**預設開啟**：保證金資料已備妥
+    # （2020-03 起），用比率近似回測是刻意的降級，應由使用者明確表態
+    use_api: bool = True
+
+    # === 追繳（Phase2-2）===
+    # 權益低於維持保證金時的處理；**強制平倉是預設**——真實帳戶不會讓部位
+    # 在保證金不足的情況下續留，只標記會讓回測高估留倉能力
+    margin_call_policy: MarginCallPolicy = MarginCallPolicy.FORCE_COVER
+    # 追繳門檻的倍數：權益 < 維持保證金總額 × 本值即觸發。
+    # 1.0 為交易所口徑，調高即為「比交易所更早出場」的自訂風控
+    margin_call_ratio: float = 1.0
 
     @staticmethod
     def default() -> "FuturesMarginConfig":
-        """預設設定：無 API，原始保證金 = 契約價值 × 10%"""
+        """預設設定：查表模式（API 由 DataFeed 注入），追繳採強制平倉"""
 
         return FuturesMarginConfig()
+
+    @staticmethod
+    def ratio(initial_margin_ratio: float = 0.1) -> "FuturesMarginConfig":
+        """
+        比率近似模式：**明確表態不查表**
+
+        只適合「跑通流程」或回測 2020-03 之前的區間（該段沒有保證金資料）。
+        """
+
+        return FuturesMarginConfig(
+            initial_margin_ratio=initial_margin_ratio, use_api=False
+        )
 
     @staticmethod
     def from_api(
         api: Optional[FuturesMarginAPI] = None,
         fallback_to_earliest: bool = False,
     ) -> "FuturesMarginConfig":
-        """建立查表模式的設定；未指定 `api` 時自行建立一個"""
+        """建立查表模式的設定；未指定 `api` 時自行建立一個（會自帶一條連線）"""
 
         return FuturesMarginConfig(
             api=api or FuturesMarginAPI(),
@@ -181,6 +207,49 @@ class FuturesPositionManager(BasePositionManager):
             )
 
         return float(per_lot * volume)
+
+    def calculate_maintenance_margin(
+        self,
+        position: FuturesPosition,
+        date: Optional[Union[datetime.date, datetime.datetime]] = None,
+    ) -> float:
+        """
+        - Description:
+            計算該部位當日的**維持保證金**總額（追繳門檻）
+
+            **維持保證金與原始保證金是兩個獨立的公告值，不可用比率互推**
+            （TX 2024-10-31：原始 338,000、維持 259,000，比值 0.766，
+            但那個比值本身也會隨公告變動）。
+
+            **沒有 API 時退回「已繳的原始保證金」當門檻**：那比實際的維持保證金
+            嚴格（追繳會提早觸發），但總比靜默不做風控好——這種偏保守的替代值
+            會讓回測低估留倉能力，方向上不會讓績效變好看。
+        - Parameters:
+            - position: FuturesPosition
+                未平倉部位
+            - date: Optional[datetime.date]
+                查詢日；查表模式必填
+        - Return:
+            - float
+                該部位的維持保證金總額
+        """
+
+        if self.margin_config.api is None or date is None:
+            return position.margin
+
+        per_lot: Optional[int] = self.margin_config.api.get_maintenance_margin(
+            position.product,
+            self.normalize_date(date),
+            fallback_to_earliest=self.margin_config.fallback_to_earliest,
+        )
+        if per_lot is None:
+            logger.warning(
+                f"[Margin] 查無 {position.product} 在 {date} 生效的維持保證金，"
+                f"本次以已繳原始保證金 {position.margin} 當追繳門檻（偏嚴格）"
+            )
+            return position.margin
+
+        return float(per_lot * position.volume)
 
     def calculate_commission(self, volume: int, product: Optional[str] = None) -> float:
         """手續費：每口固定金額（可逐商品指定，見 `FuturesCostConfig`）"""

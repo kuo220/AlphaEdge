@@ -28,7 +28,7 @@
 | Phase1-6 | 實作期貨 model 組（不新增引擎） | `core/backtest/models/`、`core/backtest/datafeed/futures_datafeed.py`、`core/backtest/report/futures_reporter.py`、`core/backtest/factory.py` | 台股回歸雙線逐筆相同；期貨策略可跑完 | ✅ | **2026-09-02 完成**：LONG 915 筆與 SHORT 快照逐筆相同（快照重產後 0 diff）、493 條測試通過、`--strategy MomentumFuturesStrategy` 可跑完並產出五張圖與四份 CSV。**偏離原規格：引擎改了一處**（`snapshot_daily_equity()` 的部位計價 16 行，下沉為 1 行呼叫 `SettlementModel.mark_position()`），理由見下方步驟章節 |
 | Phase1-7 | 連續合約構建（先做一種調整方式） | `core/pipeline/tw/*/futures_continuous_*.py` | 換月接點的 `roll_flag` 正確 | ⬜ | 相依 Phase1-2 |
 | Phase2-1 | 期貨成本模型（期交稅、手續費、滑價） | `core/backtest/models/cost_model.py`、`fill_model.py`、`core/utils/constant.py` | **不可複用證交稅**；有單元測試 | ✅ | **2026-09-02 完成**：期交稅（法規值十萬分之二、**買賣各課一次**、稅基為契約價值）、每口手續費（市場常見值 50 元，可逐商品指定）、滑價改以**跳動點**表達並可逐商品設定。16 條測試；`FuturesCostConfig` 一併從 `managers/` 移到 `cost_model.py`（與股票的 `CostConfig` 同位置），部位管理層改為一律問 CostModel，費率不再有第二份 |
-| Phase2-2 | 槓桿／部位控管（保證金 ETL 已分家） | `core/managers/futures/` | 追繳／可開口數依當時生效的保證金計算 | ⬜ | **保證金歷史序列已於 2026-09-01 拆到 [台期貨保證金ETL](台期貨保證金ETL.md)**（來源已調查完、端點已寫進 `url_manager.py`）；本步驟只剩控管邏輯，相依該文件的 S5 |
+| Phase2-2 | 槓桿／部位控管（保證金 ETL 已分家） | `core/managers/futures/`、`core/backtest/models/settlement_model.py`、`core/backtest/datafeed/futures_datafeed.py` | 追繳／可開口數依當時生效的保證金計算 | ✅ | **2026-09-02 完成**：查表改為**預設模式**（API 由 DataFeed 注入策略與部位管理層**共用的同一個設定物件**）、追繳以**權益 vs 維持保證金**判斷並可選強制平倉／僅標記、可開口數隨生效日改變。14 條測試（含一條以真實表驗證 TX 2024-08-09 → 08-22 由 265,000 調為 292,000）。保證金歷史序列本身見 [台期貨保證金ETL](台期貨保證金ETL.md) S1~S5 |
 | Phase2-3 | 期貨交易日曆（日盤 ＋ 夜盤、結算日） | `core/backtest/datafeed/futures_calendar.py` | 不沿用股票 calendar | ⬜ | 相依 Phase1-6 |
 | Phase2-4 | 換月規則參數化 | `core/backtest/` | 三種換月規則可切換 | ⬜ | 相依 Phase1-7、Phase2-3 |
 | Phase3-1 | 籌碼訊號 ETL（三大法人、大額交易人、PCR） | `core/pipeline/tw/*/futures_chip_*.py` | 前視偏差對齊（T+1 可用） | ⬜ | 相依 Phase1-2 |
@@ -1096,13 +1096,49 @@ PRIMARY KEY `(date, product, expiry, session)`。
 > （快照重產 0 diff）；示範策略端對端可跑，交易明細的稅費逐筆手算對得上
 > （首筆 2 口來回：手續費 200、稅 141 ＋ 142 ＝ 283）。
 
-#### Phase2-2. 保證金歷史序列與槓桿／部位控管 ⬜
+#### Phase2-2. 保證金歷史序列與槓桿／部位控管 ✅
 
 - **目的**：保證金調整會直接改變回測槓桿，用當前值回測歷史會失真。
 - **做法**：引入原始／維持保證金歷史序列（含調整公告生效日）；帳戶權益（現金 ＋ 未實現損益）決定保證金充足度，浮動獲利可支撐加碼；權益低於維持保證金時的處理政策（強制平倉或僅標記）須可設定。
 - **產出**：`core/pipeline/tw/*/futures_margin_*.py`、`core/managers/futures/`。
 - **驗證方式**：保證金調整生效日前後的可開口數不同，且與公告一致。
 - **相依**：Phase2-1。
+
+> **✅ 完成紀錄（2026-09-02）**
+>
+> **① 查表成為預設**：`FuturesMarginConfig.use_api` 預設 `True`，API 由
+> `TwFuturesDataFeed.setup()` 注入。要用比率近似必須明確寫
+> `FuturesMarginConfig.ratio()`——資料已備妥（2020-03 起），降級應由使用者表態。
+> 實測示範策略的每口保證金因此由「契約價值 × 10% ＝ 360,000」變成真實的
+> 167,000 ~ 338,000（2024 年 TX 調整 11 次）。
+>
+> **② 設定物件只有一份**：factory 建好 `FuturesMarginConfig` 後**回寫給策略**，
+> 策略層（算可開口數）、部位管理層（算應繳保證金）、結算模型（算追繳門檻）與
+> DataFeed（注入 API）四者共用同一個物件。兩份設定的後果是「策略算得出口數、
+> 部位管理層卻開不進去」，而且不會有任何錯誤訊息。
+>
+> **③ 追繳判斷的是「權益」不是「可動用餘額」**：期貨的浮動損益每日結算進帳戶，
+> 可動用餘額歸零不代表被追繳，真正的門檻是「權益是否還撐得住維持保證金」；
+> 反過來浮動獲利會讓權益上升而**可以支撐加碼**（本步驟明文要求）。
+> 維持保證金是**另一個公告值**，不可用原始保證金乘比率推得
+> （TX 2024-10-31：原始 338,000、維持 259,000），故 `FuturesMarginAPI`
+> 另開 `get_maintenance_margin()`。
+>
+> **④ 強制平倉砍到足額為止**，不是一次清空帳戶：每平一筆就重算權益與門檻，
+> 先砍佔用保證金最多的契約。`WARN_ONLY` 只記 log **不計數**——
+> `forced_cover_margin_call` 的語意是「強制平倉幾次」，只標記卻計數會讓報表把
+> 「撐過去了」讀成「被斷頭了」，且該狀態每根 bar 都成立，計數會隨天數膨脹。
+>
+> **⑤ 涵蓋範圍不足改為開跑前就警告**：查表模式查不到會 raise（刻意的），
+> 但那會發生在跑到第一筆開倉訊號時。`TwFuturesDataFeed.check_margin_coverage()`
+> 在 `setup()` 就比對回測起始日與 `get_covered_date_range()`，
+> 早於 2020-03 時直接指出「該段一開倉就會中止，要回測更早期間請改用 `ratio()`」。
+>
+> **驗證**：524 條測試通過（新增 14 條，含一條 `slow` 的真實表驗證——
+> TX 2024-08-09 的 265,000 與 08-22 的 292,000 皆與公告一致，同一筆資金的
+> 可開口數由 6 口變 5 口）；台股 LONG 915 筆與 SHORT 快照皆未受影響；
+> 示範策略端對端可跑，交易明細的保證金欄位確實隨生效日變動
+> （334,000 → 368,000 → 334,000）。
 
 #### Phase2-3. 期貨交易日曆 ⬜
 

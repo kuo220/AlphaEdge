@@ -130,6 +130,26 @@ class FuturesMarginAPI(BaseDataAPI):
         )
         return None if margin is None else margin["原始保證金"]
 
+    def get_maintenance_margin(
+        self,
+        product: str,
+        date: datetime.date,
+        fallback_to_earliest: bool = False,
+    ) -> Optional[int]:
+        """
+        取得**每口維持保證金**（追繳門檻用的那一種）
+
+        與 `get_initial_margin()` 的分工：原始保證金是「開一口要先繳多少」，
+        維持保證金是「帳戶權益低於多少就會被追繳」，後者一律較低
+        （TX 2024-10-31：原始 338,000、維持 259,000）。
+        兩者都是交易所公告值，**不可用比率互推**。
+        """
+
+        margin: Optional[Dict[str, int]] = self.get_margin(
+            product, date, fallback_to_earliest=fallback_to_earliest
+        )
+        return None if margin is None else margin["維持保證金"]
+
     # === 比例型（股票股期）===
     def get_margin_rates(
         self,

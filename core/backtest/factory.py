@@ -1,5 +1,3 @@
-from loguru import logger
-
 from core.backtest.backtester import Backtester, new_event_counts
 from core.backtest.datafeed.futures_datafeed import TwFuturesDataFeed
 from core.backtest.datafeed.tw_stock_datafeed import TwStockDataFeed
@@ -143,10 +141,11 @@ def build_tw_futures_backtester(strategy: BaseFuturesStrategy) -> Backtester:
         2. **成本設定由 `FuturesCostConfig` 提供**，且**同一個物件**同時交給
            `FuturesPositionManager` 與 `TwFuturesCostModel`——費率兩處各填一份
            必然漂移。本階段費率全為 0，實際費率屬 Phase2-1。
-        3. **保證金設定由策略提供**，未提供時退回「契約價值 × 比率」的近似。
+        3. **保證金設定預設查表**（`FuturesMarginConfig.default()`），API 由
+           DataFeed 注入同一個設定物件，策略層與部位管理層因此共用同一個來源。
+           要改用比率近似必須明確宣告 `FuturesMarginConfig.ratio()`——
            近似的誤差跨年份實測為 +143% ~ −38%（見
-           `backlog/台期貨保證金ETL.md` S5），故此處明確發出警告；接上
-           `FuturesMarginAPI` 查表屬 Phase2-2。
+           `backlog/台期貨保證金ETL.md` S5）。
         4. **`SettlementModel` 不需要 `cost_model`**：期貨在收盤後只做逐日盯市，
            不像台股要在此計提借券費與稅差。
     - Parameters:
@@ -166,12 +165,10 @@ def build_tw_futures_backtester(strategy: BaseFuturesStrategy) -> Backtester:
         strategy.margin_config or FuturesMarginConfig.default()
     )
 
-    if margin_config.api is None:
-        logger.warning(
-            f"[{strategy.strategy_name}] 未帶入保證金 API，本次回測以"
-            f"「契約價值 × {margin_config.initial_margin_ratio:.0%}」近似原始保證金"
-            f"——跨年份誤差實測為 +143% ~ −38%，僅適合跑通流程（查表屬 Phase2-2）"
-        )
+    # **回寫給策略**：策略層算可開口數、部位管理層算應繳保證金，
+    # 兩者必須是同一個設定物件——否則策略算得出口數、部位管理層卻開不進去，
+    # 而且不會有任何錯誤訊息。API 稍後由 DataFeed 注入這同一個物件
+    strategy.margin_config = margin_config
 
     cost_model: TwFuturesCostModel = TwFuturesCostModel(cost_config)
     position_manager: FuturesPositionManager = FuturesPositionManager(
@@ -203,7 +200,7 @@ def build_tw_futures_backtester(strategy: BaseFuturesStrategy) -> Backtester:
         fill_model=fill_model,
         cost_model=cost_model,
         settlement=settlement,
-        data_feed=TwFuturesDataFeed(),
+        data_feed=TwFuturesDataFeed(margin_config=margin_config),
         reporter_cls=FuturesBacktestReporter,
         event_counts=event_counts,
         adjusted_price=False,

@@ -1,6 +1,6 @@
 import datetime
 import sqlite3
-from typing import List, Optional, Set
+from typing import Dict, List, Optional, Set
 
 from loguru import logger
 
@@ -9,6 +9,7 @@ from core.api.futures_margin_api import FuturesMarginAPI
 from core.api.futures_price_api import FuturesPriceAPI
 from core.backtest.datafeed.base import BaseDataFeed
 from core.config import TW_FUTURES_DB_PATH
+from core.managers.futures.position_manager import FuturesMarginConfig
 from core.models import FuturesQuote
 from core.strategies.base import BaseStrategy
 from core.utils import FuturesSession, Scale
@@ -34,9 +35,13 @@ class TwFuturesDataFeed(BaseDataFeed):
     真正的期貨交易日曆（結算日、夜盤跨日、與台股不一致的補班日）屬 Phase2-3。
     """
 
-    def __init__(self):
+    def __init__(self, margin_config: Optional[FuturesMarginConfig] = None):
         # 單次回測共用一條 SQLite 連線：行情與保證金查的是同一個 DB 檔
         self.conn: Optional[sqlite3.Connection] = None
+
+        # 本次回測的保證金設定；`setup()` 會把建好的 API 注入其中，
+        # 讓策略層與部位管理層**共用同一個查表來源**（見 `inject_margin_api()`）
+        self.margin_config: Optional[FuturesMarginConfig] = margin_config
 
         self.futures_price: Optional[FuturesPriceAPI] = None  # 期貨日行情
         self.margin: Optional[FuturesMarginAPI] = None  # 保證金歷史
@@ -63,10 +68,76 @@ class TwFuturesDataFeed(BaseDataFeed):
         self.start_date = strategy.start_date
         self.end_date = strategy.end_date
 
+        self.inject_margin_api()
+
         if not self.products:
             logger.warning(
                 "[Futures DataFeed] 策略未宣告 products，將載入當日所有商品的報價"
             )
+
+    def inject_margin_api(self) -> None:
+        """
+        - Description:
+            把本 feed 建立的 `FuturesMarginAPI` 注入保證金設定
+
+            **保證金設定是策略層與部位管理層共用的同一個物件**（由 factory 建立
+            並回寫給策略），故只要在此注入一次，兩邊算出來的每口保證金就一定一致。
+            兩處不一致的後果是「策略算得出口數、部位管理層卻開不進去」，
+            而且不會有任何錯誤訊息。
+
+            `use_api=False`（比率近似）時不注入——那是使用者明確表態要降級，
+            此時發出警告，避免有人以為自己在跑查表模式。
+        """
+
+        if self.margin_config is None:
+            return
+
+        if not self.margin_config.use_api:
+            logger.warning(
+                f"[Futures DataFeed] 保證金採比率近似"
+                f"（契約價值 × {self.margin_config.initial_margin_ratio:.0%}），"
+                f"跨年份誤差實測 +143% ~ −38%，僅適合跑通流程"
+            )
+            return
+
+        if self.margin_config.api is None:
+            self.margin_config.api = self.margin
+
+        self.check_margin_coverage()
+
+    def check_margin_coverage(self) -> None:
+        """
+        - Description:
+            回測起始日早於保證金資料涵蓋範圍時**在開跑前就講清楚**
+
+            查表模式查不到保證金會直接 raise（那是刻意的，見 `FuturesMarginConfig`），
+            但那會發生在迴圈跑到第一筆開倉訊號的時候——使用者看到的是跑了一半
+            才中斷。保證金資料只回溯到 2020-03（更早的公告附件是掃描影像，
+            見 `backlog/台期貨保證金ETL.md` S6），本檢查在 `setup()` 就把
+            「這段期間查不到」說明白，並指出可用的替代做法。
+        """
+
+        if self.margin_config is None or self.start_date is None:
+            return
+
+        for product in self.products:
+            covered: Optional[Dict[str, str]] = (
+                self.margin_config.api.get_covered_date_range(product)
+            )
+            if covered is None:
+                logger.warning(
+                    f"[Futures DataFeed] {product} 在保證金表內沒有任何資料，"
+                    f"開倉時會中止。改用 `FuturesMarginConfig.ratio()` 可跑通流程"
+                )
+                continue
+
+            if str(self.start_date) < covered["earliest"]:
+                logger.warning(
+                    f"[Futures DataFeed] 回測起始日 {self.start_date} 早於 {product} "
+                    f"的保證金涵蓋範圍（{covered['earliest']} 起），該段一開倉就會中止。"
+                    f"要回測更早的期間請明確改用 `FuturesMarginConfig.ratio()`"
+                    f"（比率近似，誤差見 backlog/台期貨保證金ETL.md S5）"
+                )
 
     def is_market_open(self, date: datetime.date) -> bool:
         """

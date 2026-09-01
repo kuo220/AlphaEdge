@@ -11,12 +11,16 @@ from core.backtest.models.instrument_spec import (
     TwFuturesSpec,
     TwStockSpec,
 )
-from core.managers.futures.position_manager import FuturesPositionManager
+from core.managers.futures.position_manager import (
+    FuturesMarginConfig,
+    FuturesPositionManager,
+)
 from core.managers.stock.position_manager import StockPositionManager
 from core.models import (
     BaseAccount,
     BasePosition,
     BaseQuote,
+    FuturesAccount,
     FuturesOrder,
     FuturesPosition,
     FuturesQuote,
@@ -776,6 +780,12 @@ class TwFuturesSettlementModel(BaseSettlementModel):
         # {契約代號: 連續無報價的 bar 數}；同一契約的多個部位共用同一個計數
         self.no_quote_days: Dict[str, int] = {}
 
+    @property
+    def margin_config(self) -> FuturesMarginConfig:
+        """保證金設定；唯一來源是部位管理層持有的那一份，不另存副本"""
+
+        return self.position_manager.margin_config
+
     def on_bar_close(
         self,
         date: datetime.date,
@@ -810,6 +820,91 @@ class TwFuturesSettlementModel(BaseSettlementModel):
         # 逐日盯市完才處理到期出場：出場價即最近一次結算價，
         # 先結算才不會漏掉最後一根 bar 的損益
         self.close_expired_positions(date, quote_map, account, event_counts)
+
+        # 追繳放最後：前面兩步都會改變權益與佔用保證金，先判斷會用到過期的數字
+        self.check_margin_call(date, quote_map, account, event_counts)
+
+    def check_margin_call(
+        self,
+        date: datetime.date,
+        quote_map: Dict[str, FuturesQuote],
+        account: FuturesAccount,
+        event_counts: Dict[str, int],
+    ) -> None:
+        """
+        - Description:
+            保證金追繳：帳戶**權益**低於維持保證金總額時，依政策強制平倉或僅標記
+
+            **判斷的是權益不是可動用餘額**（權益 ＝ 可動用餘額 ＋ 佔用保證金）：
+            期貨的浮動損益每日結算進帳戶，虧損會先吃掉可動用餘額，可動用餘額歸零
+            並不代表已經被追繳——真正的門檻是「權益是否還撐得住維持保證金」。
+            反過來說，浮動獲利會讓權益上升，因而**可以支撐加碼**，
+            這正是本步驟要求「以權益決定保證金充足度」的意思。
+
+            **強制平倉逐口處理、由保證金最大的部位開始**：先平掉佔用最多的那一口
+            才可能一次把權益拉回門檻之上；每平一筆就重算，避免一次全砍
+            （真實券商的斷頭也是砍到足額為止，不是清空帳戶）。
+
+            出場價一律用當日盯市價（＝結算價）。**現行引擎沒有跨日委託佇列**，
+            無法模擬「次一交易日開盤成交」，與台股的維持率追繳同一種簡化。
+        - Parameters:
+            - date: datetime.date
+                當前交易日
+            - quote_map: Dict[str, FuturesQuote]
+                當根 bar 的報價
+            - account: FuturesAccount
+                交易帳戶
+            - event_counts: Dict[str, int]
+                事件計數
+        """
+
+        # 每一輪都重新取部位：`close_position()` 走 FIFO，被平掉的不一定是本輪挑中的
+        # 那一筆（同一契約的多筆部位共用同一個 symbol），拿舊清單續跑會重複計數
+        for _ in range(len(account.get_positions()) + 1):
+            positions: List[FuturesPosition] = account.get_positions()
+            if not positions:
+                return
+
+            requirement: float = self.get_maintenance_requirement(date, positions)
+            if account.equity >= requirement * self.margin_config.margin_call_ratio:
+                return
+
+            if self.margin_config.margin_call_policy == MarginCallPolicy.WARN_ONLY:
+                # **不計數**：`forced_cover_margin_call` 的語意是「強制平倉幾次」，
+                # 只標記卻計數會讓報表把「撐過去了」讀成「被斷頭了」。
+                # 且本狀態每根 bar 都會成立，計數會隨天數膨脹（與台股同一種處理）
+                logger.warning(
+                    f"[Margin Call] {date} 權益 {account.equity:.0f} 低於維持保證金 "
+                    f"{requirement:.0f}（僅標記不平倉）"
+                )
+                return
+
+            # 先砍佔用保證金最多的契約，才可能一次把權益拉回門檻之上；
+            # 同一契約內由誰出場則由 FIFO 決定（每口佔用相同，結果等價）
+            position: FuturesPosition = max(positions, key=lambda p: p.margin)
+            price: float = self.get_mark_price(position, quote_map)
+            logger.warning(
+                f"[Margin Call] {position.symbol} 權益 {account.equity:.0f} 低於"
+                f"維持保證金 {requirement:.0f}，以 {price} 強制平倉"
+            )
+            event_counts["forced_cover_margin_call"] += 1
+
+            if not self.close_position_at(position, date, price):
+                # 平不掉就停手，否則會在同一根 bar 內無限重試
+                logger.warning(
+                    f"[Margin Call] {position.symbol} 無法平倉，本根 bar 停止追繳處理"
+                )
+                return
+
+    def get_maintenance_requirement(
+        self, date: datetime.date, positions: List[FuturesPosition]
+    ) -> float:
+        """所有未平倉部位在該日的維持保證金總額（逐商品查表，見部位管理層）"""
+
+        return sum(
+            self.position_manager.calculate_maintenance_margin(position, date)
+            for position in positions
+        )
 
     def close_expired_positions(
         self,
