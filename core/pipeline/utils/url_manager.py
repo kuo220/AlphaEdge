@@ -100,6 +100,51 @@ class URLManager:
         # 頁面給的是 2 碼商品代碼（Ex: CD 台積電期），行情頁的 commodity_id 要加尾碼 F
         # 解析時 `keep_default_na=False` 不可省：穩懋的代碼就是 `NA`，會被當成 NaN
         "TAIFEX_STOCK_FUTURES_LIST_URL": "https://www.taifex.com.tw/cht/2/stockLists",
+
+        # === 台期貨保證金（TAIFEX）===
+        #
+        # 現行保證金一覽表（股價指數類），純 GET，直接回 **CSV**（不是 HTML）
+        # 編碼為 **big5**（`FileEncoding.BIG5`），非 UTF-8
+        # 第一行是 `更新日期:YYYY/MM/DD`，那是這組保證金的生效日，資料表頭在第二行
+        # 欄位：商品別, 結算保證金, 維持保證金, 原始保證金（皆為**每口固定金額**，單位：元）
+        # **回測要用的是「原始保證金」**（委託人繳交），不是結算保證金（交易所向結算會員收）
+        # 金額與契約乘數等比例：TX(200) 701,000 → MTX(50) 175,250 → TMF(10) 35,050
+        # 本表**只有現值、沒有歷史**，歷史須走下方的公告查詢
+        "TAIFEX_INDEX_MARGIN_URL": "https://www.taifex.com.tw/cht/5/indexMargingDown",
+
+        # 現行保證金一覽表（股票類），同樣是 GET ＋ big5 CSV
+        # **與指數類的格式不同：給的是「適用比例」而非固定金額**——每檔標的股價不同，
+        # 固定金額沒有意義。每口保證金 = 標的股價 × 契約單位 × 適用比例，
+        # 契約單位取自 `futures_stock_universe.contract_size`（2000 股／100 股）
+        # 三個級距的原始保證金比例為 13.50%／16.20%／20.25%
+        # ⚠️ 解析時三個坑：
+        #   1. 檔案標題是「股票期貨**及選擇權**」，**選擇權列混在同一檔**（代碼結尾為 O）
+        #   2. 尾段的 ETF 選擇權改用 A值／B值的**固定金額**，與前段的比例欄位語意不同
+        #   3. 公司名稱含逗號（`"...Co., Ltd."`），**必須用 csv 模組解析**，不可 `split(",")`
+        "TAIFEX_STOCK_MARGIN_URL": "https://www.taifex.com.tw/cht/5/stockMarginingDown",
+
+        # 歷史公告查詢（保證金調整的歷史來源）
+        # **與本表其他 URL 不同：這是 POST 端點**，參數走 form data，故無 {} 佔位符
+        # 必要的 form 欄位：
+        #   isQuery: **必須是 "1"**（頁面上的 hidden input 預設為空字串；
+        #            傳 "true"／"Y"／"yes" 都只會回沒有結果的空表單，且不會報錯）
+        #   queryStartDate / queryEndDate: 查詢區間（yyyy/MM/dd）
+        #   queryKeyWord: 關鍵字；保證金調整用「保證金金額」
+        #   newsType: **值是中文字**（`公告`／`新聞稿`／`契約調整`），不是代碼
+        # 回應可直接 `pd.read_html` 解成「日期, 標題」兩欄；標題本身帶生效日與商品清單
+        # 列的連結有兩種：直接指向 .pdf，或指向下方的 newsDetail 頁
+        "TAIFEX_HISTORY_NEWS_URL": "https://www.taifex.com.tw/cht/11/hisNews",
+
+        # 公告明細頁（取得附件連結用），GET
+        # 附件為絕對 URL，直接出現在頁面上，不需另外組合
+        # ⚠️ **附件型態隨年份而異**（2026-09-01 逐筆盤點 TX 的 62 筆公告）：
+        #   - 2020/03 起（44 筆）：附 **CSV**，欄位含契約代碼與**調整前／調整後**的
+        #     原始／維持／結算保證金——這是唯一可直接入庫的歷史來源
+        #   - 2015~2019（16 筆）：只有 PDF，且**全部是掃描影像**
+        #     （`/Image` + DCTDecode/CCITTFaxDecode、無 `/Font`、可抽文字 0 字），
+        #     沒有 OCR 就取不到數值。本階段不處理，見台期貨規劃 Phase2-2
+        #   - 另有 2 筆（2020/01/17、2020/01/30）無附件
+        "TAIFEX_NEWS_DETAIL_URL": "https://www.taifex.com.tw/cht/11/newsDetail?newsType={news_type}&idx={idx}",
     }
     # fmt: on
 
