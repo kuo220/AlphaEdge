@@ -8,6 +8,7 @@ from .constant import (
     PRICE_LIMIT_RATIO_LEGACY,
     PRICE_LIMIT_WIDENED_DATE,
     PRICE_TICK_TABLE,
+    SHIOAJI_FUTURES_CATEGORY,
     STOCK_FUTURES_TYPE_BY_CONTRACT_SIZE,
     Action,
     BarExecutionOrder,

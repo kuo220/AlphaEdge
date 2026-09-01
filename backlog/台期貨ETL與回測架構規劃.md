@@ -34,7 +34,7 @@
 | Phase3-1 | 籌碼訊號 ETL（三大法人、大額交易人、PCR） | `core/pipeline/tw/*/futures_chip_*.py`、`core/api/futures_chip_api.py` | 前視偏差對齊（T+1 可用） | ✅ | **2026-09-02 完成**：`--target futures_chip` 上線，三個資料集三張表，**一天三次請求即涵蓋全市場**（不逐商品打）。`FuturesChipAPI.get_available()` 只回傳「查詢日**之前**」已公布的籌碼——那一個等號就是前視偏差。13 條測試。⏳ 歷史回補背景進行中 |
 | Phase4-1 | 多商品擴充（MTX、TMF、TE、TF） | `core/config.py`、`tests/test_futures_products.py` | 各商品點值／乘數正確 | ✅ | **2026-09-02 完成（程式面）**：`FUTURES_TARGET_PRODUCTS` 擴為 7 檔（TX／MTX／TMF／TE／ZEF／TF／ZFF），六檔新商品逐一實測可爬可清可入庫，**crawler／updater 一行都沒改**。15 條測試。⏳ **歷史回補進行中**（背景執行，約 40 小時），進度查 `SELECT product, MIN(date), MAX(date), COUNT(*) FROM futures_price_daily GROUP BY product` |
 | Phase4-2 | 日盤／夜盤整併 | `core/utils/constant.py`、`core/adapters/futures_quote_adapter.py`、`core/backtest/datafeed/futures_datafeed.py` | 跨盤別跳空被保留 | ✅ | **2026-09-02 完成**：策略把 `session` 設為 `FuturesSession.COMBINED` 即得整併序列（**前一交易日夜盤 ＋ 當日日盤**，open 取夜盤故跨盤別跳空留在 bar 內）。12 條測試。實作時踩到兩個「不會報錯」的坑：`COMBINED` 被拿去查資料表（整場零交易）、ETL 直接迭代 `FuturesSession` 而去爬不存在的時段，兩者皆已固化為測試 |
-| Phase5-1 | 分 K 與 Tick（Shioaji futures ticks） | `core/pipeline/tw/*/futures_tick_*.py` | 日內策略可回測 | ⬜ | 相依 Phase4-1；可參考 `StockTickUpdater` 多 key／執行緒 |
+| Phase5-1 | 分 K 與 Tick（Shioaji futures ticks） | `core/pipeline/tw/*/futures_tick_*.py`、`core/utils/constant.py` | 日內策略可回測 | ✅ | **2026-09-02 完成（爬取與清洗已實測）**：`--target futures_tick` 上線。**TAIFEX 與 Shioaji 的商品代碼沒有規律**（MTX→MXF、TE→EXF、TF→FXF），對照表是實際登入逐一核對的；時段由時間戳判定（實測 TX202612 於 2026-08-28 的 29 筆中有 10 筆屬前一日夜盤）。12 條測試。⏸ **DolphinDB 寫入路徑未實測**（本機未啟動 server、套件未安裝），無連線時保留中繼檔並記 warning |
 | Phase5-2 | frontend 期貨專屬指標（保證金曲線、口數曝險） | `frontend/services/futures_metrics.py`、`frontend/app.py` | 指標可顯示 | ✅ | **2026-09-02 完成**：以**欄位**判斷是不是期貨報表，另外顯示峰值佔用保證金／峰值口數／資金使用率／平均保證金報酬率，並繪出保證金與口數曝險的階梯曲線（由交易明細的進出場日推導，不需引擎多輸出檔案）。7 條測試（邏輯抽到不含 Streamlit 的 service 才測得到）|
 | Phase5-3 | **程式碼**目錄收斂 | 全專案 | 台股回歸逐筆相同 | 🔄 | **2026-08-31：`pipeline/` 已由命名軸線收斂工作完成**（軸線定案見 [命名軸線](../docs/dev/naming-axes.md)），剩 `api/`／`adapters/`／`backtest/datafeed/`。**形狀偏離原規格**：改為 `pipeline/tw/`（純市場軸）而非原定 `pipeline/tw_stock`／`tw_futures`——每層目錄只承載一條軸，商品類別由檔名承載，與美股 §3.1 一致；原路徑 B 會把市場與商品壓成單一目錄名。理由見該文件〈每層目錄只承載一條軸〉 |
 | Phase6-1 | `futures_stock_universe` 標的池 ETL | `core/pipeline/tw/*/futures_stock_universe_*.py`、`tasks/update_db.py` | 掛牌／下市與乘數異動可追蹤 | ✅ | **2026-08-29 完成**：`--target futures_stock_universe` 可跑，320 檔入庫、標的代號 270/270 對得上現股。**流動性前 N 檔篩選改列 Phase6-2**（需要成交量，標的池階段還沒有）
@@ -1372,7 +1372,7 @@ PRIMARY KEY `(date, product, expiry, session)`。
 >    不存在那個寫法。
 ### Phase 5：分 K 與 Tick、前端指標
 
-#### Phase5-1. 分 K 與 Tick ⬜
+#### Phase5-1. 分 K 與 Tick ✅
 
 - **目的**：支援日內策略回測。
 - **做法**：引入 Shioaji futures tick（可參考 `StockTickUpdater` 的多 key／執行緒做法）；tick／連續合約快取可用 Parquet 存於 `core/pipeline/downloads/tw_futures/tick/`，但結構化表格資料一律走 `tw_futures.db`。
@@ -1380,6 +1380,42 @@ PRIMARY KEY `(date, product, expiry, session)`。
 - **驗證方式**：日內策略可完成一次回測；tick 時間戳為台北時間且 timezone-aware。
 - **相依**：Phase4-1。
 
+
+> **✅ 完成紀錄（2026-09-02）**
+>
+> **最大的坑是「兩邊的契約代碼不一樣，而且沒有規律」**：小型臺指在 TAIFEX 是
+> `MTX`、在 Shioaji 是 `MXF`；電子期貨 `TE` vs `EXF`；金融期貨 `TF` vs `FXF`；
+> 而微型臺指與兩檔小型契約（`TMF`／`ZEF`／`ZFF`）兩邊同名。「加個 F」的規則會在
+> 三處錯掉，症狀是「查無此契約」——**一整段回補靜靜地什麼都沒抓到**。
+> `SHIOAJI_FUTURES_CATEGORY` 是實際登入 Shioaji 列出 `api.Contracts.Futures`
+> 逐一核對的，不是從命名規則推的。
+>
+> **用 `symbol` 不用 `code`**：`symbol` 是 `{分類}{YYYYMM}`（`TXF202609`）、
+> `code` 是「月份字母 ＋ 年末碼」（`TXFI6`）。字母碼每 10 年重複一次，
+> 跨年回補會取到錯誤年份的契約。
+>
+> **時段一律由時間戳判定**：Shioaji 回的是整個交易日的逐筆，**含前一日 15:00
+> 開始的夜盤**。實測 2026-08-28 的 TX202612 共 29 筆，其中 10 筆的時間戳是
+> 08-27 晚上——這正好也印證了 Phase2-3／4-2 的夜盤歸屬規則。不標時段的話，
+> 日盤策略會吃到夜盤成交而完全不知情。
+>
+> **要爬哪些契約由日線行情表決定**，不是自己推「近月＋次月」：`futures_price_daily`
+> 已記錄每天實際在交易的契約。預設只爬近月——期貨的量集中在近月，遠月一天可能
+> 只有幾百筆卻同樣佔配額（實測遠月整天 29 筆）。週契約在 Shioaji 是獨立分類
+> （`MX1`／`MX2`），本層先排除。
+>
+> **配額是本 ETL 最硬的限制**：沿用 `StockTickUtils` 的多組金鑰，每爬一個契約前
+> 檢查剩餘用量，低於門檻就停手（用完之後的請求只會失敗，繼續爬是白花時間）；
+> 查不到用量時放行（那是 API 暫時異常）。一律**先存中繼檔再入庫**，
+> DolphinDB 沒開也不會白爬一輪。
+>
+> **⏸ 未實測的部分（解除條件）**：DolphinDB 的寫入路徑。本機
+> `localhost:8848` 連線被拒（server 未啟動），`dolphindb` 套件也未安裝
+> （屬 `[tick]` 選用相依）。表結構比照已在生產跑過的 `StockTickLoader`
+> （同一個 `tickDB`、不同表；主鍵改為 `product` ＋ `expiry` ＋ `session`），
+> 但**在真的跑起來之前不要當成已驗證**。解除條件：啟動 DolphinDB server ＋
+> `pip install -e ".[tick]"`，再跑 `--target futures_tick` 一天即可確認。
+> 無連線時的降級行為（保留中繼檔、記 warning、不拋錯）已有測試涵蓋。
 #### Phase5-2. frontend 期貨專屬指標 ✅
 
 - **目的**：期貨的風險視角與股票不同，需要保證金與口數曝險的呈現。

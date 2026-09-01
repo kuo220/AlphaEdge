@@ -206,6 +206,30 @@ class ShortCost(float, Enum):
     SBLFeeRate = 0.03  # 借券（SBL）年化費率（議定區間 0.01%~16%，取市場常見值）
 
 
+# TAIFEX 商品代碼 → Shioaji 期貨分類代碼（Phase5-1）
+#
+# **兩邊的代碼不一樣，而且不是加個 F 就好**：小型臺指在 TAIFEX 是 `MTX`、
+# 在 Shioaji 是 `MXF`；電子期貨是 `TE` vs `EXF`；金融期貨是 `TF` vs `FXF`。
+# 微型臺指與兩檔小型契約（TMF／ZEF／ZFF）則兩邊同名——**沒有規律可循**，
+# 只能逐一對照。
+#
+# 本表於 2026-09-02 以實際登入 Shioaji 列出 `api.Contracts.Futures` 逐一核對，
+# **不是從命名規則推的**。要新增商品請照同一種方式查證，不要猜。
+#
+# Shioaji 的契約 `symbol` 格式為 `{分類}{YYYYMM}`（Ex: `TXF202609`），
+# 可直接以 `api.Contracts.Futures[分類][symbol]` 取得；另有 `code` 欄位
+# （Ex: `TXFI6`，月份字母 ＋ 年末碼）**不要用它**，字母碼跨年會重複。
+SHIOAJI_FUTURES_CATEGORY: dict = {
+    FUTURES_PRODUCT_TX: "TXF",  # 臺股期貨
+    FUTURES_PRODUCT_MTX: "MXF",  # 小型臺指（**不是 MTXF**）
+    FUTURES_PRODUCT_TMF: "TMF",  # 微型臺指（兩邊同名）
+    FUTURES_PRODUCT_TE: "EXF",  # 電子期貨（**不是 TEF**）
+    FUTURES_PRODUCT_ZEF: "ZEF",  # 小型電子（兩邊同名）
+    FUTURES_PRODUCT_TF: "FXF",  # 金融期貨（**不是 TFF**）
+    FUTURES_PRODUCT_ZFF: "ZFF",  # 小型金融（兩邊同名）
+}
+
+
 class FuturesAdjustMethod(str, Enum):
     """
     連續合約的價格調整方式

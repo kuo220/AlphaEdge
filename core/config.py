@@ -199,6 +199,10 @@ CHIP_TABLE_NAME: str = "chip"
 MARGIN_TABLE_NAME: str = "margin"
 DIVIDEND_TABLE_NAME: str = "dividend"
 TICK_TABLE_NAME: str = "tick"
+# 期貨 tick **與股票分表**（Phase5-1）：主鍵不同（期貨要 product ＋ expiry ＋
+# session 才能定位一筆成交，股票只要 stock_id），且期貨有夜盤。
+# 兩者塞同一張表會讓分割鍵（partition key）失去意義，查詢一律掃全表
+FUTURES_TICK_TABLE_NAME: str = "futures_tick"
 MONTHLY_REVENUE_TABLE_NAME: str = "monthly_revenue"
 BALANCE_SHEET_TABLE_NAME: str = "balance_sheet"
 COMPREHENSIVE_INCOME_TABLE_NAME: str = "comprehensive_income"

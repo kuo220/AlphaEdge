@@ -31,6 +31,7 @@ from core.pipeline.tw.updaters.futures_price_updater import FuturesPriceUpdater
 from core.pipeline.tw.updaters.futures_stock_universe_updater import (
     FuturesStockUniverseUpdater,
 )
+from core.pipeline.tw.updaters.futures_tick_updater import FuturesTickUpdater
 from core.pipeline.tw.updaters.monthly_revenue_report_updater import (
     MonthlyRevenueReportUpdater,
 )
@@ -86,6 +87,7 @@ Target 對照表
   futures_continuous          台期貨連續合約（由 futures_price_daily 建出，不連網路）
   futures_chip                台期貨籌碼（三大法人、大額交易人、選擇權 PCR）
   futures_stock_price         股票期貨行情（商品清單取自標的池，預設只爬流動性前 N 檔）
+  futures_tick                台期貨逐筆成交（Shioaji → DolphinDB；需 [tick] 相依與金鑰）
   fs                          財報 (Financial Statement)
   mrr                         月營收報表 (Monthly Revenue Report)
   finmind                     全部 FinMind（台股總覽 + 證券商 + 券商分點）
@@ -391,6 +393,22 @@ def main() -> None:
                 end_date=time_config["end_date"],
                 top_n=STOCK_FUTURES_TOP_N,
             )
+
+    if DataType.FUTURES_TICK.name.lower() in targets:
+        with target_guard("futures_tick", failed_targets):
+            # **要爬哪些契約由日線行情表決定**，不是自己推近月＋次月；
+            # 預設只爬近月（期貨的量集中在近月，遠月同樣佔配額卻沒幾筆）
+            time_config: Dict[str, datetime.date | int] = get_update_time_config(
+                DataType.FUTURES_PRICE
+            )
+            futures_tick_updater: FuturesTickUpdater = FuturesTickUpdater()
+            try:
+                futures_tick_updater.update(
+                    start_date=time_config["start_date"],
+                    end_date=time_config["end_date"],
+                )
+            finally:
+                futures_tick_updater.logout()
 
     if DataType.FUTURES_CHIP.name.lower() in targets:
         with target_guard("futures_chip", failed_targets):
