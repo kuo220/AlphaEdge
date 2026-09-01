@@ -1,5 +1,6 @@
 from core.backtest.backtester import Backtester, new_event_counts
 from core.backtest.datafeed.futures_datafeed import TwFuturesDataFeed
+from core.backtest.datafeed.futures_roll import FuturesRollConfig
 from core.backtest.datafeed.tw_stock_datafeed import TwStockDataFeed
 from core.backtest.models.cost_model import (
     CostConfig,
@@ -170,6 +171,11 @@ def build_tw_futures_backtester(strategy: BaseFuturesStrategy) -> Backtester:
     # 而且不會有任何錯誤訊息。API 稍後由 DataFeed 注入這同一個物件
     strategy.margin_config = margin_config
 
+    # 換月設定同理：策略挑合約與結算模型轉倉必須是同一份規則，
+    # 否則會出現「訊號在次月、部位還在近月」這種不會報錯的錯配
+    roll_config: FuturesRollConfig = strategy.roll_config or FuturesRollConfig()
+    strategy.roll_config = roll_config
+
     cost_model: TwFuturesCostModel = TwFuturesCostModel(cost_config)
     position_manager: FuturesPositionManager = FuturesPositionManager(
         account,
@@ -190,6 +196,7 @@ def build_tw_futures_backtester(strategy: BaseFuturesStrategy) -> Backtester:
     settlement: TwFuturesSettlementModel = TwFuturesSettlementModel(
         position_manager=position_manager,
         instrument=instrument,
+        roll_config=roll_config,
     )
 
     return Backtester(
@@ -200,7 +207,9 @@ def build_tw_futures_backtester(strategy: BaseFuturesStrategy) -> Backtester:
         fill_model=fill_model,
         cost_model=cost_model,
         settlement=settlement,
-        data_feed=TwFuturesDataFeed(margin_config=margin_config),
+        data_feed=TwFuturesDataFeed(
+            margin_config=margin_config, roll_config=roll_config
+        ),
         reporter_cls=FuturesBacktestReporter,
         event_counts=event_counts,
         adjusted_price=False,

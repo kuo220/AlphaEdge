@@ -1,5 +1,6 @@
 import datetime
 import re
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from loguru import logger
@@ -239,3 +240,37 @@ class FuturesRollPlanner:
             logger.warning("[Futures Roll] 整段期間都找不到可用契約，換月表為空")
 
         return schedule
+
+
+@dataclass
+class FuturesRollConfig:
+    """
+    回測的換月設定：**策略挑合約與轉倉部位用同一組規則**
+
+    兩處不一致的後果很具體：訊號在次月產生、部位卻還留在近月，
+    或是反過來——而且不會有任何錯誤訊息，只會讓績效莫名其妙地差一截。
+
+    `calendar` 由 `TwFuturesDataFeed.setup()` 注入（與保證金 API 同一種接法）：
+    策略、結算模型與 DataFeed 共用同一個設定物件，注入一次三邊都看得到。
+
+    **`enabled=False` 的語意是「不自動轉倉」**，不是「不換月」：策略照樣可以
+    自己決定要交易哪個契約，只是留倉的部位不會被結算模型轉到次月——
+    那些部位最後會走 `TwFuturesSettlementModel` 的到期權宜出場。
+    """
+
+    rule: FuturesRollRule = FuturesRollRule.LAST_TRADING_DAY
+    days_before_expiry: int = 1
+    enabled: bool = True  # 是否在換月時自動把未平倉部位轉到次月
+    calendar: Optional[FuturesCalendar] = None  # 由 DataFeed 注入
+
+    def build_planner(self) -> Optional[FuturesRollPlanner]:
+        """建立換月規劃器；尚未注入日曆時回傳 None（呼叫端據此跳過換月）"""
+
+        if self.calendar is None:
+            return None
+
+        return FuturesRollPlanner(
+            self.calendar,
+            rule=self.rule,
+            days_before_expiry=self.days_before_expiry,
+        )

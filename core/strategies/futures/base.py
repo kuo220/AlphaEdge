@@ -8,6 +8,7 @@ from core.api.futures_margin_api import FuturesMarginAPI
 from core.api.futures_price_api import FuturesPriceAPI
 from core.backtest.datafeed.base import BaseDataFeed
 from core.backtest.datafeed.futures_calendar import FuturesCalendar
+from core.backtest.datafeed.futures_roll import FuturesRollConfig, FuturesRollPlanner
 from core.backtest.models.cost_model import FuturesCostConfig
 from core.backtest.models.fill_model import FuturesFillConfig
 from core.managers.futures.position_manager import FuturesMarginConfig
@@ -83,6 +84,8 @@ class BaseFuturesStrategy(BaseStrategy):
         """
         self.cost_config: Optional[FuturesCostConfig] = None
         self.margin_config: Optional[FuturesMarginConfig] = None
+        # 換月設定；**策略挑合約與結算模型轉倉共用這一份**（見 `FuturesRollConfig`）
+        self.roll_config: Optional[FuturesRollConfig] = None
         # 成交假設（滑價、成交量上限）；None 時全部關閉，成交價即策略給的委託價
         self.fill_config: Optional[FuturesFillConfig] = None
 
@@ -92,21 +95,24 @@ class BaseFuturesStrategy(BaseStrategy):
         # 期貨交易日曆（結算日、最後交易日、交易時段）；由 DataFeed 提供
         self.calendar: Optional[FuturesCalendar] = None
 
-    # === 契約選擇：這是策略的政策，不是資料層的責任 ===
-    @staticmethod
+    # === 契約選擇：與結算模型的轉倉共用同一份換月規則 ===
     def select_near_month(
-        quotes: List[FuturesQuote], product: str
+        self, quotes: List[FuturesQuote], product: str
     ) -> Optional[FuturesQuote]:
         """
         - Description:
-            從當日所有契約中挑出**最近的到期月**
+            挑出該商品當日的**當家契約**
 
-            **這是預設政策不是唯一解**：真正的換月規則（最後交易日前 N 日、
-            成交量交叉、未沖銷量交叉）屬 Phase2-4，屆時應改為由設定決定。
-            在那之前，本方法讓策略至少有一個明確且可解釋的選擇。
+            **規則由 `roll_config` 決定**（Phase2-4）：撐到最後交易日／提前 N 個
+            交易日／未沖銷量交叉。這份規則同時被 `TwFuturesSettlementModel`
+            用來轉倉——**兩處必須是同一個設定物件**，否則會出現「訊號在次月、
+            部位還在近月」這種不會報錯的錯配。
 
-            ⚠️ **近月在最後交易日當天仍是近月**，本方法不會自動跳到次月——
-            要避開結算日必須由策略自己判斷（期貨交易日曆屬 Phase2-3）。
+            尚未注入日曆時（純記憶體測試、或 DataFeed 還沒 setup）退回
+            「取最近的到期月」，行為與 Phase2-4 之前相同。
+
+            ⚠️ 預設規則之下，**近月在最後交易日當天仍是近月**；要提早避開結算日
+            請改用 `FuturesRollRule.DAYS_BEFORE_EXPIRY`。
         - Parameters:
             - quotes: List[FuturesQuote]
                 當日所有契約的報價
@@ -114,7 +120,7 @@ class BaseFuturesStrategy(BaseStrategy):
                 商品代碼
         - Return:
             - Optional[FuturesQuote]
-                近月契約的報價；該商品當日無報價時為 None
+                當家契約的報價；該商品當日無報價時為 None
         """
 
         candidates: List[FuturesQuote] = [
@@ -122,8 +128,26 @@ class BaseFuturesStrategy(BaseStrategy):
         ]
         if not candidates:
             return None
-        # 到期月為 `YYYYMM`，字典序即時間序；週契約帶 W 尾碼會排在同月月契約之後
-        return min(candidates, key=lambda quote: quote.expiry)
+
+        planner: Optional[FuturesRollPlanner] = (
+            self.roll_config.build_planner() if self.roll_config else None
+        )
+        if planner is None:
+            # 到期月為 `YYYYMM`，字典序即時間序；週契約帶 W 尾碼排在同月月契約之後
+            return min(candidates, key=lambda quote: quote.expiry)
+
+        active: Optional[str] = planner.resolve_active_expiry(
+            self.normalize_quote_date(candidates[0].date),
+            [quote.expiry for quote in candidates],
+            {quote.expiry: quote.open_interest for quote in candidates},
+        )
+        if active is None:
+            return min(candidates, key=lambda quote: quote.expiry)
+
+        return next(
+            (quote for quote in candidates if quote.expiry == active),
+            min(candidates, key=lambda quote: quote.expiry),
+        )
 
     # === 口數計算：保證金約束，不是資金約束 ===
     def calculate_max_lots(self, quote: FuturesQuote) -> int:

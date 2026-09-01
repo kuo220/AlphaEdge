@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional, Set
 
 from loguru import logger
 
+from core.backtest.datafeed.futures_roll import FuturesRollConfig, FuturesRollPlanner
 from core.backtest.models.cost_model import StockCostModel
 from core.backtest.models.instrument_spec import (
     InstrumentSpec,
@@ -773,9 +774,13 @@ class TwFuturesSettlementModel(BaseSettlementModel):
         self,
         position_manager: FuturesPositionManager,
         instrument: Optional[InstrumentSpec] = None,
+        roll_config: Optional[FuturesRollConfig] = None,
     ):
         self.position_manager: FuturesPositionManager = position_manager
         self.instrument: InstrumentSpec = instrument or TwFuturesSpec()
+
+        # 換月設定；`calendar` 由 DataFeed 注入同一個物件（見 `FuturesRollConfig`）
+        self.roll_config: FuturesRollConfig = roll_config or FuturesRollConfig()
 
         # {契約代號: 連續無報價的 bar 數}；同一契約的多個部位共用同一個計數
         self.no_quote_days: Dict[str, int] = {}
@@ -816,6 +821,10 @@ class TwFuturesSettlementModel(BaseSettlementModel):
             self.position_manager.settle_daily(
                 position, self.get_mark_price(position, quote_map)
             )
+
+        # 換月排在到期出場之前：能轉倉就轉倉，轉不了才走權宜出場。
+        # 順序對調的話，所有部位都會先被當成「到期」平掉，換月永遠不會發生
+        self.roll_positions(date, quotes, account, event_counts)
 
         # 逐日盯市完才處理到期出場：出場價即最近一次結算價，
         # 先結算才不會漏掉最後一根 bar 的損益
@@ -905,6 +914,129 @@ class TwFuturesSettlementModel(BaseSettlementModel):
             self.position_manager.calculate_maintenance_margin(position, date)
             for position in positions
         )
+
+    def roll_positions(
+        self,
+        date: datetime.date,
+        quotes: List[FuturesQuote],
+        account: FuturesAccount,
+        event_counts: Dict[str, int],
+    ) -> None:
+        """
+        - Description:
+            換月：把未平倉部位轉到規則指定的當家契約
+
+            **換月是市場結構強加的，不是策略訊號**：契約會到期，部位不轉倉就會
+            憑空消失，因此放在結算模型而不是策略層。但「什麼時候轉」是政策，
+            由 `FuturesRollConfig.rule` 決定，且**與策略挑合約用同一份規則實作**
+            （`FuturesRollPlanner`）——兩處不一致會讓訊號在次月、部位在近月。
+
+            **轉倉 ＝ 平掉舊契約 ＋ 以相同口數與方向開新契約**：舊契約以盯市價
+            平倉（損益已逐日結清，這一段通常為 0），新契約以當日收盤價開倉。
+            展期價差因此**真實反映在帳戶上**——這正是連續合約要調整掉的那筆錢，
+            回測不該把它變不見。
+
+            **開不進去就只記 warning 不還原**：新契約的保證金可能因調整而變高，
+            此時曝險會少掉——那是真實會發生的事（真的繳不出保證金就是轉不了倉），
+            靜默還原成舊部位反而是造假。
+
+            ⚠️ **轉倉後持有天數重新計算**：新部位的開倉日是轉倉日。策略若以
+            「持有滿 N 天才平倉」為出場條件，轉倉會讓那個計時重來一次。
+            這與真實情況一致（那確實是一筆新的部位），但用持有天數當出場條件的
+            策略要自己意識到這件事。
+        - Parameters:
+            - date: datetime.date
+                當前交易日
+            - quotes: List[FuturesQuote]
+                當根 bar 的報價
+            - account: FuturesAccount
+                交易帳戶
+            - event_counts: Dict[str, int]
+                事件計數
+        """
+
+        if not self.roll_config.enabled:
+            return
+
+        planner: Optional[FuturesRollPlanner] = self.roll_config.build_planner()
+        if planner is None or not account.get_positions():
+            return
+
+        quote_map: Dict[str, FuturesQuote] = {quote.symbol: quote for quote in quotes}
+        expiries: Dict[str, List[str]] = {}
+        open_interest: Dict[str, Dict[str, Any]] = {}
+        for quote in quotes:
+            expiries.setdefault(quote.product, []).append(quote.expiry)
+            open_interest.setdefault(quote.product, {})[quote.expiry] = (
+                quote.open_interest
+            )
+
+        for position in list(account.get_positions()):
+            # **週契約不由本規則轉倉**：規劃器只認月契約，硬轉會把週契約的部位
+            # 換成月契約——那是不同的商品，不是同一條曝險的延續
+            if not planner.MONTHLY_EXPIRY_PATTERN.match(position.expiry):
+                continue
+
+            active: Optional[str] = planner.resolve_active_expiry(
+                date,
+                expiries.get(position.product, []),
+                open_interest.get(position.product),
+            )
+            if active is None or active == position.expiry:
+                continue
+
+            new_quote: Optional[FuturesQuote] = quote_map.get(
+                f"{position.product}{active}"
+            )
+            if new_quote is None or not new_quote.close:
+                logger.warning(
+                    f"[Roll] {position.symbol} 應轉倉至 {active}，但新契約當日無報價，"
+                    f"本次不轉倉"
+                )
+                continue
+
+            self.roll_single_position(position, new_quote, date, quote_map)
+            # 引擎的 `new_event_counts()` 沒有這個 key（那是台股的清單），
+            # 期貨場次自行加入；台股的事件報表因此完全不受影響
+            event_counts["rolled_contract"] = event_counts.get("rolled_contract", 0) + 1
+
+    def roll_single_position(
+        self,
+        position: FuturesPosition,
+        new_quote: FuturesQuote,
+        date: datetime.date,
+        quote_map: Dict[str, FuturesQuote],
+    ) -> None:
+        """平掉舊契約並以相同口數與方向開新契約（展期價差如實入帳）"""
+
+        volume: int = position.volume
+        position_type: PositionType = position.position_type
+        exit_price: float = self.get_mark_price(position, quote_map)
+
+        logger.info(
+            f"* Roll {position.symbol} → {new_quote.contract_id} "
+            f"({volume} lots @ {new_quote.close})"
+        )
+        self.close_position_at(position, date, exit_price)
+
+        opened = self.position_manager.open_position(
+            FuturesOrder(
+                product=new_quote.product,
+                expiry=new_quote.expiry,
+                date=date,
+                action=(
+                    Action.BUY if position_type == PositionType.LONG else Action.SELL
+                ),
+                position_type=position_type,
+                price=new_quote.close,
+                volume=volume,
+            )
+        )
+        if opened is None:
+            logger.warning(
+                f"[Roll] {new_quote.contract_id} 開倉失敗（多半是保證金不足），"
+                f"原本 {volume} 口的曝險已消失"
+            )
 
     def close_expired_positions(
         self,

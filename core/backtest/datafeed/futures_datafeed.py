@@ -9,6 +9,7 @@ from core.api.futures_margin_api import FuturesMarginAPI
 from core.api.futures_price_api import FuturesPriceAPI
 from core.backtest.datafeed.base import BaseDataFeed
 from core.backtest.datafeed.futures_calendar import FuturesCalendar
+from core.backtest.datafeed.futures_roll import FuturesRollConfig
 from core.config import TW_FUTURES_DB_PATH
 from core.managers.futures.position_manager import FuturesMarginConfig
 from core.models import FuturesQuote
@@ -39,13 +40,21 @@ class TwFuturesDataFeed(BaseDataFeed):
     # 日曆往回測結束日之後多取的曆日數：末段契約的最後交易日可能落在區間外
     CALENDAR_LOOKAHEAD_DAYS: int = 45
 
-    def __init__(self, margin_config: Optional[FuturesMarginConfig] = None):
+    def __init__(
+        self,
+        margin_config: Optional[FuturesMarginConfig] = None,
+        roll_config: Optional[FuturesRollConfig] = None,
+    ):
         # 單次回測共用一條 SQLite 連線：行情與保證金查的是同一個 DB 檔
         self.conn: Optional[sqlite3.Connection] = None
 
         # 本次回測的保證金設定；`setup()` 會把建好的 API 注入其中，
         # 讓策略層與部位管理層**共用同一個查表來源**（見 `inject_margin_api()`）
         self.margin_config: Optional[FuturesMarginConfig] = margin_config
+
+        # 本次回測的換月設定；`setup()` 會把建好的日曆注入其中，
+        # 讓策略挑合約與結算模型轉倉共用同一份規則
+        self.roll_config: Optional[FuturesRollConfig] = roll_config
 
         self.futures_price: Optional[FuturesPriceAPI] = None  # 期貨日行情
         self.margin: Optional[FuturesMarginAPI] = None  # 保證金歷史
@@ -74,6 +83,10 @@ class TwFuturesDataFeed(BaseDataFeed):
 
         self.calendar = self.build_calendar()
         self.inject_margin_api()
+
+        # 換月規則要用日曆算最後交易日，故在日曆建好之後才注入
+        if self.roll_config is not None:
+            self.roll_config.calendar = self.calendar
 
         if not self.products:
             logger.warning(
