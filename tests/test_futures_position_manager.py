@@ -452,3 +452,140 @@ def test_costs_are_deducted_when_configured() -> None:
     # 買賣各一次手續費
     assert records[0].transaction_cost == 100.0
     assert records[0].realized_pnl == (18100 - 18000) * MULTIPLIER - 100.0
+
+
+# ============================================================
+# 查表模式：接上 FuturesMarginAPI（S5）
+# ============================================================
+
+
+class StubMarginAPI:
+    """只回傳固定值的假 API，避免測試連 tw_futures.db"""
+
+    def __init__(self, per_lot=None, covered=None):
+        self.per_lot = per_lot
+        self.covered = covered
+        self.calls = []
+
+    def get_initial_margin(self, product, date, fallback_to_earliest=False):
+        self.calls.append((product, date, fallback_to_earliest))
+        return self.per_lot
+
+    def get_covered_date_range(self, product):
+        return self.covered
+
+
+def make_manager_with_api(api) -> FuturesPositionManager:
+    """建立查表模式的部位管理器"""
+
+    account: FuturesAccount = FuturesAccount(init_capital=INIT_CAPITAL)
+    return FuturesPositionManager(account, margin_config=FuturesMarginConfig(api=api))
+
+
+def test_lookup_mode_uses_the_table_value_per_lot() -> None:
+    """
+    帶了 api 就用查表值 × 口數，**不再用契約價值 × 比率**
+
+    真實保證金是每口固定金額，比率只是沒有資料時的權宜。
+    """
+
+    api = StubMarginAPI(per_lot=701000)
+    manager = make_manager_with_api(api)
+
+    position = manager.open_position(
+        make_order(Action.BUY, PositionType.LONG, price=18000, volume=3)
+    )
+
+    assert position.margin == 701000 * 3
+    # 比率模式會是 18000 × 200 × 3 × 0.1 = 1,080,000，兩者差很多
+    assert position.margin != 18000 * MULTIPLIER * 3 * 0.1
+
+
+def test_lookup_mode_passes_product_and_date() -> None:
+    """
+    保證金隨商品與日期變動，兩者都必須傳到 API
+
+    只傳商品會取到「最新」的保證金套用到歷史，整段資金效率都會錯。
+    """
+
+    api = StubMarginAPI(per_lot=500000)
+    manager = make_manager_with_api(api)
+
+    manager.open_position(
+        make_order(Action.BUY, PositionType.LONG, price=18000, date=DAY_2)
+    )
+
+    assert api.calls == [("TX", DAY_2, False)]
+
+
+def test_lookup_mode_raises_when_not_covered() -> None:
+    """
+    查不到就 raise，**刻意不退回比率**
+
+    理由同 `FUTURES_MULTIPLIER` 用 `[]` 而非 `.get()`：靜默套一個近似值會讓
+    資金效率與可開口數整段偏掉卻毫無徵兆，中斷比靜默錯誤好查。
+    """
+
+    api = StubMarginAPI(per_lot=None, covered={"earliest": "2020-03-13"})
+    manager = make_manager_with_api(api)
+
+    with pytest.raises(ValueError, match="查無 TX"):
+        manager.open_position(make_order(Action.BUY, PositionType.LONG, price=18000))
+
+
+def test_error_message_names_the_covered_range() -> None:
+    """錯誤訊息要說得出「表內涵蓋到哪」，否則使用者不知道該往前補還是改區間"""
+
+    api = StubMarginAPI(
+        per_lot=None, covered={"earliest": "2020-03-13", "latest": "2026-08-12"}
+    )
+    manager = make_manager_with_api(api)
+
+    with pytest.raises(ValueError, match="2020-03-13"):
+        manager.open_position(make_order(Action.BUY, PositionType.LONG, price=18000))
+
+
+def test_lookup_mode_requires_product_and_date() -> None:
+    """直接呼叫 `calculate_margin()` 而漏傳商品或日期時當場報錯，不猜"""
+
+    manager = make_manager_with_api(StubMarginAPI(per_lot=1))
+
+    with pytest.raises(ValueError, match="必須提供 product 與 date"):
+        manager.calculate_margin(price=18000, volume=1, multiplier=MULTIPLIER)
+
+
+def test_ratio_mode_is_unchanged_without_api() -> None:
+    """
+    沒有 api 時行為與 S5 之前完全相同
+
+    既有的 23 條測試全部走這條路徑，不可被查表模式影響。
+    """
+
+    manager: FuturesPositionManager = FuturesPositionManager(
+        FuturesAccount(init_capital=INIT_CAPITAL)
+    )
+    position = manager.open_position(
+        make_order(Action.BUY, PositionType.LONG, price=18000)
+    )
+
+    assert position.margin == 18000 * MULTIPLIER * 0.1
+
+
+def test_fallback_flag_is_forwarded_to_the_api() -> None:
+    """
+    `fallback_to_earliest` 由設定決定並原樣傳給 API
+
+    它無法區分「該商品從未被調整過」與「查詢日早於資料涵蓋範圍」，
+    故必須由呼叫端明確表態，不可由 manager 自己決定。
+    """
+
+    api = StubMarginAPI(per_lot=100000)
+    account: FuturesAccount = FuturesAccount(init_capital=INIT_CAPITAL)
+    manager = FuturesPositionManager(
+        account,
+        margin_config=FuturesMarginConfig(api=api, fallback_to_earliest=True),
+    )
+
+    manager.open_position(make_order(Action.BUY, PositionType.LONG, price=18000))
+
+    assert api.calls[0][2] is True

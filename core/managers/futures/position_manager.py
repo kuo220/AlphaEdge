@@ -4,6 +4,7 @@ from typing import Optional, Union
 
 from loguru import logger
 
+from core.api.futures_margin_api import FuturesMarginAPI
 from core.managers.base.position_manager import BasePositionManager
 from core.models import (
     FuturesAccount,
@@ -52,29 +53,51 @@ class FuturesCostConfig:
 @dataclass
 class FuturesMarginConfig:
     """
-    保證金設定（**簡化版**）
+    保證金設定：**有 `api` 就查表，沒有就用比率近似**
 
-    真實的 TAIFEX 原始保證金是**每口固定金額**且會隨市場波動調整（有生效日的歷史
-    序列），不是契約價值的固定比例。完整版屬 Phase2-2，資料落在
-    `futures_margin_history` 表。
+    真實的 TAIFEX 原始保證金是**每口固定金額**、依波動度每日計算、達門檻就調
+    （TX 在 2015~2026 調整 62 次，間隔最短 2 天、最長 372 天），
+    且**調整後溯及既往**——未沖銷部位一併適用。
 
-    本階段以「契約價值 × 比率」近似，理由是：**寧可用一個明顯是近似的公式，
-    也不要寫死一個看起來很精確、實際上只在某個時點正確的金額**——後者會讓人
-    以為保證金已經做對了。比率預設 0.1，可由呼叫端調整。
+    | 模式 | 何時用 | 行為 |
+    |------|--------|------|
+    | `api` 為 None（預設） | 沒有保證金資料、或只想跑通流程 | 契約價值 × `initial_margin_ratio` |
+    | 帶 `api` | 正式回測 | 查 `futures_margin_history`；**查不到就 raise** |
 
-    ⚠️ **這個近似跨年份會系統性偏掉**：實際保證金由 TAIFEX 依波動度每日計算、
-    達門檻就調（TX 在 2015~2026 調整 62 次，間隔最短 2 天、最長 372 天），
-    且**調整後溯及既往**，未沖銷部位一併適用。改為查表的規劃見
-    `backlog/台期貨保證金ETL.md`（S5 會把本 config 接上 `FuturesMarginAPI`）。
+    **查不到為什麼要 raise 而不是退回比率**：理由同 `FUTURES_MULTIPLIER` 用 `[]`
+    而非 `.get()`——靜默套一個近似值會讓資金效率與可開口數整段偏掉卻毫無徵兆，
+    中斷比靜默錯誤好查。資料涵蓋 2020-03 起，更早的區間會當場中止並指向
+    `backlog/台期貨保證金ETL.md` S6。
+
+    比率模式的近似**跨年份會系統性偏掉**（2026-09-01 實測：現行 TX 原始保證金
+    701,000，指數 46,000 × 乘數 200 的契約價值 9.2M，隱含比率約 7.6%，
+    而 2020 年那段的比率完全不同），故它只適合「跑通流程」而非產出可信績效。
     """
 
-    initial_margin_ratio: float = 0.1  # 原始保證金佔契約價值的比率
+    initial_margin_ratio: float = 0.1  # 原始保證金佔契約價值的比率（無 api 時使用）
+    api: Optional[FuturesMarginAPI] = None  # 帶入後改為查表，查不到即 raise
+    # 查詢日早於表內所有列時是否退回最早一列。**預設關閉**：
+    # 它無法區分「該商品從未被調整過」（退回正確）與「查詢日早於資料涵蓋範圍」
+    # （退回錯誤），見 `FuturesMarginAPI` 的說明
+    fallback_to_earliest: bool = False
 
     @staticmethod
     def default() -> "FuturesMarginConfig":
-        """預設設定：原始保證金 = 契約價值 × 10%"""
+        """預設設定：無 API，原始保證金 = 契約價值 × 10%"""
 
         return FuturesMarginConfig()
+
+    @staticmethod
+    def from_api(
+        api: Optional[FuturesMarginAPI] = None,
+        fallback_to_earliest: bool = False,
+    ) -> "FuturesMarginConfig":
+        """建立查表模式的設定；未指定 `api` 時自行建立一個"""
+
+        return FuturesMarginConfig(
+            api=api or FuturesMarginAPI(),
+            fallback_to_earliest=fallback_to_earliest,
+        )
 
 
 class FuturesPositionManager(BasePositionManager):
@@ -116,11 +139,60 @@ class FuturesPositionManager(BasePositionManager):
 
         return price * multiplier * volume
 
-    def calculate_margin(self, price: float, volume: int, multiplier: int) -> float:
-        """原始保證金（簡化版：契約價值 × 比率，見 `FuturesMarginConfig`）"""
+    def calculate_margin(
+        self,
+        price: float,
+        volume: int,
+        multiplier: int,
+        product: Optional[str] = None,
+        date: Optional[Union[datetime.date, datetime.datetime]] = None,
+    ) -> float:
+        """
+        - Description:
+            計算應繳的原始保證金
 
-        contract_value: float = self.calculate_contract_value(price, volume, multiplier)
-        return contract_value * self.margin_config.initial_margin_ratio
+            **帶了 `api` 就查表**（每口金額 × 口數），否則退回
+            「契約價值 × 比率」的近似，見 `FuturesMarginConfig`。
+        - Parameters:
+            - price / volume / multiplier: float, int, int
+                成交價、口數、契約乘數
+            - product: Optional[str]
+                契約代碼；查表模式必填
+            - date: Optional[datetime.date]
+                交易日；查表模式必填（保證金隨日期變動）
+        - Return:
+            - float
+                應繳的原始保證金
+        - Raises:
+            - ValueError
+                查表模式下查不到該商品在該日期的保證金
+        """
+
+        if self.margin_config.api is None:
+            contract_value: float = self.calculate_contract_value(
+                price, volume, multiplier
+            )
+            return contract_value * self.margin_config.initial_margin_ratio
+
+        if product is None or date is None:
+            raise ValueError("查表模式必須提供 product 與 date——保證金隨商品與日期變動")
+
+        per_lot: Optional[int] = self.margin_config.api.get_initial_margin(
+            product,
+            self.normalize_date(date),
+            fallback_to_earliest=self.margin_config.fallback_to_earliest,
+        )
+        if per_lot is None:
+            covered = self.margin_config.api.get_covered_date_range(product)
+            raise ValueError(
+                f"查無 {product} 在 {date} 生效的保證金"
+                f"（表內涵蓋 {covered}）。"
+                f"**刻意不退回近似值**：靜默套一個比率會讓資金效率與可開口數"
+                f"整段偏掉卻毫無徵兆。2020-03 以前的缺口見 "
+                f"backlog/台期貨保證金ETL.md S6"
+            )
+
+        return float(per_lot * volume)
 
     def calculate_commission(self, volume: int) -> float:
         """手續費：每口固定金額"""
@@ -217,7 +289,13 @@ class FuturesPositionManager(BasePositionManager):
             return None
 
         multiplier: int = self.get_multiplier(order.product)
-        margin: float = self.calculate_margin(order.price, order.volume, multiplier)
+        margin: float = self.calculate_margin(
+            order.price,
+            order.volume,
+            multiplier,
+            product=order.product,
+            date=order.date,
+        )
         commission: float = self.calculate_commission(order.volume)
         tax: float = self.calculate_tax(order.price, order.volume, multiplier)
         open_cost: float = commission + tax
