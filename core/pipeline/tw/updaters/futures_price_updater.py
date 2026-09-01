@@ -48,10 +48,26 @@ class FuturesPriceUpdater(BaseDataUpdater):
 
     # 每爬幾天就入庫一次；中斷最多只損失最後一批
     LOAD_BATCH_SIZE: int = 100
-    BATCH_SLEEP_EVERY_N_FILES: int = 100
+    BATCH_SLEEP_EVERY_N_FILES: int = 50
     BATCH_SLEEP_DURATION_SECONDS: int = 120
-    BATCH_RANDOM_DELAY_MIN: int = 1
-    BATCH_RANDOM_DELAY_MAX: int = 3
+    BATCH_RANDOM_DELAY_MIN: int = 3
+    BATCH_RANDOM_DELAY_MAX: int = 6
+
+    # 查無資料時的重試等待（秒）。
+    #
+    # **TAIFEX 擋流量時回的是 HTTP 200 ＋ 一張沒有行情表的頁面**，與「非交易日」
+    # 在 crawler 眼中完全相同（皆為 `None`）。2026-09-01 的回補實測：連跑約 160 次
+    # 請求後站方開始擋，20 個原本有資料的交易日被判定成「查無資料」，保險絲因此
+    # 誤觸中止——事後逐日重查，那 20 天全部都有資料。
+    #
+    # 因此**空產出一律再試一次**：真的沒開盤的日子重試也是空的（只多一次請求），
+    # 被擋的日子則在等待後恢復。這是 `docs/pipeline/etl-ingestion.md` §4.2
+    # 「把暫時性失敗當成『沒有資料』」在期貨這一側的同一個坑。
+    #
+    # 等待時間隨連續空產出**遞增**（base × 1、×2 … 至多 ×8）：孤立的一天多半真的是
+    # 國定假日，等太久是純粹的浪費；連續多天才像被擋，此時才需要給站方足夠的冷卻。
+    EMPTY_RETRY_DELAY_SECONDS: int = 15
+    EMPTY_RETRY_MAX_BACKOFF_FACTOR: int = 8
 
     # 空產出保險絲：連續這麼多個候選日都沒有任何資料就中止該商品。
     #
@@ -208,6 +224,7 @@ class FuturesPriceUpdater(BaseDataUpdater):
         start_date: datetime.date = DEFAULT_FUTURES_START_DATE,
         end_date: datetime.date = datetime.date.today(),
         products: Optional[List[str]] = None,
+        resume: bool = True,
     ) -> None:
         """
         - Description:
@@ -216,11 +233,17 @@ class FuturesPriceUpdater(BaseDataUpdater):
             未指定 `products` 時取用 `FUTURES_TARGET_PRODUCTS`。
         - Parameters:
             - start_date: datetime.date
-                起日；實際起點仍會被該商品在表內的最新日覆蓋（續跑）
+                起日；`resume=True` 時會被該商品在表內的最新日覆蓋
             - end_date: datetime.date
                 迄日
             - products: Optional[List[str]]
                 要更新的商品；None 表示取設定檔
+            - resume: bool
+                True（日常更新）：起點取「表內該商品最新日 +1」，只補新的。
+                False（歷史回補）：一律照 `start_date` 跑。**把起點往前拉時
+                必須用這個**——日常路徑會被表內既有資料擋住而整段補不到，
+                且不會有任何錯誤訊息，只會顯示「已是最新」。
+                重複的日期由 loader 的 `INSERT OR IGNORE` 吸收，不會產生重複列。
         """
 
         target_products: List[str] = products or FUTURES_TARGET_PRODUCTS
@@ -233,20 +256,58 @@ class FuturesPriceUpdater(BaseDataUpdater):
         logger.info(f"* Start Updating TAIFEX Futures Price: {target_products}")
 
         for product in target_products:
-            self.update_product(product, start_date, end_date)
+            self.update_product(product, start_date, end_date, resume=resume)
 
         self.log_summary(target_products)
+
+    def crawl_and_clean_date(self, product: str, date: datetime.date) -> bool:
+        """
+        - Description:
+            單日、雙時段（日盤 ＋ 夜盤）的爬取與清洗；任一時段有資料即回傳 True
+        - Parameters:
+            - product: str
+                商品代碼
+            - date: datetime.date
+                查詢日
+        - Return:
+            - bool
+                本日是否取得任何資料
+        """
+
+        crawled: bool = False
+
+        for session in FuturesSession:
+            raw_df: Optional[pd.DataFrame] = self.crawler.crawl_futures_price(
+                date, product, session
+            )
+            if raw_df is None or raw_df.empty:
+                continue
+
+            cleaned_df: Optional[pd.DataFrame] = self.cleaner.clean_futures_price(
+                raw_df, date, product, session
+            )
+            if cleaned_df is None or cleaned_df.empty:
+                logger.warning(
+                    f"Cleaned dataframe empty on {date} {product} {session.value}"
+                )
+                continue
+            crawled = True
+
+        return crawled
 
     def update_product(
         self,
         product: str,
         start_date: datetime.date,
         end_date: datetime.date,
+        resume: bool = True,
     ) -> None:
-        """單一商品的爬取 → 清洗 → 分批入庫"""
+        """單一商品的爬取 → 清洗 → 分批入庫；`resume=False` 時不查表內進度"""
 
-        actual_start: datetime.date = self.get_actual_update_start_date(
-            product, default_date=start_date
+        actual_start: datetime.date = (
+            self.get_actual_update_start_date(product, default_date=start_date)
+            if resume
+            else start_date
         )
         if actual_start > end_date:
             logger.info(f"* {product} 已是最新（起點 {actual_start} 晚於 {end_date}）")
@@ -260,24 +321,24 @@ class FuturesPriceUpdater(BaseDataUpdater):
         consecutive_empty: int = 0
 
         for date in dates:
-            crawled: bool = False
+            crawled: bool = self.crawl_and_clean_date(product, date)
 
-            for session in FuturesSession:
-                raw_df: Optional[pd.DataFrame] = self.crawler.crawl_futures_price(
-                    date, product, session
+            # 空產出可能是「非交易日」，也可能是「站方正在擋」——兩者在 crawler
+            # 眼中相同，故一律等待後再試一次，只有第二次仍為空才算真的沒有資料
+            if not crawled:
+                backoff_seconds: int = self.EMPTY_RETRY_DELAY_SECONDS * min(
+                    consecutive_empty + 1, self.EMPTY_RETRY_MAX_BACKOFF_FACTOR
                 )
-                if raw_df is None or raw_df.empty:
-                    continue
-
-                cleaned_df: Optional[pd.DataFrame] = self.cleaner.clean_futures_price(
-                    raw_df, date, product, session
+                logger.info(
+                    f"{date} {product} 查無資料，{backoff_seconds} 秒後重試一次"
                 )
-                if cleaned_df is None or cleaned_df.empty:
+                time.sleep(backoff_seconds)
+                crawled = self.crawl_and_clean_date(product, date)
+                if crawled:
                     logger.warning(
-                        f"Cleaned dataframe empty on {date} {product} {session.value}"
+                        f"{date} {product} 重試後取得資料——前一次為暫時性失敗（站方擋流量），"
+                        f"不是非交易日"
                     )
-                    continue
-                crawled = True
 
             if crawled:
                 batch_dates.append(TimeUtils.format_date(date))

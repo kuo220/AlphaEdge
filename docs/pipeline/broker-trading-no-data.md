@@ -85,7 +85,7 @@
    並把本次請求的 `end_date` 寫入 `last_attempted_date`。
 3. **API 回傳 NO_DATA**：不寫 DB，但**要更新 metadata**——
    把 `last_attempted_date` 設為本次請求的 `end_date`。
-4. **從 DB 更新 metadata 時**（`_update_broker_trading_metadata_from_database`）：
+4. **從 DB 更新 metadata 時**（`BrokerTradingMetadataStore.refresh_from_database()`）：
    只覆寫 `earliest_date` / `latest_date`，**必須保留** `last_attempted_date`。
 5. **清理 metadata 時**：某組合在 DB 沒有任何一筆、但 metadata 有 `last_attempted_date` 時
    **不要刪除**——那代表「曾請求過但無資料」，刪掉下次又會從頭請求。

@@ -1,5 +1,5 @@
 """
-測試 FinMindLoader._load_broker_trading_daily_report_from_dataframe 的優化（第 2 點）：
+測試 `finmind/broker_trading_loader.load_from_dataframe()` 的優化（第 2 點）：
 只查詢本批 df 涉及的 (stock_id, securities_trader_id) 在 DB 中已存在的 key，而非全表掃描。
 使用測試用臨時資料庫。
 """

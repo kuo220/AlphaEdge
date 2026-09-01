@@ -39,6 +39,8 @@ def updater(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> FuturesPriceUpda
     futures_price_updater.cleaner.futures_price_dir = (
         futures_price_updater.loader.futures_price_dir
     )
+    # 空產出重試的等待在測試中一律歸零，否則每個空日都要真的睡 60 秒
+    futures_price_updater.EMPTY_RETRY_DELAY_SECONDS = 0
     return futures_price_updater
 
 
@@ -89,6 +91,103 @@ def test_resume_is_per_product(updater: FuturesPriceUpdater) -> None:
         2026, 8, 28
     )
     assert updater.get_actual_update_start_date("MTX", default) == default
+
+
+def test_backfill_ignores_table_progress(
+    updater: FuturesPriceUpdater, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    `resume=False` 一律照傳入的起日跑，不查表內進度
+
+    起點要往**前**拉（例如把回補起點從 2015 改成 1998）時，日常路徑會被表內
+    既有資料擋住而整段補不到，且只會顯示「已是最新」——沒有任何錯誤訊息。
+    """
+
+    insert_row(updater.conn, "2026-08-27", "TX")
+    requested: list = []
+
+    monkeypatch.setattr(
+        updater.crawler,
+        "crawl_futures_price",
+        lambda date, product, session: requested.append(date) or None,
+    )
+    monkeypatch.setattr(updater, "get_traded_weekend_dates", lambda *_: set())
+    updater.BATCH_RANDOM_DELAY_MIN = 0
+    updater.BATCH_RANDOM_DELAY_MAX = 0
+    updater.EMPTY_PRODUCT_ABORT_THRESHOLD = 99
+
+    updater.update(
+        start_date=datetime.date(2015, 1, 5),
+        end_date=datetime.date(2015, 1, 6),
+        products=["TX"],
+        resume=False,
+    )
+
+    assert min(requested) == datetime.date(2015, 1, 5)
+    assert max(requested) == datetime.date(2015, 1, 6)
+
+
+def test_daily_update_still_resumes(
+    updater: FuturesPriceUpdater, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """預設路徑（`resume=True`）不受影響：表內已到 2026-08-27 就不重爬"""
+
+    insert_row(updater.conn, "2026-08-27", "TX")
+    requested: list = []
+
+    monkeypatch.setattr(
+        updater.crawler,
+        "crawl_futures_price",
+        lambda date, product, session: requested.append(date) or None,
+    )
+    monkeypatch.setattr(updater, "get_traded_weekend_dates", lambda *_: set())
+
+    updater.update(
+        start_date=datetime.date(2015, 1, 5),
+        end_date=datetime.date(2026, 8, 27),
+        products=["TX"],
+    )
+
+    assert requested == []
+
+
+def test_empty_day_is_retried_before_being_counted_as_no_data(
+    updater: FuturesPriceUpdater, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    查無資料要再試一次才算數
+
+    TAIFEX 擋流量時回的是 HTTP 200 ＋ 沒有行情表的頁面，crawler 看到的與「非交易日」
+    一模一樣。2026-09-01 的回補實測就是這樣：連跑約 160 次請求後被擋，20 個有資料的
+    交易日被判定成查無資料而誤觸保險絲中止。
+    """
+
+    attempts: dict = {}
+
+    def flaky_crawl(date, product, session):
+        """第一次一律空手，第二次才給資料——模擬「被擋 → 恢復」"""
+
+        attempts[date] = attempts.get(date, 0) + 1
+        if attempts[date] <= len(list(FuturesSession)):
+            return None
+        return pd.DataFrame({"契約": ["TX"]})
+
+    monkeypatch.setattr(updater.crawler, "crawl_futures_price", flaky_crawl)
+    monkeypatch.setattr(
+        updater.cleaner,
+        "clean_futures_price",
+        lambda df, *_: pd.DataFrame({"date": ["2026-08-27"]}),
+    )
+    monkeypatch.setattr(updater, "get_traded_weekend_dates", lambda *_: set())
+    monkeypatch.setattr(updater, "load_batch", lambda *_: None)
+    updater.BATCH_RANDOM_DELAY_MIN = 0
+    updater.BATCH_RANDOM_DELAY_MAX = 0
+    updater.EMPTY_PRODUCT_ABORT_THRESHOLD = 1
+
+    # 保險絲設為 1：沒有重試機制的話，第一個空日就會中止
+    updater.update(start_date=DATE, end_date=DATE, products=["TX"], resume=False)
+
+    assert attempts[DATE] > len(list(FuturesSession))
 
 
 # === 商品防呆 ===
