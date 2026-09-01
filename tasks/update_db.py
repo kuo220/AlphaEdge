@@ -21,6 +21,9 @@ from core.pipeline.tw.updaters.financial_statement_updater import (
     FinancialStatementUpdater,
 )
 from core.pipeline.tw.updaters.finmind_updater import FinMindUpdater
+from core.pipeline.tw.updaters.futures_continuous_updater import (
+    FuturesContinuousUpdater,
+)
 from core.pipeline.tw.updaters.futures_margin_updater import FuturesMarginUpdater
 from core.pipeline.tw.updaters.futures_price_updater import FuturesPriceUpdater
 from core.pipeline.tw.updaters.futures_stock_universe_updater import (
@@ -78,6 +81,7 @@ Target 對照表
   futures_price               台期貨每日行情（寫入 tw_futures.db）
   futures_stock_universe      股票期貨標的池（寫入 tw_futures.db）
   futures_margin              台期貨保證金（變動序列，寫入 tw_futures.db）
+  futures_continuous          台期貨連續合約（由 futures_price_daily 建出，不連網路）
   fs                          財報 (Financial Statement)
   mrr                         月營收報表 (Monthly Revenue Report)
   finmind                     全部 FinMind（台股總覽 + 證券商 + 券商分點）
@@ -109,6 +113,9 @@ Target 對照表
 
   # 更新台期貨每日行情（寫入 tw_futures.db，商品見 FUTURES_TARGET_PRODUCTS）
   python -m tasks.update_db --target futures_price
+
+  # 由各月份契約重建連續合約（三種調整方式；不連網路，整段重建）
+  python -m tasks.update_db --target futures_continuous
 
   # 更新股票期貨標的池（寫入 tw_futures.db；每次執行留下一份當日快照）
   python -m tasks.update_db --target futures_stock_universe
@@ -359,6 +366,19 @@ def main() -> None:
             futures_price_updater.update(
                 start_date=time_config["start_date"], end_date=time_config["end_date"]
             )
+
+    if DataType.FUTURES_CONTINUOUS.name.lower() in targets:
+        with target_guard("futures_continuous", failed_targets):
+            # 連續合約是**衍生表**：來源是同一個 DB 的 futures_price_daily，
+            # 不連網路。逆向調整的調整量會隨「之後又換了幾次月」而改變，
+            # 故一律整段重建而非增量（見 FuturesContinuousUpdater.update()）
+            futures_continuous_updater: FuturesContinuousUpdater = (
+                FuturesContinuousUpdater()
+            )
+            try:
+                futures_continuous_updater.update()
+            finally:
+                futures_continuous_updater.close()
 
     if DataType.FUTURES_STOCK_UNIVERSE.name.lower() in targets:
         with target_guard("futures_stock_universe", failed_targets):

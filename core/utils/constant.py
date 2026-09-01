@@ -65,6 +65,16 @@ MARGIN_CALL_WARN_ONLY = "WARN_ONLY"  # 僅記錄不強制回補
 FUTURES_SESSION_DAY = "day"  # 一般交易時段 08:45–13:45
 FUTURES_SESSION_NIGHT = "night"  # 盤後交易時段 15:00–次日 05:00
 
+# 定義連續合約的價格調整方式（Phase1-7）
+FUTURES_ADJUST_NONE = "NONE"  # 不調整：直接接起來，換月接點會有假跳空
+FUTURES_ADJUST_BACKWARD = "BACKWARD"  # 逆向（差額）調整：最新一段維持原價
+FUTURES_ADJUST_RATIO = "RATIO"  # 比例調整：以乘數銜接，報酬率連續
+
+# 定義換月規則（Phase1-7 建表、Phase2-4 接進回測）
+FUTURES_ROLL_LAST_TRADING_DAY = "LAST_TRADING_DAY"  # 撐到最後交易日收盤才換
+FUTURES_ROLL_DAYS_BEFORE_EXPIRY = "DAYS_BEFORE_EXPIRY"  # 到期前 N 個交易日換
+FUTURES_ROLL_OPEN_INTEREST = "OPEN_INTEREST"  # 未沖銷契約量交叉時換
+
 FUTURES_PRODUCT_TX = "TX"  # 臺股期貨（大台）
 FUTURES_PRODUCT_MTX = "MTX"  # 小型臺指
 FUTURES_PRODUCT_TMF = "TMF"  # 微型臺指
@@ -191,6 +201,42 @@ class ShortCost(float, Enum):
     MarginInterestRate = 0.002  # 融券保證金利息年利率（券商付給客戶，為收入）
     MaintenanceRatio = 1.3  # 融券維持率門檻（低於則追繳／斷頭）
     SBLFeeRate = 0.03  # 借券（SBL）年化費率（議定區間 0.01%~16%，取市場常見值）
+
+
+class FuturesAdjustMethod(str, Enum):
+    """
+    連續合約的價格調整方式
+
+    三種都會產生「一條可以跨月的序列」，但**它們回答的問題不同**：
+
+    | 方式 | 保留什麼 | 犧牲什麼 | 適合 |
+    |------|----------|----------|------|
+    | `NONE` | 每一天都是當時的真實成交價 | 換月接點有假跳空 | 對照組、抓錯用 |
+    | `BACKWARD` | **價差**連續（點數差可直接相減） | 舊價格不是當時的真實價 | 技術指標、點數型停損 |
+    | `RATIO` | **報酬率**連續（百分比可直接相乘） | 舊價格連比例都被改過 | 波動度、報酬率統計 |
+
+    **沒有一種是「正確」的**，選錯的後果是靜默的：用 `NONE` 算移動平均會在每個
+    換月接點吃到一根假跳空；用 `BACKWARD` 算年化報酬率，早年被減成負數的價格會
+    讓百分比失真。故本專案把方式存進主鍵，三種可以並存於同一張表。
+    """
+
+    NONE = FUTURES_ADJUST_NONE
+    BACKWARD = FUTURES_ADJUST_BACKWARD
+    RATIO = FUTURES_ADJUST_RATIO
+
+
+class FuturesRollRule(str, Enum):
+    """
+    換月規則
+
+    **換月時點會直接改變績效**，不是實作細節：撐到最後交易日會吃到結算日的
+    流動性與價格行為，提前換月則會錯過近月的最後一段行情。三種規則並存於
+    連續合約表的主鍵中，策略層（Phase2-4）以同一組規則決定何時轉倉。
+    """
+
+    LAST_TRADING_DAY = FUTURES_ROLL_LAST_TRADING_DAY
+    DAYS_BEFORE_EXPIRY = FUTURES_ROLL_DAYS_BEFORE_EXPIRY
+    OPEN_INTEREST = FUTURES_ROLL_OPEN_INTEREST
 
 
 class FuturesCost(float, Enum):

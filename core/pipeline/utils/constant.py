@@ -15,6 +15,8 @@ class DataType(str, Enum):
     FUTURES_PRICE = "FUTURES_PRICE"  # 台期貨每日行情（寫入 tw_futures.db）
     FUTURES_STOCK_UNIVERSE = "FUTURES_STOCK_UNIVERSE"  # 股票期貨標的池
     FUTURES_MARGIN = "FUTURES_MARGIN"  # 台期貨保證金（變動序列，寫入 tw_futures.db）
+    # 連續合約：**衍生表**，來源是同一個 DB 的 futures_price_daily，不連網路
+    FUTURES_CONTINUOUS = "FUTURES_CONTINUOUS"
 
 
 class ListingBoard(str, Enum):

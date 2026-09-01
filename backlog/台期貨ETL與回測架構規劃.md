@@ -26,7 +26,7 @@
 | Phase1-4 | `models/futures` ＋ `managers/futures`（簡化保證金） | `core/models/futures/`、`core/managers/futures/` | 口數、多空、未平倉語意正確 | ✅ | **2026-09-01 完成**：23 條測試，PnL ＝ 價格變動 × 乘數 × 口數。**逐日盯市已實作**（`settle_daily()` 不再是 no-op）；保證金為簡化版，完整版仍屬 Phase2-2 |
 | Phase1-5 | `BaseFuturesStrategy` ＋ 一支示範策略 | `core/strategies/futures/` | 19 條測試 ＋ 實資料產生訂單 | ✅ | **2026-09-01 完成**。**`load_futures_strategies()` 與 `run.py` 分流皆不需要**，理由見完成紀錄 |
 | Phase1-6 | 實作期貨 model 組（不新增引擎） | `core/backtest/models/`、`core/backtest/datafeed/futures_datafeed.py`、`core/backtest/report/futures_reporter.py`、`core/backtest/factory.py` | 台股回歸雙線逐筆相同；期貨策略可跑完 | ✅ | **2026-09-02 完成**：LONG 915 筆與 SHORT 快照逐筆相同（快照重產後 0 diff）、493 條測試通過、`--strategy MomentumFuturesStrategy` 可跑完並產出五張圖與四份 CSV。**偏離原規格：引擎改了一處**（`snapshot_daily_equity()` 的部位計價 16 行，下沉為 1 行呼叫 `SettlementModel.mark_position()`），理由見下方步驟章節 |
-| Phase1-7 | 連續合約構建（先做一種調整方式） | `core/pipeline/tw/*/futures_continuous_*.py` | 換月接點的 `roll_flag` 正確 | ⬜ | 相依 Phase1-2 |
+| Phase1-7 | 連續合約構建（先做一種調整方式） | `core/pipeline/tw/{loaders,updaters}/futures_continuous_*.py`、`core/backtest/datafeed/futures_roll.py` | 換月接點的 `roll_flag` 正確 | ✅ | **2026-09-02 完成**：`--target futures_continuous` 可跑，TX 2015~2026 建出 2,842 個交易日、140 次換月、8,526 列（3 種調整方式）。**三種調整方式全做**（原規格只要求一種）、換月規則三種可切換並與 Phase2-4 共用同一份實作。12 條測試，含以真實表驗「還原一致 ＋ 接點無假跳空」 |
 | Phase2-1 | 期貨成本模型（期交稅、手續費、滑價） | `core/backtest/models/cost_model.py`、`fill_model.py`、`core/utils/constant.py` | **不可複用證交稅**；有單元測試 | ✅ | **2026-09-02 完成**：期交稅（法規值十萬分之二、**買賣各課一次**、稅基為契約價值）、每口手續費（市場常見值 50 元，可逐商品指定）、滑價改以**跳動點**表達並可逐商品設定。16 條測試；`FuturesCostConfig` 一併從 `managers/` 移到 `cost_model.py`（與股票的 `CostConfig` 同位置），部位管理層改為一律問 CostModel，費率不再有第二份 |
 | Phase2-2 | 槓桿／部位控管（保證金 ETL 已分家） | `core/managers/futures/`、`core/backtest/models/settlement_model.py`、`core/backtest/datafeed/futures_datafeed.py` | 追繳／可開口數依當時生效的保證金計算 | ✅ | **2026-09-02 完成**：查表改為**預設模式**（API 由 DataFeed 注入策略與部位管理層**共用的同一個設定物件**）、追繳以**權益 vs 維持保證金**判斷並可選強制平倉／僅標記、可開口數隨生效日改變。14 條測試（含一條以真實表驗證 TX 2024-08-09 → 08-22 由 265,000 調為 292,000）。保證金歷史序列本身見 [台期貨保證金ETL](台期貨保證金ETL.md) S1~S5 |
 | Phase2-3 | 期貨交易日曆（日盤 ＋ 夜盤、結算日） | `core/backtest/datafeed/futures_calendar.py` | 不沿用股票 calendar | ✅ | **2026-09-02 完成**：交易日取自行情表（臨時休市／補行交易日自動涵蓋）、結算日為第三個星期三且**遇休市順延到期貨自己的下一個開盤日**、週契約另有規則、夜盤跨日與 2017-05-15 上線日皆已處理。14 條測試，含一條以真實表比對 **140 個已到期 TX 月契約的最後交易日，140/140 完全相同** |
@@ -1045,13 +1045,49 @@ PRIMARY KEY `(date, product, expiry, session)`。
 > 跳動點查表（Phase4-1，現只登錄已查證的台指期系列 1 點）、Tick 級別（Phase5-1，
 > `get_quotes()` 回空 list 並記 warning）。
 
-#### Phase1-7. 連續合約構建 ⬜
+#### Phase1-7. 連續合約構建 ✅
 
 - **目的**：讓回測有一條可跨月的連續價格序列。
 - **做法**：原始各月份契約下載 → 連續合約構建，**先做一種調整方式即可**（逆向調整／比例調整／未調整三擇一），但「調整方式」與「換月規則」須設計為可設定參數，不要寫死。
 - **產出**：`core/pipeline/tw/*/futures_continuous_*.py`、`futures_continuous` 表。
 - **驗證方式**：換月接點的 `roll_flag` 與 `contract_month` 標記正確；展期價差可被還原檢查。
 - **相依**：Phase1-2。
+
+> **✅ 完成紀錄（2026-09-02）**
+>
+> **這一組沒有 crawler 也沒有 cleaner**：來源是同一個 DB 的 `futures_price_daily`，
+> 不是網路。四層架構在此退化為「建表 ＋ 入庫」兩層，硬湊一個空的 crawler
+> 只會讓人以為它有去抓什麼。
+>
+> **三種調整方式全做了**（原規格只要求一種）：`NONE`／`BACKWARD`（差額）／
+> `RATIO`（比例），因為它們回答的問題不同、沒有一種可以取代另一種——`BACKWARD`
+> 讓**點數差**連續（技術指標、點數停損），`RATIO` 讓**報酬率**連續（波動度、
+> 報酬統計），`NONE` 是抓錯用的對照組。三者存在同一張表的不同 `method`，
+> 主鍵為 `(date, product, session, method, roll_rule)`。
+>
+> **換月規則做成共用層**（`core/backtest/datafeed/futures_roll.py`）：建連續合約
+> 與策略轉倉（Phase2-4）用**同一份實作**。兩處各寫一套的話，回測拿到的序列與
+> 策略實際轉倉的時點會對不上，而且不會有任何錯誤，只會讓績效差一截卻找不到原因。
+> 三種規則：撐到最後交易日／提前 N 個交易日／未沖銷量交叉。
+>
+> **實作時真的踩到的兩個坑**：
+>
+> 1. **逆向調整的方向寫反了**——把「舊價往新價對齊」寫成相減。方向錯了**不會
+>    報錯**：序列一樣連續、還原檢查一樣通過，只是每個換月接點的日變動變成
+>    「真實變動 ＋ 兩倍展期價差」。唯一抓得到的檢查是
+>    「調整後的換月日變動必須等於新契約自己的日變動」，已固化為
+>    `test_no_artificial_gap_at_roll()`。
+> 2. **展期價差與展期比例必須取自同一天的兩個契約**：原本比例是用「換月日的新
+>    契約收盤 − 價差」回推舊契約，但價差取自前一交易日，兩者對不上。
+>    改為同一次查詢同時回傳 `(價差, 比例)`。
+>
+> **另外釘住的兩件事**：① **換月只往前不回頭**（未沖銷量交叉後反轉時沿用昨天的
+> 契約，真實轉倉不可能換回去）；② **未沖銷量缺漏不可當成 0**（夜盤本來就是
+> NULL，當 0 會讓近月被判定為輸給次月而誤觸換月）。
+>
+> **實測**：TX 2015-01-05 ~ 2026-09-01 共 **2,842 個交易日、140 次換月**
+> （＝140 個已到期月契約，與 Phase2-3 日曆算出的最後交易日數一致）、
+> 8,526 列。還原誤差 0、換月接點假跳空 0 筆。
 
 ### Phase 2：成本模型、保證金與期貨日曆
 
