@@ -101,6 +101,21 @@ class URLManager:
         # 解析時 `keep_default_na=False` 不可省：穩懋的代碼就是 `NA`，會被當成 NaN
         "TAIFEX_STOCK_FUTURES_LIST_URL": "https://www.taifex.com.tw/cht/2/stockLists",
 
+        # === 台期貨籌碼（TAIFEX，Phase3-1）===
+        #
+        # 三個端點都是 **POST ＋ 日期區間**，回的是 big5 CSV（`*Down` 結尾者為
+        # 下載版，`*Qry` 是網頁版）。**一次請求就涵蓋所有商品**，
+        # 不必逐商品打——大額交易人一天的回應約 80KB、含全部契約。
+        #
+        # ⚠️ **三者都是盤後公布**：當日資料要收盤後才有，回測當日一律只能用
+        # 前一交易日的（見 `FuturesChipAPI` 的前視偏差說明）。
+        # 三大法人：期貨各商品的多空交易口數與未平倉（自營商／投信／外資）
+        "TAIFEX_FUTURES_INSTITUTIONAL_URL": "https://www.taifex.com.tw/cht/3/futContractsDateDown",
+        # 大額交易人：前五大／前十大交易人的買賣方部位，含「特定法人」拆分
+        "TAIFEX_FUTURES_LARGE_TRADER_URL": "https://www.taifex.com.tw/cht/3/largeTraderFutDown",
+        # 選擇權 Put/Call Ratio：一天一列（成交量比與未平倉量比）
+        "TAIFEX_FUTURES_PCR_URL": "https://www.taifex.com.tw/cht/3/pcRatioDown",
+
         # === 台期貨保證金（TAIFEX）===
         #
         # 現行保證金一覽表（股價指數類），純 GET，直接回 **CSV**（不是 HTML）

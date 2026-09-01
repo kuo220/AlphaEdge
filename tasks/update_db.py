@@ -21,6 +21,7 @@ from core.pipeline.tw.updaters.financial_statement_updater import (
     FinancialStatementUpdater,
 )
 from core.pipeline.tw.updaters.finmind_updater import FinMindUpdater
+from core.pipeline.tw.updaters.futures_chip_updater import FuturesChipUpdater
 from core.pipeline.tw.updaters.futures_continuous_updater import (
     FuturesContinuousUpdater,
 )
@@ -82,6 +83,7 @@ Target 對照表
   futures_stock_universe      股票期貨標的池（寫入 tw_futures.db）
   futures_margin              台期貨保證金（變動序列，寫入 tw_futures.db）
   futures_continuous          台期貨連續合約（由 futures_price_daily 建出，不連網路）
+  futures_chip                台期貨籌碼（三大法人、大額交易人、選擇權 PCR）
   fs                          財報 (Financial Statement)
   mrr                         月營收報表 (Monthly Revenue Report)
   finmind                     全部 FinMind（台股總覽 + 證券商 + 券商分點）
@@ -116,6 +118,9 @@ Target 對照表
 
   # 由各月份契約重建連續合約（三種調整方式；不連網路，整段重建）
   python -m tasks.update_db --target futures_continuous
+
+  # 更新台期貨籌碼（三個資料集，一天三次請求即涵蓋全市場）
+  python -m tasks.update_db --target futures_chip
 
   # 更新股票期貨標的池（寫入 tw_futures.db；每次執行留下一份當日快照）
   python -m tasks.update_db --target futures_stock_universe
@@ -366,6 +371,16 @@ def main() -> None:
             futures_price_updater.update(
                 start_date=time_config["start_date"], end_date=time_config["end_date"]
             )
+
+    if DataType.FUTURES_CHIP.name.lower() in targets:
+        with target_guard("futures_chip", failed_targets):
+            # 三個資料集各自從自己表內的最新日續跑（見 FuturesChipUpdater）；
+            # **籌碼是盤後公布**，當日盤中跑只會拿到「無資料」，那是正常狀態
+            futures_chip_updater: FuturesChipUpdater = FuturesChipUpdater()
+            try:
+                futures_chip_updater.update()
+            finally:
+                futures_chip_updater.close()
 
     if DataType.FUTURES_CONTINUOUS.name.lower() in targets:
         with target_guard("futures_continuous", failed_targets):

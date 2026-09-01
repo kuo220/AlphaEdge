@@ -17,6 +17,8 @@ class DataType(str, Enum):
     FUTURES_MARGIN = "FUTURES_MARGIN"  # 台期貨保證金（變動序列，寫入 tw_futures.db）
     # 連續合約：**衍生表**，來源是同一個 DB 的 futures_price_daily，不連網路
     FUTURES_CONTINUOUS = "FUTURES_CONTINUOUS"
+    # 台期貨籌碼：三大法人 ＋ 大額交易人 ＋ 選擇權 PCR（皆為盤後公布）
+    FUTURES_CHIP = "FUTURES_CHIP"
 
 
 class ListingBoard(str, Enum):

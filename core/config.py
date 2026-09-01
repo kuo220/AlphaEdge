@@ -212,8 +212,13 @@ FUTURES_CONTRACT_TABLE_NAME: str = "futures_contract"  # 合約／商品規格
 FUTURES_PRICE_DAILY_TABLE_NAME: str = "futures_price_daily"  # 各月份合約日 K
 FUTURES_CONTINUOUS_TABLE_NAME: str = "futures_continuous"  # 連續合約（換月接續後）
 FUTURES_INSTITUTIONAL_CHIP_TABLE_NAME: str = (
-    "futures_institutional_chip"  # 三大法人／大額交易人
+    "futures_institutional_chip"  # 三大法人（逐商品、逐身份別）
 )
+# 大額交易人與 PCR **各自成表**，不與三大法人共用：三者的主鍵不同
+# （前者多了到期月份與交易人類別、PCR 一天只有一列），塞同一張表會讓多數欄位
+# 永遠是 NULL，且下游得先判斷「這是哪一種籌碼」才知道該讀哪組欄位
+FUTURES_LARGE_TRADER_TABLE_NAME: str = "futures_large_trader"  # 大額交易人
+FUTURES_PUT_CALL_RATIO_TABLE_NAME: str = "futures_put_call_ratio"  # 選擇權 PCR
 # 保證金**分兩張表**：指數類等商品給的是「每口固定金額」，股票期貨給的是
 # 「適用比例 ＋ 級距」（每檔標的股價不同，固定金額沒有意義）。硬塞同一張表會讓
 # 一半欄位永遠是 NULL，且下游得先判斷「這是哪一類」才知道讀哪一組欄位。

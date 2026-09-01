@@ -1,0 +1,273 @@
+import datetime
+import sqlite3
+from pathlib import Path
+from typing import Dict, List, Optional
+
+import pandas as pd
+import pytest
+
+from core.api.futures_chip_api import FuturesChipAPI
+from core.config import (
+    FUTURES_INSTITUTIONAL_CHIP_TABLE_NAME,
+    FUTURES_LARGE_TRADER_TABLE_NAME,
+    FUTURES_PUT_CALL_RATIO_TABLE_NAME,
+    TW_FUTURES_DB_PATH,
+)
+from core.pipeline.tw.cleaners.futures_chip_cleaner import FuturesChipCleaner
+from core.pipeline.tw.crawlers.futures_chip_crawler import FuturesChipCrawler
+
+"""
+台期貨籌碼 ETL 與前視偏差測試（Phase3-1）
+
+**本組資料的核心風險不是抓不到，是「抓到了但用錯時間」**：三大法人、大額交易人
+與 PCR **全部是盤後公布**，回測若在當日訊號裡讀到當日籌碼，等於用收盤後才知道的
+資訊去下當天的單。那不會報錯，只會讓績效好得不合理——本檔的一半測試在釘這件事。
+
+另外三個來源格式的坑也逐一釘住（都是實測踩到的）：
+
+1. **非交易日回的是 HTTP 200 ＋ 一整頁 HTML**，不是空 CSV 也不是 404。
+2. **PCR 每列結尾多一個逗號**，pandas 會把第一欄當索引，整列往左位移且不報錯。
+3. **CSV 檔尾有三行說明文字**，會被解析成「主鍵有值、其餘全 NULL」的垃圾列。
+"""
+
+DATE: datetime.date = datetime.date(2026, 8, 28)
+
+INSTITUTIONAL_CSV: str = (
+    "日期,商品名稱,身份別,多方交易口數,多方未平倉口數,空方未平倉口數,多空未平倉口數淨額\n"
+    "2026/08/28,臺股期貨,自營商,3568,3992,3335,657\n"
+    "2026/08/28,臺股期貨,外資及陸資,41057,8732,92387,-83655\n"
+    "2026/08/28,臺股期貨,合計,44664,92760,99006,-6246\n"
+)
+
+LARGE_TRADER_CSV: str = (
+    "日期,商品(契約),商品名稱(契約名稱),到期月份(週別),交易人類別,前五大交易人買方,全市場未沖銷部位數\n"
+    "2026/08/28,TX     ,臺股期貨,202609  ,0,75412,120000\n"
+    "2026/08/28,TX     ,臺股期貨,999999  ,1,30000,120000\n"
+    "\n"
+    "月份類別格式: 666666為所有週到期契約合計，yyyymm為近月契約，999999 為所有契約合計。\n"
+    "交易人類別格式： 0 為部位排序前五大或前十大交易人，1 為其中屬於特定法人者\n"
+)
+
+# 每列結尾都多一個逗號——這正是讓 pandas 誤判索引的來源格式
+PCR_CSV: str = (
+    "日期,賣權成交量,買權成交量,買賣權成交量比率%,賣權未平倉量,買權未平倉量,買賣權未平倉量比率%\n"
+    "2026/08/28,308922,306713,100.72,42600,41994,101.44,\n"
+)
+
+HTML_RESPONSE: str = (
+    '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">\n<html>\n<head></head>\n'
+    "<body>查無資料</body>\n</html>\n"
+)
+
+
+@pytest.fixture
+def cleaner() -> FuturesChipCleaner:
+    """清洗器"""
+
+    return FuturesChipCleaner()
+
+
+# === 來源格式的坑 ===
+def test_html_response_is_not_treated_as_csv() -> None:
+    """
+    **非交易日回的是 HTTP 200 ＋ 一整頁 HTML**
+
+    行數檢查完全擋不住（那頁有 19 行），`csv` 解析出來會是一堆亂七八糟的欄位
+    而不會報錯。故一律檢查第一行是不是真的 CSV 表頭。
+    """
+
+    crawler: FuturesChipCrawler = FuturesChipCrawler()
+    lines: List[str] = [line for line in HTML_RESPONSE.splitlines() if line.strip()]
+
+    assert crawler.CSV_HEADER_KEYWORD not in lines[0]
+
+
+def test_pcr_trailing_comma_does_not_shift_columns(cleaner) -> None:
+    """
+    **PCR 每列結尾多一個逗號**
+
+    資料欄比表頭多一欄時，pandas 會自作主張把第一欄當索引，整列往左位移——
+    賣權成交量變成買權成交量、比率欄變成 NaN，而且完全不會報錯。
+    """
+
+    df: pd.DataFrame = cleaner.clean_put_call_ratio(PCR_CSV, DATE)
+
+    assert df.iloc[0]["賣權成交量"] == 308922
+    assert df.iloc[0]["買權成交量"] == 306713
+    assert df.iloc[0]["買賣權成交量比率%"] == 100.72
+
+
+def test_footnote_lines_are_dropped(cleaner) -> None:
+    """
+    **CSV 檔尾的說明文字會被解析成資料列**
+
+    它們沒有逗號分隔，於是變成「第一欄有值、其餘全 NaN」；`date` 又被覆寫成
+    查詢日，看起來完全合法。不濾掉就會靠資料庫的 NOT NULL 擋，而
+    `INSERT OR IGNORE` 不會為此發出任何訊息。
+    """
+
+    df: pd.DataFrame = cleaner.clean_large_trader(LARGE_TRADER_CSV, DATE)
+
+    assert len(df) == 2
+    assert df["product"].notna().all()
+
+
+def test_code_columns_are_stripped(cleaner) -> None:
+    """
+    代碼欄是補空白的固定寬度格式（`"TX     "`、`"202609  "`）
+
+    不 strip 的話主鍵會多出看不見的字元，join 一定對不上而且查不出原因。
+    """
+
+    df: pd.DataFrame = cleaner.clean_large_trader(LARGE_TRADER_CSV, DATE)
+
+    assert set(df["product"]) == {"TX"}
+    assert set(df["expiry"]) == {"202609", "999999"}
+
+
+def test_institutional_keeps_only_the_three_investor_types(cleaner) -> None:
+    """
+    只留三大法人，濾掉「合計」列
+
+    合計是前三者的加總，留著會讓任何 `SUM()` 都變成兩倍。
+    """
+
+    df: pd.DataFrame = cleaner.clean_institutional(INSTITUTIONAL_CSV, DATE)
+
+    assert set(df["investor"]) == {"自營商", "外資及陸資"}
+    assert "合計" not in set(df["investor"])
+
+
+def test_date_is_normalised_to_iso(cleaner) -> None:
+    """來源給 `2026/08/28`，入庫一律 ISO 格式（否則字串比較會出錯）"""
+
+    df: pd.DataFrame = cleaner.clean_institutional(INSTITUTIONAL_CSV, DATE)
+
+    assert set(df["date"]) == {"2026-08-28"}
+
+
+def test_numeric_columns_are_numeric(cleaner) -> None:
+    """數值欄要轉成數字；轉不動的留 NaN**不猜 0**"""
+
+    df: pd.DataFrame = cleaner.clean_institutional(INSTITUTIONAL_CSV, DATE)
+
+    assert df.iloc[0]["多空未平倉口數淨額"] == 657
+    assert pd.api.types.is_numeric_dtype(df["多方未平倉口數"])
+
+
+# === 前視偏差對齊 ===
+@pytest.fixture
+def chip_api(tmp_path: Path) -> FuturesChipAPI:
+    """建一個只有兩天籌碼的記憶體資料庫"""
+
+    conn: sqlite3.Connection = sqlite3.connect(":memory:")
+    conn.execute(
+        f"CREATE TABLE {FUTURES_INSTITUTIONAL_CHIP_TABLE_NAME} "
+        f'("date" TEXT NOT NULL, "product_name" TEXT NOT NULL, '
+        f'"investor" TEXT NOT NULL, "多空未平倉口數淨額" REAL, '
+        f'PRIMARY KEY ("date", "product_name", "investor"))'
+    )
+    conn.executemany(
+        f"INSERT INTO {FUTURES_INSTITUTIONAL_CHIP_TABLE_NAME} VALUES (?, ?, ?, ?)",
+        [
+            ("2026-08-27", "臺股期貨", "外資及陸資", -80000),
+            ("2026-08-28", "臺股期貨", "外資及陸資", -83655),
+        ],
+    )
+    conn.commit()
+
+    return FuturesChipAPI(conn=conn)
+
+
+def test_available_data_excludes_the_same_day(chip_api: FuturesChipAPI) -> None:
+    """
+    **`get_available()` 取的是「查詢日之前」，不是「小於等於」**
+
+    籌碼盤後才公布，當天的資料當天不可能知道。那一個等號就是前視偏差，
+    而且不會有任何錯誤訊息，只會讓回測績效好得不合理。
+    """
+
+    assert (
+        chip_api.get_latest_available_date(datetime.date(2026, 8, 28)) == "2026-08-27"
+    )
+    assert (
+        chip_api.get_institutional_net(
+            datetime.date(2026, 8, 28), "臺股期貨", "外資及陸資"
+        )
+        == -80000
+    )
+
+
+def test_available_data_carries_forward_over_holidays(chip_api: FuturesChipAPI) -> None:
+    """連假期間沿用最近一次公布的籌碼——那確實是當下唯一知道的資訊"""
+
+    assert chip_api.get_latest_available_date(datetime.date(2026, 9, 5)) == "2026-08-28"
+
+
+def test_no_data_before_the_first_publication(chip_api: FuturesChipAPI) -> None:
+    """第一筆籌碼公布之前一律回空，不可回傳未來的資料"""
+
+    assert chip_api.get_latest_available_date(datetime.date(2026, 8, 27)) is None
+    assert chip_api.get_available(datetime.date(2026, 8, 27)).empty
+
+
+def test_on_date_is_the_research_only_entry(chip_api: FuturesChipAPI) -> None:
+    """`get_on_date()` 取當天實際公布的資料——研究用，不可用於產生訊號"""
+
+    df: pd.DataFrame = chip_api.get_on_date(datetime.date(2026, 8, 28))
+
+    assert len(df) == 1
+    assert df.iloc[0]["多空未平倉口數淨額"] == -83655
+
+
+# === 真實資料 ===
+@pytest.mark.slow
+@pytest.mark.skipif(
+    not Path(TW_FUTURES_DB_PATH).exists(), reason="需要 tw_futures.db 才能驗籌碼表"
+)
+def test_real_chip_tables_have_no_orphan_rows() -> None:
+    """三張表都不該有主鍵為空的垃圾列（來源檔尾說明文字造成的那種）"""
+
+    conn: sqlite3.Connection = sqlite3.connect(TW_FUTURES_DB_PATH)
+    try:
+        checks: Dict[str, str] = {
+            FUTURES_INSTITUTIONAL_CHIP_TABLE_NAME: "product_name",
+            FUTURES_LARGE_TRADER_TABLE_NAME: "product",
+        }
+        for table, column in checks.items():
+            try:
+                count: Optional[int] = conn.execute(
+                    f"SELECT COUNT(*) FROM {table} "
+                    f"WHERE {column} IS NULL OR TRIM({column}) = ''"
+                ).fetchone()[0]
+            except sqlite3.OperationalError:
+                pytest.skip(f"{table} 尚未建立")
+            assert count == 0, f"{table} 有 {count} 列主鍵為空"
+    finally:
+        conn.close()
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(
+    not Path(TW_FUTURES_DB_PATH).exists(), reason="需要 tw_futures.db 才能驗籌碼表"
+)
+def test_real_pcr_ratio_is_consistent() -> None:
+    """PCR 的比率欄要與成交量欄對得上（抓得到「整列位移」這類靜默錯誤）"""
+
+    api: FuturesChipAPI = FuturesChipAPI()
+    try:
+        coverage: Optional[Dict[str, str]] = api.get_covered_date_range(
+            FUTURES_PUT_CALL_RATIO_TABLE_NAME
+        )
+        if coverage is None:
+            pytest.skip("PCR 表尚無資料")
+
+        row: Optional[Dict] = api.get_put_call_ratio(
+            datetime.date.fromisoformat(coverage["latest"]) + datetime.timedelta(days=1)
+        )
+    finally:
+        api.close()
+
+    assert row is not None
+    expected: float = round(row["賣權成交量"] / row["買權成交量"] * 100, 2)
+    assert abs(expected - row["買賣權成交量比率%"]) < 0.05

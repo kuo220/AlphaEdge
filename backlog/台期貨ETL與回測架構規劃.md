@@ -31,7 +31,7 @@
 | Phase2-2 | 槓桿／部位控管（保證金 ETL 已分家） | `core/managers/futures/`、`core/backtest/models/settlement_model.py`、`core/backtest/datafeed/futures_datafeed.py` | 追繳／可開口數依當時生效的保證金計算 | ✅ | **2026-09-02 完成**：查表改為**預設模式**（API 由 DataFeed 注入策略與部位管理層**共用的同一個設定物件**）、追繳以**權益 vs 維持保證金**判斷並可選強制平倉／僅標記、可開口數隨生效日改變。14 條測試（含一條以真實表驗證 TX 2024-08-09 → 08-22 由 265,000 調為 292,000）。保證金歷史序列本身見 [台期貨保證金ETL](台期貨保證金ETL.md) S1~S5 |
 | Phase2-3 | 期貨交易日曆（日盤 ＋ 夜盤、結算日） | `core/backtest/datafeed/futures_calendar.py` | 不沿用股票 calendar | ✅ | **2026-09-02 完成**：交易日取自行情表（臨時休市／補行交易日自動涵蓋）、結算日為第三個星期三且**遇休市順延到期貨自己的下一個開盤日**、週契約另有規則、夜盤跨日與 2017-05-15 上線日皆已處理。14 條測試，含一條以真實表比對 **140 個已到期 TX 月契約的最後交易日，140/140 完全相同** |
 | Phase2-4 | 換月規則參數化 | `core/backtest/datafeed/futures_roll.py`、`settlement_model.py`、`core/strategies/futures/base.py` | 三種換月規則可切換 | ✅ | **2026-09-02 完成**：`FuturesRollConfig` 由 factory 建立並由**策略、結算模型、DataFeed 三方共用**；結算模型在換月時自動轉倉（平舊倉 ＋ 同口數同方向開新倉，展期價差如實入帳）。13 條測試，含以真實資料驗「回測換月接點 ＝ `futures_continuous` 的 `roll_flag`」完全一致 |
-| Phase3-1 | 籌碼訊號 ETL（三大法人、大額交易人、PCR） | `core/pipeline/tw/*/futures_chip_*.py` | 前視偏差對齊（T+1 可用） | ⬜ | 相依 Phase1-2 |
+| Phase3-1 | 籌碼訊號 ETL（三大法人、大額交易人、PCR） | `core/pipeline/tw/*/futures_chip_*.py`、`core/api/futures_chip_api.py` | 前視偏差對齊（T+1 可用） | ✅ | **2026-09-02 完成**：`--target futures_chip` 上線，三個資料集三張表，**一天三次請求即涵蓋全市場**（不逐商品打）。`FuturesChipAPI.get_available()` 只回傳「查詢日**之前**」已公布的籌碼——那一個等號就是前視偏差。13 條測試。⏳ 歷史回補背景進行中 |
 | Phase4-1 | 多商品擴充（MTX、TMF、TE、TF） | `core/config.py`、`tests/test_futures_products.py` | 各商品點值／乘數正確 | ✅ | **2026-09-02 完成（程式面）**：`FUTURES_TARGET_PRODUCTS` 擴為 7 檔（TX／MTX／TMF／TE／ZEF／TF／ZFF），六檔新商品逐一實測可爬可清可入庫，**crawler／updater 一行都沒改**。15 條測試。⏳ **歷史回補進行中**（背景執行，約 40 小時），進度查 `SELECT product, MIN(date), MAX(date), COUNT(*) FROM futures_price_daily GROUP BY product` |
 | Phase4-2 | 日盤／夜盤整併 | `core/utils/constant.py`、`core/adapters/futures_quote_adapter.py`、`core/backtest/datafeed/futures_datafeed.py` | 跨盤別跳空被保留 | ✅ | **2026-09-02 完成**：策略把 `session` 設為 `FuturesSession.COMBINED` 即得整併序列（**前一交易日夜盤 ＋ 當日日盤**，open 取夜盤故跨盤別跳空留在 bar 內）。12 條測試。實作時踩到兩個「不會報錯」的坑：`COMBINED` 被拿去查資料表（整場零交易）、ETL 直接迭代 `FuturesSession` 而去爬不存在的時段，兩者皆已固化為測試 |
 | Phase5-1 | 分 K 與 Tick（Shioaji futures ticks） | `core/pipeline/tw/*/futures_tick_*.py` | 日內策略可回測 | ⬜ | 相依 Phase4-1；可參考 `StockTickUpdater` 多 key／執行緒 |
@@ -1249,13 +1249,52 @@ PRIMARY KEY `(date, product, expiry, session)`。
 
 ### Phase 3：籌碼訊號
 
-#### Phase3-1. 籌碼 ETL 與前視偏差對齊 ⬜
+#### Phase3-1. 籌碼 ETL 與前視偏差對齊 ✅
 
 - **目的**：法人籌碼、未平倉為盤後公布，用當日資料下單即為前視偏差。
 - **做法**：接入三大法人、大額交易人（前五大／前十大、特定法人拆分）、選擇權 PCR；**回測時一律以「隔日可用」對齊**。
 - **產出**：`core/pipeline/tw/*/futures_chip_*.py`、`futures_institutional_chip` 表。
 - **驗證方式**：查詢指定日期只回傳該日之前已公布的籌碼資料。
 - **相依**：Phase1-2。
+
+> **✅ 完成紀錄（2026-09-02）**
+>
+> **三個資料集、三張表**（`futures_institutional_chip`／`futures_large_trader`／
+> `futures_put_call_ratio`）。分表理由同保證金：主鍵不同（三大法人是
+> `(date, 商品名稱, 身份別)`、大額交易人多了到期月份與交易人類別、PCR 一天一列），
+> 塞同一張表會讓多數欄位永遠是 NULL。
+>
+> **一天三次請求就涵蓋全市場**：三個端點都是 POST ＋ 日期區間，一次回傳所有商品
+> （大額交易人一天約 80KB、1,386 列）。**不要為了「只要 TX」而逐商品打**——
+> 那會讓請求數乘上商品數，而形態與 `futures_price` 完全不同。
+>
+> **前視偏差對齊做在 API 而不是 ETL**（本步驟的驗收條件）：籌碼**全部盤後公布**，
+> `FuturesChipAPI.get_available(date)` 取的是「資料日 **< date**」的最大者，
+> 語意是「站在這一天早上，我能知道什麼」。**不是 `<=`**——那一個等號就是前視偏差，
+> 而且不會報錯，只會讓回測績效好得不合理。要看某天實際公布什麼走
+> `get_on_date()`，並在 docstring 明載「不可用於產生訊號」。
+>
+> **實作時踩到三個來源格式的坑**（都不會報錯，皆已固化為測試）：
+>
+> 1. **非交易日回的是 HTTP 200 ＋ 一整頁 HTML**，不是空 CSV 也不是 404。
+>    行數檢查擋不住（那頁有 19 行），故改為檢查第一行是不是真的 CSV 表頭。
+> 2. **PCR 每列結尾多一個逗號**：資料欄比表頭多一欄，pandas 會自作主張把第一欄
+>    當索引，整列往左位移——賣權成交量 308,922 被讀成 306,713。`index_col=False`
+>    才擋得住。
+> 3. **CSV 檔尾有三行說明文字**：被解析成「主鍵有值、其餘全 NULL」的資料列，
+>    最後靠主鍵的 `NOT NULL` 擋下，而 `INSERT OR IGNORE` 不會為此發出任何訊息
+>    （只有「新增 1386 列（共 1389 列）」這個數字對不上會透露）。
+>    現改為在清洗層濾掉。
+>
+> **順帶從來源檔尾抄到兩個代碼的正式定義**（原本只能用猜的）：到期月份
+> `999999` ＝ 所有契約合計、`666666` ＝ 所有週到期契約合計；交易人類別
+> `0` ＝ 前五／十大交易人、`1` ＝ 其中的**特定法人**（`1` 是 `0` 的子集，
+> 兩者相加沒有意義）。
+>
+> **商品以「名稱」入庫不轉代碼**：三大法人來源只給中文名（臺股期貨、電子期貨…），
+> 在 ETL 硬轉代碼就得維護一份猜測的對照表；要接回行情表時以
+> `futures_margin_history` 的 `product`／`product_name` 對照即可——那份對照
+> 是交易所自己給的。
 
 ### Phase 4：多商品與夜盤整併
 
