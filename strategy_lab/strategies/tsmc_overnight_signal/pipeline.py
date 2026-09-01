@@ -23,7 +23,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import yfinance as yf
 
-from core.api.stock_price_api import StockPriceAPI
+from core.api.tw.stock_price_api import StockPriceAPI
 from core.utils import Units
 from core.utils.instrument import StockUtils
 

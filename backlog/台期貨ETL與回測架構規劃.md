@@ -36,7 +36,7 @@
 | Phase4-2 | 日盤／夜盤整併 | `core/utils/constant.py`、`core/adapters/futures_quote_adapter.py`、`core/backtest/datafeed/futures_datafeed.py` | 跨盤別跳空被保留 | ✅ | **2026-09-02 完成**：策略把 `session` 設為 `FuturesSession.COMBINED` 即得整併序列（**前一交易日夜盤 ＋ 當日日盤**，open 取夜盤故跨盤別跳空留在 bar 內）。12 條測試。實作時踩到兩個「不會報錯」的坑：`COMBINED` 被拿去查資料表（整場零交易）、ETL 直接迭代 `FuturesSession` 而去爬不存在的時段，兩者皆已固化為測試 |
 | Phase5-1 | 分 K 與 Tick（Shioaji futures ticks） | `core/pipeline/tw/*/futures_tick_*.py`、`core/utils/constant.py` | 日內策略可回測 | ✅ | **2026-09-02 完成（爬取與清洗已實測）**：`--target futures_tick` 上線。**TAIFEX 與 Shioaji 的商品代碼沒有規律**（MTX→MXF、TE→EXF、TF→FXF），對照表是實際登入逐一核對的；時段由時間戳判定（實測 TX202612 於 2026-08-28 的 29 筆中有 10 筆屬前一日夜盤）。12 條測試。⏸ **DolphinDB 寫入路徑未實測**（本機未啟動 server、套件未安裝），無連線時保留中繼檔並記 warning |
 | Phase5-2 | frontend 期貨專屬指標（保證金曲線、口數曝險） | `frontend/services/futures_metrics.py`、`frontend/app.py` | 指標可顯示 | ✅ | **2026-09-02 完成**：以**欄位**判斷是不是期貨報表，另外顯示峰值佔用保證金／峰值口數／資金使用率／平均保證金報酬率，並繪出保證金與口數曝險的階梯曲線（由交易明細的進出場日推導，不需引擎多輸出檔案）。7 條測試（邏輯抽到不含 Streamlit 的 service 才測得到）|
-| Phase5-3 | **程式碼**目錄收斂 | 全專案 | 台股回歸逐筆相同 | 🔄 | **2026-08-31：`pipeline/` 已由命名軸線收斂工作完成**（軸線定案見 [命名軸線](../docs/dev/naming-axes.md)），剩 `api/`／`adapters/`／`backtest/datafeed/`。**形狀偏離原規格**：改為 `pipeline/tw/`（純市場軸）而非原定 `pipeline/tw_stock`／`tw_futures`——每層目錄只承載一條軸，商品類別由檔名承載，與美股 §3.1 一致；原路徑 B 會把市場與商品壓成單一目錄名。理由見該文件〈每層目錄只承載一條軸〉 |
+| Phase5-3 | **程式碼**目錄收斂 | 全專案 | 台股回歸逐筆相同 | ✅ | **2026-09-02 全部完成**：`pipeline/`（2026-08-31）＋ `api/`／`adapters/`／`backtest/datafeed/`（2026-09-02）皆已收斂為 `tw/`。**形狀偏離原規格**：改為 `pipeline/tw/`（純市場軸）而非原定 `pipeline/tw_stock`／`tw_futures`——每層目錄只承載一條軸，商品類別由檔名承載，與美股 §3.1 一致；原路徑 B 會把市場與商品壓成單一目錄名。理由見該文件〈每層目錄只承載一條軸〉 |
 | Phase6-1 | `futures_stock_universe` 標的池 ETL | `core/pipeline/tw/*/futures_stock_universe_*.py`、`tasks/update_db.py` | 掛牌／下市與乘數異動可追蹤 | ✅ | **2026-08-29 完成**：`--target futures_stock_universe` 可跑，320 檔入庫、標的代號 270/270 對得上現股。**流動性前 N 檔篩選改列 Phase6-2**（需要成交量，標的池階段還沒有）
 | Phase6-2 | 股票期貨行情 ETL 與除權息乘數調整 | `core/api/futures_stock_universe_api.py`、`core/adapters/futures_quote_adapter.py`、`core/backtest/datafeed/futures_datafeed.py`、`tasks/update_db.py` | 與台股除權息處理對照，無雙重調整 | ✅ | **2026-09-02 完成**：`--target futures_stock_price` 上線（清單取自標的池、預設只爬流動性前 20 檔）；**股期的乘數改為逐日查契約單位**（除權息會調整它），adapter 新增 `multiplier_resolver` 掛點；股期行情一律用原始價，除權息由契約單位承接，**不再套還原價**（雙重調整）。11 條測試
 
@@ -1449,7 +1449,7 @@ PRIMARY KEY `(date, product, expiry, session)`。
 > 順帶修好一個既有問題：交易明細的篩選欄寫死 `Stock ID`，期貨報表因此沒有篩選器；
 > 現改為 `Stock ID` 或 `Contract ID`。
 
-#### Phase5-3. 程式碼目錄收斂 🔄
+#### Phase5-3. 程式碼目錄收斂 ✅
 
 - **目的**：把路徑 A（命名平行）收斂為路徑 B（市場維度目錄），與美股 `us/` 對齊。
 - **範圍已縮小（2026-08-22）**：`downloads/` 已於 **Phase0-1** 先行收斂、`core/database/` 本來就是市場維度，故本步驟**只剩程式碼**——`pipeline/`、`api/`、`adapters/`、`backtest/datafeed/`。
@@ -1457,8 +1457,36 @@ PRIMARY KEY `(date, product, expiry, session)`。
 - **產出**：`core/pipeline/`、`core/api/`、`core/adapters/`、`core/backtest/datafeed/` 的目錄調整。
 - **驗證方式**：台股回歸雙線（LONG 915 筆 ＋ SHORT 快照）逐筆相同；全專案無殘留的舊 import 路徑。
 - **相依**：Phase1-1~Phase5-2。
-- **🔄 進度（2026-08-31）**：`pipeline/` 部分已由命名軸線收斂工作完成（軸線定案見 [命名軸線](../docs/dev/naming-axes.md)）——`core/pipeline/shared/`（四層 base ＋ HTTP 工具）＋ `core/pipeline/tw/{crawlers,cleaners,loaders,updaters}/`，60 個檔案的 import 已改寫、322 項測試通過。**偏離原規格**：目錄形狀採純市場軸 `tw/` 而非 `tw_stock`／`tw_futures`，商品類別由檔名承載（`stock_price_crawler.py` vs `futures_price_crawler.py`），與美股 §3.1 一致。剩餘 `api/`／`adapters/`／`backtest/datafeed/` 未動。
+- **進度（2026-08-31，`pipeline/` 部分）**：`pipeline/` 部分已由命名軸線收斂工作完成（軸線定案見 [命名軸線](../docs/dev/naming-axes.md)）——`core/pipeline/shared/`（四層 base ＋ HTTP 工具）＋ `core/pipeline/tw/{crawlers,cleaners,loaders,updaters}/`，60 個檔案的 import 已改寫、322 項測試通過。**偏離原規格**：目錄形狀採純市場軸 `tw/` 而非 `tw_stock`／`tw_futures`，商品類別由檔名承載（`stock_price_crawler.py` vs `futures_price_crawler.py`），與美股 §3.1 一致。剩餘 `api/`／`adapters/`／`backtest/datafeed/` 未動。
 - **原暫緩原因（`pipeline/` 部分已解除）**：影響面大且會動到台股既有路徑的每一個 import；應與 [美股ETL與回測架構規劃.md](美股ETL與回測架構規劃.md) 的 Phase3-3 一起收斂，避免兩次重工。待兩邊的最小閉環都驗證完成後解除。**注意該解除條件目前不成立**：美股卡在「尚未選定 provider、`.env.example` 無任何美股憑證」，因此路徑 A 會維持相當長一段時間，命名前綴要保持一致，不要當成過渡期就隨意命名。
+
+> **✅ 完成紀錄（2026-09-02）**
+>
+> **剩下的三個目錄一次收斂完**：
+>
+> | 之前 | 之後 |
+> |------|------|
+> | `core/api/*.py`（12 支） | `core/api/base.py` ＋ `core/api/tw/*.py` |
+> | `core/adapters/*.py` | `core/adapters/tw/*.py` |
+> | `core/backtest/datafeed/{tw_stock_datafeed,market_calendar,futures_*}.py` | `core/backtest/datafeed/base.py` ＋ `datafeed/tw/*.py` |
+>
+> **形狀與 `pipeline/` 一致：目錄只承載市場一條軸**，商品類別由檔名承載
+> （`tw/stock_price_api.py` vs `tw/futures_price_api.py`）。因此
+> `tw_stock_datafeed.py` 在移進 `tw/` 之後改名為 `stock_datafeed.py`——
+> 目錄已經說了是 tw，檔名再寫一次是重複。**類別名不變**（`TwStockDataFeed`），
+> 那是「地區 ＋ 商品」的命名規則，與目錄形狀是兩件事。
+>
+> **`core/adapters/__init__.py` 保留舊的匯入路徑**（`from core.adapters import
+> StockQuoteAdapter` 仍可用）：它原本就是 re-export，改成從 `tw/` 轉出即可，
+> 呼叫端不必跟著改。`core/api/` 則維持不 eager import——`stock_tick_api`
+> 相依 DolphinDB（選用相依），re-export 會讓沒裝的環境一 import 就壞掉。
+>
+> **驗證**：43 個檔案的 import 一次改寫；全套 633 條測試通過；
+> 台股回歸雙線逐筆相同（LONG 915 筆 baseline 通過、SHORT 快照重產 0 diff）；
+> 期貨示範策略端對端可跑；全專案無殘留的舊 import 路徑（只有歷史 log 檔還留著
+> 舊模組名，那是輸出不是程式碼）；另在乾淨 venv 以 CI 的三道指令重驗一次
+> （`pip install -e ".[dev]"` 之後 623 passed）——**目錄變動最容易踩到的是
+> `setuptools` 的套件探索**，新子套件沒被 include 的話本機跑得動、CI 卻 import 不到。
 
 ### Phase 6：股票期貨（股期）擴充
 

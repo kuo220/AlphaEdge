@@ -5,8 +5,8 @@ from typing import Dict, List, Optional
 
 import pytest
 
-from core.backtest.datafeed.futures_calendar import FuturesCalendar
-from core.backtest.datafeed.futures_roll import FuturesRollConfig
+from core.backtest.datafeed.tw.futures_calendar import FuturesCalendar
+from core.backtest.datafeed.tw.futures_roll import FuturesRollConfig
 from core.backtest.models.cost_model import FuturesCostConfig, TwFuturesCostModel
 from core.backtest.models.settlement_model import TwFuturesSettlementModel
 from core.config import FUTURES_CONTINUOUS_TABLE_NAME, TW_FUTURES_DB_PATH
@@ -346,8 +346,8 @@ def test_backtest_roll_dates_match_the_continuous_table() -> None:
     以 2024 全年、`LAST_TRADING_DAY` 規則實跑一支「開倉後永不平倉」的策略比對。
     """
 
-    from core.api.futures_price_api import FuturesPriceAPI
-    from core.backtest.datafeed.futures_datafeed import TwFuturesDataFeed
+    from core.api.tw.futures_price_api import FuturesPriceAPI
+    from core.backtest.datafeed.tw.futures_datafeed import TwFuturesDataFeed
 
     conn: sqlite3.Connection = sqlite3.connect(TW_FUTURES_DB_PATH)
     try:
@@ -380,7 +380,7 @@ def test_backtest_roll_dates_match_the_continuous_table() -> None:
         trading_days: List[datetime.date] = calendar.get_trading_days(
             datetime.date(2024, 1, 1), datetime.date(2024, 12, 31)
         )
-        from core.adapters.futures_quote_adapter import FuturesQuoteAdapter
+        from core.adapters.tw.futures_quote_adapter import FuturesQuoteAdapter
 
         backtest_rolls: List[str] = []
         for index, date in enumerate(trading_days):

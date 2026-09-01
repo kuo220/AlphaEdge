@@ -54,7 +54,7 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 
-from core.api.stock_price_api import StockPriceAPI
+from core.api.tw.stock_price_api import StockPriceAPI
 
 price = StockPriceAPI()
 tw = price.get_stock_price("2330", dt.date(2024, 1, 1), dt.date(2024, 12, 31))

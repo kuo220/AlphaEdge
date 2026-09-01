@@ -4,7 +4,7 @@ from typing import Any, Callable, List, Optional
 
 import pandas as pd
 
-from core.api.futures_price_api import FuturesPriceAPI
+from core.api.tw.futures_price_api import FuturesPriceAPI
 from core.models import FuturesQuote
 from core.pipeline.utils.constant import FuturesPriceColumn
 from core.utils import FuturesSession, Scale

@@ -6,7 +6,7 @@ from typing import List, Optional, Tuple
 import pandas as pd
 import pytest
 
-from core.api.futures_price_api import FuturesPriceAPI
+from core.api.tw.futures_price_api import FuturesPriceAPI
 from core.config import FUTURES_PRICE_DAILY_TABLE_NAME
 from core.pipeline.tw.loaders.futures_price_loader import FuturesPriceLoader
 from core.utils import FuturesSession

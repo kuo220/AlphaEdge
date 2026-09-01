@@ -4,8 +4,8 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 from loguru import logger
 
-from core.api.stock_price_api import StockPriceAPI
-from core.api.stock_tick_api import StockTickAPI
+from core.api.tw.stock_price_api import StockPriceAPI
+from core.api.tw.stock_tick_api import StockTickAPI
 from core.models import StockQuote, TickQuote
 from core.utils import Scale
 from core.utils.instrument import StockUtils

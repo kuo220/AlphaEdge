@@ -17,7 +17,7 @@ from core.utils.log_manager import LogManager
 """取得 FinMind 資料的 API
 
 Usage:
-    from core.api.finmind_api import FinMindAPI
+    from core.api.tw.finmind_api import FinMindAPI
 
     api = FinMindAPI()
 

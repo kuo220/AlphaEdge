@@ -5,7 +5,7 @@ import pandas as pd
 import shioaji as sj
 from loguru import logger
 
-from core.api.futures_price_api import FuturesPriceAPI
+from core.api.tw.futures_price_api import FuturesPriceAPI
 from core.config import FUTURES_TARGET_PRODUCTS
 from core.pipeline.shared.base_updater import BaseDataUpdater
 from core.pipeline.tw.cleaners.futures_tick_cleaner import FuturesTickCleaner

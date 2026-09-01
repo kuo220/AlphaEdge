@@ -5,9 +5,9 @@ from typing import List, Optional
 import pandas as pd
 import pytest
 
-from core.adapters.futures_quote_adapter import FuturesQuoteAdapter
-from core.backtest.datafeed.futures_calendar import FuturesCalendar
-from core.backtest.datafeed.futures_datafeed import TwFuturesDataFeed
+from core.adapters.tw.futures_quote_adapter import FuturesQuoteAdapter
+from core.backtest.datafeed.tw.futures_calendar import FuturesCalendar
+from core.backtest.datafeed.tw.futures_datafeed import TwFuturesDataFeed
 from core.config import TW_FUTURES_DB_PATH
 from core.models import FuturesQuote
 from core.pipeline.utils.constant import FuturesPriceColumn
@@ -296,7 +296,7 @@ def test_day_only_mode_is_unchanged() -> None:
 def test_real_combined_bar_contains_the_night_session() -> None:
     """以真實資料確認整併後的 bar 真的納入了夜盤（且沒有漏量）"""
 
-    from core.api.futures_price_api import FuturesPriceAPI
+    from core.api.tw.futures_price_api import FuturesPriceAPI
 
     api: FuturesPriceAPI = FuturesPriceAPI()
     try:

@@ -6,7 +6,7 @@ from typing import List, Optional
 import pandas as pd
 import pytest
 
-from core.api.futures_stock_universe_api import FuturesStockUniverseAPI
+from core.api.tw.futures_stock_universe_api import FuturesStockUniverseAPI
 from core.config import TW_FUTURES_DB_PATH
 
 """
@@ -250,7 +250,7 @@ def test_stock_futures_quotes_are_never_price_adjusted() -> None:
     股期的除權息由「調整契約單位」承接；再套台股的還原價就是雙重調整。
     """
 
-    from core.adapters.futures_quote_adapter import FuturesQuoteAdapter
+    from core.adapters.tw.futures_quote_adapter import FuturesQuoteAdapter
     from core.pipeline.utils.constant import FuturesPriceColumn
     from core.utils import Scale
 
@@ -288,7 +288,7 @@ def test_multiplier_resolver_is_required_for_stock_futures() -> None:
     靜默套一個預設乘數會讓整條 PnL 偏掉；中斷比靜默錯誤好查。
     """
 
-    from core.adapters.futures_quote_adapter import FuturesQuoteAdapter
+    from core.adapters.tw.futures_quote_adapter import FuturesQuoteAdapter
 
     with pytest.raises(KeyError):
         FuturesQuoteAdapter.resolve_multiplier("CDF")

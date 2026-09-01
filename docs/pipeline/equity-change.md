@@ -39,7 +39,7 @@ MOPS 的權益變動表原始版面是**二維矩陣**——欄是權益項目�
 `FinancialStatementAPI` 以 `table_name` 為參數，`equity_change` 沿用同一組介面：
 
 ```python
-from core.api.financial_statement_api import FinancialStatementAPI
+from core.api.tw.financial_statement_api import FinancialStatementAPI
 from core.config import EQUITY_CHANGE_TABLE_NAME
 
 api = FinancialStatementAPI()

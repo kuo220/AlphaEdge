@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 import pandas as pd
 import pytest
 
-from core.api.futures_chip_api import FuturesChipAPI
+from core.api.tw.futures_chip_api import FuturesChipAPI
 from core.config import (
     FUTURES_INSTITUTIONAL_CHIP_TABLE_NAME,
     FUTURES_LARGE_TRADER_TABLE_NAME,

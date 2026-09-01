@@ -6,7 +6,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from loguru import logger
 
-from core.api.stock_price_api import StockPriceAPI
+from core.api.tw.stock_price_api import StockPriceAPI
 from core.backtest.report.base import BaseBacktestReporter
 from core.models.stock.record import StockTradeRecord
 from core.strategies.stock import BaseStockStrategy

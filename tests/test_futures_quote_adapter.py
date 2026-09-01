@@ -4,7 +4,7 @@ from typing import List
 import pandas as pd
 import pytest
 
-from core.adapters.futures_quote_adapter import FuturesQuoteAdapter
+from core.adapters.tw.futures_quote_adapter import FuturesQuoteAdapter
 from core.models import FuturesQuote
 from core.utils import FuturesSession, Scale
 from core.utils.constant import FUTURES_MULTIPLIER

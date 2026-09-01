@@ -7,7 +7,7 @@ from typing import List, Optional, Set
 import pandas as pd
 from loguru import logger
 
-from core.api.futures_stock_universe_api import FuturesStockUniverseAPI
+from core.api.tw.futures_stock_universe_api import FuturesStockUniverseAPI
 from core.config import (
     DEFAULT_FUTURES_START_DATE,
     FUTURES_PRICE_DAILY_TABLE_NAME,

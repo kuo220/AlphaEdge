@@ -423,7 +423,7 @@ def test_datafeed_injects_the_margin_api_into_the_shared_config() -> None:
 def test_ratio_mode_is_not_injected() -> None:
     """明確宣告比率近似時不注入 API——否則使用者的降級表態會被無聲推翻"""
 
-    from core.backtest.datafeed.futures_datafeed import TwFuturesDataFeed
+    from core.backtest.datafeed.tw.futures_datafeed import TwFuturesDataFeed
     from core.strategies.futures.momentum_futures_strategy import (
         MomentumFuturesStrategy,
     )
@@ -452,7 +452,7 @@ def test_real_table_matches_the_announced_adjustment() -> None:
     TX 於 2024-08-09 調為 265,000／口、2024-08-22 再調為 292,000／口。
     """
 
-    from core.api.futures_margin_api import FuturesMarginAPI
+    from core.api.tw.futures_margin_api import FuturesMarginAPI
 
     api: FuturesMarginAPI = FuturesMarginAPI()
     try:

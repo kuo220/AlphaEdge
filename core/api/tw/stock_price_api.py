@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 
 from core.api.base import BaseDataAPI
-from core.api.stock_dividend_api import StockDividendAPI
+from core.api.tw.stock_dividend_api import StockDividendAPI
 from core.config import PRICE_TABLE_NAME, TW_STOCK_DB_PATH
 from core.pipeline.utils.constant import PriceColumn
 from core.utils.constant import Units

@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 from core.backtest.backtester import Backtester, new_event_counts
-from core.backtest.datafeed.futures_datafeed import TwFuturesDataFeed
+from core.backtest.datafeed.tw.futures_datafeed import TwFuturesDataFeed
 from core.backtest.factory import build_backtester
 from core.backtest.models.cost_model import FuturesCostConfig, TwFuturesCostModel
 from core.backtest.models.fill_model import (

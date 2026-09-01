@@ -124,7 +124,7 @@ ideas/           data_analysis/      strategies/<name>/      core/strategies/sto
 
 ```python
 import datetime
-from core.api.stock_price_api import StockPriceAPI
+from core.api.tw.stock_price_api import StockPriceAPI
 
 price = StockPriceAPI()
 
@@ -154,7 +154,7 @@ df_2330 = price.get_stock_price(
 
 ```python
 import datetime
-from core.api.stock_tick_api import StockTickAPI
+from core.api.tw.stock_tick_api import StockTickAPI
 
 tick = StockTickAPI()
 
@@ -185,7 +185,7 @@ last = tick.get_last_tick(stock_id="2330", date=datetime.date(2024, 5, 10))
 
 ```python
 import datetime
-from core.api.stock_chip_api import StockChipAPI
+from core.api.tw.stock_chip_api import StockChipAPI
 
 chip = StockChipAPI()
 
@@ -211,7 +211,7 @@ df_2330 = chip.get_stock_chip(
 ### MonthlyRevenueReportAPI — 月營收 (SQLite)
 
 ```python
-from core.api.monthly_revenue_report_api import MonthlyRevenueReportAPI
+from core.api.tw.monthly_revenue_report_api import MonthlyRevenueReportAPI
 
 mrr = MonthlyRevenueReportAPI()
 
@@ -228,7 +228,7 @@ df_range = mrr.get_range(
 ### FinancialStatementAPI — 季報財報 (SQLite)
 
 ```python
-from core.api.financial_statement_api import FinancialStatementAPI
+from core.api.tw.financial_statement_api import FinancialStatementAPI
 
 fs = FinancialStatementAPI()
 
@@ -243,7 +243,7 @@ df = fs.get(table_name="<your_fs_table>", year=2024, season=1)
 
 ```python
 import datetime
-from core.api.stock_price_api import StockPriceAPI
+from core.api.tw.stock_price_api import StockPriceAPI
 from core.utils.market_calendar import MarketCalendar
 
 price = StockPriceAPI()
@@ -367,7 +367,7 @@ InstrumentType.STOCK, InstrumentType.FUTURE, InstrumentType.OPTION  # 商品類�
 import datetime as dt
 import pandas as pd
 
-from core.api.stock_price_api import StockPriceAPI
+from core.api.tw.stock_price_api import StockPriceAPI
 
 price = StockPriceAPI()
 df = price.get_stock_price(
@@ -445,7 +445,7 @@ print(realistic_pnl(600.0, 620.0, 5))
       ROOT = ROOT.parent
   sys.path.insert(0, str(ROOT))
 
-  from core.api.stock_price_api import StockPriceAPI
+  from core.api.tw.stock_price_api import StockPriceAPI
   ```
 
 ---
