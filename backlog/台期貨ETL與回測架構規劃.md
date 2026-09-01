@@ -38,7 +38,7 @@
 | Phase5-2 | frontend 期貨專屬指標（保證金曲線、口數曝險） | `frontend/` | 指標可顯示 | ⬜ | 相依 Phase2-2 |
 | Phase5-3 | **程式碼**目錄收斂 | 全專案 | 台股回歸逐筆相同 | 🔄 | **2026-08-31：`pipeline/` 已由命名軸線收斂工作完成**（軸線定案見 [命名軸線](../docs/dev/naming-axes.md)），剩 `api/`／`adapters/`／`backtest/datafeed/`。**形狀偏離原規格**：改為 `pipeline/tw/`（純市場軸）而非原定 `pipeline/tw_stock`／`tw_futures`——每層目錄只承載一條軸，商品類別由檔名承載，與美股 §3.1 一致；原路徑 B 會把市場與商品壓成單一目錄名。理由見該文件〈每層目錄只承載一條軸〉 |
 | Phase6-1 | `futures_stock_universe` 標的池 ETL | `core/pipeline/tw/*/futures_stock_universe_*.py`、`tasks/update_db.py` | 掛牌／下市與乘數異動可追蹤 | ✅ | **2026-08-29 完成**：`--target futures_stock_universe` 可跑，320 檔入庫、標的代號 270/270 對得上現股。**流動性前 N 檔篩選改列 Phase6-2**（需要成交量，標的池階段還沒有）
-| Phase6-2 | 股票期貨行情 ETL 與除權息乘數調整 | `core/pipeline/*` | 與台股除權息處理對照，無雙重調整 | ⬜ | 相依 Phase6-1（✅）。**含流動性前 N 檔篩選**與調整型契約（`EE1` 等）的乘數歷史
+| Phase6-2 | 股票期貨行情 ETL 與除權息乘數調整 | `core/api/futures_stock_universe_api.py`、`core/adapters/futures_quote_adapter.py`、`core/backtest/datafeed/futures_datafeed.py`、`tasks/update_db.py` | 與台股除權息處理對照，無雙重調整 | ✅ | **2026-09-02 完成**：`--target futures_stock_price` 上線（清單取自標的池、預設只爬流動性前 20 檔）；**股期的乘數改為逐日查契約單位**（除權息會調整它），adapter 新增 `multiplier_resolver` 掛點；股期行情一律用原始價，除權息由契約單位承接，**不再套還原價**（雙重調整）。11 條測試
 
 ---
 
@@ -1444,7 +1444,7 @@ PRIMARY KEY `(date, product, expiry, session)`。
 > **未做，已移入 Phase6-2**：**流動性前 N 檔篩選**。它需要日均成交量，而標的池階段
 > 還沒有任何股期行情，先做只能拿現股成交量代打，那與股期自身的流動性不是同一件事。
 
-#### Phase6-2. 股票期貨行情 ETL 與除權息乘數調整 ⬜
+#### Phase6-2. 股票期貨行情 ETL 與除權息乘數調整 ✅
 
 - **目的**：股期的除權息處理與現股完全不同，**不可套用現股還原股價的邏輯**，否則會重複調整或漏調。
 - **做法**：比照指數期貨走完整 ETL 垂直切片（universe → price → 可選 chip → backtest）；標的除權息時，交易所以**調整契約乘數**或**發行新契約**因應，回測需比照 TAIFEX 官方公告調整並保存乘數歷史序列。回測預設**只用近月合約**，不建議比照指數期貨做多月份連續合約（遠月流動性極低）。
@@ -1457,6 +1457,36 @@ PRIMARY KEY `(date, product, expiry, session)`。
   3. **精確的掛牌／下市日**。標的池只能由快照差分推得觀測值，要官方日期須走商品異動公告。
 
 ---
+
+> **✅ 完成紀錄（2026-09-02）**
+>
+> **股期與指數期貨最根本的差異：乘數不是常數**。指數期貨的乘數寫在
+> `FUTURES_MULTIPLIER`（TX 200）幾十年不變；股期的「契約單位」標準型是 2,000 股，
+> 但**除權息之後會被交易所調整**。原本的 adapter 一律走
+> `FUTURES_MULTIPLIER[product]`，股期會直接 KeyError——也就是說**股期根本還不能
+> 回測**。本步驟因此在 adapter 加了 `multiplier_resolver` 掛點，由
+> `TwFuturesDataFeed.resolve_multiplier()` 決定：指數期貨查常數、股期**逐日查
+> 標的池的契約單位**。兩個來源都查不到就 KeyError，理由同 `FUTURES_MULTIPLIER`。
+>
+> **「無雙重調整」的定案**（驗收條件）：台股用**還原價**處理除權息（價格往回調），
+> 股期用**調整契約單位**處理（價格不動、每口股數變）。兩者是同一件事的兩種做法，
+> **擇一即可，同時套用就是雙重調整**。故本專案的規則是：股期行情一律用原始價
+> （`FuturesQuote.adj_close` 恆為 None），除權息的影響由「當時的契約單位」承接。
+> 已寫進 `FuturesStockUniverseAPI` 的模組說明並固化為測試。
+>
+> **流動性前 N 檔篩選**：`get_top_liquid_products()` 依**已入庫行情的平均日成交量**
+> 排序，並以 `min_days` 排除「只上市兩天就爆量」的商品。預設 `STOCK_FUTURES_TOP_N=20`
+> ——**不要一次爬 320 檔**，那是每天 640 次請求、13 年要好幾個月，而尾端有整批
+> 一天成交個位數口的商品，納入回測只會製造「回測賺錢、實際掛不到單」的假訊號。
+> ⚠️ 排序需要先有行情（雞生蛋）：第一次跑會排不出來而退回整份清單並提醒。
+>
+> **契約單位歷史由快照差分推得**：來源沒有「調整生效日」這個欄位，
+> `get_contract_size_history()` 只列出真的變動的那幾份快照。快照愈密集愈準；
+> 本表建於 2026-08-29，**更早的調整一律看不到**——這是已知限制，
+> 查詢日早於第一份快照時退回最早一份（近似，非事實）。
+>
+> **端對端驗證**：`update_stock_futures(products=["CDF","NYF"])` 實跑兩天入庫成功；
+> `TwFuturesDataFeed` 取出 CDF 的報價，乘數正確帶出 2,000 股（台積電期標準型）。
 
 ## 十、給 Claude Code 的實作提示
 

@@ -15,6 +15,7 @@ from core.config import (
     DEFAULT_PRICE_START_DATE,
     DEFAULT_START_YEAR,
     FINMIND_BROKER_TRADING_START_DATE,
+    STOCK_FUTURES_TOP_N,
     TICK_UPDATE_START_DATE,
 )
 from core.pipeline.tw.updaters.financial_statement_updater import (
@@ -84,6 +85,7 @@ Target 對照表
   futures_margin              台期貨保證金（變動序列，寫入 tw_futures.db）
   futures_continuous          台期貨連續合約（由 futures_price_daily 建出，不連網路）
   futures_chip                台期貨籌碼（三大法人、大額交易人、選擇權 PCR）
+  futures_stock_price         股票期貨行情（商品清單取自標的池，預設只爬流動性前 N 檔）
   fs                          財報 (Financial Statement)
   mrr                         月營收報表 (Monthly Revenue Report)
   finmind                     全部 FinMind（台股總覽 + 證券商 + 券商分點）
@@ -121,6 +123,9 @@ Target 對照表
 
   # 更新台期貨籌碼（三個資料集，一天三次請求即涵蓋全市場）
   python -m tasks.update_db --target futures_chip
+
+  # 更新股票期貨行情（預設流動性前 20 檔；320 檔全爬要好幾個月）
+  python -m tasks.update_db --target futures_stock_price
 
   # 更新股票期貨標的池（寫入 tw_futures.db；每次執行留下一份當日快照）
   python -m tasks.update_db --target futures_stock_universe
@@ -370,6 +375,21 @@ def main() -> None:
             futures_price_updater: FuturesPriceUpdater = FuturesPriceUpdater()
             futures_price_updater.update(
                 start_date=time_config["start_date"], end_date=time_config["end_date"]
+            )
+
+    if DataType.FUTURES_STOCK_PRICE.name.lower() in targets:
+        with target_guard("futures_stock_price", failed_targets):
+            # **股期不走 FUTURES_TARGET_PRODUCTS**：320 檔且會隨掛牌／下市異動，
+            # 清單改由 futures_stock_universe 提供。預設只爬流動性前 N 檔——
+            # 全爬是每天 640 次請求，而尾端商品一天只成交個位數口
+            time_config: Dict[str, datetime.date | int] = get_update_time_config(
+                DataType.FUTURES_PRICE
+            )
+            stock_futures_updater: FuturesPriceUpdater = FuturesPriceUpdater()
+            stock_futures_updater.update_stock_futures(
+                start_date=time_config["start_date"],
+                end_date=time_config["end_date"],
+                top_n=STOCK_FUTURES_TOP_N,
             )
 
     if DataType.FUTURES_CHIP.name.lower() in targets:

@@ -1,6 +1,6 @@
 import datetime
 import math
-from typing import Any, List, Optional
+from typing import Any, Callable, List, Optional
 
 import pandas as pd
 
@@ -20,7 +20,9 @@ FuturesQuoteAdapter: 把 `FuturesPriceAPI` 的查詢結果轉成回測吃的 `Fu
 與 `StockQuoteAdapter` 的差異：
 - 沒有 `filter_common_stocks()` 這類過濾：期貨的商品清單由設定檔決定，不是從
   代號規則推出來的。
-- 沒有還原價：期貨沒有除權息還原的概念。
+- 沒有還原價：期貨沒有除權息還原的概念。**股票期貨也不例外**——它的除權息由
+  「調整契約單位」承接，再套台股的還原係數就是雙重調整
+  （見 `FuturesStockUniverseAPI`）。
 - **同一根 bar 內出現重複 symbol 是正常的**——同一契約的日盤與夜盤是兩筆；
   因此 `session` 混用時不發重複警告，而是要求呼叫端指定時段。
 """
@@ -55,11 +57,24 @@ class FuturesQuoteAdapter:
         return None if as_float is None else int(as_float)
 
     @staticmethod
+    def resolve_multiplier(product: str) -> int:
+        """
+        預設的乘數解析：指數期貨查 `FUTURES_MULTIPLIER`
+
+        **未登錄的商品直接 KeyError**（理由見該常數）。股票期貨的乘數是會隨
+        除權息調整的「契約單位」，查不到是正常的——那種商品要由呼叫端傳入
+        `multiplier_resolver`（`TwFuturesDataFeed` 已備好，見該處）。
+        """
+
+        return FUTURES_MULTIPLIER[product]
+
+    @staticmethod
     def convert_to_day_quotes(
         data_api: FuturesPriceAPI,
         date: datetime.date,
         product: Optional[str] = None,
         session: Optional[FuturesSession] = FuturesSession.DAY,
+        multiplier_resolver: Optional[Callable[[str], int]] = None,
     ) -> List[FuturesQuote]:
         """
         - Description:
@@ -82,7 +97,9 @@ class FuturesQuoteAdapter:
         """
 
         price_df: pd.DataFrame = data_api.get(date, product=product, session=session)
-        return FuturesQuoteAdapter.generate_futures_quotes(price_df, date, Scale.DAY)
+        return FuturesQuoteAdapter.generate_futures_quotes(
+            price_df, date, Scale.DAY, multiplier_resolver=multiplier_resolver
+        )
 
     @staticmethod
     def convert_to_combined_quotes(
@@ -90,6 +107,7 @@ class FuturesQuoteAdapter:
         date: datetime.date,
         night_date: Optional[datetime.date],
         product: Optional[str] = None,
+        multiplier_resolver: Optional[Callable[[str], int]] = None,
     ) -> List[FuturesQuote]:
         """
         - Description:
@@ -129,13 +147,21 @@ class FuturesQuoteAdapter:
         """
 
         day_quotes: List[FuturesQuote] = FuturesQuoteAdapter.convert_to_day_quotes(
-            data_api, date, product=product, session=FuturesSession.DAY
+            data_api,
+            date,
+            product=product,
+            session=FuturesSession.DAY,
+            multiplier_resolver=multiplier_resolver,
         )
         if night_date is None:
             return [FuturesQuoteAdapter.mark_combined(quote) for quote in day_quotes]
 
         night_quotes: List[FuturesQuote] = FuturesQuoteAdapter.convert_to_day_quotes(
-            data_api, night_date, product=product, session=FuturesSession.NIGHT
+            data_api,
+            night_date,
+            product=product,
+            session=FuturesSession.NIGHT,
+            multiplier_resolver=multiplier_resolver,
         )
         night_by_contract: dict = {quote.contract_id: quote for quote in night_quotes}
 
@@ -195,6 +221,7 @@ class FuturesQuoteAdapter:
         data: pd.DataFrame,
         date: datetime.date,
         scale: Scale = Scale.DAY,
+        multiplier_resolver: Optional[Callable[[str], int]] = None,
     ) -> List[FuturesQuote]:
         """
         - Description:
@@ -219,7 +246,9 @@ class FuturesQuoteAdapter:
             return []
 
         return [
-            FuturesQuoteAdapter.generate_futures_quote(row, date, scale)
+            FuturesQuoteAdapter.generate_futures_quote(
+                row, date, scale, multiplier_resolver=multiplier_resolver
+            )
             for row in data.itertuples(index=False)
         ]
 
@@ -228,6 +257,7 @@ class FuturesQuoteAdapter:
         row: Any,
         date: datetime.date,
         scale: Scale = Scale.DAY,
+        multiplier_resolver: Optional[Callable[[str], int]] = None,
     ) -> FuturesQuote:
         """
         - Description:
@@ -267,5 +297,7 @@ class FuturesQuoteAdapter:
             open_interest=FuturesQuoteAdapter.to_optional_int(
                 getattr(row, FuturesPriceColumn.OPEN_INTEREST.value)
             ),
-            multiplier=FUTURES_MULTIPLIER[product],
+            multiplier=(multiplier_resolver or FuturesQuoteAdapter.resolve_multiplier)(
+                product
+            ),
         )

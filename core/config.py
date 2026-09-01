@@ -293,6 +293,16 @@ DEFAULT_PRICE_START_DATE: datetime.date = datetime.date(2013, 1, 1)
 # INSERT OR IGNORE），續跑會從表內該商品的最新日接續，
 # 故往前擴張需要另行指定區間重跑，見 `FuturesPriceUpdater.update()`。
 DEFAULT_FUTURES_START_DATE: datetime.date = datetime.date(2015, 1, 1)
+
+# 股票期貨預設只爬**流動性前 N 檔**（Phase6-2）。
+#
+# **不要一次爬 320 檔**：那是每天 640 次請求（日夜盤各一），13 年的回補要好幾個月。
+# 股期的流動性差距是數量級的——前段幾檔佔了絕大多數成交量，尾端有整批一天只成交
+# 個位數口的商品，把它們納入回測只會製造「回測賺錢、實際掛不到單」的假訊號。
+#
+# 排序依據是**已入庫行情的平均日成交量**，故第一次跑（表內還沒有股期行情）會排不出
+# 來而退回整份清單並提醒——那是雞生蛋，不是錯誤。
+STOCK_FUTURES_TOP_N: int = 20
 DEFAULT_START_YEAR: int = 2013
 DEFAULT_END_MONTH: int = 12
 TICK_UPDATE_START_DATE: datetime.date = datetime.date(2024, 5, 10)

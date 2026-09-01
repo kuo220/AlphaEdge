@@ -1,12 +1,13 @@
 import datetime
 import sqlite3
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 from loguru import logger
 
 from core.adapters.futures_quote_adapter import FuturesQuoteAdapter
 from core.api.futures_margin_api import FuturesMarginAPI
 from core.api.futures_price_api import FuturesPriceAPI
+from core.api.futures_stock_universe_api import FuturesStockUniverseAPI
 from core.backtest.datafeed.base import BaseDataFeed
 from core.backtest.datafeed.futures_calendar import FuturesCalendar
 from core.backtest.datafeed.futures_roll import FuturesRollConfig
@@ -15,6 +16,7 @@ from core.managers.futures.position_manager import FuturesMarginConfig
 from core.models import FuturesQuote
 from core.strategies.base import BaseStrategy
 from core.utils import FuturesSession, Scale
+from core.utils.constant import FUTURES_MULTIPLIER
 
 """TwFuturesDataFeed: 台期貨資料源（tw_futures.db 的日行情與保證金 ＋ 交易日判定）"""
 
@@ -58,6 +60,9 @@ class TwFuturesDataFeed(BaseDataFeed):
 
         self.futures_price: Optional[FuturesPriceAPI] = None  # 期貨日行情
         self.margin: Optional[FuturesMarginAPI] = None  # 保證金歷史
+        # 股期標的池：**股期的乘數是會隨除權息調整的契約單位**，不在
+        # `FUTURES_MULTIPLIER` 裡，必須逐日查表（見 `resolve_multiplier()`）
+        self.universe: Optional[FuturesStockUniverseAPI] = None
 
         # 本次回測的商品與時段（由策略宣告）
         self.products: List[str] = []
@@ -75,6 +80,7 @@ class TwFuturesDataFeed(BaseDataFeed):
 
         self.futures_price = FuturesPriceAPI(conn=self.conn)
         self.margin = FuturesMarginAPI(conn=self.conn)
+        self.universe = FuturesStockUniverseAPI(conn=self.conn)
 
         self.products = list(getattr(strategy, "products", []) or [])
         self.session = getattr(strategy, "session", FuturesSession.DAY)
@@ -230,6 +236,8 @@ class TwFuturesDataFeed(BaseDataFeed):
             return []
 
         quotes: List[FuturesQuote] = []
+        resolver: Callable[[str], int] = self.build_multiplier_resolver(date)
+
         # products 為空時以 [None] 跑一輪，代表「不過濾商品」
         for product in self.products or [None]:
             if self.session == FuturesSession.COMBINED:
@@ -239,6 +247,7 @@ class TwFuturesDataFeed(BaseDataFeed):
                         date,
                         self.get_night_session_date(date),
                         product=product,
+                        multiplier_resolver=resolver,
                     )
                 )
                 continue
@@ -249,10 +258,54 @@ class TwFuturesDataFeed(BaseDataFeed):
                     date,
                     product=product,
                     session=self.session,
+                    multiplier_resolver=resolver,
                 )
             )
 
         return quotes
+
+    def resolve_multiplier(self, product: str, date: datetime.date) -> int:
+        """
+        - Description:
+            解出該商品在該日的乘數
+
+            **兩種來源不可互相取代**：指數期貨的乘數是常數（`FUTURES_MULTIPLIER`），
+            股票期貨的「契約單位」則會隨除權息被交易所調整，必須查**當時**的快照。
+            拿今天的契約單位回測歷史，除權息之後那一段的 PnL 就會整段偏掉。
+        - Parameters:
+            - product: str
+                商品代碼
+            - date: datetime.date
+                交易日（股期的契約單位隨日期變動）
+        - Return:
+            - int
+                乘數（股期為契約單位股數）
+        - Raises:
+            - KeyError
+                兩個來源都查不到——**刻意讓它中斷**，理由同 `FUTURES_MULTIPLIER`：
+                乘數猜錯只會讓 PnL 靜默偏掉，中斷比靜默錯誤好查
+        """
+
+        if product in FUTURES_MULTIPLIER:
+            return FUTURES_MULTIPLIER[product]
+
+        contract_size: Optional[int] = (
+            self.universe.get_contract_size(product, date)
+            if self.universe is not None
+            else None
+        )
+        if contract_size is None:
+            raise KeyError(
+                f"{product} 的乘數在 FUTURES_MULTIPLIER 與 futures_stock_universe "
+                f"都查不到（{date}）。指數期貨請登錄常數，股期請先更新標的池"
+            )
+
+        return contract_size
+
+    def build_multiplier_resolver(self, date: datetime.date) -> Callable[[str], int]:
+        """把 `resolve_multiplier()` 綁定日期後交給 adapter（adapter 不持有連線）"""
+
+        return lambda product: self.resolve_multiplier(product, date)
 
     def get_night_session_date(self, date: datetime.date) -> Optional[datetime.date]:
         """
@@ -280,7 +333,7 @@ class TwFuturesDataFeed(BaseDataFeed):
     def close(self) -> None:
         """關閉資料連線（回測結束時由引擎呼叫）"""
 
-        for api in (self.futures_price, self.margin):
+        for api in (self.futures_price, self.margin, self.universe):
             if api is not None:
                 api.close()
 

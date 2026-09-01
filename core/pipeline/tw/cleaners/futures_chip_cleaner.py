@@ -143,7 +143,9 @@ class FuturesChipCleaner(BaseDataCleaner):
         if df is None:
             return None
 
-        df = df.rename(columns={"日期": "date", "商品名稱": "product_name", "身份別": "investor"})
+        df = df.rename(
+            columns={"日期": "date", "商品名稱": "product_name", "身份別": "investor"}
+        )
         if not {"date", "product_name", "investor"}.issubset(df.columns):
             logger.warning(f"[Futures Chip] 三大法人欄位與預期不符：{list(df.columns)}")
             return None
@@ -159,7 +161,9 @@ class FuturesChipCleaner(BaseDataCleaner):
 
         return self.to_numeric(df, exclude=["date", "product_name", "investor"])
 
-    def clean_large_trader(self, raw: str, date: datetime.date) -> Optional[pd.DataFrame]:
+    def clean_large_trader(
+        self, raw: str, date: datetime.date
+    ) -> Optional[pd.DataFrame]:
         """
         - Description:
             清洗大額交易人：`(date, product, expiry, trader_type)` 為主鍵
@@ -188,7 +192,9 @@ class FuturesChipCleaner(BaseDataCleaner):
         )
         required: set = {"date", "product", "expiry", "trader_type"}
         if not required.issubset(df.columns):
-            logger.warning(f"[Futures Chip] 大額交易人欄位與預期不符：{list(df.columns)}")
+            logger.warning(
+                f"[Futures Chip] 大額交易人欄位與預期不符：{list(df.columns)}"
+            )
             return None
 
         for column in ("product", "product_name", "expiry", "trader_type"):
@@ -219,7 +225,10 @@ class FuturesChipCleaner(BaseDataCleaner):
             return None
 
         # 來源每列結尾有多餘逗號，pandas 會多出一個全空的欄位
-        df = df.loc[:, [column for column in df.columns if not str(column).startswith("Unnamed")]]
+        df = df.loc[
+            :,
+            [column for column in df.columns if not str(column).startswith("Unnamed")],
+        ]
         df["date"] = str(date)
 
         return self.to_numeric(df, exclude=["date"])

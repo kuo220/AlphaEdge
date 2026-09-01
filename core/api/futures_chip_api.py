@@ -127,7 +127,9 @@ class FuturesChipAPI(BaseDataAPI):
         這是籌碼策略最常用的一個數字：外資的台指期未平倉淨額。
         """
 
-        df: pd.DataFrame = self.get_available(date, FUTURES_INSTITUTIONAL_CHIP_TABLE_NAME)
+        df: pd.DataFrame = self.get_available(
+            date, FUTURES_INSTITUTIONAL_CHIP_TABLE_NAME
+        )
         if df.empty:
             return None
 

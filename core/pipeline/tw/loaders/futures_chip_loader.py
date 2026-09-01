@@ -91,7 +91,9 @@ class FuturesChipLoader(BaseDataLoader):
         for column in df.columns:
             # 主鍵與名稱類欄位存文字，其餘存數值
             is_text: bool = column in keys or column.endswith("_name")
-            columns.append(f'"{column}" {"TEXT NOT NULL" if column in keys else ("TEXT" if is_text else "REAL")}')
+            columns.append(
+                f'"{column}" {"TEXT NOT NULL" if column in keys else ("TEXT" if is_text else "REAL")}'
+            )
 
         primary_key: str = ", ".join(f'"{key}"' for key in keys)
         self.conn.execute(
@@ -135,7 +137,9 @@ class FuturesChipLoader(BaseDataLoader):
         before: int = self.count_rows(table)
         cursor.executemany(
             f"INSERT OR IGNORE INTO {table} ({columns}) VALUES ({placeholders})",
-            df.astype(object).where(pd.notna(df), None).itertuples(index=False, name=None),
+            df.astype(object)
+            .where(pd.notna(df), None)
+            .itertuples(index=False, name=None),
         )
         self.conn.commit()
         inserted: int = self.count_rows(table) - before
