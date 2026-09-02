@@ -15,7 +15,7 @@
 | Skill | 觸發時機 | 對應 Cursor Rule |
 |-------|----------|------------------|
 | [`manage-backlog`](.claude/skills/manage-backlog/SKILL.md) | 新增／更新 `backlog/**` 文件與 `index.md` | — |
-| [`develop-strategy`](.claude/skills/develop-strategy/SKILL.md) | 新增／修改 `core/strategies/stock/` 策略 | `.cursor/rules/strategy-development-sdd.mdc` |
+| [`develop-strategy`](.claude/skills/develop-strategy/SKILL.md) | 新增／修改 `core/strategies/{stock,futures}/` 策略 | `.cursor/rules/strategy-development-sdd.mdc` |
 
 > **上表「對應 Cursor Rule」欄一律是指標，不是副本。** 規則內容只維護在本檔、`.claude/skills/`
 > 或 `strategy_lab/CLAUDE.md`；`.cursor/` 底下的檔案只寫「去讀哪一份」，不重複規則本文。

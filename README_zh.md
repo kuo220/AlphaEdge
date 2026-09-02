@@ -1,5 +1,7 @@
 [English](README.md) | [Chinese (中文版)](#)
 
+> 本檔為權威版本；`README.md` 為其英譯。改動時先改本檔，再同步英文版。
+
 # AlphaEdge
 
 AlphaEdge 是一個聚焦台灣市場工作流程的策略研究與交易框架（回測 + 報表 + 資料更新流程 + Streamlit 結果檢視器）。
@@ -37,7 +39,7 @@ graph TB
         Adapters["core/adapters"]
         Pipeline["core/pipeline"]
         DB["data/db"]
-        Data["core/data"]
+        Data["data/downloads"]
     end
 
     subgraph output_layer ["回測輸出層"]
@@ -112,6 +114,7 @@ graph TB
 | [程式碼品質工具鏈與基線](docs/dev/code-quality.md) | pyproject／ruff／CI／pre-commit 設定、lint ignore 理由、覆蓋率基線 |
 | [ETL 入庫約定](docs/pipeline/etl-ingestion.md) | 入庫階段的分批時機、冪等性與失敗語意；新增 updater 的檢查表 |
 | [券商分點 NO_DATA 的 metadata 語意](docs/pipeline/broker-trading-no-data.md) | API 回傳空資料時的 metadata 處理（選型紀錄） |
+| [全專案架構與邏輯健檢（2026-09）](docs/dev/health-check-2026-09.md) | 全 repo 架構與邏輯健檢紀錄：101 條發現分 A~D 級，每條附處置去處 |
 
 ---
 
@@ -180,6 +183,7 @@ pytest                  # 全部（需 data/db/tw_stock.db）
 ```bash
 pip install pre-commit
 pre-commit install       # 只需執行一次，安裝 git hook
+pre-commit run --all-files
 ```
 
 每次 push 時 GitHub Actions 會跑 `ruff check`、`ruff format --check` 與
@@ -304,7 +308,8 @@ AlphaEdge/
 │   ├── strategies/            # 策略實作
 │   │   ├── base.py            # BaseStrategy（市場無關）
 │   │   ├── strategy_loader.py # 自動掃描所有市場子套件
-│   │   └── stock/             # BaseStockStrategy ＋ 各支台股策略
+│   │   ├── stock/             # BaseStockStrategy ＋ 各支台股策略
+│   │   └── futures/           # BaseFuturesStrategy 與台期貨策略
 │   ├── api/                   # 資料存取 API（SQLite／DolphinDB）
 │   ├── adapters/              # 資料介接 / 整合層
 │   │   └── stock_quote_adapter.py  # StockQuoteAdapter（日線/Tick → StockQuote）
@@ -315,7 +320,6 @@ AlphaEdge/
 │   │   ├── shared/           # 跨市場共用：四層 base ＋ HTTP 工具
 │   │   ├── tw/               # 台股／台期貨 ETL（crawlers／cleaners／loaders／updaters）
 │   │   └── utils/            # 常數、URL 管理、DataFrame 與 SQLite 工具
-│   ├── database/              # sqlite 資料庫檔案（tw_stock.db）
 │   ├── backtest/              # 回測引擎
 │   │   ├── backtester.py      # 唯一引擎：市場與商品皆無關、無子類
 │   │   ├── factory.py         # 依（market, instrument_type）組合組裝 model 組合
@@ -323,8 +327,9 @@ AlphaEdge/
 │   │   ├── datafeed/          # 資料載入、報價轉換、交易日判定
 │   │   ├── report/            # 交易報表、多空統計、圖表
 │   │   ├── analysis/          # 績效指標（尚未接進 run() 主流程）
-│   │   └── results/           # 各策略輸出（csv／png／logs）
-│   └── data/                  # 下載 / 原始資料
+├── data/                      # 執行期資料（不進版控）：db/（tw_stock.db、tw_futures.db）＋ downloads/
+├── results/                   # 各策略回測輸出（csv／png），不進版控
+├── logs/                      # api/、pipeline/、backtest/ 三桶，不進版控
 ├── frontend/                  # Streamlit Docker 映像
 │   ├── app.py                 # Streamlit 入口
 │   ├── config.py              # frontend 設定

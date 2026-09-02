@@ -127,7 +127,7 @@ def execute_bar(self, date: datetime.date, quotes: List[BaseQuote]) -> None:
 | | `core/backtest/models/fill_model.py` | `BaseFillModel` ＋ `TwStockFillModel` |
 | | `core/backtest/models/cost_model.py` | `BaseCostModel` ＋ `CostConfig`／`ShortConstraint`／`StockCostModel` |
 | | `core/backtest/models/settlement_model.py` | `BaseSettlementModel` ＋ `TwStockSettlementModel` |
-| 資料源 | `core/backtest/datafeed/base.py`／`tw_stock_datafeed.py`／`market_calendar.py` | `BaseDataFeed` ＋ `TwStockDataFeed` |
+| 資料源 | `core/backtest/datafeed/base.py`／`tw/stock_datafeed.py`／`tw/futures_datafeed.py`／`tw/market_calendar.py`／`tw/futures_calendar.py` | `BaseDataFeed` ＋ `TwStockDataFeed`／`TwFuturesDataFeed` |
 | 資料模型 | `core/models/base/` | `BaseQuote`／`BaseOrder`／`BasePosition`／`BaseTradeRecord`／`BaseAccount`，識別欄位一律 `symbol` |
 | 策略 | `core/strategies/base.py` | `BaseStrategy`，`market` ＋ `instrument_type` 兩欄位為 factory 的分派鍵 |
 | 部位 | `core/managers/base/position_manager.py` | FIFO 拆單主幹 ＋ `settle_daily()` 掛點 |
@@ -189,7 +189,7 @@ model 之間刻意**不互相依賴**，需要共享的狀態以 dict 參照傳�
 |------|------|----------|
 | **per-instrument 粒度的 model 掛載** | 無法在同一次回測同時持有台股與台指期（跨市場組合／避險） | 業界（Lean 掛在 `Security`、Nautilus 掛在 `Instrument`）確實是這個粒度，本次採 per-run 簡化。升級路徑乾淨：把 model 從 `Backtester` 移到 `InstrumentSpec` 物件上，引擎迴圈不動 |
 | 事件驅動 order queue（T+1 延遲成交、限價單未成交、部分成交） | 追繳仍只能以觸發當日收盤價回補 | 本質是引擎典範轉移，見 [§5.1](#51-事件驅動迴圈長期方向) |
-| 報表輸出欄位仍為 `Stock ID` 而非 `Symbol` | 期貨報表的欄位名會是股票語意 | 改名會讓 1,889 筆 LONG baseline 失效。等期貨真的要出報表時再處理，屆時 baseline 本來就要重產 |
+| 台股報表輸出欄位仍為 `Stock ID` 而非 `Symbol` | 兩種報表的識別欄名不同（台股 `Stock ID`、期貨 `Contract ID`，後者由 `FuturesBacktestReporter` 於 2026-09-02 另行覆寫） | 改名會讓 LONG baseline 失效；等 baseline 下次本來就要重產時再統一 |
 | `core/utils/instrument.py` 未移出 | `core/utils/` 仍留一個領域模組 | `StockUtils` 有 4 個 `core/backtest/` 以外的使用者（pipeline、adapters、`strategy_lab`）。移進 `core/backtest/` 會讓資料管線反過來相依於回測引擎，是更嚴重的層級問題。其 11 個函式的歸屬需先拆解——「LONG成本模型口徑收斂」（2026-08-15 完成並移出 `backlog/`）未處理此項，**本表即其目前唯一的追蹤位置** |
 | `--mode live` 實盤路徑 | 實盤仍是空實作 | `run.py` 的 live 分支目前是 `pass`；factory 已預留讓實盤共用同一組 model |
 
@@ -304,6 +304,13 @@ SHORT 的 12 組情境刻意各只動一個變因，任一情境快照有變即�
 | `tests/` | 115 passed（4 個 error 為 `tests/test_tick_*` 的既有問題） |
 
 ---
+
+## 九、健檢 C 級結論（2026-09-02）
+
+[全專案架構與邏輯健檢.md](../dev/health-check-2026-09.md) S11~S13 對引擎、model 與管理器逐行核對後，B 級已轉入 `backlog/回測口徑與日期邊界收斂.md`；下列 C 級屬已知簡化，記於此不另開工作：
+
+- **F-061 漲跌停公式相符率 61.6%**：`TwStockSpec.get_price_limits()` 以「前收 ±幅度後往內對齊檔位」推算，與交易所公告比對 23,972 筆只有 61.6% 相符（多數差一檔）。影響 `validate()` 的邊界拒單與 `check_limit_up_locked()` 的 `limit_up_cover_failed` 計數。既有 23,972 筆公告值可經 `DataFeed.get_price_limit_basis()` 同一掛點推入，公式版退為 fallback——等有策略真的依賴漲停判定時再做。
+- 其餘引擎側 C 級（`check_has_position()` 未濾已平倉 F-020、期貨同契約多空各佔保證金 F-058、期貨損益公式兩套 F-062、`holding_days` bar 數 vs 曆日 F-063、每曆日 `SELECT *` 判空 F-066、近月拼接挑到週契約 F-069、期貨日曆只看第一個商品 F-070、`MomentumStrategy1` TICK 未擋 F-075、`max_holdings` 預設 0 F-076）已併入 `backlog/回測口徑與日期邊界收斂.md` 對應步驟，修 B 級時順手處理。
 
 ## 相關文件
 

@@ -25,7 +25,7 @@ CSV，程序中斷後資料庫仍是 0 列。
 
 ---
 
-## 二、各 updater 現況對照（2026-08-16）
+## 二、各 updater 現況對照（2026-08-16 建表，2026-09-02 補上期貨線）
 
 新增 updater 時對照本表，確認四個欄位都有著落。
 
@@ -42,6 +42,11 @@ CSV，程序中斷後資料庫仍是 0 列。
 | `StockTickUpdater` | 全部跑完 | 固定起日 ＋ `tick_metadata.json` | **無**（`keepDuplicates=ALL`） | — |
 | `FuturesPriceUpdater` | **每 100 天** | 逐**商品**查該商品在表內的最新 `date` +1 | `INSERT OR IGNORE` | `DataLoadError` |
 | `FuturesStockUniverseUpdater` | 一次（單次請求） | 當日快照是否已入庫 | `INSERT OR IGNORE` | `DataLoadError` |
+| `FuturesPriceUpdater.update_stock_futures()`（股期） | **每 100 天** | 逐商品最新 `date` +1；商品清單取自標的池前 N 檔 | `INSERT OR IGNORE` | `DataLoadError` |
+| `FuturesMarginUpdater` | 一次（單次請求） | 主鍵 `(effective_date, product)` 相同即略過 | `INSERT OR IGNORE` | `logger.error`（未拋 `DataLoadError`） |
+| `FuturesContinuousUpdater` | 整段重建（衍生表，不連網路） | 無 resume（逆向調整量會隨後續換月改變，一律重建） | 整表重建 | `logger.error`（未拋 `DataLoadError`） |
+| `FuturesChipUpdater` | 每個資料集跑完 | 三張表各自最新 `date` +1 | `INSERT OR IGNORE` | `logger.error`（未拋 `DataLoadError`） |
+| `FuturesTickUpdater` | 全部跑完 | 以日線行情表決定契約、預設只爬近月 | **無**（DolphinDB `keepDuplicates=ALL`，寫入路徑尚未實測） | — |
 
 **未分批的四個並非疏漏**：dividend／mrr／fs 的量級是十餘年 × 數十個年月或年季，
 單次執行以分鐘計，中斷重跑的成本可接受。tick 走 DolphinDB，語意與 SQLite 組不同。
@@ -52,7 +57,7 @@ CSV，程序中斷後資料庫仍是 0 列。
 Resume 尤其不能沿用「表最大年季 +1」：一個年季爬到一半中斷時，該年季已經有資料，
 會被判定為已完成而整季跳過，沒爬到的公司永遠補不回來。
 
-**兩支期貨 updater 寫的是 `tw_futures.db` 不是 `tw_stock.db`**（主鍵語意不同，見
+**期貨的 updater 寫的是 `tw_futures.db` 不是 `tw_stock.db`**（主鍵語意不同，見
 `futures_price_loader` 的說明）。`FuturesPriceUpdater` 的 resume **以商品為單位而非
 全表最新日**：各商品上市日不同、且會陸續加進爬取範圍，用全表最新日會讓新加的商品
 被既有商品的進度擋住而整段歷史都補不到。`FuturesStockUniverseUpdater` 則沒有回補
@@ -179,6 +184,24 @@ log 也沒有任何錯誤——只有一行 `first 30 stocks have no data` 語�
 補上 `N requested, N no data, N unreachable` 之後，同樣的異常在當下就看得出來。
 
 ---
+
+## 五、健檢 C 級結論（2026-09-02）
+
+[全專案架構與邏輯健檢.md](../dev/health-check-2026-09.md) S7~S10 逐檔核對四層後，A／B 級已轉入 `backlog/ETL失敗語意與缺口回補.md`；下列 C 級是**結構性的取捨**，先記錄、等該區塊真的要動時再處理：
+
+| 編號 | 結論 |
+|---|---|
+| F-013 | 盲捕 `except Exception` 由 85 增為 96 條，全在 `core/pipeline/`（crawlers 26、updaters 25、loaders 其餘）。收斂順序：先做 §3.2 的失敗語意（讓例外有型別），再逐檔把盲捕換成具名例外 |
+| F-033 | `base_crawler`／`base_cleaner` 只定義 `setup()`／`crawl()`（`*args, **kwargs`），14 個 crawler 的 `crawl()` 簽章各不相同；抽象基底沒有約束力，新增 crawler 時無法靠型別發現漏實作 |
+| F-034 | 節流常數散在三處且語意各異（`RequestUtils` 的 HTTP 重試、財報／月營收各自的 sleep、權益變動表專用常數）；建議集中成一份 `ThrottlePolicy` 由 crawler 注入 |
+| F-035／F-036 | FinMind 與期貨籌碼 crawler 的「被擋」與「真的沒資料」都回 `None`，把「該不該重試」推給 updater；與 A 級 F-030 同根，修 F-030 時一併定義回傳型別 |
+| F-039 | 財報 cleaner 的三份欄位對照表（`*_all_columns.json`／`*_column_map.json`／`*_cleaned_columns.json`）缺檔只 warning 後降級清洗；依 [執行期產物](../dev/runtime-artifacts.md) 的判準它們是**設定**，缺檔應直接失敗 |
+| F-040 | `fix_broken_char()` 把任何 `�` 一律換成「碁」——只對「碁」字家族正確；應改為以股票代號查 `taiwan_stock_info` 的正確名稱 |
+| F-041 | `futures_margin_cleaner` 解析不到生效日時退回「公告日 +1」，與同檔第 1 點「解析不到一律整批放棄」矛盾；擇一 |
+| F-042 | `futures_stock_universe_cleaner` import crawler 與引擎的 `FuturesCalendar`，cleaner 應只依賴 `shared/` |
+| F-048 | `price`／`chip` 主鍵含 `證券名稱`、`margin`／`dividend` 不含，同一個 `(date, stock_id)` 在四張表的唯一性語意不同（§4.4 的根因）；歸 PostgreSQL 遷移的 schema 批次 |
+| F-049 | `futures_margin_loader.insert_rows()` 以「第一欄是 `effective_date`」的位置假設轉字串；改以欄名 |
+| F-055 | 券商分點 metadata 只存 `(earliest, latest)`，`get_existing_dates()` 把區間內每一天都當已有；與 [券商分點 NO_DATA 的 metadata 語意](broker-trading-no-data.md) 同一題，該文件已選型 |
 
 ## 相關文件
 

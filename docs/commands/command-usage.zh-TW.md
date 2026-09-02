@@ -21,6 +21,13 @@
 | `tick`                    | 逐筆成交（Shioaji ticks）           |
 | `chip`                    | 三大法人籌碼                        |
 | `price`                   | 收盤價                           |
+| `futures_price`           | 台期貨每日行情（寫入 `tw_futures.db`；商品見 `FUTURES_TARGET_PRODUCTS`） |
+| `futures_stock_universe`  | 股票期貨標的池（寫入 `tw_futures.db`；每次執行留下一份當日快照） |
+| `futures_stock_price`     | 股票期貨行情（商品清單取自標的池，預設只爬流動性前 N 檔） |
+| `futures_continuous`      | 台期貨連續合約（由 `futures_price_daily` 建出，不連網路） |
+| `futures_margin`          | 台期貨保證金（變動序列，寫入 `tw_futures.db`） |
+| `futures_chip`            | 台期貨籌碼（三大法人、大額交易人、選擇權 PCR） |
+| `futures_tick`            | 台期貨逐筆成交（Shioaji → DolphinDB；需 `[tick]` 相依與金鑰） |
 | `margin`                  | 信用交易（融資融券餘額）              |
 | `dividend`                | 除權除息計算結果表（含還原係數、現金股利） |
 | `fs`                      | 財報（Financial Statement）       |
@@ -31,7 +38,7 @@
 | `broker_info`             | FinMind 證券商資訊                 |
 | `broker_trading`          | FinMind 券商分點統計                |
 | `all`                     | 全部資料（含 tick）                  |
-| `no_tick`                 | 全部資料（不含 tick，預設）              |
+| `no_tick`                 | 全部資料（不含 `tick`，預設）。⚠️ **不排除 `futures_tick`**（見健檢 F-078） |
 
 
 ### 單一 target 範例

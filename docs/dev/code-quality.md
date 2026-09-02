@@ -140,7 +140,9 @@ pytest                              # 全部（需 data/db/tw_stock.db）
 
 ## 三、測試覆蓋率基線
 
-**量測日期：2026-08-16**　指令：`pytest -m "not slow" --cov=core --cov-report=term`
+**重測（2026-09-02，全專案架構與邏輯健檢 S1）**：`pytest -m "not slow"` **687 passed / 10 deselected**；`core/` 覆蓋率 **60%**（11,348 行，未覆蓋 4,552）；各子套件：managers 95、backtest/models 90、adapters 90、datafeed 83、models 81、pipeline/shared 79、backtester 75、strategies 65、api 60、utils 54、pipeline/tw 46、backtest/report 42、pipeline/utils 36；仍為 0% 的只剩 `core/api/tw/finmind_api.py` 與 `core/utils/path.py`。`BLE001` 盲捕由 85 增為 96（全在 `core/pipeline/`），待收斂清單由 21 條增為 25 條（行號皆已漂移，見該健檢文件〈附錄 B〉與 F-002／F-010~F-012）。
+
+**首次量測（2026-08-16）**　指令：`pytest -m "not slow" --cov=core --cov-report=term`
 （207 passed / 9 deselected）
 
 **整體：7112 行中未覆蓋 4269 行 → 40%**
@@ -178,7 +180,9 @@ pytest                              # 全部（需 data/db/tw_stock.db）
 `data/db/tw_stock.db` 未進版控（`.gitignore` 有 `*.db`），CI 也沒有 Shioaji／FinMind 金鑰。
 需要這些的測試一律標 `@pytest.mark.slow` 或 `pytestmark = pytest.mark.slow`。
 
-目前標為 slow 的有：`test_long_regression.py`、`test_short_regression.py`（需 `tw_stock.db`）。
+目前標為 slow 的有 12 檔（2026-09-02）：`tests/backtest/test_long_regression.py`（需 `tw_stock.db`）與 8 支需要 `tw_futures.db` 或外部 API 的 `tests/test_futures_*.py`，另 3 支為 `manual_*`。`test_short_regression.py` 純記憶體、**不是** slow。
+
+**回歸雙線只在本機跑**：CI 的 `-m "not slow"` 不含 LONG 線，`scripts/run_regression.sh` 也沒有任何 workflow 在執行；且該腳本在沒有 `tw_stock.db` 的機器上會因 `skipif` 而回綠（見 [全專案架構與邏輯健檢](health-check-2026-09.md) F-090／F-095）。動引擎前請在有資料庫的機器手動跑。
 
 ### 4.2.1 `tests/manual_*.py` 是手動腳本，**不會被 pytest 收集**
 
@@ -239,6 +243,24 @@ PYTHONPATH=. python scripts/some_script.py
 從 repo 根目錄執行 `python -m pytest` 或 `python run.py` 不受影響（cwd 會進 `sys.path`）。
 
 ---
+
+## 五、健檢 C 級結論（2026-09-02）
+
+[全專案架構與邏輯健檢.md](health-check-2026-09.md) 的 C 級中屬工具鏈、研究區與雜項者記於此（引擎與 ETL 的 C 級分別在 [多市場引擎 §九](../backtest/multi-market-engine.md) 與 [ETL 入庫約定 §五](../pipeline/etl-ingestion.md)）：
+
+| 編號 | 位置 | 結論 |
+|---|---|---|
+| F-006 | `strategy_lab/strategies/tsmc_overnight_signal/reports/` | 全專案唯一的循環 import（`generate_docx` ↔ `docx_append`，以延遲 import 繞過）；`scripts/check_layer_deps.py` 現況因此結束碼 1，解掉後該腳本即可接進 CI |
+| F-010 | `core/pipeline/tw/crawlers/stock_price_crawler.py` | `crawl()` 把 `crawl_twse_price()`／`crawl_tpex_price()` 的回傳值指派後未使用（F841 ×2）；確認是否為未完成的合併邏輯 |
+| F-011 | `core/utils/callback.py` | `OrderState` 先從 `shioaji.constant` import 再被 `.constant.OrderState` 覆蓋（F811） |
+| F-023 | `core/adapters/tw/stock_quote_adapter.py` | `filtered_stock_ids` 用 list 做 `in` 判斷，全市場 2,000 檔 × 每日；改 set |
+| F-029 | `core/api/tw/finmind_api.py`、`stock_tick_api.py` | 不接受共用連線注入、各自開連線；前者覆蓋率 0% |
+| F-080 | `tasks/load_broker_trading_to_db.py` 等 12 處 | `logger.error(..., exc_info=True)`：loguru 沒有 `exc_info` 參數，traceback 不會印；全部改 `logger.exception()` |
+| F-088 | `strategy_lab/` | 13 個 `output/*.html` 在 `.gitignore` 規則加入前被追蹤（`git rm --cached`）；`tech_new_high` 的 `END_DATE` 寫死、存活者偏差未列入限制、`load_price_panel()` 繞過 API 直接下 SQL |
+| F-098 | `core/config/schema.py` | `FUTURES_CONTRACT_TABLE_NAME` 有宣告無建表；刪除或註明 |
+| F-101 | `README.md`／`README_zh.md` | Docker 段落曾分岔；2026-09-03 已以中文版為準回填英文版，兩份檔頭互相標註「以中文版為準」 |
+
+工具鏈側可直接動手的三條已放進 `backlog/測試護欄與本機CI容器一致性.md`（`sys.path.insert` 清理 F-009、per-file-ignores 路徑 F-100、環境變數與相依檔 F-096）。
 
 ## 相關文件
 

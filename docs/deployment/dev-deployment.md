@@ -40,11 +40,13 @@ python -m tasks.update_db --target tick
 python run.py --strategy MomentumStrategy1
 ```
 
-其他常見策略：
+目前可載入的策略（`StrategyLoader.load_strategies()` 於 2026-09-02 實測）：
 
 ```bash
-python run.py --strategy SimpleLongStrategy
-python run.py --strategy MomentumStrategy1
+python run.py --strategy MomentumStrategy1                  # 台股做多動能
+python run.py --strategy ForeignSellShortDayTradeStrategy   # 台股外資大賣強勢股當沖放空
+python run.py --strategy MomentumFuturesStrategy            # 台指期動能（示範）
+python run.py --strategy OvernightLeadEventStrategy         # 2330 隔夜訊號（研究搬入，建構順序有問題，見健檢 F-072）
 ```
 
 ## 4) 檢視結果

@@ -10,11 +10,11 @@ when_to_use: 使用者想要新增一支新策略、修改既有策略的開倉/
 ## 執行步驟
 
 1. **一律先完整讀取 `core/strategies/README.md`**（不要只憑記憶或猜測），再開始撰寫或修改策略程式碼。
-2. 新策略檔案放在 `core/strategies/stock/`，繼承 `BaseStockStrategy`，類別名稱即為 `python run.py --strategy <ClassName>` 使用的識別名稱。
+2. 新策略檔案依商品類別放：台股放 `core/strategies/stock/` 繼承 `BaseStockStrategy`；台期貨放 `core/strategies/futures/` 繼承 `BaseFuturesStrategy`（口數、保證金、換月的差異見該基底 docstring 與 `docs/futures/tw-futures-platform.md`）。類別名稱即為 `python run.py --strategy <ClassName>` 使用的識別名稱；**`max_holdings` 記得設**（基底預設 0 會讓引擎剔除所有開倉單）。
 3. 依 README 的方法簽章與範例實作全部必要方法；不要自創介面或跳過任一必實作方法。特別注意兩條收斂過的邊界：
    - **資料取用**：不要直接對 raw `DataFrame` 取中文欄位（`"收盤價"`、`"成交股數"`），一律走 `core/api/` 的具名查詢方法（`get_close_map()`／`get_volume_lots_map()`／`get_close_series()`／`get_trust_net_shares_map()`）。`tests/test_strategy_data_access.py` 會擋下違規。
    - **部位大小**：`calculate_position_size()` 的 `BUY` 分支不要自己算「可開檔數 ÷ 餘額 ÷ 張數」，交給 `self.sizer.size(self.account, candidates, self.max_holdings)`，策略只負責選標的與參考價（見 `core/backtest/README.md`〈部位大小與檔數上限〉）。`max_holdings` 另有引擎側硬上限，超額開倉單會被剔除並計數。
-4. 若使用者的需求涉及尚未在 README 涵蓋的資料源或功能（例如期貨），先確認是否該複用既有台股 API/管理器慣例，或需要參考 `backlog/` 下的其他架構規劃文件（如台期貨相關規劃）。
+4. 若使用者的需求涉及尚未在 README 涵蓋的資料源或功能，先確認是否該複用既有 API／管理器慣例；期貨相關以 `docs/futures/tw-futures-platform.md` 為準，美股相關參考 `backlog/美股ETL與回測架構規劃.md`。
 5. 完成後提醒使用者可用 `python run.py --strategy <ClassName>` 執行回測，結果會落在 `results/<ClassName>/`。
 
 不要向使用者要求先手動貼上 README 內容——這份文件的讀取是本 skill 的第一步，自動完成。

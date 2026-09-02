@@ -244,7 +244,7 @@ df = fs.get(table_name="<your_fs_table>", year=2024, season=1)
 ```python
 import datetime
 from core.api.tw.stock_price_api import StockPriceAPI
-from core.utils.market_calendar import MarketCalendar
+from core.backtest.datafeed.tw.market_calendar import MarketCalendar
 
 price = StockPriceAPI()
 

@@ -1,5 +1,7 @@
 [English](#) | [Chinese (中文版)](README_zh.md)
 
+> `README_zh.md` is the source of truth; this file is its English translation. Edit the Chinese version first, then sync this one.
+
 # AlphaEdge
 
 AlphaEdge is a strategy research and trading framework focused on Taiwan market workflows (backtest + reporting + data update pipeline + Streamlit result viewer).
@@ -37,7 +39,7 @@ graph TB
         Adapters["core/adapters"]
         Pipeline["core/pipeline"]
         DB["data/db"]
-        Data["core/data"]
+        Data["data/downloads"]
     end
 
     subgraph output_layer ["Backtest Outputs"]
@@ -117,6 +119,7 @@ graph TB
 | [Code Quality Baseline](docs/dev/code-quality.md)       | Tooling (pyproject / ruff / CI / pre-commit), lint ignore rationale, coverage baseline |
 | [ETL Ingestion](docs/pipeline/etl-ingestion.md)         | Batching, idempotency and failure semantics of the data-load stage; per-updater checklist |
 | [Broker Trading NO_DATA](docs/pipeline/broker-trading-no-data.md) | Metadata semantics for empty API responses (decision record) |
+| [Health Check 2026-09](docs/dev/health-check-2026-09.md) | Repo-wide architecture/logic audit record: 101 findings graded A–D, each with its disposition |
 
 
 ---
@@ -220,14 +223,23 @@ Then open: `http://localhost:8501`
 
 ### Option 2: Docker Container
 
+Open an **interactive shell** inside the image and run commands exactly as you would in the venv. The trader image sets `ENTRYPOINT` to `python run.py`, so override it with `--entrypoint` to get a terminal.
+
 #### Trader Container
 
 ```bash
 # build image
 docker build -f core/Dockerfile -t alphaedge-core .
 
-# run container and show CLI help
-docker run --rm alphaedge-core --help
+# start the container and enter a shell (working directory: /app)
+docker run --rm -it --entrypoint /bin/bash alphaedge-core
+```
+
+Inside the container:
+
+```bash
+python run.py --help
+python run.py --strategy <StrategyClassName>
 ```
 
 #### Frontend Container
@@ -236,7 +248,22 @@ docker run --rm alphaedge-core --help
 # build image
 docker build -f frontend/Dockerfile -t alphaedge-frontend .
 
-# run container
+# map the port, start the container and enter a shell (working directory: /app)
+docker run --rm -it -p 8501:8501 --entrypoint /bin/bash alphaedge-frontend
+```
+
+Inside the container:
+
+```bash
+streamlit run frontend/app.py --server.address=0.0.0.0 --server.port=8501
+```
+
+Then open `http://localhost:8501` in the browser.
+
+#### One-off run (no interactive shell)
+
+```bash
+docker run --rm alphaedge-core --help
 docker run --rm -p 8501:8501 alphaedge-frontend
 ```
 
@@ -289,7 +316,8 @@ AlphaEdge/
 │   ├── strategies/            # strategy implementations
 │   │   ├── base.py            # BaseStrategy (market-agnostic)
 │   │   ├── strategy_loader.py # auto-scans every market sub-package
-│   │   └── stock/             # BaseStockStrategy + concrete stock strategies
+│   │   ├── stock/             # BaseStockStrategy + concrete stock strategies
+│   │   └── futures/           # BaseFuturesStrategy + TW futures strategies
 │   ├── api/                   # data access APIs (SQLite / DolphinDB)
 │   ├── adapters/              # data adapters / integrations
 │   │   └── stock_quote_adapter.py  # StockQuoteAdapter (day/tick → StockQuote)
@@ -300,7 +328,6 @@ AlphaEdge/
 │   │   ├── shared/           # cross-market: four layer bases + HTTP helpers
 │   │   ├── tw/               # TW equity/futures ETL (crawlers/cleaners/loaders/updaters)
 │   │   └── utils/            # constants, URL manager, DataFrame and SQLite helpers
-│   ├── database/              # sqlite database files (tw_stock.db)
 │   ├── backtest/              # backtest engine
 │   │   ├── backtester.py      # the only engine: market/instrument-agnostic, no subclasses
 │   │   ├── factory.py         # assembles the model set from (market, instrument_type)
@@ -308,8 +335,9 @@ AlphaEdge/
 │   │   ├── datafeed/          # data loading, quote conversion, trading calendar
 │   │   ├── report/            # trading report, direction summary, charts
 │   │   ├── analysis/          # performance metrics (not yet wired into run())
-│   │   └── results/           # per-strategy outputs (csv / png / logs)
-│   └── data/                  # downloaded/raw data
+├── data/                      # runtime data (git-ignored): db/ (tw_stock.db, tw_futures.db) + downloads/
+├── results/                   # per-strategy backtest outputs (csv / png), git-ignored
+├── logs/                      # api/ pipeline/ backtest/, git-ignored
 ├── frontend/                  # Streamlit docker image
 │   ├── app.py                 # Streamlit entrypoint
 │   ├── config.py              # frontend configuration

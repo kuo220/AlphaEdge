@@ -77,8 +77,6 @@ sequenceDiagram
 
 ### 單根 bar 的訂單流
 
-訂單從策略回傳到真正成交，中間有**三道關卡**，任何一關被擋都會計數，不會靜默丟棄：
-
 訂單從策略回傳到真正成交，中間有**四道關卡**，任何一關被擋都會計數，不會靜默丟棄：
 
 | 順序 | 關卡 | 實作位置 | 擋掉時計入 |
@@ -106,12 +104,12 @@ sequenceDiagram
 
 | 檔案 | 職責 | 持有的狀態 |
 |------|------|------------|
-| `core/backtest/backtester.py` | 日期迴圈、單根 bar 流程、訂單三道關卡、逐日權益快照、觸發報表 | `daily_equity`、`event_counts` |
+| `core/backtest/backtester.py` | 日期迴圈、單根 bar 流程、訂單四道關卡、逐日權益快照、觸發報表 | `daily_equity`、`event_counts` |
 | `core/backtest/models/instrument_spec.py` | 一張／一口的計價單位換算、跳動點對齊、漲跌停區間 | 無（純規則） |
 | `core/backtest/models/fill_model.py` | 這張單在這根 bar 有沒有可能以這個價格成交 | `prev_close`、`intraday_range` |
 | `core/backtest/models/cost_model.py` | 手續費／證交稅／融券手續費／借券費／保證金／利息；`enrich_orders()` 補市場欄位 | `CostConfig`（含 `ShortConstraint`） |
 | `core/backtest/models/settlement_model.py` | 一根 bar 收盤後市場規則強制執行的動作：當沖強制回補、漲停轉留倉、借券費計提、維持率追繳、停券回補、除息股利補償 | 參照 `FillModel.prev_close`；`force_cover_symbols`、`cash_dividends` 由 `DataFeed` 每根 bar 推入 |
-| `core/backtest/datafeed/base.py`／`tw/stock_datafeed.py` | 建立並持有全部資料 API、報價轉換、交易日判定、回測結束時關連線 | **單次回測唯一的 SQLite 連線** |
+| `core/backtest/datafeed/base.py`／`tw/stock_datafeed.py`／`tw/futures_datafeed.py` | 建立並持有全部資料 API、報價轉換、交易日判定、回測結束時關連線 | **單次回測唯一的 SQLite 連線**（台股、期貨各一條，分屬兩個 DB） |
 | `core/backtest/datafeed/tw/market_calendar.py` | 交易日推算（前一交易日、是否開盤、往前推 N 個營業日） | `DataFeed`、策略 |
 
 **跨 model 的共用狀態只有兩個**，皆以 dict 參照傳遞，model 之間不互相 import：
@@ -144,7 +142,8 @@ sequenceDiagram
 | 檔案 | 職責 |
 |------|------|
 | `core/backtest/report/base.py` | `BaseBacktestReporter`：報表介面與存檔工具 |
-| `core/backtest/report/reporter.py` | 台股報表：交易明細、多空統計、事件計數、四張圖、benchmark（`0050`）比較 |
+| `core/backtest/report/reporter.py` | 台股報表：交易明細、多空統計、事件計數、五張圖、benchmark（`0050`）比較 |
+| `core/backtest/report/futures_reporter.py` | 期貨報表：繼承台股報表，只覆寫交易明細欄位（`Contract ID`）、多空統計欄位、對標序列（近月拼接） |
 | `core/backtest/analysis/analyzer.py` | 績效指標（Sharpe／Sortino／Profit Factor 等），目前未接進 `run()` 主流程 |
 
 ---
@@ -219,6 +218,18 @@ sequenceDiagram
 7. **任何動到 `core/backtest/`、`core/managers/`、`core/models/` 的改動，先跑 `./scripts/run_regression.sh`。**
 
 ---
+
+## 七、已知的相依例外（2026-09-02 健檢 S3）
+
+§一的圖描述的是**呼叫方向**；實際 `import` 方向有五處與圖不同，皆已登錄在 `scripts/check_layer_deps.py` 的 `_KNOWN_REVERSE`（ratchet：新增反向相依會讓腳本以非零結束），細節見 [全專案架構與邏輯健檢.md](../dev/health-check-2026-09.md) 附錄 A：
+
+| 編號 | 現況 | 為什麼先不動 |
+|---|---|---|
+| F-003 | `core/utils/instrument.py` import 引擎層的 `market_calendar` | `StockUtils` 有 pipeline／adapters／strategy_lab 三方使用者，搬進 `core/backtest/` 會讓資料管線反向相依引擎（見 [多市場引擎 §五](multi-market-engine.md)） |
+| F-004 | `core/pipeline/tw/cleaners/futures_tick_cleaner.py` 與 `futures_continuous_*` import `futures_calendar`／`futures_roll` | 交易日曆與換月規則屬「市場結構」，目前住在 `datafeed/` 下；正確歸屬是獨立的 `core/markets/`（或 `core/utils/`）層，待美股進來時一併搬 |
+| F-005 | 本文件 §一 把「策略層在引擎層之上」畫成相依方向；實際是引擎／factory／報表 → 策略契約（三個 `base.py`）→ 引擎的 model 型別 | 圖的用途是說明呼叫序列，改畫相依圖反而難讀；以本節與 `check_layer_deps.py` 的 rank 4（策略契約）補充 |
+| F-007 | `core/api/tw/*` import `core/pipeline/utils`（欄位常數、SQLite 工具），pipeline 又 import api | 套件層互相相依、檔案層無循環；欄位常數應下沉到 `core/config/schema.py` 或 `core/models/`，屬 PostgreSQL 遷移的 schema 批次 |
+| F-008 | `settlement_model.py` import `futures_roll`（datafeed）、`StockCostModel`、兩個 PositionManager 的具體類別 | model 之間刻意不互相依賴的原則在期貨結算模型被打破（轉倉需要 planner 與 manager）；升級路徑是把「轉倉」抽成獨立的 `RollModel` 掛點 |
 
 ## 相關文件
 

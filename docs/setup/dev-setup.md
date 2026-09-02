@@ -51,13 +51,15 @@ cp .env.example .env
 - DolphinDB（tick 需要）：`DDB_PATH`、`DDB_HOST`、`DDB_PORT`、`DDB_USER`、`DDB_PASSWORD`
 - Shioaji：`API_KEY`、`API_SECRET_KEY`
 - FinMind：`FINMIND_API_TOKEN`
+- （選填）多組 Shioaji 帳號輪替：`API_KEY_1`~`API_KEY_4`、`API_SECRET_KEY_1`~`API_SECRET_KEY_4`（`core/config/settings.py` 的 `NUM_API`）
+- （選填）執行期產物根目錄覆寫：`ALPHAEDGE_DATA_DIR`／`ALPHAEDGE_RESULTS_DIR`／`ALPHAEDGE_LOGS_DIR`（見 [執行期產物](../dev/runtime-artifacts.md)）；前端另讀 `ALPHAEDGE_BACKTEST_RESULTS`
 
 ## 4) 初始化資料目錄（選用）
 
 多數目錄會在執行時自動建立；若要先手動準備可建立：
 
 ```bash
-mkdir -p data/db core/data logs/pipeline results
+mkdir -p data/db data/downloads logs results
 ```
 
 ## 5) 基本驗證

@@ -22,6 +22,11 @@ If `--target` is omitted, the default is `no_tick` (all updates except tick data
 | `price` | Closing prices |
 | `futures_price` | TAIFEX daily futures quotes（寫入 `tw_futures.db`；商品見 `FUTURES_TARGET_PRODUCTS`）|
 | `futures_stock_universe` | 股票期貨標的池（寫入 `tw_futures.db`；每次執行留下一份當日快照）|
+| `futures_stock_price` | 股票期貨行情（商品清單取自標的池，預設只爬流動性前 N 檔）|
+| `futures_continuous` | 台期貨連續合約（由 `futures_price_daily` 建出，不連網路，整段重建）|
+| `futures_margin` | 台期貨保證金（變動序列，寫入 `tw_futures.db`）|
+| `futures_chip` | 台期貨籌碼（三大法人、大額交易人、選擇權 PCR）|
+| `futures_tick` | 台期貨逐筆成交（Shioaji → DolphinDB；需 `[tick]` 相依與金鑰）|
 | `margin` | Margin trading balances (financing / short-selling balances) |
 | `dividend` | Ex-dividend / ex-rights table (adjustment factors + cash dividends) |
 | `fs` | Financial statements（含權益變動表；該表逐檔查詢，首次回補以小時計，見下方說明） |
@@ -32,7 +37,7 @@ If `--target` is omitted, the default is `no_tick` (all updates except tick data
 | `broker_info` | FinMind broker info |
 | `broker_trading` | FinMind broker trading stats |
 | `all` | All datasets (including tick) |
-| `no_tick` | All datasets except tick (default) |
+| `no_tick` | All datasets except `tick` (default). ⚠️ `futures_tick` is **not** excluded (見健檢 F-078) |
 
 ### Single Target Examples
 
