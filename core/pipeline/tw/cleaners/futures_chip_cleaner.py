@@ -23,6 +23,10 @@ from core.pipeline.shared.base_cleaner import BaseDataCleaner
 | 大額交易人 | (date, 商品, 到期月份, 交易人類別) | 約 1,400 |
 | PCR | (date) | 1 |
 
+**日期一律以來源的 `日期` 欄為準**（不是查詢日）：改用區間查詢之後，
+一次回應會涵蓋一整個月，把 `date` 覆寫成查詢起日會讓整批資料的日期全錯——
+而且錯得很整齊，看起來完全正常。
+
 **三個來源格式的坑**：
 
 1. **代碼欄有補空白**：大額交易人的 `商品(契約)` 是 `"BRF    "`、
@@ -58,7 +62,9 @@ class FuturesChipCleaner(BaseDataCleaner):
         """Set Up the Config of Cleaner"""
         pass
 
-    def clean(self, raw: str, date: datetime.date) -> Optional[pd.DataFrame]:
+    def clean(
+        self, raw: str, date: Optional[datetime.date] = None
+    ) -> Optional[pd.DataFrame]:
         """預設路徑：清三大法人"""
 
         return self.clean_institutional(raw, date)
@@ -84,6 +90,22 @@ class FuturesChipCleaner(BaseDataCleaner):
             return None
 
         return None if df.empty else df
+
+    @staticmethod
+    def normalize_date(df: pd.DataFrame) -> pd.DataFrame:
+        """
+        把來源的 `日期`（`2026/08/28`）正規化成 ISO（`2026-08-28`）
+
+        **用來源的日期而不是查詢日**：區間查詢一次回一整個月，用查詢起日覆寫
+        會讓整批資料的日期全錯。轉不出日期的列（檔尾說明文字）直接丟掉。
+        """
+
+        parsed: pd.Series = pd.to_datetime(
+            df["date"].astype(str).str.strip(), format="%Y/%m/%d", errors="coerce"
+        )
+        cleaned: pd.DataFrame = df[parsed.notna()].copy()
+        cleaned["date"] = parsed[parsed.notna()].dt.strftime("%Y-%m-%d")
+        return cleaned
 
     @staticmethod
     def drop_invalid_rows(df: pd.DataFrame, keys: List[str]) -> pd.DataFrame:
@@ -119,7 +141,7 @@ class FuturesChipCleaner(BaseDataCleaner):
         return df
 
     def clean_institutional(
-        self, raw: str, date: datetime.date
+        self, raw: str, date: Optional[datetime.date] = None
     ) -> Optional[pd.DataFrame]:
         """
         - Description:
@@ -131,9 +153,9 @@ class FuturesChipCleaner(BaseDataCleaner):
             ——那份對照是交易所自己給的。
         - Parameters:
             - raw: str
-                CSV 原文
-            - date: datetime.date
-                資料日期
+                CSV 原文（可含多天）
+            - date: Optional[datetime.date]
+                **僅為相容保留，不參與計算**——日期一律取自來源的 `日期` 欄
         - Return:
             - Optional[pd.DataFrame]
                 清洗後的資料；無有效列時為 None
@@ -153,7 +175,7 @@ class FuturesChipCleaner(BaseDataCleaner):
         for column in ("product_name", "investor"):
             df[column] = df[column].astype(str).str.strip()
 
-        df["date"] = str(date)
+        df = self.normalize_date(df)
         df = self.drop_invalid_rows(df, ["date", "product_name", "investor"])
         df = df[df["investor"].isin(self.INVESTOR_TYPES)]
         if df.empty:
@@ -162,7 +184,7 @@ class FuturesChipCleaner(BaseDataCleaner):
         return self.to_numeric(df, exclude=["date", "product_name", "investor"])
 
     def clean_large_trader(
-        self, raw: str, date: datetime.date
+        self, raw: str, date: Optional[datetime.date] = None
     ) -> Optional[pd.DataFrame]:
         """
         - Description:
@@ -201,7 +223,7 @@ class FuturesChipCleaner(BaseDataCleaner):
             if column in df.columns:
                 df[column] = df[column].astype(str).str.strip()
 
-        df["date"] = str(date)
+        df = self.normalize_date(df)
         df = self.drop_invalid_rows(df, ["date", "product", "expiry", "trader_type"])
         if df.empty:
             return None
@@ -211,7 +233,7 @@ class FuturesChipCleaner(BaseDataCleaner):
         )
 
     def clean_put_call_ratio(
-        self, raw: str, date: datetime.date
+        self, raw: str, date: Optional[datetime.date] = None
     ) -> Optional[pd.DataFrame]:
         """清洗選擇權 PCR：一天一列，主鍵只有 `date`"""
 

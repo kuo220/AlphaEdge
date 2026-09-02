@@ -271,3 +271,106 @@ def test_real_pcr_ratio_is_consistent() -> None:
     assert row is not None
     expected: float = round(row["賣權成交量"] / row["買權成交量"] * 100, 2)
     assert abs(expected - row["買賣權成交量比率%"]) < 0.05
+
+
+# === 月批次與「被擋」的辨識（2026-09-02 回補事故後補強）===
+def test_date_comes_from_the_source_not_the_query(cleaner) -> None:
+    """
+    **日期以來源的 `日期` 欄為準**
+
+    改用區間查詢之後，一次回應涵蓋一整個月；若沿用「把 date 覆寫成查詢起日」，
+    整批資料的日期會全錯——而且錯得很整齊，看起來完全正常。
+    """
+
+    two_days: str = (
+        "日期,商品名稱,身份別,多方交易口數\n"
+        "2026/08/27,臺股期貨,自營商,100\n"
+        "2026/08/28,臺股期貨,自營商,200\n"
+    )
+
+    df: pd.DataFrame = cleaner.clean_institutional(two_days, datetime.date(2026, 8, 1))
+
+    assert sorted(df["date"]) == ["2026-08-27", "2026-08-28"]
+
+
+def test_months_are_split_with_original_endpoints() -> None:
+    """月批次切分要保留原始起訖日，不可擴張到整月（會多抓未來的日期）"""
+
+    from core.pipeline.tw.updaters.futures_chip_updater import FuturesChipUpdater
+
+    windows = FuturesChipUpdater.split_months(
+        datetime.date(2026, 7, 15), datetime.date(2026, 9, 2)
+    )
+
+    assert windows == [
+        (datetime.date(2026, 7, 15), datetime.date(2026, 7, 31)),
+        (datetime.date(2026, 8, 1), datetime.date(2026, 8, 31)),
+        (datetime.date(2026, 9, 1), datetime.date(2026, 9, 2)),
+    ]
+
+
+def test_blocked_window_is_retried_not_recorded_as_empty() -> None:
+    """
+    **「該有交易日卻沒拿到 CSV」＝ 被擋，要重試**
+
+    TAIFEX 擋流量時回 HTTP 200 ＋ HTML，與非交易日一模一樣。2026-09-02 的回補
+    就是這樣把 250 個交易日記成「查無資料」——事後單獨重查每一天都有資料。
+    """
+
+    from core.pipeline.tw.updaters.futures_chip_updater import FuturesChipUpdater
+
+    updater: FuturesChipUpdater = FuturesChipUpdater.__new__(FuturesChipUpdater)
+    updater.BLOCKED_RETRY_DELAY_SECONDS = 0  # 測試不要真的等
+    updater.has_trading_days = lambda start, end: True
+
+    attempts: List[int] = []
+
+    def flaky_crawl(start, end):
+        attempts.append(1)
+        return "日期,商品名稱\n2026/08/28,臺股期貨\n" if len(attempts) >= 2 else None
+
+    assert updater.crawl_window(flaky_crawl, "三大法人", DATE, DATE) is not None
+    assert len(attempts) == 2  # 第一次被擋、第二次成功
+
+
+def test_no_retry_when_the_window_has_no_trading_day() -> None:
+    """整段都不是交易日就不必重試——那是真的沒資料，重試只是白等"""
+
+    from core.pipeline.tw.updaters.futures_chip_updater import FuturesChipUpdater
+
+    updater: FuturesChipUpdater = FuturesChipUpdater.__new__(FuturesChipUpdater)
+    updater.has_trading_days = lambda start, end: False
+
+    attempts: List[int] = []
+
+    def always_blocked(start, end):
+        attempts.append(1)
+        return None
+
+    assert updater.crawl_window(always_blocked, "三大法人", DATE, DATE) is None
+    assert len(attempts) == 1
+
+
+def test_institutional_start_date_is_clamped_to_two_years() -> None:
+    """
+    **三大法人只有約兩年的歷史**（實測切點 2024-08-17~19）
+
+    不夾的話會白打上千次請求，而且每一次都被記成「查無資料」，
+    看起來像是那幾年真的沒有籌碼。其餘兩個資料集有完整歷史，不受此限。
+    """
+
+    from core.pipeline.tw.updaters.futures_chip_updater import FuturesChipUpdater
+
+    updater: FuturesChipUpdater = FuturesChipUpdater.__new__(FuturesChipUpdater)
+    old_start: datetime.date = datetime.date(2015, 1, 1)
+
+    clamped: datetime.date = updater.clamp_start_date(
+        FUTURES_INSTITUTIONAL_CHIP_TABLE_NAME, "institutional", old_start
+    )
+    untouched: datetime.date = updater.clamp_start_date(
+        FUTURES_LARGE_TRADER_TABLE_NAME, "large_trader", old_start
+    )
+
+    assert clamped > old_start
+    assert (datetime.date.today() - clamped).days <= 365 * 2
+    assert untouched == old_start

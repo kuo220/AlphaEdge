@@ -15,10 +15,15 @@ from core.utils import FileEncoding
 **三個資料集共用同一種請求形態**：POST ＋ 日期區間，回 big5 CSV。
 故合成一支 crawler，而不是三支只差網址的檔案。
 
-1. **一次請求涵蓋所有商品**
+1. **一次請求涵蓋所有商品，而且支援日期區間**
     與 `futures_price_crawler` 的「逐商品 × 逐時段 × 逐日」完全不同——
-    這三個端點一天只要一次請求就拿到全市場（大額交易人一天約 80KB）。
-    **不要為了「只要 TX」而逐商品打**，那只會讓請求數乘上商品數。
+    這三個端點一次請求就拿到全市場的**一整段期間**。
+    **不要逐日打**：2015 年以來逐日是 4,262 次請求，改用月批次只要 140 次，
+    而 TAIFEX 擋流量時回的是 HTTP 200 ＋ HTML（見第 5 點），
+    請求數愈多被擋的機率愈高。
+
+    各端點的區間上限實測（2026-09-02）：三大法人 1 年可、大額交易人 3 個月可
+    但 1 年不行、PCR 1 個月可但 3 個月不行。故一律用**月批次**，最保守也最一致。
 
 2. **編碼是 big5**
     與保證金 crawler 同一個處境：`requests` 猜的編碼不可信，故本層一律回傳
@@ -27,6 +32,17 @@ from core.utils import FileEncoding
 3. **盤後才有資料**
     三者都在收盤後公布。當日盤中查會拿到空表（只有表頭），那是正常狀態，
     不是失敗——回測要用的本來就是前一交易日的籌碼（見 `FuturesChipAPI`）。
+
+5. **⚠️ 被擋流量與「真的沒資料」長得一模一樣**
+    TAIFEX 擋流量時回 **HTTP 200 ＋ 一整頁 HTML**，與非交易日的回應完全相同。
+    2026-09-02 的歷史回補就是這樣：逐日打了 4,000 多次之後被擋，
+    2024-08 ~ 2025-10 約 250 個交易日**全部被記成「查無資料」**，
+    事後單獨重查每一天都有資料。故本層只負責回報「拿到的是不是 CSV」，
+    **判斷該不該重試是 updater 的責任**（它知道那天是不是交易日）。
+
+6. **三大法人只有約兩年的歷史**（2026-09-02 實測，切點在 2024-08-17~19）
+    更早的日期無論用哪一組參數、換哪一個端點都拿不到——查詢頁甚至會**靜靜
+    回傳最新一天的資料**而不是報錯。這是來源限制，不是爬蟲問題。
 
 4. **查不到一律回 None 而不拋錯**
     站方改版、假日、暫時無回應在此層分不出來，交由 updater 判斷。
@@ -66,67 +82,90 @@ class FuturesChipCrawler(BaseDataCrawler):
 
         return self.crawl_institutional(date)
 
-    def crawl_institutional(self, date: datetime.date) -> Optional[str]:
+    def crawl_institutional(
+        self, start_date: datetime.date, end_date: Optional[datetime.date] = None
+    ) -> Optional[str]:
         """三大法人（自營商／投信／外資）的逐商品多空口數與未平倉"""
 
-        return self.fetch_csv("TAIFEX_FUTURES_INSTITUTIONAL_URL", date, "三大法人")
+        return self.fetch_csv(
+            "TAIFEX_FUTURES_INSTITUTIONAL_URL", start_date, end_date, "三大法人"
+        )
 
-    def crawl_large_trader(self, date: datetime.date) -> Optional[str]:
+    def crawl_large_trader(
+        self, start_date: datetime.date, end_date: Optional[datetime.date] = None
+    ) -> Optional[str]:
         """大額交易人：前五大／前十大的買賣方部位，含特定法人拆分"""
 
-        return self.fetch_csv("TAIFEX_FUTURES_LARGE_TRADER_URL", date, "大額交易人")
+        return self.fetch_csv(
+            "TAIFEX_FUTURES_LARGE_TRADER_URL", start_date, end_date, "大額交易人"
+        )
 
-    def crawl_put_call_ratio(self, date: datetime.date) -> Optional[str]:
+    def crawl_put_call_ratio(
+        self, start_date: datetime.date, end_date: Optional[datetime.date] = None
+    ) -> Optional[str]:
         """選擇權 Put/Call Ratio：一天一列"""
 
-        return self.fetch_csv("TAIFEX_FUTURES_PCR_URL", date, "PCR")
+        return self.fetch_csv(
+            "TAIFEX_FUTURES_PCR_URL", start_date, end_date, "PCR"
+        )
 
     def fetch_csv(
-        self, url_name: str, date: datetime.date, label: str
+        self,
+        url_name: str,
+        start_date: datetime.date,
+        end_date: Optional[datetime.date] = None,
+        label: str = "",
     ) -> Optional[str]:
         """
         - Description:
-            以單日區間查詢並取回 CSV 原文（big5 解碼）
+            以日期區間查詢並取回 CSV 原文（big5 解碼）
 
-            **起訖日都給同一天**：這些端點支援區間查詢，但逐日抓才能做到
-            「一天一個中繼檔、可續跑、可重跑」，與本專案其他 ETL 一致。
+            `end_date` 省略時等同單日查詢。**回傳 None 有兩種成因且本層分不出來**
+            ——非交易日／尚未公布，或被擋流量（兩者都是 HTTP 200 ＋ HTML）。
+            判斷該不該重試是 updater 的責任，見模組說明第 5 點。
         - Parameters:
             - url_name: str
                 `URLManager` 的 key
-            - date: datetime.date
-                查詢日
+            - start_date / end_date: datetime.date
+                查詢區間；`end_date` 為 None 時等同 `start_date`
             - label: str
                 log 用的資料集名稱
         - Return:
             - Optional[str]
-                CSV 原文；取得失敗或當日無資料時為 None
+                CSV 原文；不是 CSV（非交易日或被擋）時為 None
         """
 
-        logger.info(f"* Start crawling TAIFEX futures chip: {label} {date}")
+        end: datetime.date = end_date or start_date
+        span: str = (
+            str(start_date) if end == start_date else f"{start_date} ~ {end}"
+        )
+        logger.info(f"* Start crawling TAIFEX futures chip: {label} {span}")
 
         url: str = URLManager.get_url(url_name)
         start_key, end_key = self.DATE_PARAM_KEYS[url_name]
-        query_date: str = date.strftime("%Y/%m/%d")
 
         response: Optional[requests.Response] = RequestUtils.requests_post(
-            url, data={start_key: query_date, end_key: query_date}
+            url,
+            data={
+                start_key: start_date.strftime("%Y/%m/%d"),
+                end_key: end.strftime("%Y/%m/%d"),
+            },
         )
         if response is None:
-            logger.warning(f"[Futures Chip] 取得{label}失敗：{date}")
+            logger.warning(f"[Futures Chip] 取得{label}失敗：{span}")
             return None
 
         text: str = response.content.decode(FileEncoding.BIG5.value, errors="replace")
-
         lines: list = [line for line in text.splitlines() if line.strip()]
 
-        # 非交易日回的是 HTML 而不是 CSV（見 `CSV_HEADER_KEYWORD`）
+        # 非交易日與被擋流量回的都是 HTML（見 `CSV_HEADER_KEYWORD`）
         if not lines or self.CSV_HEADER_KEYWORD not in lines[0] or "," not in lines[0]:
-            logger.info(f"{date} {label}: no data（非交易日或尚未公布）")
+            logger.info(f"{span} {label}: 沒有取得 CSV（非交易日、未公布或被擋）")
             return None
 
-        # 只有表頭代表當日無資料（盤後尚未公布），不是失敗
+        # 只有表頭代表該區間內確實沒有資料
         if len(lines) < self.MIN_DATA_LINES:
-            logger.info(f"{date} {label}: no data")
+            logger.info(f"{span} {label}: no data")
             return None
 
         return text

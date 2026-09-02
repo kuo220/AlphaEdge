@@ -6,6 +6,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 import pandas as pd
 from loguru import logger
 
+from core.api.tw.futures_price_api import FuturesPriceAPI
 from core.config import (
     FUTURES_INSTITUTIONAL_CHIP_TABLE_NAME,
     FUTURES_LARGE_TRADER_TABLE_NAME,
@@ -15,19 +16,31 @@ from core.pipeline.shared.base_updater import BaseDataUpdater
 from core.pipeline.tw.cleaners.futures_chip_cleaner import FuturesChipCleaner
 from core.pipeline.tw.crawlers.futures_chip_crawler import FuturesChipCrawler
 from core.pipeline.tw.loaders.futures_chip_loader import FuturesChipLoader
-from core.utils import TimeUtils
 from core.utils.log_manager import LogManager
 
 """
 台期貨籌碼 Updater：三大法人、大額交易人、選擇權 PCR
 
-**一天三次請求就涵蓋全市場**（不逐商品打），故本 updater 的形態是
-「逐日 × 三個資料集」，與 `futures_price_updater` 的「逐商品 × 逐時段 × 逐日」
-完全不同——同樣的區間，請求數少一個數量級。
+**改用月批次的區間查詢**（2026-09-02）：三個端點都支援日期區間，一次請求可以拿
+一整個月。逐日打的話 2015 年以來是 4,262 次請求，月批次只要 140 次——而這不只是
+快慢的問題：
 
-**續跑以各資料集自己的最新日為準**：三張表可能因為中斷而補到不同的日期，
-用同一個起點會讓已經補到的那一張重爬一整段（雖然入庫會被 IGNORE，但請求
-還是打出去了）。
+> **TAIFEX 擋流量時回的是 HTTP 200 ＋ 一整頁 HTML，與非交易日的回應一模一樣。**
+> 第一次歷史回補就是這樣：逐日打了 4,000 多次之後被擋，2024-08 ~ 2025-10 約
+> 250 個交易日**全部被記成「查無資料」**，事後單獨重查每一天都有資料。
+
+故本 updater 做兩件事來確保「沒抓到」是真的沒有：
+
+1. **月批次**，把請求數壓到三十分之一。
+2. **交易日對照**：某批次沒拿到 CSV 時，用 `futures_price_daily` 的交易日確認
+   那段期間是不是真的沒有交易日；**若有交易日就是被擋**，等待後重試，
+   重試仍失敗才記 warning（不是安靜的 info）。
+
+---
+
+**三大法人只有約兩年的歷史**（2026-09-02 實測，切點 2024-08-17~19）：更早的日期
+無論換哪個端點都拿不到，查詢頁甚至會**靜靜回傳最新一天**而不是報錯。故本 updater
+會把該資料集的起始日**夾到兩年內**並說明原因，不浪費請求去撈拿不到的東西。
 
 ⚠️ **籌碼是盤後公布**：當天盤中跑只會拿到「無資料」，那是正常狀態。
 回測要用的本來就是前一交易日的籌碼（見 `FuturesChipAPI` 的前視偏差說明）。
@@ -37,15 +50,21 @@ from core.utils.log_manager import LogManager
 class FuturesChipUpdater(BaseDataUpdater):
     """更新 tw_futures.db 的三張籌碼表"""
 
-    # 節流：與 `futures_price_updater` 同一組理由——TAIFEX 擋流量時回的是
-    # HTTP 200 ＋ 一頁 HTML，看起來就像「當天沒資料」，被擋了也不會有錯誤
-    MIN_DELAY_SECONDS: float = 1.0
-    MAX_DELAY_SECONDS: float = 2.0
-    BATCH_SIZE: int = 30  # 每 N 天多睡一次
-    BATCH_REST_SECONDS: int = 10
+    # 節流：月批次之後請求數只剩三十分之一，但仍要留間隔——
+    # TAIFEX 擋流量時回的是 HTTP 200 ＋ 一頁 HTML，被擋了不會有任何錯誤
+    MIN_DELAY_SECONDS: float = 2.0
+    MAX_DELAY_SECONDS: float = 4.0
+
+    # 疑似被擋時的重試（沿用 `futures_price_updater` 的作法：等待隨次數遞增）
+    BLOCKED_RETRY_ATTEMPTS: int = 3
+    BLOCKED_RETRY_DELAY_SECONDS: int = 30
 
     # 沒有指定起點時的預設回補起點：與行情一致（2015-01-01 起）
     DEFAULT_START_DATE: datetime.date = datetime.date(2015, 1, 1)
+
+    # **三大法人只有約兩年的歷史**（2026-09-02 實測，切點 2024-08-17~19）：
+    # 更早的日期無論換哪個端點都拿不到，硬撈只是白花請求。留 30 天餘裕
+    INSTITUTIONAL_HISTORY_DAYS: int = 365 * 2 - 30
 
     def __init__(self):
         super().__init__()
@@ -53,6 +72,8 @@ class FuturesChipUpdater(BaseDataUpdater):
         self.crawler: Optional[FuturesChipCrawler] = None
         self.cleaner: Optional[FuturesChipCleaner] = None
         self.loader: Optional[FuturesChipLoader] = None
+        # 判斷「被擋」還是「真的沒資料」要靠交易日，來源是行情表
+        self.price_api: Optional[FuturesPriceAPI] = None
 
         self.setup()
 
@@ -63,12 +84,15 @@ class FuturesChipUpdater(BaseDataUpdater):
         self.crawler = FuturesChipCrawler()
         self.cleaner = FuturesChipCleaner()
         self.loader = FuturesChipLoader()
+        self.price_api = FuturesPriceAPI()
 
     def close(self) -> None:
         """關閉資料連線"""
 
         if self.loader is not None:
             self.loader.disconnect()
+        if self.price_api is not None:
+            self.price_api.close()
 
     def get_datasets(self) -> List[Tuple[str, str, Callable, Callable]]:
         """三個資料集的 (表名, 標籤, crawl, clean)"""
@@ -102,7 +126,7 @@ class FuturesChipUpdater(BaseDataUpdater):
     ) -> None:
         """
         - Description:
-            逐日更新三個籌碼資料集
+            以**月批次**更新三個籌碼資料集
 
             **每個資料集各自續跑**：以自己表內的最新日為起點，避免已補到的那一張
             重爬一整段。`resume=False` 則一律使用傳入的 `start_date`（歷史回補用）。
@@ -119,24 +143,33 @@ class FuturesChipUpdater(BaseDataUpdater):
             start: datetime.date = self.resolve_start_date(
                 table, start_date, resume=resume
             )
+            start = self.clamp_start_date(table, label, start)
             self.update_dataset(table, label, crawl, clean, start, end)
 
-    def resolve_start_date(
-        self,
-        table: str,
-        start_date: Optional[datetime.date],
-        resume: bool,
+    def clamp_start_date(
+        self, table: str, label: str, start_date: datetime.date
     ) -> datetime.date:
-        """決定該資料集的起點：續跑時取表內最新日的次日"""
+        """
+        把三大法人的起始日夾到來源真的給得出來的範圍內
 
-        if not resume:
-            return start_date or self.DEFAULT_START_DATE
+        **不夾的話會白打上千次請求**（而且每一次都被記成「查無資料」，
+        看起來像是那幾年真的沒有籌碼）。其餘兩個資料集有完整歷史，不受此限。
+        """
 
-        latest: Optional[str] = self.loader.get_latest_date(table)
-        if latest is None:
-            return start_date or self.DEFAULT_START_DATE
+        if table != FUTURES_INSTITUTIONAL_CHIP_TABLE_NAME:
+            return start_date
 
-        return datetime.date.fromisoformat(latest) + datetime.timedelta(days=1)
+        earliest: datetime.date = datetime.date.today() - datetime.timedelta(
+            days=self.INSTITUTIONAL_HISTORY_DAYS
+        )
+        if start_date >= earliest:
+            return start_date
+
+        logger.warning(
+            f"[Futures Chip] {label} 的來源只提供約兩年的歷史，"
+            f"起始日由 {start_date} 調整為 {earliest}（更早的資料換哪個端點都拿不到）"
+        )
+        return earliest
 
     def update_dataset(
         self,
@@ -147,42 +180,131 @@ class FuturesChipUpdater(BaseDataUpdater):
         start_date: datetime.date,
         end_date: datetime.date,
     ) -> int:
-        """逐日爬取、清洗並入庫單一資料集；回傳新增列數"""
+        """逐月爬取、清洗並入庫單一資料集；回傳新增列數"""
 
         if start_date > end_date:
             logger.info(f"[Futures Chip] {table} 已是最新（{start_date} > {end_date}）")
             return 0
 
-        logger.info(f"* Updating {table}: {start_date} ~ {end_date}")
+        logger.info(f"* Updating {table}: {start_date} ~ {end_date}（月批次）")
 
-        dates: List[datetime.date] = TimeUtils.generate_date_range(start_date, end_date)
         inserted: int = 0
+        blocked_windows: List[Tuple[datetime.date, datetime.date]] = []
 
-        for index, date in enumerate(dates, start=1):
-            raw: Optional[str] = crawl(date)
+        for window_start, window_end in self.split_months(start_date, end_date):
+            raw: Optional[str] = self.crawl_window(
+                crawl, label, window_start, window_end
+            )
             if raw is None:
-                self.throttle(index)
+                if self.has_trading_days(window_start, window_end):
+                    blocked_windows.append((window_start, window_end))
+                self.throttle()
                 continue
 
-            df: Optional[pd.DataFrame] = clean(raw, date)
+            df: Optional[pd.DataFrame] = clean(raw)
             if df is None or df.empty:
-                self.throttle(index)
+                self.throttle()
                 continue
 
-            self.loader.save_csv(df, f"{label}_{date.strftime('%Y%m%d')}.csv")
+            self.loader.save_csv(df, f"{label}_{window_start.strftime('%Y%m')}.csv")
             inserted += self.loader.add_to_db(table, df)
-            self.throttle(index)
+            self.throttle()
+
+        if blocked_windows:
+            logger.warning(
+                f"[Futures Chip] {table} 有 {len(blocked_windows)} 個月份「該有資料卻沒拿到」，"
+                f"多半是被擋流量，請稍後重跑：{blocked_windows[:5]}"
+            )
 
         logger.info(f"[Futures Chip] {table}：本次新增 {inserted} 列")
         return inserted
 
-    def throttle(self, index: int) -> None:
-        """逐日節流；每 `BATCH_SIZE` 天多睡一次"""
+    def crawl_window(
+        self,
+        crawl: Callable,
+        label: str,
+        window_start: datetime.date,
+        window_end: datetime.date,
+    ) -> Optional[str]:
+        """
+        - Description:
+            取得單一月份的資料；**疑似被擋就重試**
+
+            判準是「這個月有沒有交易日」——有交易日卻拿不到 CSV，就不可能是
+            「非交易日」，只會是被擋或來源異常。等待時間隨次數遞增，
+            與 `futures_price_updater` 同一種作法。
+        - Parameters:
+            - crawl: Callable
+                該資料集的爬取方法
+            - label: str
+                log 用的資料集名稱
+            - window_start / window_end: datetime.date
+                月批次區間
+        - Return:
+            - Optional[str]
+                CSV 原文；重試後仍拿不到時為 None
+        """
+
+        raw: Optional[str] = crawl(window_start, window_end)
+        if raw is not None or not self.has_trading_days(window_start, window_end):
+            return raw
+
+        for attempt in range(1, self.BLOCKED_RETRY_ATTEMPTS):
+            wait: int = self.BLOCKED_RETRY_DELAY_SECONDS * attempt
+            logger.warning(
+                f"[Futures Chip] {label} {window_start}~{window_end} 該有交易日卻沒拿到 CSV，"
+                f"{wait} 秒後重試（第 {attempt} 次）"
+            )
+            time.sleep(wait)
+
+            raw = crawl(window_start, window_end)
+            if raw is not None:
+                return raw
+
+        return None
+
+    def has_trading_days(
+        self, start_date: datetime.date, end_date: datetime.date
+    ) -> bool:
+        """
+        該區間內是否有交易日（依 `futures_price_daily`）
+
+        **這是「被擋」與「真的沒資料」的唯一判準**。行情表本身還沒建立時
+        一律回 True（寧可多重試幾次，也不要把被擋當成沒資料）。
+        """
+
+        try:
+            return bool(self.price_api.get_trading_days(start_date, end_date))
+        except Exception:
+            return True
+
+    @staticmethod
+    def split_months(
+        start_date: datetime.date, end_date: datetime.date
+    ) -> List[Tuple[datetime.date, datetime.date]]:
+        """把區間切成逐月的 `(起, 迄)`；頭尾保留原始的起訖日"""
+
+        windows: List[Tuple[datetime.date, datetime.date]] = []
+        cursor: datetime.date = start_date
+
+        while cursor <= end_date:
+            if cursor.month == 12:
+                next_month: datetime.date = datetime.date(cursor.year + 1, 1, 1)
+            else:
+                next_month = datetime.date(cursor.year, cursor.month + 1, 1)
+
+            window_end: datetime.date = min(
+                next_month - datetime.timedelta(days=1), end_date
+            )
+            windows.append((cursor, window_end))
+            cursor = next_month
+
+        return windows
+
+    def throttle(self) -> None:
+        """批次之間的間隔；月批次之後請求數已經很少，但仍不要連續打"""
 
         time.sleep(random.uniform(self.MIN_DELAY_SECONDS, self.MAX_DELAY_SECONDS))
-        if index % self.BATCH_SIZE == 0:
-            logger.info(f"* 已處理 {index} 天，休息 {self.BATCH_REST_SECONDS} 秒")
-            time.sleep(self.BATCH_REST_SECONDS)
 
     def get_coverage(self) -> Dict[str, Optional[str]]:
         """三張表各自補到哪一天（供人工確認進度）"""
