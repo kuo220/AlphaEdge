@@ -90,7 +90,7 @@
 | 漲停無法回補 | 當沖放空無法平倉，實務轉借券 | 見 §7.1 |
 | 券資比／單一標的空單上限 | 風控 | `max_short_exposure_ratio` 部位上限檢查 |
 
-> ⚠️ **實作現況（2026-08-15 更新）**：`check_borrowable` 已接上呼叫端（`TwStockFillModel.check_short_borrowable()`，資料來自 `margin` 表，拒單計入 `rejected_no_borrow`）。本表僅剩 `allow_below_reference`、`day_trade_whitelist` 兩個欄位**只有定義沒有呼叫端**——設定後不會生效，但 `StockCostModel` 建構時會發出警告（`check_unimplemented_constraints()`），不會靜默。接上呼叫端的追蹤見 [`backlog/放空回測市場約束補齊.md`](../../backlog/放空回測市場約束補齊.md) S7。
+> ⚠️ **實作現況（2026-08-15 更新）**：`check_borrowable` 已接上呼叫端（`TwStockFillModel.check_short_borrowable()`，資料來自 `margin` 表，拒單計入 `rejected_no_borrow`）。本表僅剩 `allow_below_reference`、`day_trade_whitelist` 兩個欄位**只有定義沒有呼叫端**——設定後不會生效，但 `StockCostModel` 建構時會發出警告（`check_unimplemented_constraints()`），不會靜默。接上呼叫端的追蹤見 §7.7〈已知簡化〉的「平盤下放空限制與每日可當沖清單」列。
 
 ### 3.5 價格檔位（tick size）
 
@@ -400,7 +400,7 @@ snapshot_daily_equity(date, quotes)
 
 **禁止**。`open_position` 若發現同一 `stock_id` 已有反向未平倉部位 → `logger.warning` 並拒單。理由：`check_has_position` 與報表層假設單一方向，放寬需要一整套 net position 語意。
 
-這與 §4.4 的 `allowed_directions` 不衝突：策略**可以**同時持有 A 股的多單與 B 股的空單（市場中性），只是**同一檔**不能雙向。放寬的規劃見 [`backlog/放空回測市場約束補齊.md`](../../backlog/放空回測市場約束補齊.md) S5。
+這與 §4.4 的 `allowed_directions` 不衝突：策略**可以**同時持有 A 股的多單與 B 股的空單（市場中性），只是**同一檔**不能雙向。放寬的代價與現況見 §7.7〈已知簡化〉。
 
 ### 7.6 成交價合理性（前視偏誤防線）
 
@@ -430,10 +430,20 @@ snapshot_daily_equity(date, quotes)
 | 股東會停券 | 留倉放空的持有天數仍被高估 | 缺股東會行事曆資料源；除權息停券已接上，見 §7.3 |
 | ~~券源可得性（融券餘額檢核）~~ | ~~高估可放空的機會數~~ | ✅ 已於 2026-08-15 接上 `FillModel`（拒單計入 `rejected_no_borrow`）；`margin` 表歷史回補已於 2026-08-16 完成（574 萬列、3,330 個交易日） |
 | ~~未實現損益的每日權益曲線~~ | ~~留倉放空的 MDD 被低估~~ | ✅ 已於 2026-08 完成：報表已改用逐日盯市權益 |
-| `SBL` 議定費率的個股差異 | 熱門空方標的實際費率遠高於 3% | 需借券成交資料；見[市場約束補齊](../../backlog/放空回測市場約束補齊.md) S6 |
+| `SBL` 議定費率的個股差異 | 熱門空方標的實際費率遠高於 3%（實務可達 16%） | `accrue_holding_cost()` 已能逐日計提，缺的只是每檔的實際議定費率。**卡借券成交資料源**，取得難度高且對多數標的影響有限；找到可用資料源後解除 |
+| 平盤下放空限制與每日可當沖清單 | 高估可放空／可當沖的機會數 | `ShortConstraint.allow_below_reference` 與 `day_trade_whitelist` **有定義、無撮合呼叫端**（建構期由 `check_unimplemented_constraints()` 發警告防止誤信，見 §3.4）。**卡處置股／警示股公告與每日可當沖清單資料源**——`margin` 表的「註記」欄無法直接判讀。接上後須移除該警告並改寫 `tests/backtest/test_unimplemented_constraints.py` |
+| 融資做多槓桿 | LONG 一律以現金全額買進，資金效率被低估 | 會動到 LONG 的資金計算、破壞回歸保護線（`MomentumStrategy1` 的 915 筆 baseline），且**目前無策略需求**。出現需要槓桿的做多策略時再另立規劃 |
+| 同一標的雙向持倉（net position 語意） | 已有多單時開空單會被拒絕（反之亦然），無法對同一檔做多空轉換 | 跨標的的多空並存**不受限**（市場中性可行，見 §4.4）。放寬等同再開一個 Phase：`StockPosition` 要改成淨部位語意、成本攤提與報表全部連動，且**目前無策略需求** |
 | 流動性上限與部分成交 | 下單張數不受當日成交量約束，小型股成交假設過於樂觀 | 日 K 已於 2026-08-15 完成（`FillConfig.max_volume_share`）；TICK 累計量未做，見 [`core/backtest/README.md`](../../core/backtest/README.md)〈成交假設〉 |
 | ~~除權息價格還原~~ | ~~除息跳空被當成真實漲跌~~ | ✅ 已於 2026-08-15 完成（訊號預設用還原價），見 [`docs/exchanges/data_coverage.md`](../exchanges/data_coverage.md)〈股價還原〉 |
 | ~~滑價~~ | ~~成交價即策略填入價~~ | ✅ 已於 2026-08-15 完成（`FillConfig.slippage_bps_*`），見 [`core/backtest/README.md`](../../core/backtest/README.md)〈成交假設〉 |
+
+> **2026-09-02：`backlog/放空回測市場約束補齊.md` 已完成並移出。**
+> 該文件的 S1（融券餘額 ETL）、S2（券源檢核）、S3（停券日與股利補償）三項必做已全數落地，
+> 規格收斂於 §3.4、§7.3、§7.7；其餘四項暫緩事項（S4 融資槓桿、S5 同標的雙向持倉、
+> S6 SBL 議定費率、S7 平盤下放空與可當沖清單）**改由上表承接追蹤**，
+> 不再另立 backlog。四項的共通點是「卡資料源」或「無策略需求」，
+> 出現對應需求時再各自開規劃，屆時本表對應列即為起點。
 
 > **註**：既然 `execute_daily_position_check` 每天都要取當日收盤價算維持率，順手產出「含未實現損益的每日權益快照」成本極低但價值很高——放空最大的風險就是持倉期間的逆勢，只認已實現損益的權益曲線會把這段完全抹平。`snapshot_daily_equity()` 即為此而生。
 

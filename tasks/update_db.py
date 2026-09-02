@@ -10,24 +10,36 @@ from core.config import (
     DEFAULT_CHIP_START_DATE,
     DEFAULT_DIVIDEND_START_DATE,
     DEFAULT_END_MONTH,
+    DEFAULT_FUTURES_START_DATE,
     DEFAULT_MARGIN_START_DATE,
     DEFAULT_PRICE_START_DATE,
     DEFAULT_START_YEAR,
     FINMIND_BROKER_TRADING_START_DATE,
+    STOCK_FUTURES_TOP_N,
     TICK_UPDATE_START_DATE,
 )
-from core.pipeline.updaters.financial_statement_updater import (
+from core.pipeline.tw.updaters.financial_statement_updater import (
     FinancialStatementUpdater,
 )
-from core.pipeline.updaters.finmind_updater import FinMindUpdater
-from core.pipeline.updaters.monthly_revenue_report_updater import (
+from core.pipeline.tw.updaters.finmind_updater import FinMindUpdater
+from core.pipeline.tw.updaters.futures_chip_updater import FuturesChipUpdater
+from core.pipeline.tw.updaters.futures_continuous_updater import (
+    FuturesContinuousUpdater,
+)
+from core.pipeline.tw.updaters.futures_margin_updater import FuturesMarginUpdater
+from core.pipeline.tw.updaters.futures_price_updater import FuturesPriceUpdater
+from core.pipeline.tw.updaters.futures_stock_universe_updater import (
+    FuturesStockUniverseUpdater,
+)
+from core.pipeline.tw.updaters.futures_tick_updater import FuturesTickUpdater
+from core.pipeline.tw.updaters.monthly_revenue_report_updater import (
     MonthlyRevenueReportUpdater,
 )
-from core.pipeline.updaters.stock_chip_updater import StockChipUpdater
-from core.pipeline.updaters.stock_dividend_updater import StockDividendUpdater
-from core.pipeline.updaters.stock_margin_updater import StockMarginUpdater
-from core.pipeline.updaters.stock_price_updater import StockPriceUpdater
-from core.pipeline.updaters.stock_tick_updater import StockTickUpdater
+from core.pipeline.tw.updaters.stock_chip_updater import StockChipUpdater
+from core.pipeline.tw.updaters.stock_dividend_updater import StockDividendUpdater
+from core.pipeline.tw.updaters.stock_margin_updater import StockMarginUpdater
+from core.pipeline.tw.updaters.stock_price_updater import StockPriceUpdater
+from core.pipeline.tw.updaters.stock_tick_updater import StockTickUpdater
 from core.pipeline.utils import DataLoadError, DataType, FinMindDataType
 
 """
@@ -69,6 +81,13 @@ Target 對照表
   margin                      信用交易（融資融券餘額）
   dividend                    除權除息計算結果表（含還原係數、現金股利）
   price                       收盤價
+  futures_price               台期貨每日行情（寫入 tw_futures.db）
+  futures_stock_universe      股票期貨標的池（寫入 tw_futures.db）
+  futures_margin              台期貨保證金（變動序列，寫入 tw_futures.db）
+  futures_continuous          台期貨連續合約（由 futures_price_daily 建出，不連網路）
+  futures_chip                台期貨籌碼（三大法人、大額交易人、選擇權 PCR）
+  futures_stock_price         股票期貨行情（商品清單取自標的池，預設只爬流動性前 N 檔）
+  futures_tick                台期貨逐筆成交（Shioaji → DolphinDB；需 [tick] 相依與金鑰）
   fs                          財報 (Financial Statement)
   mrr                         月營收報表 (Monthly Revenue Report)
   finmind                     全部 FinMind（台股總覽 + 證券商 + 券商分點）
@@ -97,6 +116,24 @@ Target 對照表
 
   # 收盤價
   python -m tasks.update_db --target price
+
+  # 更新台期貨每日行情（寫入 tw_futures.db，商品見 FUTURES_TARGET_PRODUCTS）
+  python -m tasks.update_db --target futures_price
+
+  # 由各月份契約重建連續合約（三種調整方式；不連網路，整段重建）
+  python -m tasks.update_db --target futures_continuous
+
+  # 更新台期貨籌碼（三個資料集，一天三次請求即涵蓋全市場）
+  python -m tasks.update_db --target futures_chip
+
+  # 更新股票期貨行情（預設流動性前 20 檔；320 檔全爬要好幾個月）
+  python -m tasks.update_db --target futures_stock_price
+
+  # 更新股票期貨標的池（寫入 tw_futures.db；每次執行留下一份當日快照）
+  python -m tasks.update_db --target futures_stock_universe
+
+  # 更新台期貨保證金（寫入 tw_futures.db；保證金沒調整時不會新增列）
+  python -m tasks.update_db --target futures_margin
 
   # 財報
   python -m tasks.update_db --target fs
@@ -196,6 +233,11 @@ def get_update_time_config(
     elif data_type == DataType.PRICE:
         return {
             "start_date": DEFAULT_PRICE_START_DATE,
+            "end_date": datetime.date.today(),
+        }
+    elif data_type == DataType.FUTURES_PRICE:
+        return {
+            "start_date": DEFAULT_FUTURES_START_DATE,
             "end_date": datetime.date.today(),
         }
     elif data_type == DataType.FS:
@@ -326,6 +368,85 @@ def main() -> None:
             stock_price_updater.update(
                 start_date=time_config["start_date"], end_date=time_config["end_date"]
             )
+
+    if DataType.FUTURES_PRICE.name.lower() in targets:
+        with target_guard("futures_price", failed_targets):
+            time_config: Dict[str, datetime.date | int] = get_update_time_config(
+                DataType.FUTURES_PRICE
+            )
+            futures_price_updater: FuturesPriceUpdater = FuturesPriceUpdater()
+            futures_price_updater.update(
+                start_date=time_config["start_date"], end_date=time_config["end_date"]
+            )
+
+    if DataType.FUTURES_STOCK_PRICE.name.lower() in targets:
+        with target_guard("futures_stock_price", failed_targets):
+            # **股期不走 FUTURES_TARGET_PRODUCTS**：320 檔且會隨掛牌／下市異動，
+            # 清單改由 futures_stock_universe 提供。預設只爬流動性前 N 檔——
+            # 全爬是每天 640 次請求，而尾端商品一天只成交個位數口
+            time_config: Dict[str, datetime.date | int] = get_update_time_config(
+                DataType.FUTURES_PRICE
+            )
+            stock_futures_updater: FuturesPriceUpdater = FuturesPriceUpdater()
+            stock_futures_updater.update_stock_futures(
+                start_date=time_config["start_date"],
+                end_date=time_config["end_date"],
+                top_n=STOCK_FUTURES_TOP_N,
+            )
+
+    if DataType.FUTURES_TICK.name.lower() in targets:
+        with target_guard("futures_tick", failed_targets):
+            # **要爬哪些契約由日線行情表決定**，不是自己推近月＋次月；
+            # 預設只爬近月（期貨的量集中在近月，遠月同樣佔配額卻沒幾筆）
+            time_config: Dict[str, datetime.date | int] = get_update_time_config(
+                DataType.FUTURES_PRICE
+            )
+            futures_tick_updater: FuturesTickUpdater = FuturesTickUpdater()
+            try:
+                futures_tick_updater.update(
+                    start_date=time_config["start_date"],
+                    end_date=time_config["end_date"],
+                )
+            finally:
+                futures_tick_updater.logout()
+
+    if DataType.FUTURES_CHIP.name.lower() in targets:
+        with target_guard("futures_chip", failed_targets):
+            # 三個資料集各自從自己表內的最新日續跑（見 FuturesChipUpdater）；
+            # **籌碼是盤後公布**，當日盤中跑只會拿到「無資料」，那是正常狀態
+            futures_chip_updater: FuturesChipUpdater = FuturesChipUpdater()
+            try:
+                futures_chip_updater.update()
+            finally:
+                futures_chip_updater.close()
+
+    if DataType.FUTURES_CONTINUOUS.name.lower() in targets:
+        with target_guard("futures_continuous", failed_targets):
+            # 連續合約是**衍生表**：來源是同一個 DB 的 futures_price_daily，
+            # 不連網路。逆向調整的調整量會隨「之後又換了幾次月」而改變，
+            # 故一律整段重建而非增量（見 FuturesContinuousUpdater.update()）
+            futures_continuous_updater: FuturesContinuousUpdater = (
+                FuturesContinuousUpdater()
+            )
+            try:
+                futures_continuous_updater.update()
+            finally:
+                futures_continuous_updater.close()
+
+    if DataType.FUTURES_STOCK_UNIVERSE.name.lower() in targets:
+        with target_guard("futures_stock_universe", failed_targets):
+            # 標的池是「當下快照」，沒有回補區間，故不取 time_config
+            futures_stock_universe_updater: FuturesStockUniverseUpdater = (
+                FuturesStockUniverseUpdater()
+            )
+            futures_stock_universe_updater.update()
+
+    if DataType.FUTURES_MARGIN.name.lower() in targets:
+        with target_guard("futures_margin", failed_targets):
+            # 保證金是「現行一覽表」，一次請求就結束，沒有回補區間，故不取 time_config；
+            # 沒有調整時不會新增列（主鍵相同被 INSERT OR IGNORE 擋掉），那是正常狀態
+            futures_margin_updater: FuturesMarginUpdater = FuturesMarginUpdater()
+            futures_margin_updater.update()
 
     if DataType.FS.name.lower() in targets:
         with target_guard("fs", failed_targets):

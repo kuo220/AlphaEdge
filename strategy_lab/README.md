@@ -120,11 +120,11 @@ ideas/           data_analysis/      strategies/<name>/      core/strategies/sto
 
 ### StockPriceAPI — 日線價格資料 (SQLite)
 
-來源：`core/database/stock.db` 之 price 表。
+來源：`data/db/tw_stock.db` 之 price 表。
 
 ```python
 import datetime
-from core.api.stock_price_api import StockPriceAPI
+from core.api.tw.stock_price_api import StockPriceAPI
 
 price = StockPriceAPI()
 
@@ -154,7 +154,7 @@ df_2330 = price.get_stock_price(
 
 ```python
 import datetime
-from core.api.stock_tick_api import StockTickAPI
+from core.api.tw.stock_tick_api import StockTickAPI
 
 tick = StockTickAPI()
 
@@ -185,7 +185,7 @@ last = tick.get_last_tick(stock_id="2330", date=datetime.date(2024, 5, 10))
 
 ```python
 import datetime
-from core.api.stock_chip_api import StockChipAPI
+from core.api.tw.stock_chip_api import StockChipAPI
 
 chip = StockChipAPI()
 
@@ -211,7 +211,7 @@ df_2330 = chip.get_stock_chip(
 ### MonthlyRevenueReportAPI — 月營收 (SQLite)
 
 ```python
-from core.api.monthly_revenue_report_api import MonthlyRevenueReportAPI
+from core.api.tw.monthly_revenue_report_api import MonthlyRevenueReportAPI
 
 mrr = MonthlyRevenueReportAPI()
 
@@ -228,7 +228,7 @@ df_range = mrr.get_range(
 ### FinancialStatementAPI — 季報財報 (SQLite)
 
 ```python
-from core.api.financial_statement_api import FinancialStatementAPI
+from core.api.tw.financial_statement_api import FinancialStatementAPI
 
 fs = FinancialStatementAPI()
 
@@ -243,7 +243,7 @@ df = fs.get(table_name="<your_fs_table>", year=2024, season=1)
 
 ```python
 import datetime
-from core.api.stock_price_api import StockPriceAPI
+from core.api.tw.stock_price_api import StockPriceAPI
 from core.utils.market_calendar import MarketCalendar
 
 price = StockPriceAPI()
@@ -315,15 +315,16 @@ buy_fee  = notional * Commission.CommRate * Commission.Discount  # ≈ 256.5 →
 sell_tax = notional * Commission.TaxRate            # 1,800
 ```
 
-### Action / Scale / PositionType / Market — 列舉常數
+### Action / Scale / PositionType / Market / InstrumentType — 列舉常數
 
 ```python
-from core.utils import Action, Scale, PositionType, Market
+from core.utils import Action, InstrumentType, Market, PositionType, Scale
 
 Action.BUY, Action.SELL                  # 'Buy', 'Sell'
-Scale.DAY, Scale.TICK, Scale.MIX         # 回測級別
+Scale.DAY, Scale.TICK                    # 回測級別
 PositionType.LONG, PositionType.SHORT    # 部位方向
-Market.STOCK, Market.FUTURE, Market.OPTION
+Market.TW, Market.US                     # 市場（地區）
+InstrumentType.STOCK, InstrumentType.FUTURE, InstrumentType.OPTION  # 商品類別
 ```
 
 研究階段通常**不需要直接用**這些；但若要把研究結果包成正式策略，這些就是必要的。
@@ -342,14 +343,14 @@ Market.STOCK, Market.FUTURE, Market.OPTION
 | 海外 ADR / FX  | yfinance       | 直接 `import yfinance as yf`  | 即時抓取（無本地表）                       |
 | 交易日／前一日 | 視 API 而定   | `MarketCalendar`              | 透過 `StockPriceAPI` 推算                 |
 
-> **資料庫位置**：`core/database/stock.db`（SQLite）。
+> **資料庫位置**：`data/db/tw_stock.db`（SQLite）。
 > 想知道目前 DB 內有哪些表，可以快速跑：
 >
 > ```python
 > import sqlite3
-> from core.config import DB_PATH
+> from core.config import TW_STOCK_DB_PATH
 >
-> with sqlite3.connect(DB_PATH) as conn:
+> with sqlite3.connect(TW_STOCK_DB_PATH) as conn:
 >     for (name,) in conn.execute("SELECT name FROM sqlite_master WHERE type='table'"):
 >         print(name)
 > ```
@@ -366,7 +367,7 @@ Market.STOCK, Market.FUTURE, Market.OPTION
 import datetime as dt
 import pandas as pd
 
-from core.api.stock_price_api import StockPriceAPI
+from core.api.tw.stock_price_api import StockPriceAPI
 
 price = StockPriceAPI()
 df = price.get_stock_price(
@@ -444,7 +445,7 @@ print(realistic_pnl(600.0, 620.0, 5))
       ROOT = ROOT.parent
   sys.path.insert(0, str(ROOT))
 
-  from core.api.stock_price_api import StockPriceAPI
+  from core.api.tw.stock_price_api import StockPriceAPI
   ```
 
 ---
@@ -462,7 +463,7 @@ print(realistic_pnl(600.0, 620.0, 5))
    ```bash
    .venv/bin/python run.py --strategy <YourStrategyName>
    ```
-4. 結果會落到 `core/backtest/results/<YourStrategyName>/`，
+4. 結果會落到 `results/<YourStrategyName>/`，
    會自動產出 `balance_curve.png / balance_mdd.png / trading_report.csv` 等標準報表。
 
 > 詳細的「怎麼寫 `BaseStockStrategy` 子類別」請看 [`core/strategies/README.md`](../core/strategies/README.md)。

@@ -1,0 +1,398 @@
+import datetime
+from pathlib import Path
+from typing import List, Optional
+
+import pandas as pd
+import pytest
+
+from core.adapters.tw.futures_quote_adapter import FuturesQuoteAdapter
+from core.backtest.datafeed.tw.futures_calendar import FuturesCalendar
+from core.backtest.datafeed.tw.futures_datafeed import TwFuturesDataFeed
+from core.config import TW_FUTURES_DB_PATH
+from core.models import FuturesQuote
+from core.pipeline.utils.constant import FuturesPriceColumn
+from core.utils import FuturesSession, Scale
+
+"""
+日盤／夜盤整併測試（Phase4-2）
+
+**整併最容易錯的是「夜盤屬於哪一天」**：TAIFEX 的夜盤 15:00 開盤、次日 05:00
+收盤，制度上屬於**次一交易日**——星期五晚上那一段屬於星期一。資料表為了忠實
+記錄來源，把夜盤存在它**開始**的那個日曆日，因此整併時必須往前取一個**交易日**
+（不是前一個曆日，週一要取到週五）。取錯的話夜盤會被併到錯誤的交易日，
+而且價格看起來都很合理，不會有任何異常。
+
+第二個重點是**跨盤別跳空必須留在 bar 內**：整併後的 `open` 取夜盤開盤而非
+日盤開盤，前一個日盤收盤到夜盤開盤之間的跳空才不會被抹掉——那正是隔夜風險。
+"""
+
+DATE: datetime.date = datetime.date(2024, 3, 4)  # 星期一
+FRIDAY: datetime.date = datetime.date(2024, 3, 1)
+
+
+def make_quote(
+    close: float,
+    open_: float,
+    high: float,
+    low: float,
+    volume: int,
+    session: FuturesSession,
+    date: datetime.date = DATE,
+    settlement: Optional[float] = None,
+    expiry: str = "202403",
+) -> FuturesQuote:
+    """組一筆 TX 報價"""
+
+    return FuturesQuote(
+        product="TX",
+        expiry=expiry,
+        scale=Scale.DAY,
+        date=date,
+        cur_price=close,
+        volume=volume,
+        open=open_,
+        high=high,
+        low=low,
+        close=close,
+        session=session,
+        settlement_price=settlement,
+        multiplier=200,
+    )
+
+
+# === 合併規則 ===
+def test_combined_bar_takes_night_open_and_day_close() -> None:
+    """
+    **open 取夜盤、close 取日盤**
+
+    夜盤先發生、日盤後收盤，這是一根 bar 的頭尾。用日盤開盤當 open 會把
+    隔夜跳空整段抹掉。
+    """
+
+    day: FuturesQuote = make_quote(
+        19314, 19144, 19340, 19137, 97821, FuturesSession.DAY
+    )
+    night: FuturesQuote = make_quote(
+        18954, 18961, 19000, 18891, 52330, FuturesSession.NIGHT, date=FRIDAY
+    )
+
+    combined: FuturesQuote = FuturesQuoteAdapter.combine_quote(day, night)
+
+    assert combined.open == 18961  # 夜盤開盤
+    assert combined.close == 19314  # 日盤收盤
+    assert combined.high == 19340  # 兩盤極值
+    assert combined.low == 18891
+    assert combined.volume == 97821 + 52330
+    assert combined.session == FuturesSession.COMBINED
+
+
+def test_cross_session_gap_is_preserved() -> None:
+    """
+    **跨盤別跳空被保留在 bar 內**（本步驟的驗收條件）
+
+    整併後的 open 與日盤 open 之間那 183 點，就是隔夜跳空；
+    若整併時取日盤 open，這段風險在回測裡會完全看不見。
+    """
+
+    day: FuturesQuote = make_quote(
+        19314, 19144, 19340, 19137, 97821, FuturesSession.DAY
+    )
+    night: FuturesQuote = make_quote(
+        18954, 18961, 19000, 18891, 52330, FuturesSession.NIGHT, date=FRIDAY
+    )
+    day_open_before: float = day.open
+
+    combined: FuturesQuote = FuturesQuoteAdapter.combine_quote(day, night)
+
+    assert combined.open != day_open_before
+    assert combined.low < 19137  # 夜盤的低點成為當根 bar 的低點
+
+
+def test_missing_night_quote_keeps_the_day_bar() -> None:
+    """
+    夜盤沒有該契約時原樣沿用日盤
+
+    多數月份的契約夜盤根本不交易；補 0 會讓 `low` 變成 0、`open` 變成 0。
+    """
+
+    day: FuturesQuote = make_quote(
+        19314, 19144, 19340, 19137, 97821, FuturesSession.DAY
+    )
+
+    combined: FuturesQuote = FuturesQuoteAdapter.combine_quote(day, None)
+
+    assert combined.open == 19144
+    assert combined.low == 19137
+    assert combined.volume == 97821
+    assert combined.session == FuturesSession.COMBINED
+
+
+def test_settlement_and_open_interest_come_from_the_day_session() -> None:
+    """結算價與未沖銷契約量**只有日盤有**，整併後不可被夜盤的 None 蓋掉"""
+
+    day: FuturesQuote = make_quote(
+        19314, 19144, 19340, 19137, 97821, FuturesSession.DAY, settlement=19310
+    )
+    night: FuturesQuote = make_quote(
+        18954, 18961, 19000, 18891, 52330, FuturesSession.NIGHT, date=FRIDAY
+    )
+
+    combined: FuturesQuote = FuturesQuoteAdapter.combine_quote(day, night)
+
+    assert combined.settlement_price == 19310
+
+
+# === 夜盤屬於哪一天 ===
+class StubPriceAPI:
+    """只回傳指定日期／時段行情的假 API"""
+
+    COLUMNS: List[str] = [
+        "date",
+        "product",
+        "expiry",
+        "session",
+        FuturesPriceColumn.OPEN.value,
+        FuturesPriceColumn.HIGH.value,
+        FuturesPriceColumn.LOW.value,
+        FuturesPriceColumn.CLOSE.value,
+        FuturesPriceColumn.VOLUME.value,
+        FuturesPriceColumn.SETTLEMENT.value,
+        FuturesPriceColumn.OPEN_INTEREST.value,
+    ]
+
+    def __init__(self):
+        self.rows: List[list] = [
+            [
+                str(FRIDAY),
+                "TX",
+                "202403",
+                "day",
+                19100,
+                19200,
+                19000,
+                19144,
+                100,
+                19144,
+                500,
+            ],
+            [
+                str(FRIDAY),
+                "TX",
+                "202403",
+                "night",
+                18961,
+                19000,
+                18891,
+                18954,
+                50,
+                None,
+                None,
+            ],
+            [
+                str(DATE),
+                "TX",
+                "202403",
+                "day",
+                19144,
+                19340,
+                19137,
+                19314,
+                200,
+                19314,
+                600,
+            ],
+            # 週日（非交易日）不該被取到；放一列進來確保 feed 沒有用「前一個曆日」
+            ["2024-03-03", "TX", "202403", "night", 1, 1, 1, 1, 999, None, None],
+        ]
+        self.requested: List[tuple] = []
+
+    def get(self, date, product=None, session=None) -> pd.DataFrame:
+        self.requested.append((date, session))
+        rows = [
+            row
+            for row in self.rows
+            if row[0] == str(date) and (session is None or row[3] == session.value)
+        ]
+        return pd.DataFrame(rows, columns=self.COLUMNS)
+
+    def get_trading_days(self, start_date, end_date, product=None) -> List:
+        return [FRIDAY, DATE]
+
+    def close(self) -> None:
+        pass
+
+
+def make_feed() -> TwFuturesDataFeed:
+    """建立注入假 API 與日曆的 feed（整併模式）"""
+
+    feed: TwFuturesDataFeed = TwFuturesDataFeed()
+    feed.futures_price = StubPriceAPI()
+    feed.products = ["TX"]
+    feed.session = FuturesSession.COMBINED
+    feed.start_date, feed.end_date = FRIDAY, DATE
+    feed.calendar = FuturesCalendar([FRIDAY, DATE])
+    return feed
+
+
+def test_night_session_comes_from_the_previous_trading_day() -> None:
+    """
+    **星期一取的是星期五的夜盤**，不是星期日
+
+    用「前一個曆日」會在每個週一取到不存在的資料（或更糟：取到別人的資料）。
+    """
+
+    feed: TwFuturesDataFeed = make_feed()
+
+    assert feed.get_night_session_date(DATE) == FRIDAY
+
+
+def test_feed_produces_combined_quotes() -> None:
+    """整併模式下 feed 回傳的報價已合併，且標記為 `COMBINED`"""
+
+    feed: TwFuturesDataFeed = make_feed()
+
+    quotes: List[FuturesQuote] = feed.get_quotes(DATE, Scale.DAY)
+
+    assert len(quotes) == 1
+    assert quotes[0].session == FuturesSession.COMBINED
+    assert quotes[0].open == 18961  # 星期五夜盤的開盤
+    assert quotes[0].close == 19314  # 星期一日盤的收盤
+    assert quotes[0].volume == 250
+
+
+def test_no_night_session_before_2017() -> None:
+    """
+    2017-05-15 之前沒有夜盤，整併結果等於日盤本身
+
+    那是制度不是資料缺漏；當成缺漏處理會一路找不到原因。
+    """
+
+    feed: TwFuturesDataFeed = make_feed()
+    feed.calendar = FuturesCalendar(
+        [datetime.date(2016, 6, 1), datetime.date(2016, 6, 2)]
+    )
+
+    assert feed.get_night_session_date(datetime.date(2016, 6, 2)) is None
+
+
+def test_day_only_mode_is_unchanged() -> None:
+    """未指定整併時行為完全不變（預設仍是純日盤）"""
+
+    feed: TwFuturesDataFeed = make_feed()
+    feed.session = FuturesSession.DAY
+
+    quotes: List[FuturesQuote] = feed.get_quotes(DATE, Scale.DAY)
+
+    assert quotes[0].session == FuturesSession.DAY
+    assert quotes[0].open == 19144
+    assert quotes[0].volume == 200
+
+
+# === 真實資料 ===
+@pytest.mark.slow
+@pytest.mark.skipif(
+    not Path(TW_FUTURES_DB_PATH).exists(), reason="需要 tw_futures.db 才能驗整併"
+)
+def test_real_combined_bar_contains_the_night_session() -> None:
+    """以真實資料確認整併後的 bar 真的納入了夜盤（且沒有漏量）"""
+
+    from core.api.tw.futures_price_api import FuturesPriceAPI
+
+    api: FuturesPriceAPI = FuturesPriceAPI()
+    try:
+        day_quotes: List[FuturesQuote] = FuturesQuoteAdapter.convert_to_day_quotes(
+            api, DATE, product="TX", session=FuturesSession.DAY
+        )
+        night_quotes: List[FuturesQuote] = FuturesQuoteAdapter.convert_to_day_quotes(
+            api, FRIDAY, product="TX", session=FuturesSession.NIGHT
+        )
+        combined: List[FuturesQuote] = FuturesQuoteAdapter.convert_to_combined_quotes(
+            api, DATE, FRIDAY, product="TX"
+        )
+    finally:
+        api.close()
+
+    if not day_quotes or not night_quotes:
+        pytest.skip("該日期尚無行情資料")
+
+    day_map = {quote.contract_id: quote for quote in day_quotes}
+    night_map = {quote.contract_id: quote for quote in night_quotes}
+
+    for quote in combined:
+        night = night_map.get(quote.contract_id)
+        day = day_map[quote.contract_id]
+
+        assert quote.session == FuturesSession.COMBINED
+        assert quote.close == day.close
+        if night is not None and night.close:
+            assert quote.volume == day.volume + night.volume
+            assert quote.high >= max(day.high, night.high)
+            assert quote.low <= min(day.low, night.low)
+
+
+# === 整併模式的常見陷阱 ===
+def test_combined_session_is_not_used_for_price_queries() -> None:
+    """
+    **`COMBINED` 不可拿去查資料表**
+
+    它是報價層的組合結果，不是 `session` 欄位裡的值。策略若直接用
+    `self.session` 查歷史行情，會得到空結果——而空結果在策略裡表現為
+    「訊號永遠不成立」，整場零交易卻沒有任何錯誤訊息。
+    2026-09-02 實測踩到過，故固化為測試。
+    """
+
+    from core.strategies.futures.momentum_futures_strategy import (
+        MomentumFuturesStrategy,
+    )
+
+    strategy: MomentumFuturesStrategy = MomentumFuturesStrategy()
+
+    strategy.session = FuturesSession.COMBINED
+    assert strategy.price_query_session == FuturesSession.DAY
+
+    strategy.session = FuturesSession.NIGHT
+    assert strategy.price_query_session == FuturesSession.NIGHT
+
+
+def test_strategy_filters_combined_quotes() -> None:
+    """整併模式下 `filter_session()` 要留下 `COMBINED` 報價，不可整批濾掉"""
+
+    from core.strategies.futures.momentum_futures_strategy import (
+        MomentumFuturesStrategy,
+    )
+
+    strategy: MomentumFuturesStrategy = MomentumFuturesStrategy()
+    strategy.session = FuturesSession.COMBINED
+
+    quotes: List[FuturesQuote] = [
+        make_quote(19314, 19144, 19340, 19137, 100, FuturesSession.COMBINED),
+        make_quote(19314, 19144, 19340, 19137, 100, FuturesSession.DAY),
+    ]
+
+    filtered: List[FuturesQuote] = strategy.filter_session(quotes)
+
+    assert len(filtered) == 1
+    assert filtered[0].session == FuturesSession.COMBINED
+
+
+def test_etl_only_iterates_the_two_real_sessions() -> None:
+    """
+    **ETL 逐時段爬取時只能走 `data_sessions()`**
+
+    直接 `for s in FuturesSession` 會把整併用的 `COMBINED` 也算進去，
+    於是去爬一個來源根本沒有的時段——加入 `COMBINED` 的當下就是這樣讓
+    爬蟲與清洗器一起壞掉的（`KeyError: 'combined'`）。
+    """
+
+    import inspect
+
+    from core.pipeline.tw.crawlers import futures_price_crawler
+    from core.pipeline.tw.updaters import futures_price_updater
+
+    assert FuturesSession.data_sessions() == (FuturesSession.DAY, FuturesSession.NIGHT)
+
+    for module in (futures_price_crawler, futures_price_updater):
+        source: str = inspect.getsource(module)
+        assert "for session in FuturesSession:" not in source, (
+            f"{module.__name__} 直接迭代 FuturesSession，會爬到不存在的 COMBINED"
+        )

@@ -2,25 +2,36 @@
 
 ## Abstract
 
-- **背景／問題**：專案目前以 `core/database/stock.db`（SQLite3）為主要儲存，且是「直接耦合」——多處 `import sqlite3` 與 `sqlite3.connect(...)`、SQLite 專屬檢查（`sqlite_master`、`PRAGMA table_info`）、Loader／Updater／API 直接持有 `sqlite3.Connection`、測試大量依賴本地 SQLite 檔案。這不是改連線字串就能解決的問題。
+- **背景／問題**：專案目前以 `data/db/tw_stock.db`（SQLite3）為主要儲存，且是「直接耦合」——多處 `import sqlite3` 與 `sqlite3.connect(...)`、SQLite 專屬檢查（`sqlite_master`、`PRAGMA table_info`）、Loader／Updater／API 直接持有 `sqlite3.Connection`、測試大量依賴本地 SQLite 檔案。這不是改連線字串就能解決的問題。
 - **目標**：導入 SQLAlchemy Engine 作為統一資料庫介面，分階段把讀取、寫入、測試與部署路徑遷移到 PostgreSQL，並保留可回退方案至少一個版本週期。
 - **範圍界線**：**先確保功能等價，再做效能優化**；本次**不做** schema 重新設計、不做分區／讀寫分離、不改業務邏輯與欄位語意；高頻 tick 資料的儲存策略不在本次範圍。
 - **驗收標準**：主要流程（資料更新、查詢、回測讀取）在 PostgreSQL 可完整執行；核心 smoke ＋ integration 測試在 PostgreSQL 環境通過；文件與部署配置已更新且可重現；SQLite 依賴已降到可移除或已完全移除。
 
 ---
 
+
+> **2026-09-02：`core/config.py` 已拆為套件，本文件的產出欄位隨之更新。**
+> `core/config/settings.py`（營運參數，`DATABASE_URL` 屬此）／`core/config/schema.py`
+> （分庫檔名與完整路徑，`TW_STOCK_DB_PATH` 屬此）／`core/config/paths.py`（目錄佈局）；
+> 門面 `from core.config import X` 不變，故 Phase1-2 的「各處直連點」改動面不受影響。
+> 另有一件對 Phase0-2 有利的既成事實：**環境變數覆寫路徑的模式已經存在**
+> （`ALPHAEDGE_DATA_DIR`／`_RESULTS_DIR`／`_LOGS_DIR`，見
+> [執行期產物與原始碼的分界](../docs/dev/runtime-artifacts.md)），`DATABASE_URL`
+> 沿用同一套寫法即可，不需要另立機制。
+
+
 ## 進度追蹤表
 
 | 編號 | 步驟名稱 | 產出檔案 | 驗證方式 | 狀態 | 備註／中斷點 |
 |------|----------|----------|----------|:----:|--------------|
 | Phase0-1 | `docker-compose.yml` 新增 `postgres` service | `docker-compose.yml` | 本機可連線到 PostgreSQL | ⬜ | 含 volume、healthcheck、port |
-| Phase0-2 | 新增環境變數 `DATABASE_URL` / `DB_BACKEND` | `.env.example`、`core/config.py` | `DATABASE_URL` 可由 `.env` 載入 | ⬜ | — |
+| Phase0-2 | 新增環境變數 `DATABASE_URL` / `DB_BACKEND` | `.env.example`、`core/config/settings.py` | `DATABASE_URL` 可由 `.env` 載入 | ⬜ | — |
 | Phase0-3 | 新增 Python 依賴（`sqlalchemy`、`psycopg`） | `pyproject.toml` / `requirements.txt` | 安裝後可建立 engine | ⬜ | `psycopg[binary]` 與 `psycopg2-binary` 二擇一 |
 | Phase1-1 | 建立 DB 抽象層單一入口 | `core/db/connection.py` | 提供 `get_engine()` / `get_connection()` / `db_dialect()` | ⬜ | **關鍵步驟**，後續所有改造的支點 |
-| Phase1-2 | `DB_PATH` 直連改為經由 engine（含 SQLite fallback） | `core/config.py`、各 API | 不改業務邏輯前提下 API 可讀到資料 | ⬜ | 相依 Phase1-1；優先讀 `DATABASE_URL`，未設定則 fallback SQLite |
+| Phase1-2 | `TW_STOCK_DB_PATH` 直連改為經由 engine（含 SQLite fallback） | `core/config/schema.py`、各 API | 不改業務邏輯前提下 API 可讀到資料 | ⬜ | 相依 Phase1-1；優先讀 `DATABASE_URL`，未設定則 fallback SQLite |
 | Phase2-1 | 改造 `sqlite_utils`（去除 `sqlite_master` / `PRAGMA`） | `core/pipeline/utils/sqlite_utils.py` | 改用 Inspector 後行為等價 | ⬜ | 相依 Phase1-1；高影響優先改 |
-| Phase2-2 | 改造 Loader／Updater | `core/pipeline/loaders/*.py`、`core/pipeline/updaters/*.py` | 核心 update task 可在 PostgreSQL 跑完 | ⬜ | 相依 Phase2-1 |
-| Phase2-3 | 改造查詢 API | `core/api/*.py` | price/chip/fs/mrr 查詢結果與 SQLite 一致 | ⬜ | 相依 Phase2-1 |
+| Phase2-2 | 改造 Loader／Updater | `core/pipeline/tw/loaders/*.py`、`core/pipeline/tw/updaters/*.py` | 核心 update task 可在 PostgreSQL 跑完 | ⬜ | 相依 Phase2-1 |
+| Phase2-3 | 改造查詢 API | `core/api/tw/*.py` | price/chip/fs/mrr 查詢結果與 SQLite 一致 | ⬜ | 相依 Phase2-1 |
 | Phase2-4 | 改造 tasks 腳本 | `tasks/delete_price_data.py` 等 | 可在 PostgreSQL 正常執行 | ⬜ | 相依 Phase2-1 |
 | Phase3-1 | 選定資料遷移方案（pgloader 或 Python ETL） | 本文件（決策紀錄） | 決策與理由寫入本文件 | ⬜ | 相依 P2-*；中文欄位名稱需特別驗證 |
 | Phase3-2 | 執行一次性資料遷移與完整性比對 | 遷移腳本／指令紀錄 | 每張表 row count 比對、主鍵完整性、抽樣 20 筆查詢一致 | ⬜ | 相依 Phase3-1 |
@@ -34,7 +45,7 @@
 
 ## 遷移原則
 
-- 將目前以 `core/database/stock.db` 為主的 SQLite 存取，改為 PostgreSQL。
+- 將目前以 `data/db/tw_stock.db` 為主的 SQLite 存取，改為 PostgreSQL。
 - 先確保「功能等價」再做「效能優化」。
 - 採用分階段遷移：先讀取、再寫入、最後清理舊路徑。
 - 保留可回退方案（至少一個版本週期）。
@@ -68,7 +79,7 @@
 
 - **目的**：讓連線設定可由環境決定，不再寫死路徑。
 - **做法**：新增 `DATABASE_URL`（主來源）與 `DB_BACKEND`（可選，用於開關 `sqlite` / `postgres`）。
-- **產出**：`.env.example`、`core/config.py`。
+- **產出**：`.env.example`、`core/config/settings.py`。
 - **驗證方式**：`DATABASE_URL` 可由 `.env` 載入並被讀取到。
 - **相依**：無。
 
@@ -92,11 +103,11 @@
 - **驗證方式**：兩種 backend 下 `get_engine()` 皆可用，`db_dialect()` 回傳正確。
 - **相依**：Phase0-1~Phase0-3。
 
-### Phase1-2. `DB_PATH` 直連改為經由 engine ⬜
+### Phase1-2. `TW_STOCK_DB_PATH` 直連改為經由 engine ⬜
 
 - **目的**：在不改業務邏輯的前提下切換底層連線來源。
 - **做法**：優先讀 `DATABASE_URL`；若未設定則 fallback 到 SQLite（過渡期）。
-- **產出**：`core/config.py` 及各處直連點。
+- **產出**：`core/config/schema.py` 及各處直連點。
 - **驗證方式**：不改業務邏輯前提下，API 可透過 engine 讀到資料，結果與改動前一致。
 - **相依**：Phase1-1。
 
@@ -119,7 +130,7 @@
 
 - **目的**：讓寫入路徑脫離 `sqlite3.Connection`。
 - **做法**：改用 engine／connection 抽象；placeholder 與 transaction 行為交由 SQLAlchemy 處理。
-- **產出**：`core/pipeline/loaders/*.py`、`core/pipeline/updaters/*.py`。
+- **產出**：`core/pipeline/tw/loaders/*.py`、`core/pipeline/tw/updaters/*.py`。
 - **驗證方式**：核心 update task 可在 PostgreSQL 正常跑完，且中斷後 resume 行為不變。
 - **相依**：Phase2-1。
 
@@ -127,7 +138,7 @@
 
 - **目的**：讓讀取路徑脫離 SQLite 專屬型別。
 - **做法**：同 Phase2-2；`pd.read_sql_query` 改吃 engine。
-- **產出**：`core/api/*.py`。
+- **產出**：`core/api/tw/*.py`。
 - **驗證方式**：price / chip / fs / mrr 查詢在兩種 backend 下結果一致。
 - **相依**：Phase2-1。
 
@@ -150,7 +161,7 @@
   - **方案 A：pgloader（推薦先嘗試）**。優點是快速、表結構與資料可一次搬運；缺點是轉型規則需驗證，**中文欄位名稱需特別檢查**。
 
     ```bash
-    pgloader sqlite:///absolute/path/to/core/database/stock.db postgresql://postgres:postgres@localhost:5432/alphaedge
+    pgloader sqlite:///absolute/path/to/data/db/tw_stock.db postgresql://postgres:postgres@localhost:5432/alphaedge
     ```
 
   - **方案 B：Python ETL（可控）**。流程為：SQLite 逐表 `read_sql_query` → 欄位型別修正（日期、整數、浮點）→ 寫入 PostgreSQL（`to_sql` 或 COPY）→ 建立索引與 constraints。
@@ -230,5 +241,14 @@
 ## 關聯與狀態
 
 - **優先級**：P3（影響面廣，建議在其他重構收斂後再動）
-- **相關程式**：`core/pipeline/utils/sqlite_utils.py`、`core/pipeline/loaders/*`、`core/pipeline/updaters/*`、`core/api/*`、`core/config.py`、`tasks/*`、`tests/`
+- **相關程式**：`core/pipeline/utils/sqlite_utils.py`、`core/pipeline/tw/loaders/*`、`core/pipeline/tw/updaters/*`、`core/api/tw/*`、`core/config/`、`tasks/*`、`tests/`
 - **相關 backlog**：[FinMind爬蟲清洗儲存流程優化.md](FinMind爬蟲清洗儲存流程優化.md)（S2、S6 的批次寫入與查詢優化會被本計畫的抽象層影響，建議先後不要交錯）
+- **命名軸線收斂（2026-09-01 完成）交接過來的兩項**，皆刻意留到本計畫的遷移批次一起做，
+  軸線定案與理由見 [命名軸線](../docs/dev/naming-axes.md)：
+  1. **台股表名補上 `stock_` 前綴**：`price`／`chip`／`margin` 等 13 張表不帶前綴，
+     期貨表帶 `futures_` 前綴（後者為刻意決策，不改）。`pgloader` 的目標是**單一**
+     `alphaedge` 資料庫，兩個 SQLite 檔會併進同一個扁平命名空間，屆時前綴是必要的。
+  2. **`data/downloads/` 的目錄形狀**：現為 `tw_stock/`／`tw_futures/`（市場 ＋ 商品
+     壓成單一目錄名），程式碼側已是 `pipeline/tw/`（每層只承載一條軸）。純目錄名的
+     `tw/stock/` 才與程式碼側同構，但那是第二次資料搬遷，不值得為一致性單獨做——
+     **本計畫或下次動 `downloads/` 時順手收斂**。

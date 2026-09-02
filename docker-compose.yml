@@ -6,16 +6,16 @@ services:
     container_name: alphaedge-core
     environment:
       MODE: backtest
-      STRATEGY: MomentumStrategy3
+      STRATEGY: MomentumStrategy1
     command:
       [
         "--mode",
         "${MODE:-backtest}",
         "--strategy",
-        "${STRATEGY:-MomentumStrategy3}",
+        "${STRATEGY:-MomentumStrategy1}",
       ]
     volumes:
-      - alphaedge_results:/app/core/backtest/results
+      - alphaedge_results:/app/results
 
   frontend:
     build:

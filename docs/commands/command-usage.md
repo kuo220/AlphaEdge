@@ -20,6 +20,8 @@ If `--target` is omitted, the default is `no_tick` (all updates except tick data
 | `tick` | Tick-by-tick trades (Shioaji ticks) |
 | `chip` | Institutional chip data |
 | `price` | Closing prices |
+| `futures_price` | TAIFEX daily futures quotes（寫入 `tw_futures.db`；商品見 `FUTURES_TARGET_PRODUCTS`）|
+| `futures_stock_universe` | 股票期貨標的池（寫入 `tw_futures.db`；每次執行留下一份當日快照）|
 | `margin` | Margin trading balances (financing / short-selling balances) |
 | `dividend` | Ex-dividend / ex-rights table (adjustment factors + cash dividends) |
 | `fs` | Financial statements（含權益變動表；該表逐檔查詢，首次回補以小時計，見下方說明） |
@@ -47,13 +49,27 @@ python -m tasks.update_db --target price
 # margin trading balances
 python -m tasks.update_db --target margin
 
+# TAIFEX daily futures quotes（寫入 tw_futures.db，非 tw_stock.db）
+# 一次只能查一個商品、日盤與夜盤要分開查，故請求數 = 商品數 × 2 × 交易日數；
+# 起點為 DEFAULT_FUTURES_START_DATE（2015-01-01），單檔 TX 首次回補約 6,100 次請求。
+python -m tasks.update_db --target futures_price
+
+# 股票期貨標的池（寫入 tw_futures.db）
+# 整份清單一次 GET 就結束，同一天重跑不會產生第二份快照。
+# 來源沒有掛牌日／下市日欄位，兩者由快照序列差分推得，故建議每日更新——
+# 快照愈稀疏，推出來的日期誤差愈大。
+# 下游要取商品清單一律用 FuturesStockUniverseUpdater.get_active_products()，
+# 不要另外手寫清單。
+python -m tasks.update_db --target futures_stock_universe
+
 # ex-dividend / ex-rights table (TWSE for listed, TPEx for OTC; full history)
 python -m tasks.update_db --target dividend
 
 # financial statements
-# 四張報表中的權益變動表（equity_change）是逐檔查詢：一個年季約 2,000 次請求，
-# 尚未回補過歷史時整段跑完要 60 小時以上。中斷後重跑只補差集（resume 以「該年季
+# 四張報表中的權益變動表（equity_change）是逐檔查詢：一個年季約 2,000 次請求、約 0.9 小時，
+# 歷史尚有 55 個年季未回補，整段跑完約 50 小時。中斷後重跑只補差集（resume 以「該年季
 # 已入庫的 stock_id」為準），要分段跑就直接呼叫 update_equity_changes() 指定較窄的年季。
+# 資料形狀與已知限制見 docs/pipeline/equity-change.md。
 python -m tasks.update_db --target fs
 
 # monthly revenue report

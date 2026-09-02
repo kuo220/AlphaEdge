@@ -78,14 +78,14 @@
 
 ## 實作規格
 
-動工時照這五條做，全部集中在 `core/pipeline/updaters/finmind_updater.py` 的 metadata 讀寫處。
+動工時照這五條做，全部集中在 `core/pipeline/tw/updaters/finmind_updater.py` 的 metadata 讀寫處。
 
 1. **決定請求區間**：起始日 = `max(latest_date + 1, last_attempted_date + 1)`。
 2. **API 有資料並寫入 DB**：照現有流程從 DB 更新 `earliest_date` / `latest_date`，
    並把本次請求的 `end_date` 寫入 `last_attempted_date`。
 3. **API 回傳 NO_DATA**：不寫 DB，但**要更新 metadata**——
    把 `last_attempted_date` 設為本次請求的 `end_date`。
-4. **從 DB 更新 metadata 時**（`_update_broker_trading_metadata_from_database`）：
+4. **從 DB 更新 metadata 時**（`BrokerTradingMetadataStore.refresh_from_database()`）：
    只覆寫 `earliest_date` / `latest_date`，**必須保留** `last_attempted_date`。
 5. **清理 metadata 時**：某組合在 DB 沒有任何一筆、但 metadata 有 `last_attempted_date` 時
    **不要刪除**——那代表「曾請求過但無資料」，刪掉下次又會從頭請求。
@@ -106,5 +106,5 @@
 
 ## 相關
 
-- `core/pipeline/updaters/finmind_updater.py`、broker trading metadata JSON
+- `core/pipeline/tw/updaters/finmind_updater.py`、broker trading metadata JSON
 - [FinMind 爬蟲清洗儲存流程優化](../../backlog/FinMind爬蟲清洗儲存流程優化.md)——同一條 pipeline 的其他優化，其範圍界線刻意排除本文件的主題

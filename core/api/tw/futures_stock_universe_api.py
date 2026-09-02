@@ -1,0 +1,283 @@
+import datetime
+import sqlite3
+from typing import Dict, List, Optional
+
+import pandas as pd
+
+from core.api.base import BaseDataAPI
+from core.config import (
+    API_LOGS_DIR_PATH,
+    FUTURES_PRICE_DAILY_TABLE_NAME,
+    FUTURES_STOCK_UNIVERSE_TABLE_NAME,
+    TW_FUTURES_DB_PATH,
+)
+from core.utils.log_manager import LogManager
+
+"""
+Futures Stock Universe API: 股票期貨標的池的讀取層
+
+**股期與指數期貨最根本的差異：乘數不是常數**。
+
+指數期貨的契約乘數寫在 `FUTURES_MULTIPLIER`（TX 200、MTX 50），幾十年不變；
+股票期貨的「契約單位」則是**標準型 2,000 股**，但**除權息之後會被交易所調整**
+（配股、現金增資都會改變它），調整後的契約甚至會換一個代碼（`EE1`、`EE2`…）。
+因此股期的乘數必須查**當時**的快照，寫死或用今天的值回測歷史一定錯。
+
+---
+
+**與「台股還原價」的關係——這是最容易雙重調整的地方**：
+
+台股的除權息用**還原價**處理（價格往回調整）；股期則是**調整契約單位**
+（價格不動、每口的股數變）。兩者是同一件事的兩種處理方式，
+**擇一即可，同時套用就是雙重調整**。
+
+故本專案的規則是：**股期行情一律用原始價，不套任何還原係數**
+（`FuturesQuote.adj_close` 恆為 None），除權息的影響由「當時的契約單位」承接。
+"""
+
+
+class FuturesStockUniverseAPI(BaseDataAPI):
+    """Futures Stock Universe API（股期商品清單、契約單位歷史、流動性排序）"""
+
+    # 標準型契約單位（股）；`futures_stock_universe.contract_size` 的預設值
+    STANDARD_CONTRACT_SIZE: int = 2000
+
+    def __init__(self, conn: Optional[sqlite3.Connection] = None):
+        # 由 DataFeed 傳入共用連線；未指定時自行建立
+        self.conn: Optional[sqlite3.Connection] = conn
+        self.owns_conn: bool = conn is None
+
+        self.setup()
+
+    def setup(self) -> None:
+        """Set Up the Config of Data API"""
+
+        if self.owns_conn:
+            self.conn = sqlite3.connect(TW_FUTURES_DB_PATH)
+        LogManager.setup_logger(
+            "futures_stock_universe_api.log", log_dir=API_LOGS_DIR_PATH
+        )
+
+    # === 快照查詢 ===
+    def get_snapshot_date(self, date: Optional[datetime.date] = None) -> Optional[str]:
+        """
+        取得不晚於 `date` 的最近一份快照日；`date` 為 None 時取最新一份
+
+        **本表是快照序列**（每次更新新增一份），故任何「某日的狀態」都要先解出
+        該日適用的快照日，再以它為條件查詢。
+        """
+
+        try:
+            if date is None:
+                row = self.conn.execute(
+                    f"SELECT MAX(snapshot_date) FROM {FUTURES_STOCK_UNIVERSE_TABLE_NAME}"
+                ).fetchone()
+            else:
+                row = self.conn.execute(
+                    f"SELECT MAX(snapshot_date) FROM {FUTURES_STOCK_UNIVERSE_TABLE_NAME} "
+                    f"WHERE snapshot_date <= ?",
+                    (str(date),),
+                ).fetchone()
+        except sqlite3.OperationalError:
+            return None
+
+        if row is None or row[0] is None:
+            # 查詢日早於第一份快照：退回最早的一份。
+            # **這是近似不是事實**——本表只回溯到建表之日（2026-08-29），
+            # 更早的掛牌狀態與契約單位無從得知（見 Phase6-2 的已知限制）
+            row = self.conn.execute(
+                f"SELECT MIN(snapshot_date) FROM {FUTURES_STOCK_UNIVERSE_TABLE_NAME}"
+            ).fetchone()
+
+        return row[0] if row and row[0] else None
+
+    def get_products(
+        self,
+        date: Optional[datetime.date] = None,
+        product_types: Optional[List[str]] = None,
+    ) -> List[str]:
+        """
+        - Description:
+            取得該日在列的股期商品代碼
+
+            **這是股期行情 ETL 的商品清單來源**：股期 320 檔且會隨掛牌／下市異動，
+            寫死清單必然過期。
+        - Parameters:
+            - date: Optional[datetime.date]
+                查詢日；None 表示取最新快照
+            - product_types: Optional[List[str]]
+                只取這些類型（見 `StockFuturesType`）；None 表示全部
+        - Return:
+            - List[str]
+                商品代碼；查無快照時為空 list
+        """
+
+        snapshot: Optional[str] = self.get_snapshot_date(date)
+        if snapshot is None:
+            return []
+
+        query: str = (
+            f"SELECT product_id FROM {FUTURES_STOCK_UNIVERSE_TABLE_NAME} "
+            f"WHERE snapshot_date = ?"
+        )
+        params: tuple = (snapshot,)
+
+        if product_types:
+            placeholders: str = ",".join("?" * len(product_types))
+            query += f" AND product_type IN ({placeholders})"
+            params += tuple(product_types)
+
+        return [
+            row[0] for row in self.conn.execute(query + " ORDER BY product_id", params)
+        ]
+
+    def get_contract_size(
+        self, product_id: str, date: Optional[datetime.date] = None
+    ) -> Optional[int]:
+        """
+        - Description:
+            取得該股期在指定日期的**契約單位（股）＝ 乘數**
+
+            **不可用 `STANDARD_CONTRACT_SIZE` 當預設值**：小型股期是 100 股、
+            ETF 期貨是 10,000 股，而除權息調整後的契約更是任意數字。
+            查不到就回 None，讓呼叫端決定要中止還是跳過。
+        - Parameters:
+            - product_id: str
+                股期代碼（Ex: CDF）
+            - date: Optional[datetime.date]
+                查詢日；None 表示最新快照
+        - Return:
+            - Optional[int]
+                契約單位；查無資料時為 None
+        """
+
+        snapshot: Optional[str] = self.get_snapshot_date(date)
+        if snapshot is None:
+            return None
+
+        row = self.conn.execute(
+            f"SELECT contract_size FROM {FUTURES_STOCK_UNIVERSE_TABLE_NAME} "
+            f"WHERE snapshot_date = ? AND product_id = ?",
+            (snapshot, product_id),
+        ).fetchone()
+        return None if row is None else row[0]
+
+    def get_contract_size_history(self, product_id: str) -> pd.DataFrame:
+        """
+        - Description:
+            取得契約單位的**變動序列**（只列出真的變動的那幾份快照）
+
+            除權息造成的乘數調整只能由快照差分推得——來源沒有「調整生效日」
+            這個欄位。快照愈密集，推出來的生效日愈準；本表建於 2026-08-29，
+            更早的調整一律看不到。
+        - Parameters:
+            - product_id: str
+                股期代碼
+        - Return:
+            - pd.DataFrame
+                `snapshot_date` 與 `contract_size`；無變動時只有一列
+        """
+
+        df: pd.DataFrame = pd.read_sql_query(
+            f"SELECT snapshot_date, contract_size FROM {FUTURES_STOCK_UNIVERSE_TABLE_NAME} "
+            f"WHERE product_id = ? ORDER BY snapshot_date",
+            self.conn,
+            params=(product_id,),
+        )
+        if df.empty:
+            return df
+
+        # 只留下與前一份不同的列（含第一列）
+        changed: pd.Series = df["contract_size"] != df["contract_size"].shift()
+        return df[changed].reset_index(drop=True)
+
+    def get_underlying(
+        self, product_id: str, date: Optional[datetime.date] = None
+    ) -> Optional[Dict[str, str]]:
+        """取得標的證券（代號與名稱），供與 `tw_stock.db` 對照"""
+
+        snapshot: Optional[str] = self.get_snapshot_date(date)
+        if snapshot is None:
+            return None
+
+        row = self.conn.execute(
+            f"SELECT underlying_stock_id, underlying_name, product_type "
+            f"FROM {FUTURES_STOCK_UNIVERSE_TABLE_NAME} "
+            f"WHERE snapshot_date = ? AND product_id = ?",
+            (snapshot, product_id),
+        ).fetchone()
+
+        if row is None:
+            return None
+        return {
+            "underlying_stock_id": row[0],
+            "underlying_name": row[1],
+            "product_type": row[2],
+        }
+
+    # === 流動性 ===
+    def get_top_liquid_products(
+        self,
+        top_n: int = 20,
+        start_date: Optional[datetime.date] = None,
+        end_date: Optional[datetime.date] = None,
+        min_days: int = 5,
+    ) -> List[str]:
+        """
+        - Description:
+            依**成交量**取流動性前 N 檔股期
+
+            **流動性差距是數量級的**：股期 320 檔裡，前 20 檔的成交量佔了絕大多數，
+            尾端有整批一天成交個位數口的商品——把它們納入回測只會製造
+            「回測賺錢、實際掛不到單」的假訊號。
+
+            **成交量取自行情表而不是標的池**：標的池沒有量的欄位，這也是本篩選
+            當初被移出 Phase6-1 的原因。故**必須先有股期行情才能篩**。
+        - Parameters:
+            - top_n: int
+                取前幾檔
+            - start_date / end_date: Optional[datetime.date]
+                統計區間；None 表示不限
+            - min_days: int
+                至少要有幾個交易日的資料才納入排序——只上市兩天就爆量的商品
+                不能代表長期流動性
+        - Return:
+            - List[str]
+                商品代碼，依平均日成交量由大到小；無資料時為空 list
+        """
+
+        universe: List[str] = self.get_products(end_date)
+        if not universe:
+            return []
+
+        conditions: List[str] = ["session = 'day'"]
+        params: List = []
+        if start_date is not None:
+            conditions.append("date >= ?")
+            params.append(str(start_date))
+        if end_date is not None:
+            conditions.append("date <= ?")
+            params.append(str(end_date))
+
+        placeholders: str = ",".join("?" * len(universe))
+        params.extend(universe)
+
+        query: str = f"""
+        SELECT product, COUNT(DISTINCT date) AS trading_days, SUM(成交量) AS total_volume
+        FROM {FUTURES_PRICE_DAILY_TABLE_NAME}
+        WHERE {" AND ".join(conditions)} AND product IN ({placeholders})
+        GROUP BY product
+        """
+        df: pd.DataFrame = pd.read_sql_query(query, self.conn, params=params)
+
+        if df.empty:
+            return []
+
+        df = df[df["trading_days"] >= min_days].copy()
+        if df.empty:
+            return []
+
+        df["avg_volume"] = df["total_volume"] / df["trading_days"]
+        df = df.sort_values("avg_volume", ascending=False)
+
+        return df["product"].head(top_n).tolist()

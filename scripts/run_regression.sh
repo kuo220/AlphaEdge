@@ -24,7 +24,7 @@ echo "=== [1/2] SHORT 回歸線（純記憶體，秒級）==="
 "$PYTHON" -m pytest tests/backtest/test_short_regression.py -q
 
 echo ""
-echo "=== [2/2] LONG 回歸線（需 core/database/stock.db，約 55 秒）==="
+echo "=== [2/2] LONG 回歸線（需 data/db/stock.db，約 55 秒）==="
 "$PYTHON" -m pytest tests/backtest/test_long_regression.py -q
 
 echo ""

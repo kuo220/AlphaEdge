@@ -106,7 +106,7 @@
 2. **區域變數與 instance 屬性也標註型別**，這是本專案明顯特徵，務必沿用：
 
    ```python
-   self.conn: sqlite3.Connection = sqlite3.connect(DB_PATH)
+   self.conn: sqlite3.Connection = sqlite3.connect(TW_STOCK_DB_PATH)
    df: pd.DataFrame = pd.read_sql_query(query, self.conn, params=(date,))
    open_positions: List[StockQuote] = []
    ```
@@ -129,7 +129,7 @@ from loguru import logger
 
 # 3. 專案內部（core.* 以絕對路徑；同目錄可用相對 .module）
 from core.api.base import BaseDataAPI
-from core.config import DB_PATH, PRICE_TABLE_NAME
+from core.config import PRICE_TABLE_NAME, TW_STOCK_DB_PATH
 ```
 
 ### 2.6 命名

@@ -23,7 +23,7 @@
               ├── core/managers/             部位進出與帳務
               └── core/backtest/report/      報表與圖表
               │
-資料層      core/api/ ── core/adapters/ ── core/database/
+資料層      core/api/ ── core/adapters/ ── data/db/
               │
 領域層      core/models/（帳戶、訂單、部位、報價、交易紀錄）
 共用層      core/utils/（enum、路徑、時間、日誌、StockUtils）
@@ -111,8 +111,8 @@ sequenceDiagram
 | `core/backtest/models/fill_model.py` | 這張單在這根 bar 有沒有可能以這個價格成交 | `prev_close`、`intraday_range` |
 | `core/backtest/models/cost_model.py` | 手續費／證交稅／融券手續費／借券費／保證金／利息；`enrich_orders()` 補市場欄位 | `CostConfig`（含 `ShortConstraint`） |
 | `core/backtest/models/settlement_model.py` | 一根 bar 收盤後市場規則強制執行的動作：當沖強制回補、漲停轉留倉、借券費計提、維持率追繳、停券回補、除息股利補償 | 參照 `FillModel.prev_close`；`force_cover_symbols`、`cash_dividends` 由 `DataFeed` 每根 bar 推入 |
-| `core/backtest/datafeed/base.py`／`tw_stock_datafeed.py` | 建立並持有全部資料 API、報價轉換、交易日判定、回測結束時關連線 | **單次回測唯一的 SQLite 連線** |
-| `core/backtest/datafeed/market_calendar.py` | 交易日推算（前一交易日、是否開盤、往前推 N 個營業日） | `DataFeed`、策略 |
+| `core/backtest/datafeed/base.py`／`tw/stock_datafeed.py` | 建立並持有全部資料 API、報價轉換、交易日判定、回測結束時關連線 | **單次回測唯一的 SQLite 連線** |
+| `core/backtest/datafeed/tw/market_calendar.py` | 交易日推算（前一交易日、是否開盤、往前推 N 個營業日） | `DataFeed`、策略 |
 
 **跨 model 的共用狀態只有兩個**，皆以 dict 參照傳遞，model 之間不互相 import：
 
@@ -133,11 +133,11 @@ sequenceDiagram
 | 檔案 | 職責 |
 |------|------|
 | `core/api/base.py` | `BaseDataAPI`：`owns_conn` 決定 `close()` 是否真的關連線（共用連線由 `DataFeed` 負責關）；`build_column_map()` 為具名查詢的共用底座 |
-| `core/api/stock_price_api.py` | 日 K 查詢（`get`／`get_range`／`get_stock_price` ＋ 具名查詢） |
-| `core/api/stock_tick_api.py` | 逐筆成交（DolphinDB） |
-| `core/api/stock_chip_api.py`／`stock_margin_api.py` | 三大法人籌碼、融資融券餘額 |
-| `core/api/monthly_revenue_report_api.py`／`financial_statement_api.py` | 月營收、財報 |
-| `core/adapters/stock_quote_adapter.py` | 日 K／Tick 的 `DataFrame` → `StockQuote` 物件 |
+| `core/api/tw/stock_price_api.py` | 日 K 查詢（`get`／`get_range`／`get_stock_price` ＋ 具名查詢） |
+| `core/api/tw/stock_tick_api.py` | 逐筆成交（DolphinDB） |
+| `core/api/tw/stock_chip_api.py`／`stock_margin_api.py` | 三大法人籌碼、融資融券餘額 |
+| `core/api/tw/monthly_revenue_report_api.py`／`financial_statement_api.py` | 月營收、財報 |
+| `core/adapters/tw/stock_quote_adapter.py` | 日 K／Tick 的 `DataFrame` → `StockQuote` 物件 |
 
 ### 報表與分析
 
@@ -151,7 +151,7 @@ sequenceDiagram
 
 ## 四、輸出檔案
 
-全部落在 `core/backtest/results/<策略名稱>/`：
+全部落在 `results/<策略名稱>/`：
 
 | 檔案 | 內容 | 產生者 |
 |------|------|--------|
@@ -165,7 +165,7 @@ sequenceDiagram
 | `<策略>_everyday_profit.png` | 每日損益長條圖（**已實現口徑**） | `plot_everyday_profit()` |
 | `<策略>_everyday_equity_change.png` | 每日權益變化（**盯市口徑**，無 `daily_equity` 時不產出） | `plot_everyday_equity_change()` |
 
-日誌落在 `core/backtest/results/logs/`。
+日誌落在 `logs/backtest/`。
 
 ### 權益曲線的兩種口徑
 
@@ -182,7 +182,7 @@ sequenceDiagram
 
 ---
 
-## 五、新增一個市場要動哪些檔案
+## 五、新增一個（市場, 商品）組合要動哪些檔案
 
 既有檔案的改動量是**一個 `elif` 分支**：
 
@@ -193,7 +193,7 @@ sequenceDiagram
 | 新增 | `core/backtest/models/` 的該市場 `InstrumentSpec`／`FillModel`／`CostModel`／`SettlementModel` |
 | 新增 | `core/backtest/datafeed/` 的該市場 `DataFeed` |
 | 新增 | `core/managers/<market>/position_manager.py` |
-| **修改** | `core/backtest/factory.py`：加一個 `elif strategy.market == Market.FUTURE:` |
+| **修改** | `core/backtest/factory.py`：加一個 `elif (strategy.market, strategy.instrument_type) == (Market.TW, InstrumentType.FUTURE):` |
 
 `backtester.py`、`strategy_loader.py`、`run.py` 皆為 **0 行改動**——`StrategyLoader` 會自動掃描新的市場子套件，CLI 也不需要 `--market`（市場由策略類別自己宣告）。
 

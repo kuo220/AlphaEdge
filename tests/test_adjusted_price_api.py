@@ -5,8 +5,8 @@ from typing import List, Tuple
 
 import pytest
 
-from core.api.stock_dividend_api import StockDividendAPI
-from core.api.stock_price_api import StockPriceAPI
+from core.api.tw.stock_dividend_api import StockDividendAPI
+from core.api.tw.stock_price_api import StockPriceAPI
 
 """
 還原價（後復權）查詢測試

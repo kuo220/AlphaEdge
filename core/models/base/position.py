@@ -2,7 +2,7 @@ import datetime
 
 from core.utils import PositionType
 
-"""BasePosition: 市場無關的未平倉部位骨架（識別欄位一律為 symbol）"""
+"""BasePosition: 市場與商品皆無關的未平倉部位骨架（識別欄位一律為 symbol）"""
 
 
 class BasePosition:

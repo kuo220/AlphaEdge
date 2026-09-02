@@ -36,12 +36,12 @@ graph TB
         API["core/api"]
         Adapters["core/adapters"]
         Pipeline["core/pipeline"]
-        DB["core/database"]
+        DB["data/db"]
         Data["core/data"]
     end
 
     subgraph output_layer ["回測輸出層"]
-        Results["core/backtest/results"]
+        Results["results"]
     end
 
     subgraph frontend_layer ["前端層（Streamlit）"]
@@ -170,8 +170,8 @@ python -m pip install -e ".[dev]"   # pytest、pytest-timeout、pytest-cov、ruf
 ```bash
 ruff check .            # 設定於 pyproject.toml，對應 CLAUDE.md §2.5／§2.10
 ruff format .
-pytest -m "not slow"    # 略過需要 stock.db 或 API 憑證的測試
-pytest                  # 全部（需 core/database/stock.db）
+pytest -m "not slow"    # 略過需要 tw_stock.db 或 API 憑證的測試
+pytest                  # 全部（需 data/db/tw_stock.db）
 ./scripts/run_regression.sh   # LONG ＋ SHORT 回歸，必須逐筆相同
 ```
 
@@ -312,10 +312,13 @@ AlphaEdge/
 │   ├── models/                # 領域模型（base/ ＋ stock/）
 │   ├── utils/                 # 共用工具（enum、路徑、時間、日誌）
 │   ├── pipeline/              # ETL / 更新流程
-│   ├── database/              # sqlite 資料庫檔案（stock.db）
+│   │   ├── shared/           # 跨市場共用：四層 base ＋ HTTP 工具
+│   │   ├── tw/               # 台股／台期貨 ETL（crawlers／cleaners／loaders／updaters）
+│   │   └── utils/            # 常數、URL 管理、DataFrame 與 SQLite 工具
+│   ├── database/              # sqlite 資料庫檔案（tw_stock.db）
 │   ├── backtest/              # 回測引擎
-│   │   ├── backtester.py      # 唯一引擎：市場無關、無子類
-│   │   ├── factory.py         # 依 strategy.market 組裝 model 組合
+│   │   ├── backtester.py      # 唯一引擎：市場與商品皆無關、無子類
+│   │   ├── factory.py         # 依（market, instrument_type）組合組裝 model 組合
 │   │   ├── models/            # InstrumentSpec／FillModel／CostModel／SettlementModel
 │   │   ├── datafeed/          # 資料載入、報價轉換、交易日判定
 │   │   ├── report/            # 交易報表、多空統計、圖表

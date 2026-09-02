@@ -40,6 +40,8 @@ CSV，程序中斷後資料庫仍是 0 列。
 | `FinancialStatementUpdater`（equity_change） | **每 100 檔** | 逐年季查已入庫的 `stock_id` | `INSERT OR IGNORE` | `DataLoadError` |
 | `FinMindUpdater`（broker_trading） | 逐組合、每 50 組 commit | metadata ＋ DB | 先查既有鍵再過濾 | — |
 | `StockTickUpdater` | 全部跑完 | 固定起日 ＋ `tick_metadata.json` | **無**（`keepDuplicates=ALL`） | — |
+| `FuturesPriceUpdater` | **每 100 天** | 逐**商品**查該商品在表內的最新 `date` +1 | `INSERT OR IGNORE` | `DataLoadError` |
+| `FuturesStockUniverseUpdater` | 一次（單次請求） | 當日快照是否已入庫 | `INSERT OR IGNORE` | `DataLoadError` |
 
 **未分批的四個並非疏漏**：dividend／mrr／fs 的量級是十餘年 × 數十個年月或年季，
 單次執行以分鐘計，中斷重跑的成本可接受。tick 走 DolphinDB，語意與 SQLite 組不同。
@@ -49,6 +51,12 @@ CSV，程序中斷後資料庫仍是 0 列。
 同一等級，所以入庫時機與 resume 依據都得比照它們，而不是比照同一支 updater 裡的另外三張報表。
 Resume 尤其不能沿用「表最大年季 +1」：一個年季爬到一半中斷時，該年季已經有資料，
 會被判定為已完成而整季跳過，沒爬到的公司永遠補不回來。
+
+**兩支期貨 updater 寫的是 `tw_futures.db` 不是 `tw_stock.db`**（主鍵語意不同，見
+`futures_price_loader` 的說明）。`FuturesPriceUpdater` 的 resume **以商品為單位而非
+全表最新日**：各商品上市日不同、且會陸續加進爬取範圍，用全表最新日會讓新加的商品
+被既有商品的進度擋住而整段歷史都補不到。`FuturesStockUniverseUpdater` 則沒有回補
+區間——來源是一張當下的完整清單，一次請求就結束，故「resume」退化成「今天抓過沒有」。
 
 **`StockTickUpdater` 是目前唯一沒有重載防護的**：DolphinDB 建表時
 `keepDuplicates=ALL` 是 tick 語意的刻意選擇（同一時間戳可以有多筆成交），
@@ -88,6 +96,26 @@ loader **每次都掃整個 `downloads/` 目錄**，已入庫的檔案必然會�
 以 `date.weekday()` 判斷會整天漏掉這些日子。
 正確做法是以 `price` 表實際有資料的日期為準（見 `StockMarginUpdater.get_candidate_dates()`）。
 
+### 3.4 欄位語言跟著資料來源走
+
+**定案（2026-09-01）：資料表的欄位語言由來源決定，不由市場決定。**
+
+| 來源 | 欄位語言 | 現有例子 |
+|------|----------|----------|
+| 交易所網頁／檔案（TWSE、TPEX、TAIFEX、MOPS） | **保留來源的中文欄名** | `price` 的 `開盤價`、`chip` 的 `外資買進股數`、`futures_price_daily` 的 `結算價` |
+| API（FinMind、未來的美股 provider） | **用來源的英文欄名** | `taiwan_stock_info` 的 `stock_id`／`stock_name`、規劃中的 `us_price_daily` 的 `ticker`／`trade_date` |
+
+兩者皆**以英文命名主鍵欄**（`date`、`stock_id`、`product`、`session`），這是既有慣例。
+
+**為什麼不統一成英文**：15 張表裡 10 張是中文欄（`balance_sheet` 一張就 75 欄），
+程式側有 277 處中文欄位字面值橫跨 33 個檔。改成英文要同時動 schema、2.3 GB 資料與
+所有下游，而 [PostgreSQL 遷移](../../backlog/PostgreSQL遷移計畫.md) 本來就會重寫這一層——
+真要收斂就在那個批次做，不值得為它單獨開一次遷移。
+
+**為什麼不讓美股用中文**：`開盤價` 這種欄名對 AAPL 沒有來源依據（美股 provider 回的
+本來就是 `open`／`close`），硬翻是憑空造一套對照表；而且專案裡已經有五張全英文的表，
+美股用英文不是新增第三套規則，是延用既有的那一套。
+
 ---
 
 ## 四、五次事故與其教訓
@@ -125,7 +153,7 @@ margin 回補已爬 3,790 個 CSV 後中斷，DB 仍為 0 列——因為入庫�
 `margin` 的主鍵是 `(date, stock_id)`，同一情況會直接撞鍵——這正是 4.2 那 2 個檔案失敗的原因。
 
 **教訓**：主鍵若無法唯一識別商品，衝突不是「會不會發生」而是「什麼時候發現」。
-資料已修正（`dev/scripts/fix_price_etf_stock_id.py`），並在
+資料已修正（`scripts/fix_price_etf_stock_id.py`），並在
 `StockQuoteAdapter.warn_duplicate_symbols()` 加了防護，讓同一 bar 內的重複代號不再靜默。
 
 ### 4.5 「連續 N 筆都沒資料」不能當成「整批都沒資料」
@@ -155,6 +183,7 @@ log 也沒有任何錯誤——只有一行 `first 30 stocks have no data` 語�
 ## 相關文件
 
 - [指令教學](../commands/command-usage.md)——`update_db` 的完整 target 對照與範例
+- [權益變動表](equity-change.md)——`equity_change` 的資料形狀、涵蓋範圍、已知限制與爬取節流
 - [券商分點 NO_DATA 的 metadata 語意](broker-trading-no-data.md)——選型紀錄，尚未實作
 - [程式碼品質工具鏈與基線](../dev/code-quality.md)——§二〈例外處理現況〉記錄了全專案 85 條盲捕，4.2 是其中的第一個收斂案例
 - [資料覆蓋範圍](../exchanges/data_coverage.md)——各資料來源的時間涵蓋與已知限制

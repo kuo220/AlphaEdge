@@ -31,7 +31,7 @@ jobs:
       - name: 格式檢查
         run: ruff format --check .
 
-      # 只跑 -m "not slow"：CI 沒有 core/database/stock.db（*.db 未進版控），
+      # 只跑 -m "not slow"：CI 沒有 data/db/tw_stock.db（*.db 未進版控），
       # 也沒有 Shioaji／FinMind 金鑰。需要這些的測試一律標 @pytest.mark.slow。
       # 本指令已在本機以「移除資料庫與金鑰的副本」模擬驗證過為全綠
       - name: 測試（略過需要資料庫與外部 API 的項目）

@@ -1,5 +1,11 @@
 # 權益變動表 ETL 補完
 
+> **📌 2026-08-29：長期參考內容已抽出至 [`docs/pipeline/equity-change.md`](../docs/pipeline/equity-change.md)。**
+> 該文件涵蓋資料形狀（長表 schema、主鍵、單位）、涵蓋範圍、四項已知限制與爬取節流；
+> 入庫語意早已在 [ETL 入庫約定](../docs/pipeline/etl-ingestion.md)。
+> **本文件剩下的是實作過程紀錄與 S5 的執行追蹤——S5 跑完即可整份刪除，不需要再搬任何內容出去**
+> （見 [`manage-backlog` skill §5](../.claude/skills/manage-backlog/SKILL.md#5-完成後的處理)）。
+
 ## Abstract（摘要）
 
 - **背景／問題**：財報 ETL 的權益變動表（Statement of Changes in Equity）做到一半即遺留：`FinancialStatementCrawler.crawl_equity_changes()` 已完整實作（MOPS `ajax_t164sb06`，逐檔查詢），`FinancialStatementUpdater.update_equity_changes()` 殼也在；但 `FinancialStatementCleaner.clean_equity_changes()` 只有 `# TODO: 有空再做` ＋ `pass`，loader 建表時跳過 `EQUITY_CHANGE`，`update()` 主流程不呼叫，DB 無 `equity_change` 表。更嚴重的是 **updater 以參數呼叫 cleaner（`clean_equity_changes(...)`，updater L432），但 cleaner 簽名不收參數**——即使把 `update()` 接上也會直接 `TypeError`，證明這條鏈從未跑通過。
@@ -12,9 +18,9 @@
 | 編號 | 步驟名稱 | 產出檔案 | 驗證方式 | 狀態 | 備註／中斷點 |
 |------|----------|----------|----------|:----:|--------------|
 | S1 | 需求決策：補完或刪殼 | 本文件（記錄決策） | 決策與理由寫入本文件 | ✅ | 2026-08-22 由使用者決定走**補完路線** |
-| S2 | cleaner：實作 `clean_equity_changes()` | `core/pipeline/cleaners/financial_statement_cleaner.py` | 單元測試（不連網、不連 DB），比照 `tests/test_stock_margin_cleaner.py` | ✅ | 攤平成**長表**（見 S2）；`tests/test_financial_statement_cleaner_equity_change.py` 8 項通過 |
-| S3 | loader：建表與欄位定義 | `core/pipeline/loaders/financial_statement_loader.py` | `create_missing_tables()` 後 `equity_change` 表存在 | ✅ | PK 偏離原規格（不含 `公司名稱`、改含攤平後的兩個維度），見 S3 |
-| S4 | updater 接線與簽名修正 | `core/pipeline/updaters/financial_statement_updater.py` | `--target fs` 跑通、增量更新正確 | ✅ | resume 改為**逐檔**而非逐年季，理由見 S4 |
+| S2 | cleaner：實作 `clean_equity_changes()` | `core/pipeline/tw/cleaners/financial_statement_cleaner.py` | 單元測試（不連網、不連 DB），比照 `tests/test_stock_margin_cleaner.py` | ✅ | 攤平成**長表**（見 S2）；`tests/test_financial_statement_cleaner_equity_change.py` 8 項通過 |
+| S3 | loader：建表與欄位定義 | `core/pipeline/tw/loaders/financial_statement_loader.py` | `create_missing_tables()` 後 `equity_change` 表存在 | ✅ | PK 偏離原規格（不含 `公司名稱`、改含攤平後的兩個維度），見 S3 |
+| S4 | updater 接線與簽名修正 | `core/pipeline/tw/updaters/financial_statement_updater.py` | `--target fs` 跑通、增量更新正確 | ✅ | resume 改為**逐檔**而非逐年季，理由見 S4 |
 | S5 | 歷史回補與驗證 | DB `equity_change` 表 | 2013Q1 起資料入庫，抽樣與 MOPS 原站比對 | 🔄 | **2020Q1 已完成**（2026-08-22，230,163 列 / 1,743 檔，抽樣 6 檔 1,993 列比對 mismatch = 0）；其餘 55 個年季未跑。過程中修掉一個會靜默漏 323 檔的早退 bug，見 S5 |
 
 ## 步驟詳述
@@ -35,7 +41,7 @@
 
 - **目的**：`financial_statement_cleaner.py` L318~L326 目前是 `pass` 空殼，是整條鏈的第一個缺口。
 - **做法**：比照 `clean_cash_flow()` 的既有模式——欄位名清洗（`clean_report_column_names()`）、`equity_change_col_map` 對照、輸出 CSV 至 `equity_change_dir`；簽名須與 updater 的呼叫（帶入 crawl 結果與 year/season）對齊，這是既有 `TypeError` 缺陷的修正點。注意權益變動表是**二維表**（權益項目 × 變動原因），攤平方式需在實作時定案並記錄於此。
-- **產出**：`core/pipeline/cleaners/financial_statement_cleaner.py`、`equity_change_cleaned_columns.json`。
+- **產出**：`core/pipeline/tw/cleaners/financial_statement_cleaner.py`、`equity_change_cleaned_columns.json`。
 - **驗證方式**：新增 cleaner 單元測試（離線、用固定 fixture），欄位數與攤平規則有明確斷言。
 - **相依**：S1（決策為補完）。
 
@@ -68,7 +74,7 @@
 
 - **目的**：`financial_statement_loader.py` L157~L158 的 `create_missing_tables()` 目前跳過 `EQUITY_CHANGE`（`continue  # TODO: 實作後移除`）。
 - **做法**：移除該 skip 分支；確認 `equity_change_cleaned_cols_path` 指向 S2 產出的欄位定義；Primary Key 比照其他財報表 `(year, season, stock_id, 公司名稱)`，若 S2 攤平後多出「權益項目」維度則一併納入 PK。
-- **產出**：`core/pipeline/loaders/financial_statement_loader.py`。
+- **產出**：`core/pipeline/tw/loaders/financial_statement_loader.py`。
 - **驗證方式**：`create_missing_tables()` 後 `PRAGMA table_info('equity_change')` 非空。
 - **相依**：S2。
 
@@ -83,7 +89,7 @@
 
 - **目的**：`financial_statement_updater.py` L153~L154 的 `update()` 目前不呼叫 `update_equity_changes()`（`# TODO: Update Equity Changes`）；L405 註明「cleaner & loader 還未完成」。
 - **做法**：修正 `update_equity_changes()` 內對 cleaner 的呼叫簽名（對齊 S2）；決定逐檔爬取的股票清單來源（建議 `taiwan_stock_info`）；在 `update()` 接上呼叫並移除兩處 TODO。
-- **產出**：`core/pipeline/updaters/financial_statement_updater.py`。
+- **產出**：`core/pipeline/tw/updaters/financial_statement_updater.py`。
 - **驗證方式**：以單季、少量股票在暫存 DB 跑通 `--target fs`；resume（`get_actual_update_start_year_season`）回傳正確的下一季。
 - **相依**：S2、S3。
 
@@ -139,11 +145,24 @@
 > 暫時性失敗一律視為已申報繼續跑。另補上每季收尾的 `N requested, N no data, N unreachable`
 > 統計行——這次正是因為缺這行，才需要事後撈 log 才發現少了 323 檔。
 >
-> **實測速率**：約 6 秒/檔（節流為每檔隨機 sleep 1~5 秒、每 10 檔多睡 30 秒），
-> **一個年季約 3.5 小時，全段 56 個年季約 200 小時**。
-> ⚠️ 本文件原本估「60 小時以上」是低估，漏算了「每 10 檔多睡 30 秒」那段。
-> 要加速就調 `BATCH_SLEEP_EVERY_N_FILES` 與隨機延遲——2020Q1 全程 `unreachable = 0`，
-> 代表現行設定還有放寬空間，但放寬多少才會被擋，只有實際試才知道。
+> **速率與節流（2026-08-28 已放寬）**
+>
+> | | 舊設定 | 現行設定 |
+> |---|---|---|
+> | 每檔隨機延遲 | 1~5 秒 | **0.5~1.5 秒** |
+> | 每 N 檔多睡 | 10 檔 / 30 秒 | **50 檔 / 15 秒** |
+> | 平均 sleep | 5.7 秒/檔 | **1.28 秒/檔** |
+> | 實測含請求 | 6 秒/檔 | 約 1.6 秒/檔（推估，尚未實測） |
+> | 一個年季 | 3.5 小時 | 約 0.9 小時 |
+> | 剩餘 55 個年季 | 約 200 小時 | **約 50 小時** |
+>
+> 放寬的依據是 2020Q1 全市場回補連續近 4 小時 `unreachable = 0`，代表舊設定過於保守；
+> 但**「放寬多少才會被擋」沒有實測過**，這組值是估計而非驗證過的安全上限。
+> 常數改為權益變動表專用（`EQUITY_CHANGE_RANDOM_DELAY_MIN`／`_MAX`、
+> `EQUITY_CHANGE_BATCH_SLEEP_EVERY_N_FILES`／`_DURATION_SECONDS`），
+> 其他三張報表仍用原本的共用值——那三張是「全市場一次查完」，整段回補才幾十次請求，沒有放寬的必要。
+> ⚠️ **下一個年季跑完務必看收尾那行 `N requested, N no data, N unreachable`**：
+> `unreachable` 明顯大於 0 就代表放太寬，調回中間值（1~3 秒 / 每 30 檔睡 15 秒，約 2.4 秒/檔）。
 >
 > **第一批資料要等 100 檔之後才落地**（`EQUITY_CHANGE_LOAD_BATCH_SIZE`），約 10 分鐘。
 > 啟動後前幾分鐘查 DB 是 0 列屬正常，不是失敗。
@@ -166,5 +185,8 @@
 
 - **優先級**：P3（S5 歷史回補純屬執行，可隨時中斷續跑）
 - **進度**：4 / 5 項 ✅（S1~S4，2026-08-22）；S5 🔄 2020Q1 已完成（230,163 列 / 1,743 檔），其餘 55 個年季未跑
-- **相關程式**：`core/pipeline/crawlers/financial_statement_crawler.py`、`core/pipeline/cleaners/financial_statement_cleaner.py`、`core/pipeline/loaders/financial_statement_loader.py`、`core/pipeline/updaters/financial_statement_updater.py`、`core/config.py`（`EQUITY_CHANGE_TABLE_NAME`）、`tests/test_financial_statement_cleaner_equity_change.py`
-- **相關文件**：[ETL 入庫約定](../docs/pipeline/etl-ingestion.md)（新增 updater 時的檢查表；§二的對照表已補上 `equity_change` 與其餘三張報表的差異）
+- **相關程式**：`core/pipeline/tw/crawlers/financial_statement_crawler.py`、`core/pipeline/tw/cleaners/financial_statement_cleaner.py`、`core/pipeline/tw/loaders/financial_statement_loader.py`、`core/pipeline/tw/updaters/financial_statement_updater.py`、`core/config.py`（`EQUITY_CHANGE_TABLE_NAME`）、`tests/test_financial_statement_cleaner_equity_change.py`
+- **相關文件**：
+  - [權益變動表](../docs/pipeline/equity-change.md)——2026-08-29 由本文件抽出的長期參考內容（資料形狀、涵蓋範圍、已知限制、節流）
+  - [ETL 入庫約定](../docs/pipeline/etl-ingestion.md)（新增 updater 時的檢查表；§二的對照表已補上 `equity_change` 與其餘三張報表的差異）
+- **結案方式**：S5 完成後**整份刪除**並移除 `index.md` 對應列；該留的內容已在上述兩份 `docs/`，另需同步更新 `docs/pipeline/equity-change.md` §二的涵蓋範圍與 `docs/exchanges/data_coverage.md`

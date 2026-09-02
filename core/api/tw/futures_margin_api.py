@@ -1,0 +1,300 @@
+import datetime
+import sqlite3
+from typing import Dict, Optional
+
+from core.api.base import BaseDataAPI
+from core.config import (
+    API_LOGS_DIR_PATH,
+    FUTURES_MARGIN_HISTORY_TABLE_NAME,
+    FUTURES_STOCK_UNIVERSE_TABLE_NAME,
+    STOCK_FUTURES_MARGIN_RATE_HISTORY_TABLE_NAME,
+    TW_FUTURES_DB_PATH,
+)
+from core.utils.log_manager import LogManager
+
+"""
+Futures Margin API: query the two margin tables in tw_futures.db
+
+**兩張表、兩種取值方式**（分表依據是「金額 vs 比例」，見
+`backlog/台期貨保證金ETL.md` §一）：
+
+| 表 | 涵蓋 | 每口保證金 |
+|----|------|-----------|
+| `futures_margin_history` | 指數期貨 ＋ ETF 股期 | **就是表裡的金額** |
+| `stock_futures_margin_rate_history` | 股票股期 | 標的股價 × 契約單位 × 比例（**要算**） |
+
+---
+
+**查詢語意：取 `effective_date <= 該日` 的最大者，不是 `= 該日`。**
+
+保證金是**變動序列**——只有調整那天才有列。用等號查只有剛好調整的那天查得到，
+其餘每一天都會回傳 None，而「查不到」在下游多半被當成「不需要保證金」。
+
+---
+
+**兩種「查不到」，成因完全不同，但本層一律回傳 None 讓呼叫端決定：**
+
+1. **查詢日早於 2020-03**（來源限制）：更早的調整公告附件是掃描影像，取不到數值。
+   詳見 `backlog/台期貨保證金ETL.md` S6。
+2. **該商品在查詢日之前從未被調整過**——這是資料的語意，不是缺漏：
+   **調整公告只列「有調整的商品」**，級距穩定的商品（Ex: 台積電期 CDF 一直是
+   級距 1／13.5%）在整個 2020~2026 都不會出現在任何一則公告裡，
+   表內因此只有現行一覽表那一列（2026-08-28）。
+
+第 2 種可用 `fallback_to_earliest=True` 取「表內最早的一列」當近似——
+對「從未調整過」的商品那就是正確答案，但**無法與第 1 種區分**，
+故預設關閉、由呼叫端明確表態。
+"""
+
+
+class FuturesMarginAPI(BaseDataAPI):
+    """Futures Margin API"""
+
+    def __init__(self, conn: Optional[sqlite3.Connection] = None):
+        # 由 DataFeed 傳入共用連線；未指定時自行建立
+        self.conn: Optional[sqlite3.Connection] = conn
+        self.owns_conn: bool = conn is None
+
+        self.setup()
+
+    def setup(self) -> None:
+        """Set Up the Config of Data API"""
+
+        if self.owns_conn:
+            self.conn = sqlite3.connect(TW_FUTURES_DB_PATH)
+        LogManager.setup_logger("futures_margin_api.log", log_dir=API_LOGS_DIR_PATH)
+
+    # === 金額型（指數期貨 ＋ ETF 股期）===
+    def get_margin(
+        self,
+        product: str,
+        date: datetime.date,
+        fallback_to_earliest: bool = False,
+    ) -> Optional[Dict[str, int]]:
+        """
+        - Description:
+            取得該商品在指定日期**生效中**的三種保證金金額
+
+            取 `effective_date <= date` 的最大者——保證金不是每天都變。
+        - Parameters:
+            - product: str
+                契約代碼（Ex: TX、NYF）
+            - date: datetime.date
+                查詢日
+            - fallback_to_earliest: bool
+                查詢日早於表內所有列時，是否退回**最早**的一列當近似。
+                對「從未被調整過」的商品那就是正確答案；但它與「查詢日早於
+                2020-03 的來源缺口」**無法區分**，故預設關閉，見本檔說明。
+        - Return:
+            - Optional[Dict[str, int]]
+                `{"結算保證金", "維持保證金", "原始保證金"}`；查無資料時為 None
+        """
+
+        try:
+            row = self.conn.execute(
+                f"SELECT 結算保證金, 維持保證金, 原始保證金 "
+                f"FROM {FUTURES_MARGIN_HISTORY_TABLE_NAME} "
+                f"WHERE product = ? AND effective_date <= ? "
+                f"ORDER BY effective_date DESC LIMIT 1",
+                (product, str(date)),
+            ).fetchone()
+        except sqlite3.OperationalError:
+            # 表不存在（尚未跑過保證金 ETL）：與「查無該商品」同樣回 None，
+            # 由呼叫端決定要中止還是退回比率近似
+            return None
+
+        if row is None and fallback_to_earliest:
+            row = self.conn.execute(
+                f"SELECT 結算保證金, 維持保證金, 原始保證金 "
+                f"FROM {FUTURES_MARGIN_HISTORY_TABLE_NAME} "
+                f"WHERE product = ? ORDER BY effective_date LIMIT 1",
+                (product,),
+            ).fetchone()
+
+        if row is None:
+            return None
+        return {
+            "結算保證金": row[0],
+            "維持保證金": row[1],
+            "原始保證金": row[2],
+        }
+
+    def get_initial_margin(
+        self,
+        product: str,
+        date: datetime.date,
+        fallback_to_earliest: bool = False,
+    ) -> Optional[int]:
+        """
+        取得**每口原始保證金**（委託人繳交的那一種）
+
+        回測一律用這一欄——`結算保證金` 是交易所向結算會員收的，不是交易人繳的。
+        """
+
+        margin: Optional[Dict[str, int]] = self.get_margin(
+            product, date, fallback_to_earliest=fallback_to_earliest
+        )
+        return None if margin is None else margin["原始保證金"]
+
+    def get_maintenance_margin(
+        self,
+        product: str,
+        date: datetime.date,
+        fallback_to_earliest: bool = False,
+    ) -> Optional[int]:
+        """
+        取得**每口維持保證金**（追繳門檻用的那一種）
+
+        與 `get_initial_margin()` 的分工：原始保證金是「開一口要先繳多少」，
+        維持保證金是「帳戶權益低於多少就會被追繳」，後者一律較低
+        （TX 2024-10-31：原始 338,000、維持 259,000）。
+        兩者都是交易所公告值，**不可用比率互推**。
+        """
+
+        margin: Optional[Dict[str, int]] = self.get_margin(
+            product, date, fallback_to_earliest=fallback_to_earliest
+        )
+        return None if margin is None else margin["維持保證金"]
+
+    # === 比例型（股票股期）===
+    def get_margin_rates(
+        self,
+        product_id: str,
+        date: datetime.date,
+        fallback_to_earliest: bool = False,
+    ) -> Optional[Dict[str, float]]:
+        """
+        - Description:
+            取得股票期貨在指定日期生效中的三種保證金**適用比例**（小數）
+        - Parameters:
+            - product_id: str
+                股期代碼（Ex: CDF）
+            - date: datetime.date
+                查詢日
+        - Return:
+            - Optional[Dict[str, float]]
+                三種比例；查無資料時為 None
+        """
+
+        row = self.conn.execute(
+            f"SELECT 結算保證金適用比例, 維持保證金適用比例, 原始保證金適用比例 "
+            f"FROM {STOCK_FUTURES_MARGIN_RATE_HISTORY_TABLE_NAME} "
+            f"WHERE product_id = ? AND effective_date <= ? "
+            f"ORDER BY effective_date DESC LIMIT 1",
+            (product_id, str(date)),
+        ).fetchone()
+
+        if row is None and fallback_to_earliest:
+            # 級距穩定的商品（Ex: CDF 一直是級距 1）從不出現在調整公告裡，
+            # 表內只有現行一覽表那一列——對它們，最早的一列就是正確答案
+            row = self.conn.execute(
+                f"SELECT 結算保證金適用比例, 維持保證金適用比例, 原始保證金適用比例 "
+                f"FROM {STOCK_FUTURES_MARGIN_RATE_HISTORY_TABLE_NAME} "
+                f"WHERE product_id = ? ORDER BY effective_date LIMIT 1",
+                (product_id,),
+            ).fetchone()
+
+        if row is None:
+            return None
+        return {
+            "結算保證金適用比例": row[0],
+            "維持保證金適用比例": row[1],
+            "原始保證金適用比例": row[2],
+        }
+
+    def get_contract_size(self, product_id: str, date: datetime.date) -> Optional[int]:
+        """
+        - Description:
+            取得股期的契約單位（股數）
+
+            來源是 `futures_stock_universe` 的**快照序列**，故同樣取
+            `snapshot_date <= date` 的最大者。
+
+            ⚠️ **快照序列只回溯到本表建立之日**（2026-08-29），更早的日期會取到
+            最早那份快照——契約單位在除權息後可能被調整過，那段期間的值不保證正確。
+            精確的乘數歷史屬台期貨規劃 Phase6-2。
+        - Parameters:
+            - product_id: str
+                股期代碼（Ex: CDF）
+            - date: datetime.date
+                查詢日
+        - Return:
+            - Optional[int]
+                契約單位（股）；查無資料時為 None
+        """
+
+        row = self.conn.execute(
+            f"SELECT contract_size FROM {FUTURES_STOCK_UNIVERSE_TABLE_NAME} "
+            f"WHERE product_id = ? AND snapshot_date <= ? "
+            f"ORDER BY snapshot_date DESC LIMIT 1",
+            (product_id, str(date)),
+        ).fetchone()
+
+        if row is not None:
+            return row[0]
+
+        # 查詢日早於本表第一份快照時退回最早的一份，並非「沒有這個商品」
+        row = self.conn.execute(
+            f"SELECT contract_size FROM {FUTURES_STOCK_UNIVERSE_TABLE_NAME} "
+            f"WHERE product_id = ? ORDER BY snapshot_date LIMIT 1",
+            (product_id,),
+        ).fetchone()
+        return None if row is None else row[0]
+
+    def calculate_stock_futures_margin(
+        self,
+        product_id: str,
+        date: datetime.date,
+        price: float,
+        fallback_to_earliest: bool = False,
+    ) -> Optional[float]:
+        """
+        - Description:
+            算出股票期貨的**每口原始保證金** ＝ 標的股價 × 契約單位 × 適用比例
+
+            **這是本 API 與金額表最大的使用差異**：股期的來源只給比例，
+            每口金額要自己算，而算式需要標的股價（由呼叫端提供，通常是當日收盤）。
+        - Parameters:
+            - product_id: str
+                股期代碼（Ex: CDF）
+            - date: datetime.date
+                查詢日
+            - price: float
+                標的證券價格
+        - Return:
+            - Optional[float]
+                每口原始保證金；比例或契約單位查不到時為 None
+        """
+
+        rates: Optional[Dict[str, float]] = self.get_margin_rates(
+            product_id, date, fallback_to_earliest=fallback_to_earliest
+        )
+        contract_size: Optional[int] = self.get_contract_size(product_id, date)
+
+        if rates is None or contract_size is None:
+            return None
+        return price * contract_size * rates["原始保證金適用比例"]
+
+    # === 涵蓋範圍 ===
+    def get_covered_date_range(self, product: str) -> Optional[Dict[str, str]]:
+        """
+        取得該商品在金額表中的生效日範圍
+
+        用來回答「這段回測期間有沒有保證金資料」——**早於 `earliest` 的日期一律
+        查不到**，那是來源限制（2020/03 之前的公告附件是掃描影像）。
+        """
+
+        try:
+            row = self.conn.execute(
+                f"SELECT MIN(effective_date), MAX(effective_date) "
+                f"FROM {FUTURES_MARGIN_HISTORY_TABLE_NAME} WHERE product = ?",
+                (product,),
+            ).fetchone()
+        except sqlite3.OperationalError:
+            # 表還不存在＝尚未跑過 `--target futures_margin`；那是「還沒有資料」
+            # 不是查詢寫錯，全新環境（CI、剛 clone）本來就會走到這裡
+            return None
+
+        if row is None or row[0] is None:
+            return None
+        return {"earliest": row[0], "latest": row[1]}

@@ -57,7 +57,7 @@ cp .env.example .env
 多數目錄會在執行時自動建立；若要先手動準備可建立：
 
 ```bash
-mkdir -p core/database core/data core/logs core/backtest/results
+mkdir -p data/db core/data logs/pipeline results
 ```
 
 ## 5) 基本驗證
@@ -81,7 +81,7 @@ python -m tasks.update_db --help
 ```bash
 ruff check .            # lint
 ruff format .           # 格式化
-pytest -m "not slow"    # 略過需要 stock.db 與外部 API 憑證的測試
+pytest -m "not slow"    # 略過需要 tw_stock.db 與外部 API 憑證的測試
 ```
 
 可安裝 pre-commit 讓每次 commit 前自動跑同一組檢查：

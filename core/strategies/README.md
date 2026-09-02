@@ -68,14 +68,23 @@ AlphaEdge 的策略系統採用物件導向設計，台股策略一律繼承 `Ba
 core/strategies/
 ├── __init__.py                    # 刻意不做套件層 eager import（避免循環 import）
 ├── README.md                      # 本文件
-├── base.py                        # BaseStrategy：市場無關的策略骨架
-├── strategy_loader.py             # 策略自動載入器（掃描所有市場子套件）
-└── stock/                         # 台股策略目錄
-    ├── __init__.py
-    ├── base.py                    # BaseStockStrategy（設定 self.market = Market.STOCK）
-    ├── momentum_strategy_1.py     # 動能策略 1（日線）
-    └── overnight_lead_event_strategy.py  # 隔夜領先事件策略
+├── base.py                        # BaseStrategy：市場與商品皆無關的策略骨架
+├── strategy_loader.py             # 策略自動載入器（掃描所有子套件）
+├── stock/                         # 股票策略
+│   ├── __init__.py
+│   ├── base.py                    # BaseStockStrategy（設定 self.market ＋ self.instrument_type）
+│   ├── momentum_strategy_1.py     # 動能策略 1（日線，LONG 回歸 baseline 的唯一來源）
+│   ├── overnight_lead_event_strategy.py       # 隔夜領先事件策略
+│   └── foreign_sell_short_day_trade_strategy.py  # 外資大賣強勢股當沖放空（日線，SHORT）
+└── futures/                       # 期貨策略
+    ├── base.py                    # BaseFuturesStrategy
+    └── momentum_futures_strategy.py
 ```
+
+> **子目錄承載的是「商品類別」（軸 B），不是市場。** 市場由 `self.market` 宣告、
+> 由 `core/backtest/factory.py` 的 `(market, instrument_type)` 分派鍵表達，
+> 所以美股策略日後會放進 `stock/` 而不是新開 `us/`（見
+> [命名軸線](../../docs/dev/naming-axes.md)〈落地位置〉）。
 
 > **2026-08-15：動能策略 2~5 已刪除。** 四者皆為 `MomentumStrategy1` 的變形（Tick 級別、均線動能、開盤進出等），維護成本高於價值，且 `MomentumStrategy1` 是 LONG 回歸 baseline 的唯一來源。台股策略目前保留 `MomentumStrategy1` 與 `OvernightLeadEventStrategy` 兩支。
 
@@ -125,7 +134,7 @@ def __init__(self):
     self.end_date: datetime.date = datetime.date(2025, 5, 31)
 ```
 
-> `self.market` **不需要自己設**：`BaseStockStrategy` 已填入 `Market.STOCK`。
+> `self.market` 與 `self.instrument_type` **不需要自己設**：`BaseStockStrategy` 已填入 `Market.TW` 與 `InstrumentType.STOCK`。
 >
 > **`__init__` 內不要呼叫 `setup_apis()`**：它需要引擎傳入的 `DataFeed`，由
 > `Backtester.load_datasets()` 在建立 `DataFeed` 之後呼叫。
@@ -439,7 +448,8 @@ def calculate_position_size(
 | 參數 | 類型 | 說明 | 預設值 |
 |------|------|------|--------|
 | `strategy_name` | `str` | 策略名稱，用於識別和報告 | `""` |
-| `market` | `str` | 市場別，**由 `BaseStockStrategy` 填入，策略不需自己設**；是 `factory` 組裝 model 組合的分派鍵 | `Market.STOCK` |
+| `market` | `Market` | 市場（地區），**由 `BaseStockStrategy` 填入，策略不需自己設**；與 `instrument_type` **兩者的組合**才是 `factory` 組裝 model 組合的分派鍵 | `Market.TW` |
+| `instrument_type` | `InstrumentType` | 商品類別，**由 `BaseStockStrategy` 填入，策略不需自己設**；見上列 | `InstrumentType.STOCK` |
 | `position_type` | `str` | 部位方向，`PositionType.LONG`（做多）或 `PositionType.SHORT`（做空） | `PositionType.LONG` |
 | `enable_intraday` | `bool` | 是否為當沖策略；**只是推導預設執行順序與台股當沖成本的輸入，不是硬性開關**（見[單根 bar 的執行順序](#單根-bar-的執行順序)） | `True` |
 | `bar_execution_order` | `Optional[BarExecutionOrder]` | 單根 bar 內開平倉的先後，`None` 由引擎推導 | `None` |
@@ -675,7 +685,7 @@ python run.py --mode live --strategy MomentumStrategy1
 
 ### 回測結果
 
-回測完成後，結果會儲存在 `core/backtest/results/<StrategyName>/` 目錄（檔名一律以策略名稱為前綴）：
+回測完成後，結果會儲存在 `results/<StrategyName>/` 目錄（檔名一律以策略名稱為前綴）：
 
 1. **報表 CSV**:
    - `<StrategyName>_trading_report.csv` - 已平倉交易的逐筆明細與損益統計
@@ -687,7 +697,7 @@ python run.py --mode live --strategy MomentumStrategy1
    - `<StrategyName>_networth.png` - 策略與 benchmark（`0050`）淨值比較圖
    - `<StrategyName>_mdd.png` - 最大回撤圖
    - `<StrategyName>_everyday_profit.png` - 每日損益圖
-3. **日誌檔案** - 落在 `core/backtest/results/logs/`
+3. **日誌檔案** - 落在 `logs/backtest/`
 
 各檔案由哪個方法產生，見[模組使用關係 §4](../../docs/backtest/module-map.md)。
 

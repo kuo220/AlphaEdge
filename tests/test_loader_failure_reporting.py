@@ -5,7 +5,7 @@ from typing import List
 import pandas as pd
 import pytest
 
-from core.pipeline.loaders.base import BaseDataLoader
+from core.pipeline.shared.base_loader import BaseDataLoader
 from core.pipeline.utils import DataLoadError
 
 """loader 入庫失敗不得被降級成 warning 後仍回報成功
@@ -119,11 +119,11 @@ def make_margin_rows(date: str, pairs: List[tuple]) -> pd.DataFrame:
 def make_loader(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """建立指向暫存 DB 與暫存 downloads 目錄的 margin loader"""
 
-    import core.pipeline.loaders.stock_margin_loader as loader_module
+    import core.pipeline.tw.loaders.stock_margin_loader as loader_module
 
     downloads: Path = tmp_path / "margin"
     downloads.mkdir(exist_ok=True)
-    monkeypatch.setattr(loader_module, "DB_PATH", str(tmp_path / "test.db"))
+    monkeypatch.setattr(loader_module, "TW_STOCK_DB_PATH", str(tmp_path / "test.db"))
     monkeypatch.setattr(loader_module, "MARGIN_DOWNLOADS_PATH", downloads)
 
     loader = loader_module.StockMarginLoader()

@@ -2,7 +2,7 @@ import datetime
 
 from core.utils import Action, PositionType
 
-"""BaseOrder: 市場無關的訂單骨架（識別欄位一律為 symbol）"""
+"""BaseOrder: 市場與商品皆無關的訂單骨架（識別欄位一律為 symbol）"""
 
 
 class BaseOrder:

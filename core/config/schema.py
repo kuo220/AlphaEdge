@@ -1,0 +1,78 @@
+import os
+from pathlib import Path
+
+from .paths import DATABASE_DIR_PATH, get_static_resolved_path
+
+"""資料庫結構：分庫檔名、完整路徑與資料表名稱"""
+
+
+# -----------------------------------------------------------------------
+# === Database Files Full Paths ===
+# -----------------------------------------------------------------------
+# 常數名與檔名皆帶市場軸（TW_）：`core/database/` 是按市場分庫，
+# 美股進來時會是 us_stock.db，泛用的檔名（stock.db）會失去指向
+TW_STOCK_DB_NAME: str = "tw_stock.db"
+TICK_DB_NAME: str = "tickDB"
+
+TW_STOCK_DB_PATH: Path = get_static_resolved_path(
+    base_dir=DATABASE_DIR_PATH, dir_name=TW_STOCK_DB_NAME
+)
+TICK_DB_PATH: str = f"{os.getenv('DDB_PATH')}{TICK_DB_NAME}"
+
+# 期貨與股票分庫：合約碼（contract_id）與 stock_id 語意不同，混在同一個 DB
+# 會讓「這張表的主鍵到底是什麼」失去單一答案
+TW_FUTURES_DB_NAME: str = "tw_futures.db"
+
+TW_FUTURES_DB_PATH: Path = get_static_resolved_path(
+    base_dir=DATABASE_DIR_PATH, dir_name=TW_FUTURES_DB_NAME
+)
+
+
+# -----------------------------------------------------------------------
+# === Database Table names ===
+# -----------------------------------------------------------------------
+#
+PRICE_TABLE_NAME: str = "price"
+CHIP_TABLE_NAME: str = "chip"
+MARGIN_TABLE_NAME: str = "margin"
+DIVIDEND_TABLE_NAME: str = "dividend"
+TICK_TABLE_NAME: str = "tick"
+# 期貨 tick **與股票分表**（Phase5-1）：主鍵不同（期貨要 product ＋ expiry ＋
+# session 才能定位一筆成交，股票只要 stock_id），且期貨有夜盤。
+# 兩者塞同一張表會讓分割鍵（partition key）失去意義，查詢一律掃全表
+FUTURES_TICK_TABLE_NAME: str = "futures_tick"
+MONTHLY_REVENUE_TABLE_NAME: str = "monthly_revenue"
+BALANCE_SHEET_TABLE_NAME: str = "balance_sheet"
+COMPREHENSIVE_INCOME_TABLE_NAME: str = "comprehensive_income"
+CASH_FLOW_TABLE_NAME: str = "cash_flow"
+EQUITY_CHANGE_TABLE_NAME: str = "equity_change"
+STOCK_INFO_TABLE_NAME: str = "taiwan_stock_info"
+STOCK_INFO_WITH_WARRANT_TABLE_NAME: str = "taiwan_stock_info_with_warrant"
+SECURITIES_TRADER_INFO_TABLE_NAME: str = "taiwan_securities_trader_info"
+# 台期貨（皆位於 tw_futures.db）
+FUTURES_CONTRACT_TABLE_NAME: str = "futures_contract"  # 合約／商品規格
+FUTURES_PRICE_DAILY_TABLE_NAME: str = "futures_price_daily"  # 各月份合約日 K
+FUTURES_CONTINUOUS_TABLE_NAME: str = "futures_continuous"  # 連續合約（換月接續後）
+FUTURES_INSTITUTIONAL_CHIP_TABLE_NAME: str = (
+    "futures_institutional_chip"  # 三大法人（逐商品、逐身份別）
+)
+# 大額交易人與 PCR **各自成表**，不與三大法人共用：三者的主鍵不同
+# （前者多了到期月份與交易人類別、PCR 一天只有一列），塞同一張表會讓多數欄位
+# 永遠是 NULL，且下游得先判斷「這是哪一種籌碼」才知道該讀哪組欄位
+FUTURES_LARGE_TRADER_TABLE_NAME: str = "futures_large_trader"  # 大額交易人
+FUTURES_PUT_CALL_RATIO_TABLE_NAME: str = "futures_put_call_ratio"  # 選擇權 PCR
+# 保證金**分兩張表**：指數類等商品給的是「每口固定金額」，股票期貨給的是
+# 「適用比例 ＋ 級距」（每檔標的股價不同，固定金額沒有意義）。硬塞同一張表會讓
+# 一半欄位永遠是 NULL，且下游得先判斷「這是哪一類」才知道讀哪一組欄位。
+# 規劃見 `backlog/台期貨保證金ETL.md`
+FUTURES_MARGIN_HISTORY_TABLE_NAME: str = (
+    "futures_margin_history"  # 保證金歷史序列（每口金額）
+)
+STOCK_FUTURES_MARGIN_RATE_HISTORY_TABLE_NAME: str = (
+    "stock_futures_margin_rate_history"  # 股票期貨保證金歷史序列（適用比例）
+)
+FUTURES_STOCK_UNIVERSE_TABLE_NAME: str = "futures_stock_universe"  # 股票期貨標的池
+
+STOCK_TRADING_DAILY_REPORT_TABLE_NAME: str = (
+    "taiwan_stock_trading_daily_report_secid_agg"
+)

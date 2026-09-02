@@ -1,4 +1,5 @@
 import datetime
+import math
 from abc import ABC, abstractmethod
 from typing import Optional, Tuple
 
@@ -177,3 +178,79 @@ class TwStockSpec(InstrumentSpec):
         limit_up: float = self.round_to_tick(prev_close * (1 + ratio), "down")
         limit_down: float = self.round_to_tick(prev_close * (1 - ratio), "up")
         return (limit_down, limit_up)
+
+
+class TwFuturesSpec(InstrumentSpec):
+    """
+    台期貨規格：跳動點 1 點（台指期系列）、**無固定漲跌停**
+
+    與 `TwStockSpec` 的兩個根本差異，兩個都會讓沿用股票習慣的人靜默算錯：
+
+    1. **計價單位換算逐契約不同**（TX 200、MTX 50、TE 4000），而 `to_units()`
+       只拿得到數量、拿不到商品——單一 spec 無法代表整個期貨市場。故本方法一律
+       回傳口數，**乘數改由 `FuturesPosition.multiplier` 提供**（該欄位在開倉時
+       由 `FUTURES_MULTIPLIER` 查得）；要算損益一律走
+       `FuturesPositionManager.calculate_pnl()`，不要自己乘。
+    2. **沒有固定漲跌停**：期貨採動態價格穩定措施（撮合價超出參考區間即延後撮合），
+       區間隨前幾分鐘的成交價變動，不是「前收 ±10%」這種可事先算出的固定區間。
+       故 `get_price_limits()` 一律回傳 `(None, None)`，`TwFuturesFillModel`
+       也不做漲跌停檢查。
+
+    **跳動點只登錄已查證的商品**（理由同 `FUTURES_MULTIPLIER`：猜錯不會有徵兆）：
+    台指期系列（TX／MTX／TMF）為 1 點。電子期、金融期與股票期貨的跳動點不同且
+    尚未查證，要回測那些商品必須在建構時明確指定 `tick_size`；
+    Phase4-1 擴充多商品時再改為依商品查表。
+    """
+
+    DEFAULT_TICK_SIZE: float = 1.0  # 台指期系列的最小跳動點（點）
+
+    def __init__(self, tick_size: float = DEFAULT_TICK_SIZE):
+        self.tick_size: float = tick_size  # 最小跳動點（點）
+
+    def to_units(self, volume: int) -> int:
+        """口 → 口（**不乘契約乘數**，理由見 class docstring 第 1 點）"""
+
+        return volume
+
+    def round_to_tick(self, price: float, direction: str = "nearest") -> float:
+        """
+        - Description:
+            將價格對齊跳動點；`tick_size` 未設定（≤ 0）時原價回傳
+        - Parameters:
+            - price: float
+                原始價格
+            - direction: str
+                取整方向："up"（進位）、"down"（捨去）、"nearest"（就近）
+        - Return:
+            - float
+                對齊跳動點後的價格
+        """
+
+        if self.tick_size <= 0:
+            return price
+
+        ticks: float = price / self.tick_size
+
+        if direction == "up":
+            aligned: float = math.ceil(ticks)
+        elif direction == "down":
+            aligned = math.floor(ticks)
+        else:
+            # 不用內建 round()：它採銀行家捨入，.5 會依奇偶倒向不同邊
+            aligned = math.floor(ticks + 0.5)
+
+        # 浮點誤差會讓 0.05 這類跳動點算出 18000.049999999999
+        return round(aligned * self.tick_size, 10)
+
+    def get_price_limits(
+        self, prev_close: float
+    ) -> Tuple[Optional[float], Optional[float]]:
+        """
+        期貨**沒有固定漲跌停**，一律回傳 `(None, None)`
+
+        現行制度是動態價格穩定措施，區間由前幾分鐘的成交價即時算出，
+        無法由前一交易日收盤推得。回傳 `(None, None)` 的語意是「本市場無此制度」，
+        呼叫端（`FillModel`）據此跳過該項檢查，**不是「查不到資料」**。
+        """
+
+        return (None, None)

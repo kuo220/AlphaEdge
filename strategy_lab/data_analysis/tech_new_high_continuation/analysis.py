@@ -24,8 +24,8 @@ from typing import Iterable, Sequence, Tuple
 import pandas as pd
 from loguru import logger
 
-from core.api.finmind_api import FinMindAPI
-from core.api.stock_price_api import StockPriceAPI
+from core.api.tw.finmind_api import FinMindAPI
+from core.api.tw.stock_price_api import StockPriceAPI
 from core.config import PRICE_TABLE_NAME
 from core.utils.instrument import StockUtils
 

@@ -21,7 +21,7 @@
 | Phase2-3 | 資料品質檢核與異常告警 | `core/pipeline/us/*` | 缺洞天數、成交量異常可被偵測 | ⬜ | 相依 Phase1-2 |
 | Phase3-1 | `us_fundamentals` ETL 支援因子策略 | `core/pipeline/us/*`、`core/api/us/fundamentals_api.py` | 財報欄位可查詢且無未來資料污染 | ⬜ | 相依 Phase2-1 |
 | Phase3-2 | 參數掃描框架（walk-forward / grid search） | `core/backtest/` | 可批次產出參數組合的績效比較 | ⬜ | 相依 Phase2-2 |
-| Phase3-3 | 多市場共用介面，台股逐步歸位 `tw/` | 全專案 | 台股回歸測試逐筆相同 | ⏸ | 暫緩：影響面大，等美股閉環驗證後再啟動。**引擎層的共用介面已由 [多市場回測引擎架構](../docs/backtest/multi-market-engine.md) 提前完成**，本步驟只剩目錄歸位 |
+| Phase3-3 | 多市場共用介面，台股逐步歸位 `tw/` | 全專案 | 台股回歸測試逐筆相同 | ✅ | **2026-09-02 結案**：四個市場軸目錄（`pipeline`／`api`／`adapters`／`backtest/datafeed`）全部只剩 `tw/`；`models`／`strategies`／`managers` 依定案承載的是**軸 B**，本來就不該有 `us/`。詳見該步驟 |
 
 ---
 
@@ -158,6 +158,15 @@ core/
 - `us_corporate_actions`：`(ticker, action_date, action_type, source)`
 - `us_fundamentals_quarterly`：`(ticker, fiscal_period_end, source)`
 
+> **✅ 欄位語言已定案（2026-09-01）：美股一律用英文欄名**，即上表的
+> `ticker`／`trade_date`／`open`…，直接沿用 provider 回傳的欄名。
+>
+> 規則寫死為**「欄位語言跟著資料來源走」**：交易所網頁／檔案爬來的保留中文欄
+> （`price` 的 `開盤價`、`futures_price_daily` 的 `結算價`），API 來源用其原始英文欄。
+> 專案裡已經有**五張全英文的表**（四張 FinMind ＋ `futures_stock_universe`），
+> 美股用英文是延用既有那一套，不是新增第三套規則。完整理由與對照表見
+> [ETL 入庫約定 §3.4](../docs/pipeline/etl-ingestion.md)。
+
 ---
 
 ## 四、美股回測架構設計（業界常見模式）
@@ -276,14 +285,39 @@ core/
 - **驗證方式**：可對一支策略批次跑出參數矩陣與績效表。
 - **相依**：Phase2-2。
 
-### Phase3-3. 多市場共用介面，台股逐步歸位 `tw/` ⏸
+### Phase3-3. 多市場共用介面，台股逐步歸位 `tw/` ✅
 
 - **目的**：把驗證過的共用元件抽出，讓台股與美股共享核心。
 - **做法**：規劃多市場共用介面，逐步把台股流程整理為 `tw/` 子模組。
 - **產出**：全專案目錄調整。
 - **驗證方式**：台股回歸測試逐筆相同。
 - **相依**：Phase1-1~Phase3-2。
-- **暫緩原因與解除條件**：影響面大且會動到台股既有路徑，違反「保留現有台股流程不動」的原則；待美股最小閉環（Phase 1~2）驗證完成、共用元件的邊界確定後再解除。
+- **暫緩原因與解除條件**：影響面大且會動到台股既有路徑，違反「保留現有台股流程不動」的原則；待美股最小閉環（Phase 1~2）驗證完成、共用元件的邊界確定後再解除。**實際上由另外兩條線分別完成，不需等美股閉環**，見下方完成紀錄。
+
+> **✅ 完成（2026-09-02 結案）**
+> 本步驟**不是由美股這條線做掉的**，而是被兩件其他工作分別完成：引擎層共用介面由
+> [多市場回測引擎架構](../docs/backtest/multi-market-engine.md) 完成，目錄歸位由
+> [命名軸線](../docs/dev/naming-axes.md) 收斂與台期貨規劃 Phase5-3 完成。
+>
+> **原本寫「剩 `api/`／`models/`／`strategies/`／`managers/`」，這句話兩個部分都不成立：**
+>
+> | 目錄 | 現況 | 說明 |
+> |------|------|------|
+> | `core/pipeline/` | `shared/` ＋ `tw/` | 2026-08-31 命名軸線收斂 |
+> | `core/api/` | `base.py` ＋ `tw/` | **2026-09-02 台期貨 Phase5-3 收斂** |
+> | `core/adapters/` | `tw/` | 同上 |
+> | `core/backtest/datafeed/` | `base.py` ＋ `tw/` | 同上 |
+> | `core/models/`／`core/strategies/`／`core/managers/` | `base/`＋`stock/`＋`futures/` | **承載軸 B（商品類別），本來就不該有 `us/`** |
+>
+> 後三者是[命名軸線](../docs/dev/naming-axes.md)〈落地位置〉表已定案的取捨——市場軸由
+> `BaseStrategy.market` 宣告、由 `core/backtest/factory.py` 的 `(market, instrument_type)`
+> 分派鍵表達，不由目錄承載。把 `us/` 加進去反而會破壞定案。
+>
+> **對美股的實際意義**：`core/pipeline/us/`、`core/api/us/`、`core/adapters/us/`、
+> `core/backtest/datafeed/us/` 可直接平行新增（Phase1-1）；美股策略則放進既有的
+> `core/strategies/stock/`，靠 `self.market = Market.US` 區分，**不需要新目錄**。
+>
+> **驗證**：台股回歸雙線（LONG ＋ 放空）逐筆相同、全套測試 687 綠。
 
 ---
 
@@ -298,8 +332,9 @@ core/
 ## 關聯與狀態
 
 - **優先級**：P3（長期架構規劃）
+- **進度**：1 / 9 項 ✅（Phase3-3，2026-09-02）；其餘 8 項 ⬜，**Phase1-1 可直接開工**
 - **相關程式**：`core/pipeline/`、`core/api/`、`core/backtest/`、`core/strategies/`、`core/models/`、`tasks/update_db.py`
 - **相關 backlog**：
-  - [台期貨ETL與回測架構規劃.md](台期貨ETL與回測架構規劃.md)（共用「平行市場模組、共享核心、不共享市場細節」原則）
+  - [台期貨平台](../docs/futures/tw-futures-platform.md)（共用「平行市場模組、共享核心、不共享市場細節」原則）
   - [多市場回測引擎架構 §5.1 事件驅動迴圈](../docs/backtest/multi-market-engine.md#51-事件驅動迴圈長期方向)（`engine/event_loop` 的長期方向對齊；原「回測引擎當沖執行順序重構」已完成並移出 `backlog/`）
   - [PostgreSQL遷移計畫.md](PostgreSQL遷移計畫.md)（美股資料量較大，建議 DB 遷移先收斂）

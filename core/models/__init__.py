@@ -5,6 +5,13 @@ from .base import (
     BaseQuote,
     BaseTradeRecord,
 )
+from .futures import (
+    FuturesAccount,
+    FuturesOrder,
+    FuturesPosition,
+    FuturesQuote,
+    FuturesTradeRecord,
+)
 from .stock import (
     StockAccount,
     StockOrder,

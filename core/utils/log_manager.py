@@ -5,7 +5,7 @@ from typing import Optional, Set
 
 from loguru import logger
 
-from core.config import BACKTEST_LOGS_DIR_PATH, LOGS_DIR_PATH
+from core.config import BACKTEST_LOGS_DIR_PATH, PIPELINE_LOGS_DIR_PATH
 
 
 class LogManager:
@@ -28,7 +28,7 @@ class LogManager:
 
         Args:
             log_file: Name of the log file (e.g., "update_tick.log")
-            log_dir: Directory to store log files. Defaults to LOGS_DIR_PATH.
+            log_dir: Directory to store log files. Defaults to PIPELINE_LOGS_DIR_PATH.
             rotation: When to rotate log files (e.g., "10 MB", "1 day")
             retention: How long to keep log files (e.g., "30 days", "10 files")
             level: Logging level (e.g., "DEBUG", "INFO", "WARNING", "ERROR")
@@ -38,9 +38,10 @@ class LogManager:
             LogManager.setup_logger("update_tick.log")
             LogManager.setup_logger("backtest.log", log_dir=BACKTEST_LOGS_DIR_PATH)
         """
-        # Use default log directory if not specified
+        # 未指定時落在 pipeline 桶：29 個呼叫端裡多數是爬取／清洗／入庫，
+        # 這樣改動面最小。`core/api/` 一律自行帶入 API_LOGS_DIR_PATH（見 config.py）
         if log_dir is None:
-            log_dir: Path = LOGS_DIR_PATH
+            log_dir: Path = PIPELINE_LOGS_DIR_PATH
 
         # Ensure log directory exists
         log_dir.mkdir(parents=True, exist_ok=True)

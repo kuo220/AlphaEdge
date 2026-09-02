@@ -8,7 +8,7 @@
 
 ## 概觀
 
-`Backtester` 是**唯一的回測引擎，市場無關，沒有子類**。市場之間的差異全部下沉為五個可插拔的 model，由 factory 依策略宣告的 `market` 組裝：
+`Backtester` 是**唯一的回測引擎，市場與商品皆無關，沒有子類**。兩者的差異全部下沉為五個可插拔的 model，由 factory 依策略宣告的 `market` ＋ `instrument_type` 組合組裝：
 
 ```
 Backtester                      ← 唯一引擎，市場無關，無子類（約 680 行）
@@ -21,7 +21,7 @@ Backtester                      ← 唯一引擎，市場無關，無子類（�
 
 這是 Backtrader `Cerebro`、Zipline `run_algorithm`、QuantConnect Lean `Engine`、Nautilus `BacktestEngine` 的一致做法：**引擎唯一，行為注入**。
 
-**新增一個市場不需要修改 `core/backtest/backtester.py` 一行。**
+**新增一個（市場, 商品）組合不需要修改 `core/backtest/backtester.py` 一行。**
 
 ---
 
@@ -45,6 +45,7 @@ Backtester                      ← 唯一引擎，市場無關，無子類（�
 | `accrue_holding_cost` | `SettlementModel` | `MarginInterestRateModel` |
 | `enforce_day_trade_cover` / `convert_to_margin_position` | `SettlementModel` | `SettlementModel` |
 | `snapshot_daily_equity` 的 `convert_lot_to_share` | `InstrumentSpec.to_units()` | `SymbolProperties.ContractMultiplier` |
+| `snapshot_daily_equity` 的**部位計價**（2026-09-02 追加） | `SettlementModel.mark_position()` | `BuyingPowerModel` |
 
 **關鍵洞察**：台股的「當沖日終強制回補」與期貨的「每日結算」，在架構上是**同一個掛點的兩種實作**——「一根 bar 收盤後，市場規則強制對部位做的事」。看出這點之後，切兩個引擎就沒有理由了。
 
@@ -110,9 +111,9 @@ def execute_bar(self, date: datetime.date, quotes: List[BaseQuote]) -> None:
 
 **已知限制**：Tick 級別的 `order.date` 只到「日」（`StockQuote.date` 對 tick 也是 `datetime.date`），因此同一 bar 內的 tick 委託無法依成交時間排序，會被壓成依代號排序。要恢復真正的時間序，得讓 `check_*_signal` 回傳帶時間戳的委託事件——屬事件迴圈的範圍，見 [§5.1](#51-事件驅動迴圈長期方向)。
 
-### 2.3 方向與市場是兩條獨立的軸
+### 2.3 方向與商品類別是兩條獨立的軸
 
-**方向（LONG／SHORT）與市場（股票／期貨）互不相干。** `validate_orders()`、`resolve_open_action()`、`resolve_close_action()` 與市場無關（期貨的多空語意與股票相同），一律留在引擎內。
+**方向（LONG／SHORT）與商品類別（股票／期貨）互不相干。** `validate_orders()`、`resolve_open_action()`、`resolve_close_action()` 與商品類別無關（期貨的多空語意與股票相同），一律留在引擎內。
 
 [放空回測框架規格](short-selling-framework.md) §1 原則 2「方向來自訂單，策略只做白名單」是本架構的**基礎**，不是被取代的對象。
 
@@ -128,7 +129,7 @@ def execute_bar(self, date: datetime.date, quotes: List[BaseQuote]) -> None:
 | | `core/backtest/models/settlement_model.py` | `BaseSettlementModel` ＋ `TwStockSettlementModel` |
 | 資料源 | `core/backtest/datafeed/base.py`／`tw_stock_datafeed.py`／`market_calendar.py` | `BaseDataFeed` ＋ `TwStockDataFeed` |
 | 資料模型 | `core/models/base/` | `BaseQuote`／`BaseOrder`／`BasePosition`／`BaseTradeRecord`／`BaseAccount`，識別欄位一律 `symbol` |
-| 策略 | `core/strategies/base.py` | `BaseStrategy`，`market` 欄位為 factory 的分派鍵 |
+| 策略 | `core/strategies/base.py` | `BaseStrategy`，`market` ＋ `instrument_type` 兩欄位為 factory 的分派鍵 |
 | 部位 | `core/managers/base/position_manager.py` | FIFO 拆單主幹 ＋ `settle_daily()` 掛點 |
 
 ---
@@ -152,18 +153,31 @@ model 之間刻意**不互相依賴**，需要共享的狀態以 dict 參照傳�
 
 `get_mark_price()` 屬 `BaseSettlementModel` 的介面方法而非 `FillModel`——**期貨的盯市價就是每日結算價**，本來就是結算模型的職責；引擎的 `snapshot_daily_equity()` 也用它算未實現損益。
 
+### `mark_position()`：引擎為期貨補開的唯一掛點（2026-09-02）
+
+台期貨 model 組（`docs/futures/tw-futures-platform.md` Phase1-6）落地時發現，
+`snapshot_daily_equity()` 有一段**不是市場無關的**：做多部位計入權益的金額寫死為
+「市價 × 計價單位」。那是**現金帳戶**的語意（買進即把現金換成標的），期貨是保證金交易
+——契約價值本身不佔用資金，部位價值只有「保證金 ＋ 尚未結算的損益」
+（TX 一口契約價值 900 萬、保證金只有 70 萬，沿用會讓權益曲線整段偏高一個數量級）。
+
+故該段下沉為 `BaseSettlementModel.mark_position()`：**預設實作即原本那段程式碼逐字不動**
+（台股走預設，LONG 915 筆與 SHORT 快照皆逐筆相同），`TwFuturesSettlementModel` 覆寫成
+保證金口徑。引擎那一段因此由 16 行變成 1 行呼叫，`snapshot_daily_equity()` 的其餘部分
+（逐日記錄、盯市價取得）維持市場無關。
+
 ---
 
-## 四、新增一個市場要做什麼
+## 四、新增一個（市場, 商品）組合要做什麼
 
-1. `core/models/<market>/`：繼承 `core/models/base/` 的五個 model（識別欄位用 `symbol`）。
-2. `core/strategies/<market>/base.py`：繼承 `BaseStrategy`，設定 `self.market`。
-3. `core/backtest/models/`：實作該市場的 `InstrumentSpec`／`FillModel`／`CostModel`／`SettlementModel`。
-4. `core/backtest/datafeed/`：實作該市場的 `DataFeed`。
-5. `core/managers/<market>/position_manager.py`：繼承 `BasePositionManager`，實作 `close_single_position()` 與 `settle_daily()`。
-6. `core/backtest/factory.py`：加一個 `elif strategy.market == Market.FUTURE:` 分支。
+1. `core/models/<instrument>/`：繼承 `core/models/base/` 的五個 model（識別欄位用 `symbol`）。
+2. `core/strategies/<instrument>/base.py`：繼承 `BaseStrategy`，設定 `self.market` 與 `self.instrument_type`。
+3. `core/backtest/models/`：實作該組合的 `InstrumentSpec`／`FillModel`／`CostModel`／`SettlementModel`（命名帶市場前綴，如 `TwStockSpec`）。
+4. `core/backtest/datafeed/`：實作該組合的 `DataFeed`。
+5. `core/managers/<instrument>/position_manager.py`：繼承 `BasePositionManager`，實作 `close_single_position()` 與 `settle_daily()`。
+6. `core/backtest/factory.py`：加一個 `elif (strategy.market, strategy.instrument_type) == (Market.TW, InstrumentType.FUTURE):` 分支。
 
-**既有檔案的改動量：`factory.py` 一個分支。** `backtester.py`、`StrategyLoader`、`run.py` 皆為 0 行——`StrategyLoader` 會自動掃描 `core/strategies/` 下的所有市場子套件，CLI 也不需要 `--market`（市場由策略類別自己宣告）。
+**既有檔案的改動量：`factory.py` 一個分支。** `backtester.py`、`StrategyLoader`、`run.py` 皆為 0 行——`StrategyLoader` 會自動掃描 `core/strategies/` 下的所有子套件，CLI 也不需要 `--market`（市場與商品皆由策略類別自己宣告）。
 
 > **注意**：`core/backtest/__init__.py` 與 `core/strategies/__init__.py` 刻意**不做套件層 eager import**。任何在此 re-export 的模組都會讓「引擎的相依項無法反向 import 引擎底下的模組」，兩處都因此發生過循環 import。呼叫端一律使用完整模組路徑。
 
@@ -265,7 +279,7 @@ model 之間刻意**不互相依賴**，需要共享的狀態以 dict 參照傳�
 | 回歸線 | 內容 | 需求 | 耗時 |
 |---|---|---|---|
 | SHORT | 12 組腳本情境、3 份快照（交易紀錄／期末未平倉部位／帳戶與事件計數） | 純記憶體，不連 DB | 0.06 秒 |
-| LONG | `MomentumStrategy1` 2024-01~06，915 筆 × 13 欄逐筆比對 | 需 `core/database/stock.db` | 約 54 秒 |
+| LONG | `MomentumStrategy1` 2024-01~06，915 筆 × 13 欄逐筆比對 | 需 `data/db/tw_stock.db` | 約 54 秒 |
 
 SHORT 的 12 組情境刻意各只動一個變因，任一情境快照有變即可直接指向出問題的掛點：當沖同日回補（稅率減半）、融券留倉 10 天、FIFO 部分回補的等比例攤提、維持率斷頭、當沖鎖漲停轉留倉、當沖遇停券回補日（釘住結算順序）、SBL 與 MARGIN 借券費對照、除權息停券日的 MARGIN／SBL 對照、跨除息日的股利補償（含部分回補攤提）。
 
@@ -295,6 +309,6 @@ SHORT 的 12 組情境刻意各只動一個變因，任一情境快照有變即�
 
 - [模組使用關係](module-map.md)——回測路徑上誰呼叫誰、逐檔案職責、輸出檔案與動手前的注意事項
 - [放空回測框架規格](short-selling-framework.md)——方向驅動的記帳原則，是本架構的基礎
-- `backlog/台期貨ETL與回測架構規劃.md`——期貨 model 組的實作（阻塞已解除）
+- `docs/futures/tw-futures-platform.md`——期貨 model 組的實作（阻塞已解除）
 - `backlog/美股ETL與回測架構規劃.md`——美股 model 組的實作（阻塞已解除）
 - [`core/backtest/README.md`](../../core/backtest/README.md)〈成交假設〉——滑價、成交量上限與券源檢核的使用說明（「回測引擎執行真實度補強」與「回測滑價與執行係數」均已於 2026-08-15 完成並移出 `backlog/`）

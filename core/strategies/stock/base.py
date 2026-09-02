@@ -2,11 +2,11 @@ import datetime
 from abc import abstractmethod
 from typing import Any, Dict, List, Optional
 
-from core.api.financial_statement_api import FinancialStatementAPI
-from core.api.monthly_revenue_report_api import MonthlyRevenueReportAPI
-from core.api.stock_chip_api import StockChipAPI
-from core.api.stock_price_api import StockPriceAPI
-from core.api.stock_tick_api import StockTickAPI
+from core.api.tw.financial_statement_api import FinancialStatementAPI
+from core.api.tw.monthly_revenue_report_api import MonthlyRevenueReportAPI
+from core.api.tw.stock_chip_api import StockChipAPI
+from core.api.tw.stock_price_api import StockPriceAPI
+from core.api.tw.stock_tick_api import StockTickAPI
 from core.backtest.datafeed.base import BaseDataFeed
 from core.backtest.models.cost_model import CostConfig, ShortConstraint
 from core.backtest.models.fill_model import FillConfig
@@ -16,6 +16,7 @@ from core.strategies.base import BaseStrategy
 from core.utils import (
     Action,
     DayTradeUncoveredPolicy,
+    InstrumentType,
     MarginCallPolicy,
     Market,
     ShortMethod,
@@ -31,12 +32,13 @@ class BaseStockStrategy(BaseStrategy):
         super().__init__()
 
         """ === Strategy Setting === """
-        self.market: str = Market.STOCK  # 市場別：台股
+        self.market: Market = Market.TW  # 市場：台灣
+        self.instrument_type: InstrumentType = InstrumentType.STOCK  # 商品：股票
 
         """
         === Short Setting ===
 
-        台股信用交易專屬；方向白名單與執行順序屬市場無關，已上移至 BaseStrategy
+        台股信用交易專屬；方向白名單與執行順序屬市場與商品皆無關，已上移至 BaseStrategy
         （`enable_intraday` 與 `bar_execution_order` 的對應表見 `BaseStrategy.__init__`
         的〈Direction Setting〉區塊，推導由 `Backtester.get_execution_order()` 執行）。
 
