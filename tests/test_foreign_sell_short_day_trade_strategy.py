@@ -517,5 +517,48 @@ def test_borrow_check_stays_disabled() -> None:
     assert config.short_constraint.check_borrowable is False
 
 
+# === 回補價：當日 vs 被迫留倉 ===
+def test_same_day_position_covers_at_close() -> None:
+    """當日開的部位照計畫等到尾盤，以收盤價回補"""
+
+    strategy: ForeignSellShortDayTradeStrategy = make_strategy()
+    strategy.account.positions.append(make_short_position(date=DAY_T))
+
+    orders: List[StockOrder] = strategy.check_close_signal([make_quote()])
+
+    assert len(orders) == 1
+    assert orders[0].price == 104.0  # 收盤價
+
+
+def test_carried_over_position_covers_at_open() -> None:
+    """
+    被迫留倉的部位以**開盤價**回補，不是收盤價
+
+    這種部位是「現股當沖沖賣沒補回來」才存在的，T+2 交割壓力與券商風控都要求
+    盡早了結。用收盤價等於給了它一個沒有的權利——**有權等待盤中跌回來**。
+    實測 10 筆留倉部位改用開盤價後合計少賺 267,670。
+    """
+
+    strategy: ForeignSellShortDayTradeStrategy = make_strategy()
+    strategy.account.positions.append(make_short_position(date=DAY_T1))
+
+    # 開高走低：開盤 121（跳空）、收盤 104
+    orders: List[StockOrder] = strategy.check_close_signal(
+        [make_quote(open=121.0, close=104.0)]
+    )
+
+    assert len(orders) == 1
+    assert orders[0].price == 121.0  # 開盤價，不是那個「跌回來」的收盤價
+
+
+def test_carried_over_still_skipped_when_locked() -> None:
+    """留倉部位若當日仍鎖漲停，一樣不送單——開盤也買不到"""
+
+    strategy: ForeignSellShortDayTradeStrategy = make_strategy()
+    strategy.account.positions.append(make_short_position(date=DAY_T1))
+
+    assert strategy.check_close_signal([make_quote(open=121.0, close=121.0)]) == []
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
