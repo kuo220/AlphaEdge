@@ -11,6 +11,7 @@ except ModuleNotFoundError:
 
 from core.api.base import BaseDataAPI
 from core.config import (
+    API_LOGS_DIR_PATH,
     DDB_HOST,
     DDB_PASSWORD,
     DDB_PORT,
@@ -54,7 +55,7 @@ class StockTickAPI(BaseDataAPI):
         else:
             print("* Database doesn't exist!")
 
-        LogManager.setup_logger("stock_tick_api.log")
+        LogManager.setup_logger("stock_tick_api.log", log_dir=API_LOGS_DIR_PATH)
 
     def get(
         self,

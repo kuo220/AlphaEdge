@@ -83,7 +83,7 @@ def isolate_downloads_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
     把 cleaner 的落地目錄導到暫存區
 
     cleaner 清完就把結果寫成 CSV，預設落在真實的
-    `core/pipeline/downloads/tw_futures/universe/`——本檔的 fixture 只有 5 列，
+    `data/downloads/tw_futures/universe/`——本檔的 fixture 只有 5 列，
     跑一次測試就會把同名的真實快照整份覆蓋掉，且不會有任何徵兆。
     """
 

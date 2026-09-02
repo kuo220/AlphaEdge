@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional
 import pandas as pd
 
 from core.api.base import BaseDataAPI
-from core.config import MARGIN_TABLE_NAME, TW_STOCK_DB_PATH
+from core.config import API_LOGS_DIR_PATH, MARGIN_TABLE_NAME, TW_STOCK_DB_PATH
 from core.pipeline.utils.sqlite_utils import SQLiteUtils
 from core.utils.log_manager import LogManager
 
@@ -27,7 +27,7 @@ class StockMarginAPI(BaseDataAPI):
 
         if self.owns_conn:
             self.conn = sqlite3.connect(TW_STOCK_DB_PATH)
-        LogManager.setup_logger("stock_margin_api.log")
+        LogManager.setup_logger("stock_margin_api.log", log_dir=API_LOGS_DIR_PATH)
 
     def get(self, date: datetime.date) -> pd.DataFrame:
         """取得所有股票指定日期的信用交易資料"""

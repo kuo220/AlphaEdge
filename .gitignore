@@ -9,18 +9,27 @@ __pycache__/
 !.env.example
 
 
-# db
-*.db
+# 執行期產物：程式寫出來的東西一律在這三個目錄底下，`core/` 只放原始碼
+# （分界與判準見 docs/dev/runtime-artifacts.md）
+data/
+results/
+logs/
 
-# Shioaji
+# 研究產物：strategy_lab 各研究自己的 output/，不與主線的 results/ 混放
+strategy_lab/**/output/
+
+# 測試產物：fixture 資料庫、下載暫存、一次性比對輸出
+tests/database/
+tests/downloads/
+tests/temp/
+tests/backtest/cost_formula_diff.csv
+
+# 上面四條原本是被全 repo 的 `*.csv`／`*.png` 封鎖順手蓋掉的。改成逐項列出後，
+# 每一條都說得出是什麼、為什麼不進版控——而 tests/backtest/snapshots/*.csv
+# （回歸護欄）也不再需要一條負向例外把它從封鎖中撈回來
+
+# Shioaji（第三方套件會往當時的工作目錄寫，擋不住來源只能擋檔名）
 shioaji.log
-
-*.csv
-*.png
-*.log
-
-# 回歸 baseline 例外：這是引擎重構期間唯一的行為護欄，不進版控等於沒有護欄
-!tests/backtest/snapshots/*.csv
 
 # Downloads Content
 Downloads/*
@@ -28,9 +37,6 @@ Downloads/*
 # MkDocs
 site/
 .cache/
-
-# broker_trading_metadata
-broker_trading_metadata.json
 
 # macOS / 編輯器產物
 # 不要只依賴 global gitignore——協作者的全域設定不會跟著 repo 走

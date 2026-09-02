@@ -676,7 +676,7 @@ python run.py --mode live --strategy MomentumStrategy1
 
 ### 回測結果
 
-回測完成後，結果會儲存在 `core/backtest/results/<StrategyName>/` 目錄（檔名一律以策略名稱為前綴）：
+回測完成後，結果會儲存在 `results/<StrategyName>/` 目錄（檔名一律以策略名稱為前綴）：
 
 1. **報表 CSV**:
    - `<StrategyName>_trading_report.csv` - 已平倉交易的逐筆明細與損益統計
@@ -688,7 +688,7 @@ python run.py --mode live --strategy MomentumStrategy1
    - `<StrategyName>_networth.png` - 策略與 benchmark（`0050`）淨值比較圖
    - `<StrategyName>_mdd.png` - 最大回撤圖
    - `<StrategyName>_everyday_profit.png` - 每日損益圖
-3. **日誌檔案** - 落在 `core/backtest/results/logs/`
+3. **日誌檔案** - 落在 `logs/backtest/`
 
 各檔案由哪個方法產生，見[模組使用關係 §4](../../docs/backtest/module-map.md)。
 

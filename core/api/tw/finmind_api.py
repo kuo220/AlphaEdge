@@ -6,6 +6,7 @@ import pandas as pd
 
 from core.api.base import BaseDataAPI
 from core.config import (
+    API_LOGS_DIR_PATH,
     SECURITIES_TRADER_INFO_TABLE_NAME,
     STOCK_INFO_TABLE_NAME,
     STOCK_INFO_WITH_WARRANT_TABLE_NAME,
@@ -53,7 +54,7 @@ class FinMindAPI(BaseDataAPI):
         """設定連線與 log"""
 
         self.conn = sqlite3.connect(TW_STOCK_DB_PATH)
-        LogManager.setup_logger("finmind_api.log")
+        LogManager.setup_logger("finmind_api.log", log_dir=API_LOGS_DIR_PATH)
 
     # -----------------------------------------------------------------------
     # 台股總覽 (taiwan_stock_info)

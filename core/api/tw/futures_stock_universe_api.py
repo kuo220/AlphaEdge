@@ -6,6 +6,7 @@ import pandas as pd
 
 from core.api.base import BaseDataAPI
 from core.config import (
+    API_LOGS_DIR_PATH,
     FUTURES_PRICE_DAILY_TABLE_NAME,
     FUTURES_STOCK_UNIVERSE_TABLE_NAME,
     TW_FUTURES_DB_PATH,
@@ -53,7 +54,9 @@ class FuturesStockUniverseAPI(BaseDataAPI):
 
         if self.owns_conn:
             self.conn = sqlite3.connect(TW_FUTURES_DB_PATH)
-        LogManager.setup_logger("futures_stock_universe_api.log")
+        LogManager.setup_logger(
+            "futures_stock_universe_api.log", log_dir=API_LOGS_DIR_PATH
+        )
 
     # === 快照查詢 ===
     def get_snapshot_date(self, date: Optional[datetime.date] = None) -> Optional[str]:

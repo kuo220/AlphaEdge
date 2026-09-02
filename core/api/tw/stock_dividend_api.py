@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from core.api.base import BaseDataAPI
-from core.config import DIVIDEND_TABLE_NAME, TW_STOCK_DB_PATH
+from core.config import API_LOGS_DIR_PATH, DIVIDEND_TABLE_NAME, TW_STOCK_DB_PATH
 from core.utils.log_manager import LogManager
 
 """
@@ -40,7 +40,7 @@ class StockDividendAPI(BaseDataAPI):
 
         if self.owns_conn:
             self.conn = sqlite3.connect(TW_STOCK_DB_PATH)
-        LogManager.setup_logger("stock_dividend_api.log")
+        LogManager.setup_logger("stock_dividend_api.log", log_dir=API_LOGS_DIR_PATH)
 
     def get(self, date: datetime.date) -> pd.DataFrame:
         """取得所有股票指定日期的除權除息資料"""

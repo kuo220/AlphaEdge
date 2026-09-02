@@ -161,7 +161,7 @@ def fetch_panel(start: dt.date, end: dt.date) -> Tuple[pd.DataFrame, pd.DataFram
     if tw_df.empty:
         raise RuntimeError(
             f"No DB price rows for {tw_id} between {start} and {end}. "
-            "Populate core/database price table to match backtester."
+            "Populate data/db price table to match backtester."
         )
     tw_df = tw_df.sort_values("date").reset_index(drop=True)
     tw_df["date"] = pd.to_datetime(tw_df["date"]).dt.normalize()

@@ -153,7 +153,7 @@ margin 回補已爬 3,790 個 CSV 後中斷，DB 仍為 0 列——因為入庫�
 `margin` 的主鍵是 `(date, stock_id)`，同一情況會直接撞鍵——這正是 4.2 那 2 個檔案失敗的原因。
 
 **教訓**：主鍵若無法唯一識別商品，衝突不是「會不會發生」而是「什麼時候發現」。
-資料已修正（`dev/scripts/fix_price_etf_stock_id.py`），並在
+資料已修正（`scripts/fix_price_etf_stock_id.py`），並在
 `StockQuoteAdapter.warn_duplicate_symbols()` 加了防護，讓同一 bar 內的重複代號不再靜默。
 
 ### 4.5 「連續 N 筆都沒資料」不能當成「整批都沒資料」

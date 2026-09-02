@@ -36,12 +36,12 @@ graph TB
         API["core/api"]
         Adapters["core/adapters"]
         Pipeline["core/pipeline"]
-        DB["core/database"]
+        DB["data/db"]
         Data["core/data"]
     end
 
     subgraph output_layer ["Backtest Outputs"]
-        Results["core/backtest/results"]
+        Results["results"]
     end
 
     subgraph frontend_layer ["Frontend (Streamlit)"]
@@ -178,7 +178,7 @@ the backtest and ETL paths run without them.
 ruff check .            # CLAUDE.md §2.5 / §2.10, configured in pyproject.toml
 ruff format .
 pytest -m "not slow"    # skips tests needing tw_stock.db or API credentials
-pytest                  # full suite (needs core/database/tw_stock.db)
+pytest                  # full suite (needs data/db/tw_stock.db)
 ./scripts/run_regression.sh   # LONG + SHORT regression, must stay row-identical
 ```
 

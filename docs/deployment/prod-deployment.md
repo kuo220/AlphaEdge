@@ -19,18 +19,18 @@ docker build -f frontend/Dockerfile -t alphaedge-frontend .
 建議至少準備：
 
 - `.env`（可由 `.env.example` 複製）
-- `core/database/`
+- `data/db/`
 - `core/data/`
-- `core/backtest/results/`
+- `results/`
 
 ## 3) 執行 core 容器（回測）
 
 ```bash
 docker run --rm \
   --name alphaedge-core-run \
-  -v "$(pwd)/core/database:/app/core/database" \
+  -v "$(pwd)/data/db:/app/data/db" \
   -v "$(pwd)/core/data:/app/core/data" \
-  -v "$(pwd)/core/backtest/results:/app/core/backtest/results" \
+  -v "$(pwd)/results:/app/results" \
   --env-file .env \
   alphaedge-core --strategy MomentumStrategy1
 ```
@@ -43,7 +43,7 @@ docker run --rm \
 docker run --rm -d \
   --name alphaedge-frontend \
   -p 8501:8501 \
-  -v "$(pwd)/core/backtest/results:/results:ro" \
+  -v "$(pwd)/results:/results:ro" \
   -e ALPHAEDGE_BACKTEST_RESULTS=/results \
   alphaedge-frontend
 ```
@@ -52,7 +52,7 @@ docker run --rm -d \
 
 - **資料更新節點**：定時執行 `python -m tasks.update_db ...`
 - **回測節點**：執行 `run.py --strategy ...`
-- **展示節點**：掛載唯讀的 `core/backtest/results` 給前端
+- **展示節點**：掛載唯讀的 `results` 給前端
 
 ## 6) 健康檢查與維運
 

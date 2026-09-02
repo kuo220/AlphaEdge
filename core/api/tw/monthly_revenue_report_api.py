@@ -5,6 +5,7 @@ import pandas as pd
 
 from core.api.base import BaseDataAPI
 from core.config import (
+    API_LOGS_DIR_PATH,
     MONTHLY_REVENUE_TABLE_NAME,
     TW_STOCK_DB_PATH,
 )
@@ -28,7 +29,9 @@ class MonthlyRevenueReportAPI(BaseDataAPI):
 
         if self.owns_conn:
             self.conn = sqlite3.connect(TW_STOCK_DB_PATH)
-        LogManager.setup_logger("monthly_revenue_report_api.log")
+        LogManager.setup_logger(
+            "monthly_revenue_report_api.log", log_dir=API_LOGS_DIR_PATH
+        )
 
     def get(
         self,

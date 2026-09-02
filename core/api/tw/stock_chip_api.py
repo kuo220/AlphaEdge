@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional
 import pandas as pd
 
 from core.api.base import BaseDataAPI
-from core.config import CHIP_TABLE_NAME, TW_STOCK_DB_PATH
+from core.config import API_LOGS_DIR_PATH, CHIP_TABLE_NAME, TW_STOCK_DB_PATH
 from core.pipeline.utils.constant import ChipColumn
 from core.utils.log_manager import LogManager
 
@@ -27,7 +27,7 @@ class StockChipAPI(BaseDataAPI):
 
         if self.owns_conn:
             self.conn = sqlite3.connect(TW_STOCK_DB_PATH)
-        LogManager.setup_logger("stock_chip_api.log")
+        LogManager.setup_logger("stock_chip_api.log", log_dir=API_LOGS_DIR_PATH)
 
     def get(self, date: datetime.date) -> pd.DataFrame:
         """取得所有股票指定日期的三大法人籌碼"""
@@ -88,6 +88,27 @@ class StockChipAPI(BaseDataAPI):
         return df
 
     # === 具名查詢：策略層一律走這一組，不要自行操作 DataFrame 欄位 ===
+    def get_foreign_net_shares_map(self, date: datetime.date) -> Dict[str, Any]:
+        """
+        - Description:
+            取得單日全市場的外資買賣超股數對照表
+
+            **值為買賣超，賣超是負數**；單位是「股」不是「張」，呼叫端要比較
+            張數門檻時須自行乘 `Units.LOT`，不要直接拿張數與本值相比。
+
+            取值細節見 `BaseDataAPI.build_column_map()`；值維持資料庫原樣，
+            由呼叫端決定如何轉型與判斷。
+        - Parameters:
+            - date: datetime.date
+                查詢日期
+        - Return:
+            - Dict[str, Any]
+                {stock_id: 外資買賣超股數}
+        """
+
+        df: pd.DataFrame = self.get(date)
+        return self.build_column_map(df, ChipColumn.FOREIGN_NET_SHARES.value)
+
     def get_trust_net_shares_map(self, date: datetime.date) -> Dict[str, Any]:
         """
         - Description:

@@ -53,7 +53,7 @@
 | `core/api/`、`core/adapters/`、`core/backtest/datafeed/` | **目錄只承載市場一條軸**（`tw/`），商品類別由檔名承載（`stock_price_api.py` vs `futures_price_api.py`）；類別名仍是「地區 ＋ 商品」（`TwStockDataFeed`）。2026-09-02 由台期貨規劃 Phase5-3 收斂 |
 | `core/pipeline/{shared,tw}/` | 目錄**只承載軸 A**（`tw/`，未來 `us/`）；商品類別由檔名承載（`stock_price_crawler.py` vs `futures_price_crawler.py`）。base 類別放 `shared/`，否則 `us/` 會反過來相依 `tw/` |
 | `core/strategies/`、`core/models/`、`core/managers/` | 子目錄承載**軸 B**（`base/` ＋ `stock/`，未來 `futures/`）。`strategy_loader` 逐一掃描這些子套件，新增商品類別不需改程式 |
-| `core/database/` | 檔名帶軸 A：`tw_stock.db`、`tw_futures.db`（常數 `TW_STOCK_DB_PATH`／`TW_FUTURES_DB_PATH`） |
+| `data/db/` | 檔名帶軸 A：`tw_stock.db`、`tw_futures.db`（常數 `TW_STOCK_DB_PATH`／`TW_FUTURES_DB_PATH`） |
 | `core/pipeline/tw/crawlers/financial_statement_crawler.py` | `self.listing_boards`（軸 C） |
 | `core/pipeline/tw/crawlers/monthly_revenue_report_crawler.py` | `self.issuer_origins`（軸 D）；TWSE／TPEX 的區分由呼叫端各自的迴圈決定，不是清單內容 |
 | `core/pipeline/utils/url_manager.py` | URL 樣板佔位符 `{issuer_origin}` |
@@ -99,7 +99,7 @@
 
 | 項目 | 現況 | 歸屬 |
 |------|------|------|
-| `core/pipeline/downloads/` | 仍是 `tw_stock/`／`tw_futures/` 的壓縮形式。純目錄名的話 `tw/stock/` 才與程式碼側同構，但那是第二次資料搬遷，不值得為一致性單獨做 | 待 PostgreSQL 遷移或下次動 `downloads/` 時順手收斂 |
+| `data/downloads/` | 仍是 `tw_stock/`／`tw_futures/` 的壓縮形式。純目錄名的話 `tw/stock/` 才與程式碼側同構，但那是第二次資料搬遷，不值得為一致性單獨做 | 待 PostgreSQL 遷移或下次動 `downloads/` 時順手收斂 |
 | 資料表欄位語言 | **已於 2026-09-01 定案**：跟著**資料來源**走，不跟市場走——交易所網頁／檔案爬來的保留中文欄，API 來源用其原始英文欄。分界線本來就是來源（15 張表中已有 5 張全英文） | 規則與理由見 [ETL 入庫約定 §3.4](../pipeline/etl-ingestion.md) |
 | `core/utils/instrument.py` 的 `StockUtils` 歸屬 | 未動 | 取捨表在 [多市場回測引擎架構](../backtest/multi-market-engine.md) |
 | `stock_id` → `symbol` 的資料層改名 | 未動，本次刻意不做 | 歸 `backlog/PostgreSQL遷移計畫.md` 的 schema 批次 |

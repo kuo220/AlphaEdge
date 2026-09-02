@@ -2,7 +2,7 @@
 name: frontend
 description: >-
   Builds and maintains the AlphaEdge Streamlit viewer under frontend/ for
-  read-only backtest reports (CSV, PNG, logs) from core/backtest/results.
+  read-only backtest reports (CSV, PNG, logs) from results.
   Use when the user mentions frontend, Streamlit, backtest dashboard, report
   viewer, or UI for backtest results.
 ---
@@ -15,7 +15,7 @@ description: >-
 
 ## 資料來源（固定對齊文件）
 
-- 結果根目錄預設：`core/backtest/results/<StrategyName>/`（與 `README.md` / `README_zh.md` 一致）。
+- 結果根目錄預設：`results/<StrategyName>/`（與 `README.md` / `README_zh.md` 一致）。
 - 常見產物檔名（若不存在則 UI 顯示提示，勿崩潰）：
   - `trading_report.csv`
   - `balance_curve.png`
@@ -40,7 +40,7 @@ frontend/
 
 ## 實作原則
 
-1. **唯讀**：預設不寫入 `core/backtest/results`。
+1. **唯讀**：預設不寫入 `results`。
 2. **解耦**：`frontend` 不依賴 `core` 套件匯入亦可運作；僅讀檔與路徑即可。
 3. **版面**：`layout="wide"`；側欄選策略子資料夾；主區用 Tabs：總覽、明細表、圖表、下載（可選）。
 4. **圖表**：先以 `st.image` 顯示 PNG；日後若要互動圖再評估 Plotly 或呼叫 reporter（另開議題）。
@@ -48,7 +48,7 @@ frontend/
 
 ## 工作流程檢查
 
-- [ ] 側欄能列出 `core/backtest/results` 下子資料夾並選取
+- [ ] 側欄能列出 `results` 下子資料夾並選取
 - [ ] `trading_report.csv` 可顯示（含中文欄位）
 - [ ] 各 PNG 存在則顯示，缺檔有提示
 - [ ] `frontend/README.md` 含啟動指令與環境變數說明

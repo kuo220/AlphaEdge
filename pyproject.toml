@@ -49,12 +49,8 @@ lab = ["python-docx>=1.2"]  # strategy_lab/ 的報告輸出
 namespaces = true
 include = ["core*", "tasks*", "tests*"]
 exclude = [
-    # 資料與產出目錄：會被 namespace 掃描當成套件，實際上不含任何 .py
-    "core.database*",
-    "core.logs*",
-    "core.data*",
-    "core.pipeline.downloads*",
-    "core.backtest.results*",
+    # 測試 fixture 目錄：會被 namespace 掃描當成套件，實際上不含任何 .py。
+    # `core.*` 的產物排除項已於執行期產物重整後全數刪除——那些目錄不在 core/ 底下了
     "tests.database*",
     "tests.downloads*",
     "tests.temp*",
@@ -64,9 +60,6 @@ exclude = [
 line-length = 88  # CLAUDE.md §2.10
 target-version = "py312"
 extend-exclude = [
-    "core/pipeline/downloads",
-    "core/backtest/results",
-    "core/logs",
     "kuo_test.ipynb",
     # ruff 0.16 起會連 Markdown 內的 Python 程式碼區塊一起格式化。
     # 文件裡的範例常刻意對齊註解以利閱讀，被重排只會製造與本工作無關的 diff；
@@ -156,9 +149,6 @@ markers = [
 source = ["core"]
 omit = [
     "*/__pycache__/*",
-    "core/pipeline/downloads/*",
-    "core/backtest/results/*",
-    "core/logs/*",
 ]
 
 [tool.coverage.report]

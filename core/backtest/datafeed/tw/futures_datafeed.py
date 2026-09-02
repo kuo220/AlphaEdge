@@ -77,7 +77,7 @@ class TwFuturesDataFeed(BaseDataFeed):
         """建立資料 API 並記下策略宣告的商品與時段"""
 
         # **先確保目錄存在再連線**：全新環境（CI、剛 clone 的機器）沒有
-        # `core/database/`，`sqlite3.connect()` 會丟出
+        # `data/db/`，`sqlite3.connect()` 會丟出
         # `unable to open database file`——那個訊息完全看不出是「目錄不存在」。
         # 與各 loader 同一種作法；此時開出來的是空 DB，查詢一律回空結果
         TW_FUTURES_DB_PATH.parent.mkdir(parents=True, exist_ok=True)

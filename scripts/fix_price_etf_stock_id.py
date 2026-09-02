@@ -31,8 +31,8 @@
 
 ## 使用方式
 
-    python dev/scripts/fix_price_etf_stock_id.py --dry-run   # 只報告不寫入
-    python dev/scripts/fix_price_etf_stock_id.py
+    python scripts/fix_price_etf_stock_id.py --dry-run   # 只報告不寫入
+    python scripts/fix_price_etf_stock_id.py
 
 本腳本是**冪等**的：改號後再次執行不會有任何待改列。
 """

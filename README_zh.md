@@ -36,12 +36,12 @@ graph TB
         API["core/api"]
         Adapters["core/adapters"]
         Pipeline["core/pipeline"]
-        DB["core/database"]
+        DB["data/db"]
         Data["core/data"]
     end
 
     subgraph output_layer ["回測輸出層"]
-        Results["core/backtest/results"]
+        Results["results"]
     end
 
     subgraph frontend_layer ["前端層（Streamlit）"]
@@ -171,7 +171,7 @@ python -m pip install -e ".[dev]"   # pytest、pytest-timeout、pytest-cov、ruf
 ruff check .            # 設定於 pyproject.toml，對應 CLAUDE.md §2.5／§2.10
 ruff format .
 pytest -m "not slow"    # 略過需要 tw_stock.db 或 API 憑證的測試
-pytest                  # 全部（需 core/database/tw_stock.db）
+pytest                  # 全部（需 data/db/tw_stock.db）
 ./scripts/run_regression.sh   # LONG ＋ SHORT 回歸，必須逐筆相同
 ```
 

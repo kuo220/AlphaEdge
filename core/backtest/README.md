@@ -261,7 +261,7 @@ for stock_quote, ref_price, open_volume in self.sizer.size(
 
 ### 儲存位置
 
-回測結果儲存路徑：`core/backtest/results/<StrategyName>/`
+回測結果儲存路徑：`results/<StrategyName>/`
 
 ## 績效指標
 
@@ -308,7 +308,7 @@ python run.py --mode live --strategy MomentumStrategy1
 - Strategy Name 是 Class 的名稱
 - 策略會自動從 `core/strategies/stock/` 目錄載入
 - 回測前請確認資料庫中有所需的資料（使用 `python -m tasks.update_db` 更新資料）
-- 回測結果會儲存在 `core/backtest/results/<StrategyName>/` 目錄
+- 回測結果會儲存在 `results/<StrategyName>/` 目錄
 
 ## 相關文檔
 

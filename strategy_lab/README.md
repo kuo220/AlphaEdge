@@ -120,7 +120,7 @@ ideas/           data_analysis/      strategies/<name>/      core/strategies/sto
 
 ### StockPriceAPI — 日線價格資料 (SQLite)
 
-來源：`core/database/tw_stock.db` 之 price 表。
+來源：`data/db/tw_stock.db` 之 price 表。
 
 ```python
 import datetime
@@ -343,7 +343,7 @@ InstrumentType.STOCK, InstrumentType.FUTURE, InstrumentType.OPTION  # 商品類�
 | 海外 ADR / FX  | yfinance       | 直接 `import yfinance as yf`  | 即時抓取（無本地表）                       |
 | 交易日／前一日 | 視 API 而定   | `MarketCalendar`              | 透過 `StockPriceAPI` 推算                 |
 
-> **資料庫位置**：`core/database/tw_stock.db`（SQLite）。
+> **資料庫位置**：`data/db/tw_stock.db`（SQLite）。
 > 想知道目前 DB 內有哪些表，可以快速跑：
 >
 > ```python
@@ -463,7 +463,7 @@ print(realistic_pnl(600.0, 620.0, 5))
    ```bash
    .venv/bin/python run.py --strategy <YourStrategyName>
    ```
-4. 結果會落到 `core/backtest/results/<YourStrategyName>/`，
+4. 結果會落到 `results/<YourStrategyName>/`，
    會自動產出 `balance_curve.png / balance_mdd.png / trading_report.csv` 等標準報表。
 
 > 詳細的「怎麼寫 `BaseStockStrategy` 子類別」請看 [`core/strategies/README.md`](../core/strategies/README.md)。

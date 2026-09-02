@@ -23,7 +23,7 @@
               ├── core/managers/             部位進出與帳務
               └── core/backtest/report/      報表與圖表
               │
-資料層      core/api/ ── core/adapters/ ── core/database/
+資料層      core/api/ ── core/adapters/ ── data/db/
               │
 領域層      core/models/（帳戶、訂單、部位、報價、交易紀錄）
 共用層      core/utils/（enum、路徑、時間、日誌、StockUtils）
@@ -151,7 +151,7 @@ sequenceDiagram
 
 ## 四、輸出檔案
 
-全部落在 `core/backtest/results/<策略名稱>/`：
+全部落在 `results/<策略名稱>/`：
 
 | 檔案 | 內容 | 產生者 |
 |------|------|--------|
@@ -165,7 +165,7 @@ sequenceDiagram
 | `<策略>_everyday_profit.png` | 每日損益長條圖（**已實現口徑**） | `plot_everyday_profit()` |
 | `<策略>_everyday_equity_change.png` | 每日權益變化（**盯市口徑**，無 `daily_equity` 時不產出） | `plot_everyday_equity_change()` |
 
-日誌落在 `core/backtest/results/logs/`。
+日誌落在 `logs/backtest/`。
 
 ### 權益曲線的兩種口徑
 

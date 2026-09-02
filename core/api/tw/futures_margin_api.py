@@ -4,6 +4,7 @@ from typing import Dict, Optional
 
 from core.api.base import BaseDataAPI
 from core.config import (
+    API_LOGS_DIR_PATH,
     FUTURES_MARGIN_HISTORY_TABLE_NAME,
     FUTURES_STOCK_UNIVERSE_TABLE_NAME,
     STOCK_FUTURES_MARGIN_RATE_HISTORY_TABLE_NAME,
@@ -61,7 +62,7 @@ class FuturesMarginAPI(BaseDataAPI):
 
         if self.owns_conn:
             self.conn = sqlite3.connect(TW_FUTURES_DB_PATH)
-        LogManager.setup_logger("futures_margin_api.log")
+        LogManager.setup_logger("futures_margin_api.log", log_dir=API_LOGS_DIR_PATH)
 
     # === 金額型（指數期貨 ＋ ETF 股期）===
     def get_margin(

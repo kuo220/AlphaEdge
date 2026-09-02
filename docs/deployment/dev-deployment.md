@@ -51,7 +51,7 @@ python run.py --strategy MomentumStrategy1
 
 回測結果輸出在：
 
-- `core/backtest/results/<StrategyName>/`
+- `results/<StrategyName>/`
 
 通常包含：
 
@@ -69,7 +69,7 @@ python run.py --strategy MomentumStrategy1
 | `<StrategyName>_everyday_profit.png` | 每日損益 |
 | `<StrategyName>_everyday_equity_change.png` | 每日權益變化 |
 
-日誌另外落在 `core/backtest/results/logs/`。
+日誌另外落在 `logs/backtest/`。
 
 ## 5) 常用維運指令
 

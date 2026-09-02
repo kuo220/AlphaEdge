@@ -57,7 +57,7 @@ cp .env.example .env
 多數目錄會在執行時自動建立；若要先手動準備可建立：
 
 ```bash
-mkdir -p core/database core/data core/logs core/backtest/results
+mkdir -p data/db core/data logs/pipeline results
 ```
 
 ## 5) 基本驗證

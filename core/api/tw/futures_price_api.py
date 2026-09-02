@@ -6,7 +6,11 @@ import pandas as pd
 from loguru import logger
 
 from core.api.base import BaseDataAPI
-from core.config import FUTURES_PRICE_DAILY_TABLE_NAME, TW_FUTURES_DB_PATH
+from core.config import (
+    API_LOGS_DIR_PATH,
+    FUTURES_PRICE_DAILY_TABLE_NAME,
+    TW_FUTURES_DB_PATH,
+)
 from core.pipeline.utils.constant import FuturesPriceColumn
 from core.utils.constant import FuturesSession
 from core.utils.log_manager import LogManager
@@ -45,7 +49,7 @@ class FuturesPriceAPI(BaseDataAPI):
 
         if self.owns_conn:
             self.conn = sqlite3.connect(TW_FUTURES_DB_PATH)
-        LogManager.setup_logger("futures_price_api.log")
+        LogManager.setup_logger("futures_price_api.log", log_dir=API_LOGS_DIR_PATH)
 
     @staticmethod
     def build_session_filter(

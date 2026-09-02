@@ -30,7 +30,7 @@ python -m pip install -e ".[dev]"           # 追加 pytest / pytest-cov / ruff
 ruff check .                        # lint
 ruff format .                       # 格式化
 pytest -m "not slow"                # 略過需要 tw_stock.db 與外部 API 的測試
-pytest                              # 全部（需 core/database/tw_stock.db）
+pytest                              # 全部（需 data/db/tw_stock.db）
 ./scripts/run_regression.sh         # LONG ＋ SHORT 回歸，必須逐筆相同
 ```
 
@@ -175,7 +175,7 @@ pytest                              # 全部（需 core/database/tw_stock.db）
 
 ### 4.2 CI 只能跑 `-m "not slow"`
 
-`core/database/tw_stock.db` 未進版控（`.gitignore` 有 `*.db`），CI 也沒有 Shioaji／FinMind 金鑰。
+`data/db/tw_stock.db` 未進版控（`.gitignore` 有 `*.db`），CI 也沒有 Shioaji／FinMind 金鑰。
 需要這些的測試一律標 `@pytest.mark.slow` 或 `pytestmark = pytest.mark.slow`。
 
 目前標為 slow 的有：`test_long_regression.py`、`test_short_regression.py`（需 `tw_stock.db`）。
@@ -206,7 +206,7 @@ pytest                              # 全部（需 core/database/tw_stock.db）
 驗證 CI 是否真的會綠，可用「移除資料庫與金鑰的副本」在本機模擬：
 
 ```bash
-rsync -a --exclude='.venv' --exclude='.git' --exclude='core/database' --exclude='.env' ./ /tmp/cisim/
+rsync -a --exclude='.venv' --exclude='.git' --exclude='data/db' --exclude='.env' ./ /tmp/cisim/
 cd /tmp/cisim && env -u API_KEY -u API_SECRET_KEY python -m pytest tests -q -m "not slow"
 ```
 
@@ -233,7 +233,7 @@ chflags nohidden .venv .venv/lib/python3.12/site-packages \
 的獨立腳本時，直接指定 `PYTHONPATH`：
 
 ```bash
-PYTHONPATH=. python dev/scripts/some_script.py
+PYTHONPATH=. python scripts/some_script.py
 ```
 
 從 repo 根目錄執行 `python -m pytest` 或 `python run.py` 不受影響（cwd 會進 `sys.path`）。

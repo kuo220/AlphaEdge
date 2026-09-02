@@ -330,7 +330,7 @@ def main() -> int:
         if any(part in SKIP_DIRS for part in path.parts):
             continue
         rel = path.relative_to(ROOT)
-        if str(rel).startswith("dev/scripts/dataframe_dot_to_bracket.py"):
+        if str(rel).startswith("scripts/dataframe_dot_to_bracket.py"):
             continue
         text = path.read_text(encoding="utf-8")
         new_text = transform_source(text, path, reserved)

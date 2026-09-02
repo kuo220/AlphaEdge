@@ -116,5 +116,5 @@ strategies/<your_topic>/
 .venv/bin/python run.py --strategy <YourStrategyName>
 ```
 
-結果會落到 `core/backtest/results/<YourStrategyName>/`，
+結果會落到 `results/<YourStrategyName>/`，
 含 `balance_curve.png`、`balance_mdd.png`、`trading_report.csv` 等標準報表。

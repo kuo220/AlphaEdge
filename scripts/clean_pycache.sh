@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# 🔍 取得此腳本實際所在的目錄（即 dev/scripts）
+# 🔍 取得此腳本實際所在的目錄（即 scripts/）
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# 🔙 推回到 AlphaEdge 根目錄（上兩層）
-ROOT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
+# 🔙 推回到 AlphaEdge 根目錄（上一層）
+ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 
 echo "📂 現在從 AlphaEdge 根目錄：$ROOT_DIR 開始清理..."
 

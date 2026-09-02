@@ -59,8 +59,8 @@ def generate_api_doc_markdown(api_class_name: str, docstrings: Dict) -> str:
 
 def main():
     """主函數"""
-    # 從 dev/scripts/ 回到專案根目錄（需要上三層）
-    project_root = Path(__file__).parent.parent.parent
+    # 從 scripts/ 回到專案根目錄
+    project_root = Path(__file__).resolve().parent.parent
     api_dir = project_root / "core" / "api"
     docs_dir = project_root / "docs" / "api" / "data"
 
