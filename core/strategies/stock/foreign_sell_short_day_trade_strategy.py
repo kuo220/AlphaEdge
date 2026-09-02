@@ -130,10 +130,11 @@ class ForeignSellShortDayTradeStrategy(BaseStockStrategy):
         # short_method 不設：當沖時由 factory 強制為 DAY_TRADE
         # cost_config 不設：設了會讓 factory 跳過 is_day_trade 的推導，當沖稅率減半失效
         #
-        # **short_constraint 的 check_borrowable 一定要維持關閉**：
-        # `TwStockFillModel.check_short_borrowable()` 只看「賣出 ＋ SHORT」就拿融券餘額比對，
-        # **不區分現股當沖沖賣與融券**。而沖賣是先賣後買、不需要券源，開啟等於用一個
-        # 不適用的條件拒掉本策略的開倉單。看起來「比較嚴謹」，實際是錯的。
+        # short_constraint 不設：本策略維持券源檢核關閉，但這已是選擇而非限制。
+        # `TwStockFillModel.check_short_borrowable()` 現在會跳過 `ShortMethod.DAY_TRADE`
+        # ——沖賣是先賣後買、不需要券源——所以即使開啟也不會誤拒本策略的開倉單。
+        # 仍維持關閉的理由：當日必平的沖賣本來就不吃券源，檢核對本策略沒有實際約束力，
+        # 只會多一組每日融券餘額查詢。
         self.position_type: PositionType = PositionType.SHORT
         self.enable_intraday: bool = True  # 現股當沖沖賣
 

@@ -119,7 +119,9 @@ class MyStrategy(BaseStockStrategy):
 | `volume_cap_policy` | `TRUNCATE` | 超量時縮量（預設）或整張拒單（`REJECT`） |
 
 券源檢核另由 `ShortConstraint.check_borrowable` 開啟（預設 `False`），資料來自
-`margin` 表的融券今日餘額。
+`margin` 表的融券今日餘額。**現股當沖沖賣（`ShortMethod.DAY_TRADE`）不經過券源，
+一律放行**；判準看 `short_method` 而非 `is_day_trade`——融券當沖的 `is_day_trade`
+同樣是 True，但它確實借了券，仍須檢核。
 
 #### 期貨：滑價以**跳動點**表達（`FuturesFillConfig`）
 

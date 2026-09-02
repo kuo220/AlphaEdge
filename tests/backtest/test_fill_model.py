@@ -1,5 +1,5 @@
 import datetime
-from typing import Dict
+from typing import Dict, Optional
 
 from core.backtest.models.fill_model import (
     FillConfig,
@@ -8,7 +8,7 @@ from core.backtest.models.fill_model import (
 )
 from core.backtest.models.instrument_spec import TwStockSpec
 from core.models import StockOrder, StockQuote
-from core.utils import Action, PositionType, Scale
+from core.utils import Action, PositionType, Scale, ShortMethod
 
 """
 成交假設測試：滑價、成交量上限、券源檢核
@@ -26,8 +26,10 @@ def make_order(
     position_type: PositionType = PositionType.LONG,
     price: float = 100.0,
     volume: int = 10,
+    short_method: Optional[ShortMethod] = None,
+    is_day_trade: bool = False,
 ) -> StockOrder:
-    """建立測試用訂單"""
+    """建立測試用訂單（short_method 與 is_day_trade 平時由引擎補值，預設留空）"""
 
     return StockOrder(
         stock_id=STOCK_ID,
@@ -36,6 +38,8 @@ def make_order(
         position_type=position_type,
         price=price,
         volume=volume,
+        short_method=short_method,
+        is_day_trade=is_day_trade,
     )
 
 
@@ -277,6 +281,53 @@ def test_borrow_check_only_applies_to_short_open() -> None:
 
     assert fill_model.fill(long_sell, make_quote()) is long_sell
     assert fill_model.fill(short_cover, make_quote()) is short_cover
+
+
+def test_borrow_check_skips_day_trade_short() -> None:
+    """現股當沖沖賣不需券源，餘額為 0 也要放行"""
+
+    counts: Dict[str, int] = make_event_counts()
+    fill_model: TwStockFillModel = TwStockFillModel(
+        event_counts=counts, check_borrowable=True
+    )
+    fill_model.apply_short_balance({STOCK_ID: 0})
+
+    order: StockOrder = make_order(
+        action=Action.SELL,
+        position_type=PositionType.SHORT,
+        volume=10,
+        short_method=ShortMethod.DAY_TRADE,
+        is_day_trade=True,
+    )
+
+    assert fill_model.fill(order, make_quote()) is order
+    assert counts["rejected_no_borrow"] == 0
+
+
+def test_borrow_check_still_applies_to_margin_day_trade() -> None:
+    """
+    融券當沖仍要檢核券源
+
+    融券賣出後當日買回的 `is_day_trade` 同樣是 True，但它確實借了券；
+    豁免條件只能看 `short_method`，看 `is_day_trade` 會連融券當沖一起放掉
+    """
+
+    counts: Dict[str, int] = make_event_counts()
+    fill_model: TwStockFillModel = TwStockFillModel(
+        event_counts=counts, check_borrowable=True
+    )
+    fill_model.apply_short_balance({STOCK_ID: 0})
+
+    order: StockOrder = make_order(
+        action=Action.SELL,
+        position_type=PositionType.SHORT,
+        volume=10,
+        short_method=ShortMethod.MARGIN,
+        is_day_trade=True,
+    )
+
+    assert fill_model.fill(order, make_quote()) is None
+    assert counts["rejected_no_borrow"] == 1
 
 
 def test_borrow_check_disabled_by_default() -> None:

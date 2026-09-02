@@ -12,7 +12,7 @@ from core.backtest.models.instrument_spec import (
     TwStockSpec,
 )
 from core.models import BaseOrder, BaseQuote
-from core.utils import Action, PositionType, Scale, TimeUtils
+from core.utils import Action, PositionType, Scale, ShortMethod, TimeUtils
 
 """
 FillModel: 這張單成不成交、以什麼價量成交
@@ -329,6 +329,11 @@ class TwStockFillModel(BaseFillModel):
             只檢查**放空開倉**（賣出且方向為 SHORT）。放空回補是買進、
             做多賣出是 `PositionType.LONG`，兩者都不需要券源。
 
+            **現股當沖沖賣（`ShortMethod.DAY_TRADE`）一律放行**：先賣後買、
+            當日沖銷，根本不經過券源。判準必須看 `short_method` 而非 `is_day_trade`
+            ——融券當沖（融券賣出後當日買回）的 `is_day_trade` 同樣是 True，
+            但它確實借了券，仍須檢核餘額。
+
             **查無資料時放行**：`margin` 表可能尚未回補歷史，
             此時「查不到」不等於「借不到」。但若使用者明確開啟了檢核卻整場都查無資料，
             等於開關沒有實際作用，故以 warning 提示。
@@ -347,6 +352,11 @@ class TwStockFillModel(BaseFillModel):
             order.action == Action.SELL and order.position_type == PositionType.SHORT
         )
         if not is_short_open:
+            return True
+
+        # 放空管道由 enrich_orders() 在 fill 之前補值，此處讀得到
+        short_method: Optional[ShortMethod] = getattr(order, "short_method", None)
+        if short_method == ShortMethod.DAY_TRADE:
             return True
 
         balance: Optional[int] = self.short_balance.get(order.symbol)

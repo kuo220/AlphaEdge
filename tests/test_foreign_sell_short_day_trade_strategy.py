@@ -503,11 +503,12 @@ def test_carry_over_fuses_are_set() -> None:
 
 def test_borrow_check_stays_disabled() -> None:
     """
-    券源檢核必須維持關閉
+    券源檢核維持關閉
 
-    `TwStockFillModel.check_short_borrowable()` 只看「賣出 ＋ SHORT」就拿融券餘額比對，
-    **不區分現股當沖沖賣與融券**。沖賣是先賣後買、不需要券源，開啟等於用一個不適用的
-    條件拒掉本策略的開倉單——看起來比較嚴謹，實際是錯的。
+    這是選擇而非限制：`TwStockFillModel.check_short_borrowable()` 已會跳過
+    `ShortMethod.DAY_TRADE`，開啟也不會誤拒沖賣單（見
+    `tests/backtest/test_fill_model.py::test_borrow_check_skips_day_trade_short`）。
+    當日必平的沖賣不吃券源，檢核對本策略沒有約束力，故不開。
     """
 
     strategy: ForeignSellShortDayTradeStrategy = ForeignSellShortDayTradeStrategy()

@@ -83,14 +83,14 @@
 |------|------|----------|
 | 平盤下放空 | 2013 起原則全面開放；**警示／處置股期間禁止** | `ShortConstraint.allow_below_reference` 開關，預設 True |
 | 可當沖標的清單 | 證交所每日公告，處置股停止先賣後買 | `ShortConstraint.day_trade_whitelist`（Optional，無資料時跳過） |
-| 券源／融券餘額上限 | 借不到券就無法放空 | `ShortConstraint.check_borrowable`，預設關閉 |
+| 券源／融券餘額上限 | 借不到券就無法放空 | `ShortConstraint.check_borrowable`，預設關閉；現股當沖沖賣不需券源，一律跳過 |
 | 停券期間（除權息） | 強制回補 | 由 `dividend` 表推導融券最後回補日（`auto_force_cover_on_ex_dividend`，預設開啟）；另可用 `ShortConstraint.force_cover_dates` 手動指定 |
 | 停券期間（股東會） | 強制回補 | **無資料源**，仍以 `max_holding_days` 保險絲近似 |
 | 除息日的股利補償 | 放空者須補償出借方現金股利 | `CostConfig.compensate_cash_dividend`（預設開啟），逐筆計入 `dividend_compensation` |
 | 漲停無法回補 | 當沖放空無法平倉，實務轉借券 | 見 §7.1 |
 | 券資比／單一標的空單上限 | 風控 | `max_short_exposure_ratio` 部位上限檢查 |
 
-> ⚠️ **實作現況（2026-08-15 更新）**：`check_borrowable` 已接上呼叫端（`TwStockFillModel.check_short_borrowable()`，資料來自 `margin` 表，拒單計入 `rejected_no_borrow`）。本表僅剩 `allow_below_reference`、`day_trade_whitelist` 兩個欄位**只有定義沒有呼叫端**——設定後不會生效，但 `StockCostModel` 建構時會發出警告（`check_unimplemented_constraints()`），不會靜默。接上呼叫端的追蹤見 §7.7〈已知簡化〉的「平盤下放空限制與每日可當沖清單」列。
+> ⚠️ **實作現況（2026-09-02 更新）**：`check_borrowable` 已接上呼叫端（`TwStockFillModel.check_short_borrowable()`，資料來自 `margin` 表，拒單計入 `rejected_no_borrow`）。檢核只作用在**需要券源的放空管道**：`ShortMethod.DAY_TRADE`（現股當沖沖賣，先賣後買）直接放行，`MARGIN`／`SBL` 才比對餘額——判準是 `short_method`，不是 `is_day_trade`（融券當沖的 `is_day_trade` 也是 True，卻確實借了券）。本表僅剩 `allow_below_reference`、`day_trade_whitelist` 兩個欄位**只有定義沒有呼叫端**——設定後不會生效，但 `StockCostModel` 建構時會發出警告（`check_unimplemented_constraints()`），不會靜默。接上呼叫端的追蹤見 §7.7〈已知簡化〉的「平盤下放空限制與每日可當沖清單」列。
 
 ### 3.5 價格檔位（tick size）
 
