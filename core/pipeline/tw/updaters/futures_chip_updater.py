@@ -146,6 +146,23 @@ class FuturesChipUpdater(BaseDataUpdater):
             start = self.clamp_start_date(table, label, start)
             self.update_dataset(table, label, crawl, clean, start, end)
 
+    def resolve_start_date(
+        self,
+        table: str,
+        start_date: Optional[datetime.date],
+        resume: bool,
+    ) -> datetime.date:
+        """決定該資料集的起點：續跑時取表內最新日的次日"""
+
+        if not resume:
+            return start_date or self.DEFAULT_START_DATE
+
+        latest: Optional[str] = self.loader.get_latest_date(table)
+        if latest is None:
+            return start_date or self.DEFAULT_START_DATE
+
+        return datetime.date.fromisoformat(latest) + datetime.timedelta(days=1)
+
     def clamp_start_date(
         self, table: str, label: str, start_date: datetime.date
     ) -> datetime.date:

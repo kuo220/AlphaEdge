@@ -105,9 +105,7 @@ class FuturesChipCrawler(BaseDataCrawler):
     ) -> Optional[str]:
         """選擇權 Put/Call Ratio：一天一列"""
 
-        return self.fetch_csv(
-            "TAIFEX_FUTURES_PCR_URL", start_date, end_date, "PCR"
-        )
+        return self.fetch_csv("TAIFEX_FUTURES_PCR_URL", start_date, end_date, "PCR")
 
     def fetch_csv(
         self,
@@ -136,9 +134,7 @@ class FuturesChipCrawler(BaseDataCrawler):
         """
 
         end: datetime.date = end_date or start_date
-        span: str = (
-            str(start_date) if end == start_date else f"{start_date} ~ {end}"
-        )
+        span: str = str(start_date) if end == start_date else f"{start_date} ~ {end}"
         logger.info(f"* Start crawling TAIFEX futures chip: {label} {span}")
 
         url: str = URLManager.get_url(url_name)

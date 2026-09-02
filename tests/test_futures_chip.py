@@ -374,3 +374,48 @@ def test_institutional_start_date_is_clamped_to_two_years() -> None:
     assert clamped > old_start
     assert (datetime.date.today() - clamped).days <= 365 * 2
     assert untouched == old_start
+
+
+def test_update_resolves_start_dates_for_every_dataset(monkeypatch) -> None:
+    """
+    `update()` 會替三個資料集各自解出起點並跑一輪
+
+    **這條測試存在的理由**：改寫 `update_dataset()` 時曾把 `resolve_start_date()`
+    一起刪掉，而所有既有測試都只測個別方法，沒有一條會呼叫 `update()`，
+    於是問題直到實跑回補才炸出來（`AttributeError`）。
+    """
+
+    from core.pipeline.tw.updaters.futures_chip_updater import FuturesChipUpdater
+
+    updater: FuturesChipUpdater = FuturesChipUpdater.__new__(FuturesChipUpdater)
+
+    class StubLoader:
+        def get_latest_date(self, table):
+            return None
+
+    updater.loader = StubLoader()
+    updater.get_datasets = lambda: [
+        (FUTURES_INSTITUTIONAL_CHIP_TABLE_NAME, "institutional", None, None),
+        (FUTURES_LARGE_TRADER_TABLE_NAME, "large_trader", None, None),
+        (FUTURES_PUT_CALL_RATIO_TABLE_NAME, "pcr", None, None),
+    ]
+
+    called: List[tuple] = []
+    updater.update_dataset = lambda table, label, crawl, clean, start, end: (
+        called.append((table, start, end))
+    )
+
+    updater.update(
+        start_date=datetime.date(2015, 1, 1),
+        end_date=datetime.date(2026, 9, 2),
+        resume=False,
+    )
+
+    assert [row[0] for row in called] == [
+        FUTURES_INSTITUTIONAL_CHIP_TABLE_NAME,
+        FUTURES_LARGE_TRADER_TABLE_NAME,
+        FUTURES_PUT_CALL_RATIO_TABLE_NAME,
+    ]
+    # 三大法人被夾到兩年內，其餘兩個維持 2015
+    assert called[0][1] > datetime.date(2015, 1, 1)
+    assert called[1][1] == datetime.date(2015, 1, 1)
