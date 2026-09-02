@@ -7,7 +7,7 @@ from loguru import logger
 from core.backtest.datafeed.base import BaseDataFeed
 from core.backtest.datafeed.tw.market_calendar import MarketCalendar
 from core.backtest.models.fill_model import FillConfig, VolumeCapPolicy
-from core.models import StockAccount, StockOrder, StockQuote
+from core.models import StockAccount, StockOrder, StockPosition, StockQuote
 from core.strategies.stock import BaseStockStrategy
 from core.utils import Action, PositionType, Scale, Units
 
@@ -27,16 +27,55 @@ class ForeignSellShortDayTradeStrategy(BaseStockStrategy):
     - T−1 成交量 ≥ 門檻（預設 1,000 張）
 
     回補（平倉）條件：
-    - 同一交易日回補，不留倉；持倉部位一律於當日平倉
-    - 例外：疑似全日鎖漲停者不送回補單，交由引擎判定並計入 `limit_up_cover_failed`
+    - 同一交易日回補，不留倉；當日開的部位以**收盤價**平倉（尾盤近似）
+    - 例外一：疑似全日鎖漲停者不送回補單，交由引擎判定並計入 `limit_up_cover_failed`
+    - 例外二：**被迫留倉的部位改以開盤價回補**——當沖沖銷失敗轉成融券後，
+      T+2 交割壓力與券商風控都要求盡早了結，不可能等到尾盤挑價（見 `get_cover_price()`）
 
     停損條件：
-    - 未實作（一律不回傳停損單）。`Scale.DAY` 只有 OHLC，盤中觸價無從判定，
-      在日線上做停損等於用「事後才知道的當日高點」下單。部位既然當日必平，
-      風險上界由當日開盤到收盤的區間決定，不另設停損
+    - **刻意不做**（一律不回傳停損單）。理由不是「日線做不到」，而是**實測會虧**：
+      以 2020~2025 的 1,090 筆當日進出、用各檔當日最高價回測各種停損水位，
+      **每一個水位都讓總損益變差**——
 
-    **資料級別的已知限制**：`Scale.DAY` 沒有真正的「尾盤」價格，回補價一律以
-    **當日收盤價**近似，與實際尾盤成交價會有落差；量化此落差需升級為 `Scale.TICK`。
+      | 停損 | 觸發筆數 | 總損益變化 | 最差單筆 ROI |
+      |-----:|---------:|-----------:|-------------:|
+      | +3%  | 528 | **−388 萬**（吃掉 84% 獲利） | −3.00% |
+      | +5%  | 292 | −270 萬 | −5.14% |
+      | +7%  | 130 | −113 萬 | −7.29% |
+      | +10% |  19 | −37 萬 | −10.16% |
+
+      原因很直接：本策略放空的是**剛噴出的高波動股**，它們盤中常再衝高一段才拉回收低。
+      停損砍掉的正是那些最終會獲利的部位，而這支策略的 edge 本來就集中在少數交易
+      （最賺的 50 筆貢獻 68.9% 總損益），截斷右尾等於自斷手腳。
+      上表的模擬還**假設停損恰好成交在觸發價**（不計滑價與檔位），
+      也就是說真實的停損表現只會**比這更差**。
+    - **風險上界不靠停損，靠三件事**：① 當日必平，損失以當日開盤到收盤的區間為限
+      （實測當日進出的最差單筆 −12.36%）；② 漲跌停限制了單日的不利幅度；
+      ③ 唯一會過夜的「鎖漲停轉融券留倉」路徑由 `max_holding_days`／`max_no_quote_days`
+      封住（見 `__init__`）——**尾部風險確實在那條路上**：留倉部位的最差單筆是
+      **−21.39%**，幾乎是當日進出最差值的兩倍。
+    - **引擎的維持率追繳幫不上忙**：融券維持率 130% 要價格逆行約 **+46%** 才觸發
+      （擔保價款 ＋ 90% 保證金 ÷ 市值），對本策略是極遙遠的後衛，實測 0 次。
+
+    ---
+
+    ## 解讀回測結果時務必一併看的五件事
+
+    2020~2025 的實測（1,100 筆、勝率 59.7%、ROI 450.6%、MDD −9.99%）**不是穩健結論**，
+    以下五項全部是**樂觀方向**的偏差或穩定性疑慮：
+
+    1. **回補價以當日收盤價近似尾盤**。`Scale.DAY` 沒有真正的尾盤價，落差未量化；
+       要量化必須升級 `Scale.TICK`（tick 資料在 DolphinDB，非 `tw_stock.db`）。
+    2. **未排除處置股／非當沖標的**。兩者都沒有資料源（見 `REJECT_BELOW_REFERENCE_OPEN`
+       的說明），實際可交易的機會數會少於 1,100 筆。
+    3. **部位大小以「全額買進」為基準等權切分**。現股當沖沖賣其實不需保證金，
+       此假設讓名目曝險上界等於本金；改用實際資金佔用的話，同樣訊號可開的部位會大得多，
+       **報酬與回撤會一起放大**。
+    4. **開倉價為開盤價**。訊號在 T−1 收盤後即可算出，時序上沒有未來函數，
+       但實務上要在開盤集合競價全部成交仍有執行風險。
+    5. **報酬高度集中在少數交易**：最賺的 50 筆（4.5%）貢獻 68.9% 的總損益，
+       最賺的 5 筆就佔 10.4%。這個 edge 是厚尾驅動而非廣泛穩定，
+       **換區間或微調門檻可能大幅改變結論**。
     """
 
     DEFAULT_MAX_HOLDINGS: int = 5
@@ -56,7 +95,7 @@ class ForeignSellShortDayTradeStrategy(BaseStockStrategy):
     # 平盤下放空過濾（預設關閉）
     #
     # 台股自 2013/9/23 起**全面取消**平盤下放空限制，現行僅「處置股票」仍受限，
-    # 而處置股清單無資料源（追蹤於 backlog 放空回測市場約束補齊 S7），
+    # 而處置股清單無資料源（追蹤於 docs/backtest/short-selling-framework.md §7.7），
     # 因此無法只對真正受限的標的套用。
     #
     # 引擎側的 `ShortConstraint.allow_below_reference` 目前**有定義、無呼叫端**，
@@ -66,6 +105,10 @@ class ForeignSellShortDayTradeStrategy(BaseStockStrategy):
     # 設為 True 等於把處置股規則套用到全市場，是**保守上界**而非真實規則，
     # 用來看「若限制真的存在，訊號還剩多少」。
     REJECT_BELOW_REFERENCE_OPEN: bool = False
+
+    # 留倉部位的強制出場上限（只會作用在鎖漲停轉融券的部位，見 __init__）
+    MAX_HOLDING_DAYS: int = 5  # 最長持有天數
+    MAX_NO_QUOTE_DAYS: int = 3  # 連續無報價幾天後以最後可得價格出場（停牌／下市）
 
     # 交易日曆往前多取的曆日數：訊號需要 T−2，起始日前至少要有兩個交易日
     CALENDAR_LOOKBACK_DAYS: int = 30
@@ -85,8 +128,24 @@ class ForeignSellShortDayTradeStrategy(BaseStockStrategy):
         # === 放空設定 ===
         # short_method 不設：當沖時由 factory 強制為 DAY_TRADE
         # cost_config 不設：設了會讓 factory 跳過 is_day_trade 的推導，當沖稅率減半失效
+        #
+        # **short_constraint 的 check_borrowable 一定要維持關閉**：
+        # `TwStockFillModel.check_short_borrowable()` 只看「賣出 ＋ SHORT」就拿融券餘額比對，
+        # **不區分現股當沖沖賣與融券**。而沖賣是先賣後買、不需要券源，開啟等於用一個
+        # 不適用的條件拒掉本策略的開倉單。看起來「比較嚴謹」，實際是錯的。
         self.position_type: PositionType = PositionType.SHORT
         self.enable_intraday: bool = True  # 現股當沖沖賣
+
+        # === 留倉部位的保險絲 ===
+        #
+        # 本策略當日必平，這兩個上限**只會作用在「鎖漲停補不到券而轉融券留倉」的部位**
+        # ——也就是唯一會過夜的那條路徑，同時也是放空最致命的尾部風險。
+        # 沒有上限的話，連續鎖漲停的部位會一路留到回測結束，虧損無界。
+        #
+        # 兩個值都刻意設得寬鬆（歷史最長留倉 4 天、無報價 0 次），
+        # **不影響既有結果，只封住尾巴**。
+        self.max_holding_days: int = self.MAX_HOLDING_DAYS
+        self.max_no_quote_days: int = self.MAX_NO_QUOTE_DAYS
 
         # === 成交假設 ===
         self.fill_config: FillConfig = FillConfig(
@@ -363,9 +422,10 @@ class ForeignSellShortDayTradeStrategy(BaseStockStrategy):
         self, stock_quotes: List[StockQuote], action: Action
     ) -> List[StockOrder]:
         """
-        計算部位：SELL 為放空開倉（開盤價），BUY 為當日回補（收盤價）
+        計算部位：SELL 為放空開倉，BUY 為回補
 
         放空的動作與做多相反，兩個分支的語意也跟著對調——SELL 是開倉、BUY 是平倉。
+        開倉價一律為當日開盤價；回補價由 `get_cover_price()` 依「是否被迫留倉」決定。
         """
 
         orders: List[StockOrder] = []
@@ -393,17 +453,14 @@ class ForeignSellShortDayTradeStrategy(BaseStockStrategy):
                 )
 
         elif action == Action.BUY:
-            # 回補：`Scale.DAY` 沒有尾盤價，以當日收盤價近似（見 class docstring）
             for stock_quote in stock_quotes:
                 # 同一標的的多筆部位合併成一張單：`close_position()` 本來就會 FIFO
                 # 掃過該標的所有同向部位，逐筆送單會讓第一張就吃掉後面那筆的張數，
                 # 後續訂單再以「持倉不足」警告收場
-                cover_volume: int = sum(
-                    position.volume
-                    for position in self.account.get_positions(
-                        stock_quote.stock_id, PositionType.SHORT
-                    )
+                positions: List[StockPosition] = self.account.get_positions(
+                    stock_quote.stock_id, PositionType.SHORT
                 )
+                cover_volume: int = sum(position.volume for position in positions)
                 if cover_volume <= 0:
                     continue
 
@@ -413,9 +470,54 @@ class ForeignSellShortDayTradeStrategy(BaseStockStrategy):
                         date=stock_quote.date,
                         action=Action.BUY,  # 放空平倉是買進回補
                         position_type=PositionType.SHORT,
-                        price=stock_quote.close,
+                        price=self.get_cover_price(stock_quote, positions),
                         volume=cover_volume,
                     )
                 )
 
         return orders
+
+    @staticmethod
+    def get_cover_price(
+        stock_quote: StockQuote, positions: List[StockPosition]
+    ) -> float:
+        """
+        - Description:
+            決定回補價：當日開的部位用收盤價，**被迫留倉的部位用開盤價**
+
+            兩者的處境完全不同，用同一個價格會系統性高估績效：
+
+            | 部位 | 處境 | 回補價 |
+            |------|------|--------|
+            | 當日開倉 | 照計畫等到尾盤出場 | **收盤價**（`Scale.DAY` 對尾盤的近似） |
+            | 前一日以前開倉 | 當沖沖銷失敗、已被轉成融券 | **開盤價** |
+
+            **為什麼留倉的不能用收盤價**：這個部位是「現股當沖沖賣沒補回來」才存在的，
+            T+2 就要交割，券商的風控與交割壓力都要求盡早了結——不可能讓你悠哉等到尾盤，
+            挑一個當天最好的價格出場。用收盤價等於給了這個部位一個它沒有的權利：
+            **有權等待盤中跌回來**。
+
+            實測這個差別很大：10 筆留倉部位若改以開盤價回補，合計 **少賺 267,670**。
+            最極端的是 2349（2024-07-09）——進場 18.10、開盤跳空 21.90、收盤跌回 18.05，
+            用收盤價幾乎打平出場，用開盤價則虧 119,350。那個「跌回來」在現實中不屬於你。
+
+            **已知簡化**：若當日開盤即漲停鎖死，實務上買方掛單未必成交，此時
+            「以開盤價回補」仍偏樂觀。但一價到底的情形已由 `check_limit_up_locked()`
+            先擋掉不送單，剩下的是開高走低這類**開盤確實有量**的情境，偏差有限。
+        - Parameters:
+            - stock_quote: StockQuote
+                當日報價
+            - positions: List[StockPosition]
+                該標的目前的所有 SHORT 部位
+        - Return:
+            - float
+                回補價
+        """
+
+        # 任一部位早於今日 → 整批視為被迫留倉（同一標的不會同時有兩種，
+        # 因為持倉中就不會再開倉，見 `check_open_signal` 的 check_has_position）
+        is_carried_over: bool = any(
+            position.date < stock_quote.date for position in positions
+        )
+
+        return stock_quote.open if is_carried_over else stock_quote.close

@@ -396,7 +396,7 @@
 - **優先級**：P3（保證金影響資金效率與可開口數，**不影響 PnL 本身**，
   故不擋 [台期貨平台](../docs/futures/tw-futures-platform.md) 的 Phase1-5／1-6 主線）
 - **相關程式**：`core/managers/futures/position_manager.py`（`FuturesMarginConfig`）、
-  `core/pipeline/utils/url_manager.py`（四個端點與解析坑）、`core/config.py`
+  `core/pipeline/utils/url_manager.py`（四個端點與解析坑）、`core/config/`
 - **相關 backlog**：[台期貨平台](../docs/futures/tw-futures-platform.md) Phase2-2
   的另一半（槓桿／部位控管）相依本文件；本文件不含那部分
 - **相關文件**：[ETL 入庫約定](../docs/pipeline/etl-ingestion.md)（§3.4 欄位語言、§4 事故樣式）

@@ -384,3 +384,52 @@ def test_update_writes_rows_end_to_end(
     ).fetchall()
 
     assert rows == [("day", 46064.0), ("night", None)]
+
+
+def test_start_date_is_clamped_to_listing_date(
+    updater: FuturesPriceUpdater, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    上市較晚的商品，起點會被夾到上市日
+
+    呼叫端通常對所有商品傳同一個 `start_date`。若照傳入值去爬，TMF 在 2024-07-29
+    之前的每一天都查無資料，累積 20 天就觸發保險絲中止整檔回補——2026-09-01 的
+    回補就是這樣停在 TMF 的。
+    """
+
+    requested: list = []
+
+    monkeypatch.setattr(
+        updater.crawler,
+        "crawl_futures_price",
+        lambda date, product, session: requested.append(date) or None,
+    )
+    monkeypatch.setattr(updater, "get_traded_weekend_dates", lambda *_: set())
+    updater.BATCH_RANDOM_DELAY_MIN = 0
+    updater.BATCH_RANDOM_DELAY_MAX = 0
+    updater.EMPTY_PRODUCT_ABORT_THRESHOLD = 99
+
+    updater.update(
+        start_date=datetime.date(2015, 1, 5),
+        end_date=datetime.date(2024, 7, 31),
+        products=["TMF"],
+        resume=False,
+    )
+
+    assert min(requested) == datetime.date(2024, 7, 29)
+
+
+def test_unlisted_product_start_date_is_unchanged(updater: FuturesPriceUpdater) -> None:
+    """股期等未登錄上市日的商品維持原起點——夾錯方向會靜默跳過資料"""
+
+    assert updater.clamp_to_listing_date(
+        "CDF", datetime.date(2015, 1, 5)
+    ) == datetime.date(2015, 1, 5)
+
+
+def test_start_date_after_listing_is_unchanged(updater: FuturesPriceUpdater) -> None:
+    """日常續跑的起點已在上市日之後，不可被往前拉回上市日"""
+
+    assert updater.clamp_to_listing_date(
+        "TMF", datetime.date(2026, 1, 1)
+    ) == datetime.date(2026, 1, 1)

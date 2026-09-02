@@ -487,5 +487,35 @@ def test_fill_config_is_conservative() -> None:
     assert strategy.fill_config.max_volume_share is not None
 
 
+def test_carry_over_fuses_are_set() -> None:
+    """
+    留倉部位必須有強制出場上限
+
+    本策略當日必平，唯一會過夜的是「鎖漲停補不到券而轉融券留倉」的部位——
+    那正是放空最致命的尾部風險。沒有上限的話，連續鎖漲停會一路留到回測結束、虧損無界。
+    """
+
+    strategy: ForeignSellShortDayTradeStrategy = ForeignSellShortDayTradeStrategy()
+
+    assert strategy.max_holding_days is not None
+    assert strategy.max_no_quote_days is not None
+
+
+def test_borrow_check_stays_disabled() -> None:
+    """
+    券源檢核必須維持關閉
+
+    `TwStockFillModel.check_short_borrowable()` 只看「賣出 ＋ SHORT」就拿融券餘額比對，
+    **不區分現股當沖沖賣與融券**。沖賣是先賣後買、不需要券源，開啟等於用一個不適用的
+    條件拒掉本策略的開倉單——看起來比較嚴謹，實際是錯的。
+    """
+
+    strategy: ForeignSellShortDayTradeStrategy = ForeignSellShortDayTradeStrategy()
+    config: CostConfig = build_cost_config(strategy)
+
+    assert strategy.short_constraint is None
+    assert config.short_constraint.check_borrowable is False
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

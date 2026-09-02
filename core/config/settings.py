@@ -1,6 +1,6 @@
 import datetime
 import os
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from dotenv import load_dotenv
 
@@ -72,6 +72,31 @@ DEFAULT_PRICE_START_DATE: datetime.date = datetime.date(2013, 1, 1)
 # INSERT OR IGNORE），續跑會從表內該商品的最新日接續，
 # 故往前擴張需要另行指定區間重跑，見 `FuturesPriceUpdater.update()`。
 DEFAULT_FUTURES_START_DATE: datetime.date = datetime.date(2015, 1, 1)
+
+# 各商品在 TAIFEX 第一個有行情的日期（2026-09-02 以 crawler 逐日實測）。
+#
+# **上市較晚的商品不能沿用 `DEFAULT_FUTURES_START_DATE`**：上市前的每一天都查無
+# 資料，累積到 `FuturesPriceUpdater.EMPTY_PRODUCT_ABORT_THRESHOLD`（20 天）就會
+# 觸發保險絲中止整檔回補——2026-09-01 的回補就是這樣停在 TMF。故 `update_product()`
+# 一律以本表把起點往後夾。
+#
+# **沒登錄的商品不夾**（例如股期，共 320 檔且會隨掛牌／下市異動，無法逐一實測）：
+# 那類商品仍靠保險絲擋代碼拼錯，行為與本表加入前相同。
+#
+# 量測方式：以月為單位二分搜尋找出第一個有行情的月份後，**再逐個交易日往前回走**，
+# 確認其前連續多日皆空才定案。只做前者會漏掉「月底才上市」的商品——ZEF 會被測成
+# 2021-07-01（實為 06-28）、TMF 會被測成 2024-08-01（實為 07-29），
+# 於是回補少掉開頭數日且不會有任何錯誤訊息。
+# **只登錄實測過的日期**。填得比實際上市日「晚」會讓回補靜默跳過開頭那幾天，
+# 比觸發保險絲更難發現，所以寧可不登錄——不登錄只是回到本表加入前的行為。
+# MTX／TE／TF 的上市日尚未實測（僅確認 2015-01-05 就有行情，早於現行回補起點，
+# 故實務上不需要夾），要往前回補到 2015 之前時再補測。
+FUTURES_PRODUCT_LISTING_DATES: Dict[str, datetime.date] = {
+    "TX": datetime.date(1998, 7, 21),  # 臺股期貨（Phase1-2 逐日確認 07/20 無資料）
+    "ZEF": datetime.date(2021, 6, 28),  # 小型電子期貨
+    "ZFF": datetime.date(2021, 12, 6),  # 小型金融期貨
+    "TMF": datetime.date(2024, 7, 29),  # 微型臺指
+}
 
 # 股票期貨預設只爬**流動性前 N 檔**（Phase6-2）。
 #

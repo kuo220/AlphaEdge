@@ -68,14 +68,23 @@ AlphaEdge 的策略系統採用物件導向設計，台股策略一律繼承 `Ba
 core/strategies/
 ├── __init__.py                    # 刻意不做套件層 eager import（避免循環 import）
 ├── README.md                      # 本文件
-├── base.py                        # BaseStrategy：市場無關的策略骨架
-├── strategy_loader.py             # 策略自動載入器（掃描所有市場子套件）
-└── stock/                         # 台股策略目錄
-    ├── __init__.py
-    ├── base.py                    # BaseStockStrategy（設定 self.market ＋ self.instrument_type）
-    ├── momentum_strategy_1.py     # 動能策略 1（日線）
-    └── overnight_lead_event_strategy.py  # 隔夜領先事件策略
+├── base.py                        # BaseStrategy：市場與商品皆無關的策略骨架
+├── strategy_loader.py             # 策略自動載入器（掃描所有子套件）
+├── stock/                         # 股票策略
+│   ├── __init__.py
+│   ├── base.py                    # BaseStockStrategy（設定 self.market ＋ self.instrument_type）
+│   ├── momentum_strategy_1.py     # 動能策略 1（日線，LONG 回歸 baseline 的唯一來源）
+│   ├── overnight_lead_event_strategy.py       # 隔夜領先事件策略
+│   └── foreign_sell_short_day_trade_strategy.py  # 外資大賣強勢股當沖放空（日線，SHORT）
+└── futures/                       # 期貨策略
+    ├── base.py                    # BaseFuturesStrategy
+    └── momentum_futures_strategy.py
 ```
+
+> **子目錄承載的是「商品類別」（軸 B），不是市場。** 市場由 `self.market` 宣告、
+> 由 `core/backtest/factory.py` 的 `(market, instrument_type)` 分派鍵表達，
+> 所以美股策略日後會放進 `stock/` 而不是新開 `us/`（見
+> [命名軸線](../../docs/dev/naming-axes.md)〈落地位置〉）。
 
 > **2026-08-15：動能策略 2~5 已刪除。** 四者皆為 `MomentumStrategy1` 的變形（Tick 級別、均線動能、開盤進出等），維護成本高於價值，且 `MomentumStrategy1` 是 LONG 回歸 baseline 的唯一來源。台股策略目前保留 `MomentumStrategy1` 與 `OvernightLeadEventStrategy` 兩支。
 

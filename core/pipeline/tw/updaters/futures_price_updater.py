@@ -11,6 +11,7 @@ from core.api.tw.futures_stock_universe_api import FuturesStockUniverseAPI
 from core.config import (
     DEFAULT_FUTURES_START_DATE,
     FUTURES_PRICE_DAILY_TABLE_NAME,
+    FUTURES_PRODUCT_LISTING_DATES,
     FUTURES_TARGET_PRODUCTS,
     PRICE_TABLE_NAME,
     TW_FUTURES_DB_PATH,
@@ -376,6 +377,40 @@ class FuturesPriceUpdater(BaseDataUpdater):
 
         return crawled
 
+    @staticmethod
+    def clamp_to_listing_date(product: str, start_date: datetime.date) -> datetime.date:
+        """
+        - Description:
+            把起點往後夾到該商品的上市日
+
+            上市前的每一天都查無資料，累積 `EMPTY_PRODUCT_ABORT_THRESHOLD` 天就會
+            觸發保險絲中止整檔回補（2026-09-01 的回補即因此停在 TMF）。呼叫端常常
+            對所有商品傳同一個 `start_date`，故在此統一夾住，而不是要求每個呼叫端
+            自己查表。
+
+            **未登錄的商品不夾**（例如股期）：那類商品仍由保險絲擋代碼拼錯。
+        - Parameters:
+            - product: str
+                商品代碼
+            - start_date: datetime.date
+                原本要開始的日期
+        - Return:
+            - datetime.date
+                夾住後的起始日
+        """
+
+        listing_date: Optional[datetime.date] = FUTURES_PRODUCT_LISTING_DATES.get(
+            product
+        )
+        if listing_date is None or start_date >= listing_date:
+            return start_date
+
+        logger.info(
+            f"* {product} 於 {listing_date} 才上市，起點由 {start_date} "
+            f"後移至該日（否則上市前的空白日會觸發保險絲）"
+        )
+        return listing_date
+
     def update_product(
         self,
         product: str,
@@ -390,6 +425,7 @@ class FuturesPriceUpdater(BaseDataUpdater):
             if resume
             else start_date
         )
+        actual_start = self.clamp_to_listing_date(product, actual_start)
         if actual_start > end_date:
             logger.info(f"* {product} 已是最新（起點 {actual_start} 晚於 {end_date}）")
             return
