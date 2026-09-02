@@ -419,3 +419,42 @@ def test_update_resolves_start_dates_for_every_dataset(monkeypatch) -> None:
     # 三大法人被夾到兩年內，其餘兩個維持 2015
     assert called[0][1] > datetime.date(2015, 1, 1)
     assert called[1][1] == datetime.date(2015, 1, 1)
+
+
+@pytest.mark.parametrize(
+    "clean_name, csv_text, expected",
+    [
+        (
+            "clean_institutional",
+            "日期,商品名稱,身份別,多方交易口數\n"
+            "2026/08/27,臺股期貨,自營商,100\n2026/08/28,臺股期貨,自營商,200\n",
+            ["2026-08-27", "2026-08-28"],
+        ),
+        (
+            "clean_large_trader",
+            "日期,商品(契約),到期月份(週別),交易人類別,前五大交易人買方\n"
+            "2026/08/27,TX     ,999999  ,0,100\n2026/08/28,TX     ,999999  ,0,200\n",
+            ["2026-08-27", "2026-08-28"],
+        ),
+        (
+            "clean_put_call_ratio",
+            "日期,賣權成交量,買權成交量\n2026/08/27,1,2,\n2026/08/28,3,4,\n",
+            ["2026-08-27", "2026-08-28"],
+        ),
+    ],
+)
+def test_every_cleaner_uses_the_source_date(
+    cleaner, clean_name: str, csv_text: str, expected: List[str]
+) -> None:
+    """
+    **三個清洗器都要以來源的 `日期` 欄為準**
+
+    這條是 parametrize 的，因為只驗其中一個會漏：改成月批次時，
+    `clean_put_call_ratio` 的修改實際上沒套用到（比對字串沒對上），
+    於是整個月的資料被寫成同一個主鍵 `'None'`——`INSERT OR IGNORE` 之下
+    每個月只留下一列垃圾，其餘全部被吞掉，而且不會有任何錯誤訊息。
+    """
+
+    df: pd.DataFrame = getattr(cleaner, clean_name)(csv_text)
+
+    assert sorted(df["date"]) == expected

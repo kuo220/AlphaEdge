@@ -251,6 +251,8 @@ class FuturesChipCleaner(BaseDataCleaner):
             :,
             [column for column in df.columns if not str(column).startswith("Unnamed")],
         ]
-        df["date"] = str(date)
+        df = self.normalize_date(df)
+        if df.empty:
+            return None
 
         return self.to_numeric(df, exclude=["date"])
