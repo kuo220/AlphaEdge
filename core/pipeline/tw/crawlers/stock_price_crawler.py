@@ -1,13 +1,9 @@
 import datetime
-from io import StringIO
-from typing import Optional
 
-import pandas as pd
-import requests
 from loguru import logger
 
-from core.pipeline.shared.base_crawler import BaseDataCrawler
-from core.pipeline.shared.request_utils import RequestUtils
+from core.pipeline.shared.base_crawler import BaseDataCrawler, CrawlResult
+from core.pipeline.shared.request_utils import FetchResult, RequestUtils
 from core.pipeline.utils import URLManager
 from core.utils import TimeUtils
 
@@ -36,68 +32,49 @@ class StockPriceCrawler(BaseDataCrawler):
     def crawl(self, date: datetime.date) -> None:
         """Crawl Price Data"""
 
-        twse_price_df: pd.DataFrame = self.crawl_twse_price(date)
-        tpex_price_df: pd.DataFrame = self.crawl_tpex_price(date)
+        self.crawl_twse_price(date)
+        self.crawl_tpex_price(date)
 
-    def crawl_twse_price(self, date: datetime.date) -> Optional[pd.DataFrame]:
-        """爬取上市公司股票收盤行情"""
+    def crawl_twse_price(self, date: datetime.date) -> CrawlResult:
         """
-        TWSE 網站提供資料日期：
-        1. 2004/2/11 ~ present
+        - Description:
+            爬取上市公司股票收盤行情（TWSE 提供 2004/2/11 起）
+
+            回傳 `CrawlResult` 而非 `Optional[DataFrame]`：連線失敗與休市必須
+            分開，否則 updater 會把「這天沒抓到」記成休市而永遠不再重試。
+        - Parameters:
+            - date: datetime.date
+                交易日
+        - Return:
+            - CrawlResult
         """
 
         logger.info(f"* Start crawling TWSE Price: {date}")
 
         date_str: str = TimeUtils.format_date(date, sep="")
-        url: str = URLManager.get_url(
-            "TWSE_CLOSING_QUOTE_URL",
-            date=date_str,
-        )
+        url: str = URLManager.get_url("TWSE_CLOSING_QUOTE_URL", date=date_str)
+        result: FetchResult = RequestUtils.fetch(url)
 
-        try:
-            res: Optional[requests.Response] = RequestUtils.requests_get(url)
-        except Exception as e:
-            logger.warning(f"Cannot get stock price at {date}")
-            logger.info(e)
-            return None
+        # 個股明細固定在最後一張表
+        return self.parse_html_table(result, f"TWSE price {date}", index=-1)
 
-        # 檢查是否為假日
-        try:
-            df: pd.DataFrame = pd.read_html(StringIO(res.text))[-1]
-        except Exception:
-            logger.info(f"{date} is a Holiday!")
-            return None
-
-        return df
-
-    def crawl_tpex_price(self, date: datetime.date) -> Optional[pd.DataFrame]:
-        """爬取上櫃公司股票收盤行情"""
-
+    def crawl_tpex_price(self, date: datetime.date) -> CrawlResult:
         """
-        1. 上櫃資料從 96/7/2 以後才提供
-        2. 從 109/4/30 開始後 csv 檔的 column 不一樣
+        - Description:
+            爬取上櫃公司股票收盤行情
+
+            上櫃資料自 96/7/2 起提供，且 109/4/30 之後欄位不同（由 cleaner 處理）。
+        - Parameters:
+            - date: datetime.date
+                交易日
+        - Return:
+            - CrawlResult
         """
 
         logger.info(f"* Start crawling TPEX Price: {date}")
 
         date_str: str = TimeUtils.format_date(date, sep="/")
-        url: str = URLManager.get_url(
-            "TPEX_CLOSING_QUOTE_URL",
-            date=date_str,
-        )
+        url: str = URLManager.get_url("TPEX_CLOSING_QUOTE_URL", date=date_str)
+        result: FetchResult = RequestUtils.fetch(url)
 
-        try:
-            res: Optional[requests.Response] = RequestUtils.requests_get(url)
-        except Exception as e:
-            logger.warning(f"Cannot get stock price at {date}")
-            logger.info(e)
-            return None
-
-        # 檢查是否為假日
-        try:
-            df: pd.DataFrame = pd.read_html(StringIO(res.text))[0]
-        except Exception:
-            logger.info(f"{date} is a Holiday!")
-            return None
-
-        return df
+        return self.parse_html_table(result, f"TPEX price {date}", index=0)

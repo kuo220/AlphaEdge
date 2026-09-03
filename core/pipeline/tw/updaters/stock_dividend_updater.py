@@ -8,7 +8,8 @@ import pandas as pd
 from loguru import logger
 
 from core.config import DIVIDEND_TABLE_NAME, TW_STOCK_DB_PATH
-from core.pipeline.shared.base_updater import BaseDataUpdater
+from core.pipeline.shared.base_crawler import CrawlResult
+from core.pipeline.shared.base_updater import BaseDataUpdater, UpdateStats
 from core.pipeline.tw.cleaners.stock_dividend_cleaner import StockDividendCleaner
 from core.pipeline.tw.crawlers.stock_dividend_crawler import StockDividendCrawler
 from core.pipeline.tw.loaders.stock_dividend_loader import StockDividendLoader
@@ -77,6 +78,8 @@ class StockDividendUpdater(BaseDataUpdater):
 
         # TWSE：以年為單位請求，一年一次
         years: List[int] = TimeUtils.generate_year_range(start_date.year, end_date.year)
+        stats: UpdateStats = UpdateStats()
+
         for year in years:
             year_start: datetime.date = max(start_date, datetime.date(year, 1, 1))
             year_end: datetime.date = min(end_date, datetime.date(year, 12, 31))
@@ -85,27 +88,24 @@ class StockDividendUpdater(BaseDataUpdater):
                 f"{TimeUtils.format_date(year_start)}_{TimeUtils.format_date(year_end)}"
             )
 
-            twse_df: Optional[pd.DataFrame] = self.crawler.crawl_twse_dividend(
-                year_start, year_end
-            )
-            tpex_df: Optional[pd.DataFrame] = self.crawler.crawl_tpex_dividend(
-                year_start, year_end
-            )
+            twse: CrawlResult = self.crawler.crawl_twse_dividend(year_start, year_end)
+            tpex: CrawlResult = self.crawler.crawl_tpex_dividend(year_start, year_end)
+            stats.record(twse, tpex)
 
             # Step 2: Clean
-            if twse_df is not None and not twse_df.empty:
+            if twse.is_ok:
                 cleaned_twse_df: Optional[pd.DataFrame] = (
                     self.cleaner.clean_twse_dividend(
-                        twse_df, file_name=f"twse_{period}"
+                        twse.data, file_name=f"twse_{period}"
                     )
                 )
                 if cleaned_twse_df is None or cleaned_twse_df.empty:
                     logger.warning(f"Cleaned TWSE dataframe empty for {year}")
 
-            if tpex_df is not None and not tpex_df.empty:
+            if tpex.is_ok:
                 cleaned_tpex_df: Optional[pd.DataFrame] = (
                     self.cleaner.clean_tpex_dividend(
-                        tpex_df, file_name=f"tpex_{period}"
+                        tpex.data, file_name=f"tpex_{period}"
                     )
                 )
                 if cleaned_tpex_df is None or cleaned_tpex_df.empty:
@@ -115,6 +115,9 @@ class StockDividendUpdater(BaseDataUpdater):
                 self.YEAR_REQUEST_DELAY_MIN, self.YEAR_REQUEST_DELAY_MAX
             )
             time.sleep(delay)
+
+        # `requested` 這裡的單位是「年」而不是「天」：本來源支援區間查詢，一年一次請求
+        stats.report("dividend（單位：年）")
 
         # Step 3: Load
         self.loader.add_to_db(remove_files=False)

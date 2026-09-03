@@ -12,7 +12,8 @@ from core.config import (
     MONTHLY_REVENUE_TABLE_NAME,
     TW_STOCK_DB_PATH,
 )
-from core.pipeline.shared.base_updater import BaseDataUpdater
+from core.pipeline.shared.base_crawler import CrawlResult
+from core.pipeline.shared.base_updater import BaseDataUpdater, UpdateStats
 from core.pipeline.tw.cleaners.monthly_revenue_report_cleaner import (
     MonthlyRevenueReportCleaner,
 )
@@ -91,18 +92,20 @@ class MonthlyRevenueReportUpdater(BaseDataUpdater):
         years: List[int] = TimeUtils.generate_year_range(start_year, end_year)
         months: List[int] = TimeUtils.generate_month_range(start_month, end_month)
         file_cnt: int = 0
+        stats: UpdateStats = UpdateStats()
 
         for year in years:
             for month in months:
                 logger.info(f"* {year}/{month}")
-                df_list: Optional[List[pd.DataFrame]] = self.crawler.crawl(year, month)
+                result: CrawlResult = self.crawler.crawl(year, month)
+                stats.record(result)
 
                 # Step 2: Clean
-                if df_list is None or not df_list:
+                if not result.is_ok:
                     continue
 
                 cleaned_df: pd.DataFrame = self.cleaner.clean_monthly_revenue(
-                    df_list, year, month
+                    result.tables, year, month
                 )
 
                 if cleaned_df is None or cleaned_df.empty:
@@ -121,6 +124,9 @@ class MonthlyRevenueReportUpdater(BaseDataUpdater):
                         self.BATCH_RANDOM_DELAY_MIN, self.BATCH_RANDOM_DELAY_MAX
                     )
                     time.sleep(delay)
+
+        # `requested` 這裡的單位是「年月」而不是「天」
+        stats.report("mrr（單位：年月）")
 
         # Step 3: Load
         self.loader.add_to_db(remove_files=False)

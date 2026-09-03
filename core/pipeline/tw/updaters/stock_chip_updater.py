@@ -8,7 +8,8 @@ import pandas as pd
 from loguru import logger
 
 from core.config import CHIP_TABLE_NAME, TW_STOCK_DB_PATH
-from core.pipeline.shared.base_updater import BaseDataUpdater
+from core.pipeline.shared.base_crawler import CrawlResult
+from core.pipeline.shared.base_updater import BaseDataUpdater, UpdateStats
 from core.pipeline.tw.cleaners.stock_chip_cleaner import StockChipCleaner
 from core.pipeline.tw.crawlers.stock_chip_crawler import StockChipCrawler
 from core.pipeline.tw.loaders.stock_chip_loader import StockChipLoader
@@ -95,23 +96,25 @@ class StockChipUpdater(BaseDataUpdater):
         dates: List[datetime.date] = TimeUtils.generate_date_range(start_date, end_date)
         file_cnt: int = 0
         batch_dates: List[str] = []
+        stats: UpdateStats = UpdateStats()
 
         for date in dates:
             logger.info(date.strftime("%Y/%m/%d"))
-            twse_df: Optional[pd.DataFrame] = self.crawler.crawl_twse_chip(date)
-            tpex_df: Optional[pd.DataFrame] = self.crawler.crawl_tpex_chip(date)
+            twse: CrawlResult = self.crawler.crawl_twse_chip(date)
+            tpex: CrawlResult = self.crawler.crawl_tpex_chip(date)
+            stats.record(twse, tpex)
 
             # Step 2: Clean
-            if twse_df is not None and not twse_df.empty:
+            if twse.is_ok:
                 cleaned_twse_df: pd.DataFrame = self.cleaner.clean_twse_chip(
-                    twse_df, date
+                    twse.data, date
                 )
                 if cleaned_twse_df is None or cleaned_twse_df.empty:
                     logger.warning(f"Cleaned TWSE dataframe empty on {date}")
 
-            if tpex_df is not None and not tpex_df.empty:
+            if tpex.is_ok:
                 cleaned_tpex_df: pd.DataFrame = self.cleaner.clean_tpex_chip(
-                    tpex_df, date
+                    tpex.data, date
                 )
                 if cleaned_tpex_df is None or cleaned_tpex_df.empty:
                     logger.warning(f"Cleaned TPEX dataframe empty on {date}")
@@ -137,6 +140,8 @@ class StockChipUpdater(BaseDataUpdater):
         # 收尾：載入最後一批未達批量的日期
         if batch_dates:
             self.load_batch(batch_dates)
+
+        stats.report("chip")
 
         # 更新後重新取得Table最新的日期
         table_latest_date: str = SQLiteUtils.get_table_latest_value(

@@ -1,13 +1,11 @@
 import datetime
-from io import StringIO
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
-import requests
 from loguru import logger
 
-from core.pipeline.shared.base_crawler import BaseDataCrawler
-from core.pipeline.shared.request_utils import RequestUtils
+from core.pipeline.shared.base_crawler import BaseDataCrawler, CrawlResult
+from core.pipeline.shared.request_utils import FetchResult, RequestUtils
 from core.pipeline.utils.url_manager import URLManager
 from core.utils import TimeUtils
 
@@ -55,7 +53,7 @@ class StockDividendCrawler(BaseDataCrawler):
         self,
         start_date: datetime.date,
         end_date: datetime.date,
-    ) -> Optional[pd.DataFrame]:
+    ) -> CrawlResult:
         """
         - Description:
             TWSE 除權除息計算結果表區間爬蟲
@@ -70,8 +68,8 @@ class StockDividendCrawler(BaseDataCrawler):
                 查詢迄日
 
         - Return:
-            - Optional[pd.DataFrame]
-                原始表格；查無資料或版面異常時回傳 None
+            - CrawlResult
+                區間內無除權息為 `NO_DATA`；連線或版面異常為 `FAILED`
         """
 
         logger.info(f"* Start crawling TWSE dividend: {start_date} ~ {end_date}")
@@ -81,31 +79,21 @@ class StockDividendCrawler(BaseDataCrawler):
             start_date=TimeUtils.format_date(start_date, sep=""),
             end_date=TimeUtils.format_date(end_date, sep=""),
         )
+        result: FetchResult = RequestUtils.fetch(twse_url)
 
-        twse_response: Optional[requests.Response] = RequestUtils.requests_get(twse_url)
-
-        if twse_response is None:
-            return None
-
-        try:
-            # 股票代號含 ETF（00xxx）會被推斷為 int 而丟失前導 0，以 converters 保留原始字串
-            twse_df: pd.DataFrame = pd.read_html(
-                StringIO(twse_response.text), converters={1: str}
-            )[0]
-            if twse_df.empty:
-                logger.warning("No data in table. Possibly no ex-dividend in period")
-                return None
-        except Exception:
-            logger.info(f"No TWSE dividend data between {start_date} and {end_date}")
-            return None
-
-        return twse_df
+        # 股票代號含 ETF（00xxx）會被推斷為 int 而丟失前導 0，以 converters 保留原始字串
+        return self.parse_html_table(
+            result,
+            f"TWSE dividend {start_date}~{end_date}",
+            index=0,
+            converters={1: str},
+        )
 
     def crawl_tpex_dividend(
         self,
         start_date: datetime.date,
         end_date: datetime.date,
-    ) -> Optional[pd.DataFrame]:
+    ) -> CrawlResult:
         """
         - Description:
             TPEX（櫃買中心）除權除息計算結果表區間爬蟲
@@ -124,45 +112,52 @@ class StockDividendCrawler(BaseDataCrawler):
                 查詢迄日
 
         - Return:
-            - Optional[pd.DataFrame]
-                原始表格（欄名為官方中文欄位）；查無資料或區間不符時回傳 None
+            - CrawlResult
+                區間內無除權息為 `NO_DATA`；連線、JSON 解析或區間不符為 `FAILED`
         """
 
         logger.info(f"* Start crawling TPEX dividend: {start_date} ~ {end_date}")
 
+        label: str = f"TPEX dividend {start_date}~{end_date}"
         tpex_url: str = URLManager.get_url(
             "TPEX_EX_RIGHT_URL",
             start_date=TimeUtils.format_date(start_date, sep="/"),
             end_date=TimeUtils.format_date(end_date, sep="/"),
         )
+        result: FetchResult = RequestUtils.fetch(tpex_url)
 
-        tpex_response: Optional[requests.Response] = RequestUtils.requests_get(tpex_url)
-
-        if tpex_response is None:
-            return None
+        judged: Optional[CrawlResult] = self.judge_fetch(result, label)
+        if judged is not None:
+            return judged
 
         try:
-            payload: Dict[str, Any] = tpex_response.json()
-        except Exception as e:
-            logger.warning(f"Failed to parse TPEX dividend response: {e}")
-            return None
+            payload: Dict[str, Any] = result.response.json()
+        except Exception as error:
+            logger.warning(f"{label}: JSON 解析失敗（{type(error).__name__}: {error}）")
+            return CrawlResult.failed(f"json_error: {type(error).__name__}")
 
+        # 區間不符代表**送出的日期格式被站方靜靜忽略**，拿到的是「近三日」而非整年。
+        # 這是取錯資料，不是沒有資料，故為 FAILED——記成 NO_DATA 會讓這一年再也不補。
         if not self.check_tpex_date_range(payload, start_date, end_date):
-            return None
+            return CrawlResult.failed("date_range_mismatch")
 
         tables: List[Dict[str, Any]] = payload.get("tables") or []
         if not tables:
-            logger.warning("No table in TPEX dividend response")
-            return None
+            logger.warning(f"{label}: 回應中沒有 tables 欄位")
+            return CrawlResult.failed("no_tables_in_payload")
 
         fields: List[str] = tables[0].get("fields") or []
         rows: List[List[Any]] = tables[0].get("data") or []
 
-        if not fields or not rows:
-            logger.info(f"No TPEX dividend data between {start_date} and {end_date}")
-            return None
+        if not fields:
+            logger.warning(f"{label}: 回應中沒有欄位定義")
+            return CrawlResult.failed("no_fields_in_payload")
 
-        return pd.DataFrame(rows, columns=fields)
+        if not rows:
+            logger.info(f"{label}: 區間內無除權息")
+            return CrawlResult.no_data("區間內無除權息")
+
+        return CrawlResult.ok(pd.DataFrame(rows, columns=fields))
 
     @staticmethod
     def check_tpex_date_range(

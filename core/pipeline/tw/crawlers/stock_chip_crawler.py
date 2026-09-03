@@ -1,13 +1,10 @@
 import datetime
-from io import StringIO
-from typing import Optional
 
 import pandas as pd
-import requests
 from loguru import logger
 
-from core.pipeline.shared.base_crawler import BaseDataCrawler
-from core.pipeline.shared.request_utils import RequestUtils
+from core.pipeline.shared.base_crawler import BaseDataCrawler, CrawlResult
+from core.pipeline.shared.request_utils import FetchResult, RequestUtils
 from core.pipeline.utils.url_manager import URLManager
 from core.utils import TimeUtils
 
@@ -45,33 +42,38 @@ class StockChipCrawler(BaseDataCrawler):
         self.crawl_twse_chip(date)
         self.crawl_tpex_chip(date)
 
-    def crawl_twse_chip(self, date: datetime.date) -> Optional[pd.DataFrame]:
-        """TWSE 三大法人單日爬蟲"""
+    def crawl_twse_chip(self, date: datetime.date) -> CrawlResult:
+        """
+        - Description:
+            TWSE 三大法人單日爬蟲
+        - Parameters:
+            - date: datetime.date
+                交易日
+        - Return:
+            - CrawlResult
+        """
 
         logger.info(f"* Start crawling TWSE chip: {date}")
 
         date_str: str = TimeUtils.format_date(date, sep="")
         twse_url: str = URLManager.get_url("TWSE_CHIP_URL", date=date_str)
+        result: FetchResult = RequestUtils.fetch(twse_url)
 
-        twse_response: Optional[requests.Response] = RequestUtils.requests_get(twse_url)
+        return self.parse_html_table(result, f"TWSE chip {date}", index=0)
 
-        if twse_response is None:
-            return None
+    def crawl_tpex_chip(self, date: datetime.date) -> CrawlResult:
+        """
+        - Description:
+            TPEX 三大法人單日爬蟲
 
-        # 檢查是否為假日 or 單純網站還未更新
-        try:
-            twse_df: pd.DataFrame = pd.read_html(StringIO(twse_response.text))[0]
-            if twse_df.empty:
-                logger.warning("No data in table. Possibly not yet updated")
-                return None
-        except Exception:
-            logger.info(f"{date} is a Holiday!")
-            return None
-
-        return twse_df
-
-    def crawl_tpex_chip(self, date: datetime.date) -> Optional[pd.DataFrame]:
-        """TPEX 三大法人單日爬蟲"""
+            回傳的表格首列是合計列、末欄是空欄，兩者都在這裡去掉；
+            **去不掉代表版面改了**，那是 FAILED 而不是休市。
+        - Parameters:
+            - date: datetime.date
+                交易日
+        - Return:
+            - CrawlResult
+        """
 
         logger.info(f"* Start crawling TPEX chip: {date}")
 
@@ -79,31 +81,30 @@ class StockChipCrawler(BaseDataCrawler):
         date_str: str = TimeUtils.format_date(date, sep="/")
         if date < self.tpex_url_change_date:
             tpex_url: str = URLManager.get_url("TPEX_CHIP_URL_1", date=date_str)
-        elif date >= self.tpex_url_change_date:
+        else:
             tpex_url: str = URLManager.get_url("TPEX_CHIP_URL_2", date=date_str)
 
-        tpex_response: Optional[requests.Response] = RequestUtils.requests_get(tpex_url)
+        result: FetchResult = RequestUtils.fetch(tpex_url)
+        parsed: CrawlResult = self.parse_html_table(
+            result, f"TPEX chip {date}", index=0
+        )
+        if not parsed.is_ok:
+            return parsed
 
-        if tpex_response is None:
-            return None
-
-        try:
-            tpex_df: pd.DataFrame = pd.read_html(StringIO(tpex_response.text))[0]
-        except Exception:
-            logger.info(f"{date} is a Holiday!")
-            return None
-
+        tpex_df: pd.DataFrame = parsed.data
         try:
             tpex_df.drop(
                 index=tpex_df.index[0], columns=tpex_df.columns[-1], inplace=True
             )
-        except Exception:
-            logger.warning("TPEX table structure unexpected")
-            return None
+        except Exception as error:
+            logger.warning(
+                f"TPEX chip {date}: 版面與預期不符（{type(error).__name__}: {error}）"
+            )
+            return CrawlResult.failed(f"unexpected_layout: {type(error).__name__}")
 
-        # 檢查是否為假日
-        if tpex_df.empty or tpex_df.shape[0] == 1:
-            logger.info(f"{date} is a Holiday!")
-            return None
+        # 去掉合計列後沒有任何個股，代表當天沒有資料
+        if tpex_df.empty:
+            logger.info(f"TPEX chip {date}: 去除合計列後無資料（休市或尚未公布）")
+            return CrawlResult.no_data("去除合計列後無資料")
 
-        return tpex_df
+        return CrawlResult.ok(tpex_df)

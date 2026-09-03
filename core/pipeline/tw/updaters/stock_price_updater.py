@@ -8,7 +8,8 @@ import pandas as pd
 from loguru import logger
 
 from core.config import PRICE_TABLE_NAME, TW_STOCK_DB_PATH
-from core.pipeline.shared.base_updater import BaseDataUpdater
+from core.pipeline.shared.base_crawler import CrawlResult
+from core.pipeline.shared.base_updater import BaseDataUpdater, UpdateStats
 from core.pipeline.tw.cleaners.stock_price_cleaner import StockPriceCleaner
 from core.pipeline.tw.crawlers.stock_price_crawler import StockPriceCrawler
 from core.pipeline.tw.loaders.stock_price_loader import StockPriceLoader
@@ -97,31 +98,25 @@ class StockPriceUpdater(BaseDataUpdater):
         dates: List[datetime.date] = TimeUtils.generate_date_range(start_date, end_date)
         file_cnt: int = 0
         batch_dates: List[str] = []
+        stats: UpdateStats = UpdateStats()
 
         for date in dates:
             logger.info(date.strftime("%Y/%m/%d"))
-            twse_df: Optional[pd.DataFrame] = self.crawler.crawl_twse_price(date)
-            tpex_df: Optional[pd.DataFrame] = self.crawler.crawl_tpex_price(date)
+            twse: CrawlResult = self.crawler.crawl_twse_price(date)
+            tpex: CrawlResult = self.crawler.crawl_tpex_price(date)
+            stats.record(twse, tpex)
 
             # Step 2: Clean
-            if (
-                twse_df is not None
-                and not twse_df.empty
-                and len(twse_df) > self.MIN_DF_ROWS_AFTER_CLEAN
-            ):
+            if twse.is_ok and len(twse.data) > self.MIN_DF_ROWS_AFTER_CLEAN:
                 cleaned_twse_df: pd.DataFrame = self.cleaner.clean_twse_price(
-                    twse_df, date
+                    twse.data, date
                 )
                 if cleaned_twse_df is None or cleaned_twse_df.empty:
                     logger.warning(f"Cleaned TWSE dataframe empty on {date}")
 
-            if (
-                tpex_df is not None
-                and not tpex_df.empty
-                and len(tpex_df) > self.MIN_DF_ROWS_AFTER_CLEAN
-            ):
+            if tpex.is_ok and len(tpex.data) > self.MIN_DF_ROWS_AFTER_CLEAN:
                 cleaned_tpex_df: pd.DataFrame = self.cleaner.clean_tpex_price(
-                    tpex_df, date
+                    tpex.data, date
                 )
                 if cleaned_tpex_df is None or cleaned_tpex_df.empty:
                     logger.warning(f"Cleaned TPEX dataframe empty on {date}")
@@ -147,6 +142,8 @@ class StockPriceUpdater(BaseDataUpdater):
         # 收尾：載入最後一批未達批量的日期
         if batch_dates:
             self.load_batch(batch_dates)
+
+        stats.report("price")
 
         # 更新後重新取得Table最新的日期
         table_latest_date: str = SQLiteUtils.get_table_latest_value(

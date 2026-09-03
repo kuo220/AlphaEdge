@@ -1,13 +1,9 @@
 import datetime
-from io import StringIO
-from typing import Optional
 
-import pandas as pd
-import requests
 from loguru import logger
 
-from core.pipeline.shared.base_crawler import BaseDataCrawler
-from core.pipeline.shared.request_utils import RequestUtils
+from core.pipeline.shared.base_crawler import BaseDataCrawler, CrawlResult
+from core.pipeline.shared.request_utils import FetchResult, RequestUtils
 from core.pipeline.utils.url_manager import URLManager
 from core.utils import TimeUtils
 
@@ -47,57 +43,46 @@ class StockMarginCrawler(BaseDataCrawler):
         self.crawl_twse_margin(date)
         self.crawl_tpex_margin(date)
 
-    def crawl_twse_margin(self, date: datetime.date) -> Optional[pd.DataFrame]:
-        """TWSE 融資融券餘額單日爬蟲"""
+    def crawl_twse_margin(self, date: datetime.date) -> CrawlResult:
+        """
+        - Description:
+            TWSE 融資融券餘額單日爬蟲
+        - Parameters:
+            - date: datetime.date
+                交易日
+        - Return:
+            - CrawlResult
+        """
 
         logger.info(f"* Start crawling TWSE margin: {date}")
 
         date_str: str = TimeUtils.format_date(date, sep="")
         twse_url: str = URLManager.get_url("TWSE_MARGIN_ALL_URL", date=date_str)
+        result: FetchResult = RequestUtils.fetch(twse_url)
 
-        twse_response: Optional[requests.Response] = RequestUtils.requests_get(twse_url)
+        # selectType=ALL 會多回傳一張信用交易統計彙總表，個股明細固定在最後一張；
+        # 證券代號含合計列會被推斷為 float，以 converters 保留原始字串
+        return self.parse_html_table(
+            result, f"TWSE margin {date}", index=-1, converters={0: str}
+        )
 
-        if twse_response is None:
-            return None
-
-        # 檢查是否為假日 or 單純網站還未更新
-        try:
-            # selectType=ALL 會多回傳一張信用交易統計彙總表，個股明細固定在最後一張
-            # 證券代號含合計列會被推斷為 float，以 converters 保留原始字串
-            twse_df: pd.DataFrame = pd.read_html(
-                StringIO(twse_response.text), converters={0: str}
-            )[-1]
-            if twse_df.empty:
-                logger.warning("No data in table. Possibly not yet updated")
-                return None
-        except Exception:
-            logger.info(f"{date} is a Holiday!")
-            return None
-
-        return twse_df
-
-    def crawl_tpex_margin(self, date: datetime.date) -> Optional[pd.DataFrame]:
-        """TPEX 融資融券餘額單日爬蟲"""
+    def crawl_tpex_margin(self, date: datetime.date) -> CrawlResult:
+        """
+        - Description:
+            TPEX 融資融券餘額單日爬蟲
+        - Parameters:
+            - date: datetime.date
+                交易日
+        - Return:
+            - CrawlResult
+        """
 
         logger.info(f"* Start crawling TPEX margin: {date}")
 
         date_str: str = TimeUtils.format_date(date, sep="/")
         tpex_url: str = URLManager.get_url("TPEX_MARGIN_ALL_URL", date=date_str)
+        result: FetchResult = RequestUtils.fetch(tpex_url)
 
-        tpex_response: Optional[requests.Response] = RequestUtils.requests_get(tpex_url)
-
-        if tpex_response is None:
-            return None
-
-        try:
-            tpex_df: pd.DataFrame = pd.read_html(
-                StringIO(tpex_response.text), converters={0: str}
-            )[0]
-            if tpex_df.empty:
-                logger.warning("No data in table. Possibly not yet updated")
-                return None
-        except Exception:
-            logger.info(f"{date} is a Holiday!")
-            return None
-
-        return tpex_df
+        return self.parse_html_table(
+            result, f"TPEX margin {date}", index=0, converters={0: str}
+        )
