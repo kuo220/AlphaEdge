@@ -307,10 +307,10 @@ SHORT 的 12 組情境刻意各只動一個變因，任一情境快照有變即�
 
 ## 九、健檢 C 級結論（2026-09-02）
 
-[全專案架構與邏輯健檢.md](../dev/health-check-2026-09.md) S11~S13 對引擎、model 與管理器逐行核對後，B 級已轉入 `backlog/回測口徑與日期邊界收斂.md`；下列 C 級屬已知簡化，記於此不另開工作：
+[全專案架構與邏輯健檢.md](../dev/health-check-2026-09.md) S11~S13 對引擎、model 與管理器逐行核對後，B 級已由「回測口徑與日期邊界收斂」於 2026-09-04 全數收斂完成（該規劃文件依 `manage-backlog` §5 移出 `backlog/`，成果歸屬見 [健檢紀錄](../dev/health-check-2026-09.md)〈附錄 A〉開頭）；下列 C 級屬已知簡化，記於此不另開工作：
 
 - **F-061 漲跌停公式相符率 61.6%**：`TwStockSpec.get_price_limits()` 以「前收 ±幅度後往內對齊檔位」推算，與交易所公告比對 23,972 筆只有 61.6% 相符（多數差一檔）。影響 `validate()` 的邊界拒單與 `check_limit_up_locked()` 的 `limit_up_cover_failed` 計數。既有 23,972 筆公告值可經 `DataFeed.get_price_limit_basis()` 同一掛點推入，公式版退為 fallback——等有策略真的依賴漲停判定時再做。
-- 其餘引擎側 C 級（`check_has_position()` 未濾已平倉 F-020、期貨同契約多空各佔保證金 F-058、期貨損益公式兩套 F-062、`holding_days` bar 數 vs 曆日 F-063、每曆日 `SELECT *` 判空 F-066、近月拼接挑到週契約 F-069、期貨日曆只看第一個商品 F-070、`MomentumStrategy1` TICK 未擋 F-075、`max_holdings` 預設 0 F-076）已併入 `backlog/回測口徑與日期邊界收斂.md` 對應步驟，修 B 級時順手處理。
+- 其餘引擎側 C 級（`check_has_position()` 未濾已平倉 F-020、期貨同契約多空各佔保證金 F-058、期貨損益公式兩套 F-062、`holding_days` bar 數 vs 曆日 F-063、每曆日 `SELECT *` 判空 F-066、近月拼接挑到週契約 F-069、期貨日曆只看第一個商品 F-070、`MomentumStrategy1` TICK 未擋 F-075、`max_holdings` 預設 0 F-076）已隨 B 級一併修完（2026-09-03 ~ 09-04），逐條落點見 [健檢紀錄](../dev/health-check-2026-09.md)〈附錄 A〉。
 
 ## 相關文件
 

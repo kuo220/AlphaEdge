@@ -90,7 +90,7 @@ graph TB
 
 | Module          | Description                                                                                                                     |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `core/`         | Core trading domain code (strategies, managers, models, adapters, API, data, backtest outputs)                                  |
+| `core/`         | Core trading domain code (strategies, managers, models, adapters, API, ETL, backtest engine; outputs land in the top-level `results/`) |
 | `frontend/`     | Streamlit Docker image for viewing backtest results                                                                             |
 | `tasks/`        | Data maintenance and database update scripts                                                                                    |
 | `tests/`        | Unit/integration tests for crawlers, updaters, and DB workflows                                                                 |
@@ -120,6 +120,10 @@ graph TB
 | [ETL Ingestion](docs/pipeline/etl-ingestion.md)         | Batching, idempotency and failure semantics of the data-load stage; per-updater checklist |
 | [Broker Trading NO_DATA](docs/pipeline/broker-trading-no-data.md) | Metadata semantics for empty API responses (decision record) |
 | [Health Check 2026-09](docs/dev/health-check-2026-09.md) | Repo-wide architecture/logic audit record: 101 findings graded A–D, each with its disposition |
+| [TW Futures Platform](docs/futures/tw-futures-platform.md) | TAIFEX futures backtest platform: margin, contract roll, night session, stock-futures contract size |
+| [Naming Axes](docs/dev/naming-axes.md)                  | Directory naming decision for the market axis vs the instrument-type axis |
+| [Runtime Artifacts](docs/dev/runtime-artifacts.md)      | Conventions for `data/` / `results/` / `logs/`, log bucketing and retention |
+| [Equity Change Data](docs/pipeline/equity-change.md)    | `equity_change` data shape, coverage, known limits and throttling |
 
 
 ---
@@ -316,13 +320,14 @@ AlphaEdge/
 │   ├── strategies/            # strategy implementations
 │   │   ├── base.py            # BaseStrategy (market-agnostic)
 │   │   ├── strategy_loader.py # auto-scans every market sub-package
+│   │   ├── ridge.py           # ridge signal shared by research and production (a module on purpose)
 │   │   ├── stock/             # BaseStockStrategy + concrete stock strategies
 │   │   └── futures/           # BaseFuturesStrategy + TW futures strategies
 │   ├── api/                   # data access APIs (SQLite / DolphinDB)
 │   ├── adapters/              # data adapters / integrations
-│   │   └── stock_quote_adapter.py  # StockQuoteAdapter (day/tick → StockQuote)
+│   │   └── tw/                # StockQuoteAdapter (day/tick → StockQuote), FuturesQuoteAdapter
 │   ├── managers/              # position managers (base/ + per-market)
-│   ├── models/                # domain models (base/ + stock/)
+│   ├── models/                # domain models (base/ + stock/ + futures/)
 │   ├── utils/                 # shared helpers (enums, paths, time, logging)
 │   ├── pipeline/              # ETL/update pipeline
 │   │   ├── shared/           # cross-market: four layer bases + HTTP helpers
@@ -334,7 +339,7 @@ AlphaEdge/
 │   │   ├── models/            # InstrumentSpec / FillModel / CostModel / SettlementModel
 │   │   ├── datafeed/          # data loading, quote conversion, trading calendar
 │   │   ├── report/            # trading report, direction summary, charts
-│   │   ├── analysis/          # performance metrics (not yet wired into run())
+│   │   ├── analysis/          # performance metrics (risk_metrics.py is pure functions; not yet wired into run())
 ├── data/                      # runtime data (git-ignored): db/ (tw_stock.db, tw_futures.db) + downloads/
 ├── results/                   # per-strategy backtest outputs (csv / png), git-ignored
 ├── logs/                      # api/ pipeline/ backtest/, git-ignored
@@ -353,7 +358,8 @@ AlphaEdge/
 ├── backlog/                   # internal planning notes
 ├── docs/                      # project docs
 │   ├── backtest/              # engine architecture, module map, short-selling spec
-│   ├── dev/                   # code quality tooling and baselines
+│   ├── dev/                   # code quality, naming axes, runtime artifacts, audit record
+│   ├── futures/               # TW futures platform plan and per-phase completion notes
 │   ├── pipeline/              # ETL ingestion contract and decision records
 │   ├── setup/
 │   ├── deployment/

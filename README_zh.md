@@ -87,7 +87,7 @@ graph TB
 
 | 模組            | 說明                                                                  |
 | --------------- | --------------------------------------------------------------------- |
-| `core/`         | 交易領域核心程式碼（策略、管理器、模型、介接層、API、資料與回測輸出） |
+| `core/`         | 交易領域核心程式碼（策略、管理器、模型、介接層、API、ETL 與回測引擎；回測輸出落在根目錄的 `results/`） |
 | `frontend/`     | 用於檢視回測結果的 Streamlit Docker 映像                              |
 | `tasks/`        | 資料維護與資料庫更新腳本                                              |
 | `tests/`        | crawler、updater 與資料庫流程的單元/整合測試                          |
@@ -115,6 +115,10 @@ graph TB
 | [ETL 入庫約定](docs/pipeline/etl-ingestion.md) | 入庫階段的分批時機、冪等性與失敗語意；新增 updater 的檢查表 |
 | [券商分點 NO_DATA 的 metadata 語意](docs/pipeline/broker-trading-no-data.md) | API 回傳空資料時的 metadata 處理（選型紀錄） |
 | [全專案架構與邏輯健檢（2026-09）](docs/dev/health-check-2026-09.md) | 全 repo 架構與邏輯健檢紀錄：101 條發現分 A~D 級，每條附處置去處 |
+| [台期貨平台規劃與實作](docs/futures/tw-futures-platform.md) | 台指期回測平台：保證金、換月、夜盤、股期契約單位與各 Phase 完成紀錄 |
+| [命名軸線](docs/dev/naming-axes.md) | 市場軸與商品類別軸的目錄命名定案，以及哪些目錄不分市場 |
+| [執行期產物](docs/dev/runtime-artifacts.md) | `data/`／`results/`／`logs/` 的目錄約定、日誌分桶與保留策略 |
+| [權益變動表資料](docs/pipeline/equity-change.md) | `equity_change` 的資料形狀、涵蓋範圍、已知限制與節流設定 |
 
 ---
 
@@ -308,13 +312,14 @@ AlphaEdge/
 │   ├── strategies/            # 策略實作
 │   │   ├── base.py            # BaseStrategy（市場無關）
 │   │   ├── strategy_loader.py # 自動掃描所有市場子套件
+│   │   ├── ridge.py           # 研究版與成品版共用的 ridge 訊號（刻意為模組，不是子套件）
 │   │   ├── stock/             # BaseStockStrategy ＋ 各支台股策略
 │   │   └── futures/           # BaseFuturesStrategy 與台期貨策略
 │   ├── api/                   # 資料存取 API（SQLite／DolphinDB）
 │   ├── adapters/              # 資料介接 / 整合層
-│   │   └── stock_quote_adapter.py  # StockQuoteAdapter（日線/Tick → StockQuote）
+│   │   └── tw/               # StockQuoteAdapter（日線/Tick → StockQuote）、FuturesQuoteAdapter
 │   ├── managers/              # 倉位管理器（base/ ＋ 各市場）
-│   ├── models/                # 領域模型（base/ ＋ stock/）
+│   ├── models/                # 領域模型（base/ ＋ stock/ ＋ futures/）
 │   ├── utils/                 # 共用工具（enum、路徑、時間、日誌）
 │   ├── pipeline/              # ETL / 更新流程
 │   │   ├── shared/           # 跨市場共用：四層 base ＋ HTTP 工具
@@ -326,7 +331,7 @@ AlphaEdge/
 │   │   ├── models/            # InstrumentSpec／FillModel／CostModel／SettlementModel
 │   │   ├── datafeed/          # 資料載入、報價轉換、交易日判定
 │   │   ├── report/            # 交易報表、多空統計、圖表
-│   │   ├── analysis/          # 績效指標（尚未接進 run() 主流程）
+│   │   ├── analysis/          # 績效指標（risk_metrics.py 為純函式，尚未接進 run() 主流程）
 ├── data/                      # 執行期資料（不進版控）：db/（tw_stock.db、tw_futures.db）＋ downloads/
 ├── results/                   # 各策略回測輸出（csv／png），不進版控
 ├── logs/                      # api/、pipeline/、backtest/ 三桶，不進版控
@@ -345,7 +350,8 @@ AlphaEdge/
 ├── backlog/                   # 內部規劃筆記
 ├── docs/                      # 專案文件
 │   ├── backtest/              # 引擎架構、模組使用關係、放空框架規格
-│   ├── dev/                   # 程式碼品質工具鏈與基線
+│   ├── dev/                   # 程式碼品質、命名軸線、執行期產物、健檢紀錄
+│   ├── futures/               # 台期貨平台規劃與各 Phase 完成紀錄
 │   ├── pipeline/              # ETL 入庫約定與選型紀錄
 │   ├── setup/
 │   ├── deployment/
