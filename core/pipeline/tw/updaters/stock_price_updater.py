@@ -150,6 +150,8 @@ class StockPriceUpdater(BaseDataUpdater):
             if len(batch_dates) >= self.LOAD_BATCH_SIZE:
                 self.load_batch(batch_dates)
                 batch_dates = []
+                # 與入庫同步落盤：中斷時已確認過的休市日不必再問一次
+                no_data_store.save()
 
             if file_cnt == self.BATCH_SLEEP_EVERY_N_FILES:
                 logger.info("Sleep 2 minutes...")
