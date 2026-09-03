@@ -288,8 +288,17 @@ class FuturesPositionManager(BasePositionManager):
                 損益（未扣交易成本）
         """
 
-        direction: int = 1 if position_type == PositionType.LONG else -1
-        return (exit_price - entry_price) * multiplier * volume * direction
+        # **一律走成本模型**（健檢 F-062）：同一條公式原本在這裡與
+        # `FuturesCostModel.realized_pnl()` 各寫一份，兩邊都對只是巧合——
+        # 哪天有人改了乘數或方向的處理，另一邊不會跟著改，也不會有測試失敗
+        return self.cost_model.realized_pnl(
+            entry_price=entry_price,
+            exit_price=exit_price,
+            volume=volume,
+            multiplier=multiplier,
+            position_type=position_type,
+            transaction_cost=0.0,
+        )
 
     @staticmethod
     def normalize_date(

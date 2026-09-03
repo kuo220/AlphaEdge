@@ -1013,7 +1013,12 @@ class TwFuturesSettlementModel(BaseSettlementModel):
                 expiries.get(position.product, []),
                 open_interest.get(position.product),
             )
-            if active is None or active == position.expiry:
+            # **不可換到比現在更近的月份**（健檢 F-071）：`OPEN_INTEREST` 規則
+            # 比較的是「次月未沖銷量是否超過近月」，而未沖銷量會逐日波動——
+            # 換到次月之後，近月的未沖銷量可能又反超一天，於是部位被換回去。
+            # 每來回一次就付兩次手續費與一次展期價差，而且是憑空產生的。
+            # 換月是單向的：只往遠月走。
+            if active is None or active <= position.expiry:
                 continue
 
             new_quote: Optional[FuturesQuote] = quote_map.get(
@@ -1038,15 +1043,33 @@ class TwFuturesSettlementModel(BaseSettlementModel):
         date: datetime.date,
         quote_map: Dict[str, FuturesQuote],
     ) -> None:
-        """平掉舊契約並以相同口數與方向開新契約（展期價差如實入帳）"""
+        """
+        - Description:
+            平掉舊契約並以相同口數與方向開新契約（展期價差如實入帳）
+
+            **兩腿一定要用同一種價**（健檢 F-071）：舊版舊腿走盯市價
+            （＝結算價），新腿卻用 `close`。結算價與收盤價在期貨是兩個不同的
+            數字，混用會讓帳上多出一筆**不存在的展期價差**——而展期價差正是
+            這裡唯一該記錄的東西，摻進口徑差異就失去意義了。
+        - Parameters:
+            - position: FuturesPosition
+                要轉倉的部位
+            - new_quote: FuturesQuote
+                新契約當日報價
+            - date: datetime.date
+                轉倉日
+            - quote_map: Dict[str, FuturesQuote]
+                當根 bar 的報價
+        """
 
         volume: int = position.volume
         position_type: PositionType = position.position_type
         exit_price: float = self.get_mark_price(position, quote_map)
+        entry_price: float = self.get_quote_mark_price(new_quote)
 
         logger.info(
             f"* Roll {position.symbol} → {new_quote.contract_id} "
-            f"({volume} lots @ {new_quote.close})"
+            f"({volume} lots @ {entry_price})"
         )
         self.close_position_at(position, date, exit_price)
 
@@ -1059,7 +1082,7 @@ class TwFuturesSettlementModel(BaseSettlementModel):
                     Action.BUY if position_type == PositionType.LONG else Action.SELL
                 ),
                 position_type=position_type,
-                price=new_quote.close,
+                price=entry_price,
                 volume=volume,
             )
         )
@@ -1187,11 +1210,7 @@ class TwFuturesSettlementModel(BaseSettlementModel):
         quote: Optional[FuturesQuote] = quote_map.get(position.symbol)
 
         if quote is not None:
-            price: Optional[float] = (
-                quote.settlement_price
-                if quote.settlement_price is not None
-                else (quote.close or quote.cur_price)
-            )
+            price: Optional[float] = self.get_quote_mark_price(quote)
             if price:
                 return float(price)
 
@@ -1200,6 +1219,29 @@ class TwFuturesSettlementModel(BaseSettlementModel):
             f"沿用最近一次結算價 {position.price} 盯市"
         )
         return position.price
+
+    @staticmethod
+    def get_quote_mark_price(quote: FuturesQuote) -> float:
+        """
+        - Description:
+            一筆報價的盯市價：結算價優先，缺漏時退回收盤價
+
+            抽出來是為了讓**轉倉的兩腿用同一種價**（健檢 F-071）：舊腿走盯市價、
+            新腿走 `close` 的話，帳上會多出一筆不存在的展期價差。
+        - Parameters:
+            - quote: FuturesQuote
+                報價
+        - Return:
+            - float
+                盯市價；三種價格都沒有時為 0.0
+        """
+
+        price: Optional[float] = (
+            quote.settlement_price
+            if quote.settlement_price is not None
+            else (quote.close or quote.cur_price)
+        )
+        return float(price) if price else 0.0
 
     def mark_position(
         self, position: FuturesPosition, mark_price: float, units: int

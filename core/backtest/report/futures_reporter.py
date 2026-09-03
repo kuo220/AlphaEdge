@@ -6,6 +6,7 @@ import pandas as pd
 from loguru import logger
 
 from core.api.tw.futures_price_api import FuturesPriceAPI
+from core.backtest.datafeed.tw.futures_roll import FuturesRollPlanner
 from core.backtest.report.reporter import StockBacktestReporter
 from core.models.futures.record import FuturesTradeRecord
 from core.pipeline.utils.constant import FuturesPriceColumn
@@ -95,10 +96,26 @@ class FuturesBacktestReporter(StockBacktestReporter):
             )
             return pd.Series(dtype=float)
 
-        # 同一天多個到期月：`expiry` 為 `YYYYMM`，字典序即時間序，取最小者為近月
-        near_month: pd.DataFrame = df.sort_values(["date", "expiry"]).drop_duplicates(
-            subset="date", keep="first"
-        )
+        # **先濾掉週契約**（健檢 F-069）：`expiry` 可能是 `YYYYMM` 或 `YYYYMMWn`，
+        # 字典序下 `202401W5` < `202402`，於是一月的週契約會贏過二月的月契約——
+        # 一月月契約到期之後，近月序列會黏在快到期的週契約上。
+        # 判準沿用 `FuturesRollPlanner.MONTHLY_EXPIRY_PATTERN`，與換月規則同一份。
+        monthly: pd.DataFrame = df[
+            df["expiry"]
+            .astype(str)
+            .str.match(FuturesRollPlanner.MONTHLY_EXPIRY_PATTERN)
+        ]
+        if monthly.empty:
+            logger.warning(
+                f"[Futures Report] {self.benchmark_product} 區間內只有週契約，"
+                f"本次不繪製對標曲線"
+            )
+            return pd.Series(dtype=float)
+
+        # 同一天多個到期月：字典序即時間序，取最小者為近月
+        near_month: pd.DataFrame = monthly.sort_values(
+            ["date", "expiry"]
+        ).drop_duplicates(subset="date", keep="first")
 
         series: pd.Series = near_month[FuturesPriceColumn.CLOSE.value].astype(float)
         series.index = pd.to_datetime(near_month["date"]).dt.date

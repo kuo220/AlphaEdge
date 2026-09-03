@@ -1,6 +1,6 @@
 import datetime
 import sqlite3
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Set
 
 from loguru import logger
 
@@ -203,13 +203,26 @@ class TwFuturesDataFeed(BaseDataFeed):
         if self.start_date is None or self.end_date is None:
             return FuturesCalendar()
 
-        product: Optional[str] = self.products[0] if self.products else None
-        return FuturesCalendar.from_api(
-            self.futures_price,
-            self.start_date,
-            self.end_date + datetime.timedelta(days=self.CALENDAR_LOOKAHEAD_DAYS),
-            product=product,
+        # **多商品要取聯集**（健檢 F-070）：舊版只看 `products[0]`，
+        # 於是第一個商品停止交易（下市、尚未上市、資料缺一段）的那些日子，
+        # 整場回測都會被判定為休市——連還在交易的其他商品都跟著停擺。
+        end: datetime.date = self.end_date + datetime.timedelta(
+            days=self.CALENDAR_LOOKAHEAD_DAYS
         )
+        if not self.products:
+            return FuturesCalendar.from_api(
+                self.futures_price, self.start_date, end, product=None
+            )
+
+        trading_days: Set[datetime.date] = set()
+        for product in self.products:
+            trading_days |= set(
+                self.futures_price.get_trading_days(
+                    self.start_date, end, product=product
+                )
+            )
+
+        return FuturesCalendar(trading_days)
 
     def get_quotes(
         self,

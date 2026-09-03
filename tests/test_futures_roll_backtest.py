@@ -413,3 +413,138 @@ def test_backtest_roll_dates_match_the_continuous_table() -> None:
         feed.close()
 
     assert backtest_rolls == table_rolls
+
+
+# === 換月不可回頭（健檢 F-071）===
+def test_roll_never_goes_back_to_a_nearer_month() -> None:
+    """
+    `OPEN_INTEREST` 規則下，未沖銷量反轉不可讓部位換回近月（健檢 F-071）
+
+    未沖銷量逐日波動，換到次月之後近月可能又反超一天。每來回一次就付兩次
+    手續費與一次展期價差，而且是憑空產生的——換月是單向的。
+    """
+
+    # 用 202403 最後交易日**之前**的日期：那之後近月已到期，規則本來就不會回頭
+    before_expiry: datetime.date = datetime.date(2024, 3, 19)
+
+    settlement: TwFuturesSettlementModel = make_settlement(
+        FuturesRollConfig(rule=FuturesRollRule.OPEN_INTEREST)
+    )
+    # 前一天未沖銷量偏向次月，部位已經換到 202404
+    open_position(settlement, expiry="202404")
+    account: FuturesAccount = settlement.position_manager.account
+
+    # 今天近月的未沖銷量又反超：舊版會把部位換回 202403
+    settlement.on_bar_close(
+        before_expiry,
+        [
+            make_quote("202403", 20000.0, date=before_expiry, open_interest=900),
+            make_quote("202404", 20100.0, date=before_expiry, open_interest=100),
+        ],
+        account,
+        {},
+    )
+
+    positions = account.get_positions()
+    assert len(positions) == 1
+    assert positions[0].expiry == "202404", "換月是單向的，不可換回更近的月份"
+
+
+def test_roll_uses_the_same_price_kind_for_both_legs() -> None:
+    """
+    轉倉兩腿都用盯市價（結算價優先），不可一腿結算價、一腿收盤價
+
+    兩者在期貨是不同的數字，混用會讓帳上多出一筆不存在的展期價差
+    ——而展期價差正是這裡唯一該記錄的東西。
+    """
+
+    from core.backtest.models.settlement_model import TwFuturesSettlementModel
+
+    class _Quote:
+        settlement_price = 18050.0
+        close = 18000.0
+        cur_price = 17990.0
+
+    assert TwFuturesSettlementModel.get_quote_mark_price(_Quote()) == 18050.0
+
+
+def test_quote_mark_price_falls_back_to_close() -> None:
+    """夜盤沒有結算價（來源即為 NULL），退回收盤價"""
+
+    from core.backtest.models.settlement_model import TwFuturesSettlementModel
+
+    class _NightQuote:
+        settlement_price = None
+        close = 18000.0
+        cur_price = 17990.0
+
+    assert TwFuturesSettlementModel.get_quote_mark_price(_NightQuote()) == 18000.0
+
+
+def test_quote_mark_price_is_zero_when_nothing_available() -> None:
+    """三種價格都沒有時回 0，由呼叫端決定退回最近一次結算價"""
+
+    from core.backtest.models.settlement_model import TwFuturesSettlementModel
+
+    class _EmptyQuote:
+        settlement_price = None
+        close = None
+        cur_price = None
+
+    assert TwFuturesSettlementModel.get_quote_mark_price(_EmptyQuote()) == 0.0
+
+
+# === 近月拼接不可挑到週契約（健檢 F-069）===
+def test_near_month_series_excludes_weekly_contracts() -> None:
+    """
+    `202401W5` 在字典序上小於 `202402`，會贏過二月的月契約
+
+    一月月契約到期之後，近月序列會黏在快到期的週契約上。
+    """
+
+    import pandas as pd
+
+    from core.backtest.datafeed.tw.futures_roll import FuturesRollPlanner
+
+    expiries: pd.Series = pd.Series(["202401", "202401W5", "202402"])
+    monthly: pd.Series = expiries[
+        expiries.str.match(FuturesRollPlanner.MONTHLY_EXPIRY_PATTERN)
+    ]
+
+    assert monthly.tolist() == ["202401", "202402"]
+
+
+# === 期貨損益只有一條公式（健檢 F-062）===
+def test_manager_pnl_delegates_to_the_cost_model() -> None:
+    """
+    `calculate_pnl()` 與 `FuturesCostModel.realized_pnl()` 必須是同一條公式
+
+    兩邊各寫一份時，哪天有人改了乘數或方向的處理，另一邊不會跟著改，
+    也不會有測試失敗。
+    """
+
+    from core.backtest.models.cost_model import TwFuturesCostModel
+    from core.managers.futures.position_manager import FuturesPositionManager
+    from core.models import FuturesAccount
+    from core.utils import PositionType
+
+    cost_model: TwFuturesCostModel = TwFuturesCostModel()
+    manager: FuturesPositionManager = FuturesPositionManager(
+        FuturesAccount(1000000.0), cost_model
+    )
+
+    kwargs = dict(
+        entry_price=18000.0,
+        exit_price=18100.0,
+        volume=2,
+        multiplier=200,
+        position_type=PositionType.SHORT,
+    )
+
+    assert manager.calculate_pnl(
+        position_type=kwargs["position_type"],
+        entry_price=kwargs["entry_price"],
+        exit_price=kwargs["exit_price"],
+        volume=kwargs["volume"],
+        multiplier=kwargs["multiplier"],
+    ) == cost_model.realized_pnl(**kwargs, transaction_cost=0.0)

@@ -178,16 +178,23 @@ class FuturesMarginAPI(BaseDataAPI):
                 查詢日
         - Return:
             - Optional[Dict[str, float]]
-                三種比例；查無資料時為 None
+                三種比例；查無資料**或資料表尚未建立**時為 None
+                （與 `get_margin()` 同一套語意）
         """
 
-        row = self.conn.execute(
-            f"SELECT 結算保證金適用比例, 維持保證金適用比例, 原始保證金適用比例 "
-            f"FROM {STOCK_FUTURES_MARGIN_RATE_HISTORY_TABLE_NAME} "
-            f"WHERE product_id = ? AND effective_date <= ? "
-            f"ORDER BY effective_date DESC LIMIT 1",
-            (product_id, str(date)),
-        ).fetchone()
+        try:
+            row = self.conn.execute(
+                f"SELECT 結算保證金適用比例, 維持保證金適用比例, 原始保證金適用比例 "
+                f"FROM {STOCK_FUTURES_MARGIN_RATE_HISTORY_TABLE_NAME} "
+                f"WHERE product_id = ? AND effective_date <= ? "
+                f"ORDER BY effective_date DESC LIMIT 1",
+                (product_id, str(date)),
+            ).fetchone()
+        except sqlite3.OperationalError:
+            # 表不存在（尚未跑過保證金 ETL）：與 `get_margin()` 同樣回 None。
+            # **舊版只有 `get_margin()` 有這段**（健檢 F-027），於是同一個
+            # 「還沒跑 ETL」的環境下，查金額回 None、查比例卻直接拋例外
+            return None
 
         if row is None and fallback_to_earliest:
             # 級距穩定的商品（Ex: CDF 一直是級距 1）從不出現在調整公告裡，
