@@ -48,7 +48,9 @@ class StockChipAPI(BaseDataAPI):
         df: pd.DataFrame = pd.read_sql_query(
             query,
             self.conn,
-            params=(date,),
+            params=self.sql_params(
+                date,
+            ),
         )
         return df
 
@@ -69,7 +71,7 @@ class StockChipAPI(BaseDataAPI):
         df: pd.DataFrame = pd.read_sql_query(
             query,
             self.conn,
-            params=(start_date, end_date),
+            params=self.sql_params(start_date, end_date),
         )
         return df
 
@@ -92,7 +94,7 @@ class StockChipAPI(BaseDataAPI):
         df: pd.DataFrame = pd.read_sql_query(
             query,
             self.conn,
-            params=(stock_id, start_date, end_date),
+            params=self.sql_params(stock_id, start_date, end_date),
         )
         return df
 
@@ -149,7 +151,13 @@ class StockChipAPI(BaseDataAPI):
         if start_date > end_date:
             return pd.DataFrame()
 
-        df: pd.DataFrame = self.get(start_date, end_date)
+        # **舊版寫的是 `self.get(start_date, end_date)`**，而 `get()` 只收一個
+        # `date` ——這個公開方法一被呼叫就 `TypeError`（健檢 F-024）。
+        # 全專案沒有呼叫端，所以壞了三年也沒人發現，但 API 門面看起來是可用的
+        df: pd.DataFrame = self.get_range(start_date, end_date)
+        if df.empty:
+            return df
+
         df = df.loc[
             :,
             (

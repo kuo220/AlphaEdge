@@ -192,3 +192,96 @@ def test_get_trust_net_shares_map(chip_api: StockChipAPI) -> None:
     assert chip_map["2330"] == 1_200_000
     assert chip_map["2317"] == -800_000
     assert "9999" not in chip_map
+
+
+# === API 邊界（健檢 F-024、F-025、F-026）===
+def test_sql_params_converts_dates_to_iso() -> None:
+    """
+    `date`／`datetime` 一律轉 ISO 字串（F-025）
+
+    不轉的話是靠 Python 3.12 已 deprecated 的 sqlite date adapter，
+    那個 adapter 隨時可能被移除，屆時每一支 API 都會在同一天壞掉。
+    """
+
+    from core.api.base import BaseDataAPI
+
+    params = BaseDataAPI.sql_params(
+        "2330", datetime.date(2024, 1, 2), datetime.datetime(2024, 1, 3, 13, 30), 5
+    )
+
+    assert params == ("2330", "2024-01-02", "2024-01-03", 5)
+
+
+def test_get_net_chip_no_longer_raises(tmp_path) -> None:
+    """
+    `get_net_chip()` 一被呼叫就 `TypeError`（F-024）
+
+    舊版寫的是 `self.get(start_date, end_date)`，而 `get()` 只收一個 `date`。
+    全專案沒有呼叫端，所以壞了也沒人發現，但 API 門面看起來是可用的。
+    """
+
+    import sqlite3
+
+    from core.api.tw.stock_chip_api import StockChipAPI
+
+    conn = sqlite3.connect(tmp_path / "test.db")
+    conn.execute(
+        'CREATE TABLE chip ("date" TEXT, stock_id TEXT, "證券名稱" TEXT, '
+        '"外資買賣超股數" INTEGER, "投信買賣超股數" INTEGER, "自營商買賣超股數" INTEGER)'
+    )
+    conn.execute(
+        "INSERT INTO chip VALUES ('2024-01-02', '2330', '台積電', 100, 200, 300)"
+    )
+    conn.commit()
+
+    api: StockChipAPI = StockChipAPI(conn=conn)
+    df = api.get_net_chip(datetime.date(2024, 1, 1), datetime.date(2024, 1, 31))
+
+    assert len(df) == 1
+    assert list(df.columns) == [
+        "date",
+        "stock_id",
+        "證券名稱",
+        "外資買賣超股數",
+        "投信買賣超股數",
+        "自營商買賣超股數",
+    ]
+    conn.close()
+
+
+def test_get_net_chip_returns_empty_without_data(tmp_path) -> None:
+    """查無資料時回空表，不可在取欄位時炸掉"""
+
+    import sqlite3
+
+    from core.api.tw.stock_chip_api import StockChipAPI
+
+    conn = sqlite3.connect(tmp_path / "test.db")
+    conn.execute('CREATE TABLE chip ("date" TEXT, stock_id TEXT)')
+    conn.commit()
+
+    api: StockChipAPI = StockChipAPI(conn=conn)
+
+    assert api.get_net_chip(datetime.date(2024, 1, 1), datetime.date(2024, 1, 31)).empty
+    conn.close()
+
+
+def test_financial_statement_table_name_is_whitelisted() -> None:
+    """
+    表名由呼叫端傳入，只能走白名單（F-026）
+
+    表名不能參數化、只能拼進 SQL，而拼字串的地方就是注入的入口。
+    """
+
+    import pytest
+
+    from core.api.tw.financial_statement_api import FinancialStatementAPI
+    from core.config import BALANCE_SHEET_TABLE_NAME
+
+    assert (
+        FinancialStatementAPI.check_table_name(BALANCE_SHEET_TABLE_NAME)
+        == BALANCE_SHEET_TABLE_NAME
+    )
+
+    with pytest.raises(ValueError, match="不支援的財報資料表"):
+        FinancialStatementAPI.check_table_name("balance_sheet; DROP TABLE price")

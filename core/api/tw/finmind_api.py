@@ -75,7 +75,13 @@ class FinMindAPI(BaseDataAPI):
         SELECT * FROM {STOCK_INFO_TABLE_NAME}
         WHERE stock_id = ?
         """
-        return pd.read_sql_query(query, self.conn, params=(stock_id,))
+        return pd.read_sql_query(
+            query,
+            self.conn,
+            params=self.sql_params(
+                stock_id,
+            ),
+        )
 
     def get_all_stock_info(self) -> pd.DataFrame:
         """取得全部台股總覽（不含權證）"""
@@ -96,7 +102,13 @@ class FinMindAPI(BaseDataAPI):
         SELECT * FROM {STOCK_INFO_WITH_WARRANT_TABLE_NAME}
         WHERE stock_id = ?
         """
-        return pd.read_sql_query(query, self.conn, params=(stock_id,))
+        return pd.read_sql_query(
+            query,
+            self.conn,
+            params=self.sql_params(
+                stock_id,
+            ),
+        )
 
     def get_all_stock_info_with_warrant(self) -> pd.DataFrame:
         """取得全部台股總覽（含權證）"""
@@ -118,7 +130,13 @@ class FinMindAPI(BaseDataAPI):
         SELECT * FROM {SECURITIES_TRADER_INFO_TABLE_NAME}
         WHERE securities_trader_id = ?
         """
-        return pd.read_sql_query(query, self.conn, params=(securities_trader_id,))
+        return pd.read_sql_query(
+            query,
+            self.conn,
+            params=self.sql_params(
+                securities_trader_id,
+            ),
+        )
 
     def get_all_broker_info(self) -> pd.DataFrame:
         """取得全部證券商資訊"""
@@ -141,7 +159,13 @@ class FinMindAPI(BaseDataAPI):
         SELECT * FROM {STOCK_TRADING_DAILY_REPORT_TABLE_NAME}
         WHERE date = ?
         """
-        return pd.read_sql_query(query, self.conn, params=(date,))
+        return pd.read_sql_query(
+            query,
+            self.conn,
+            params=self.sql_params(
+                date,
+            ),
+        )
 
     def get_broker_trading_range(
         self,
@@ -156,7 +180,9 @@ class FinMindAPI(BaseDataAPI):
         SELECT * FROM {STOCK_TRADING_DAILY_REPORT_TABLE_NAME}
         WHERE date BETWEEN ? AND ?
         """
-        return pd.read_sql_query(query, self.conn, params=(start_date, end_date))
+        return pd.read_sql_query(
+            query, self.conn, params=self.sql_params(start_date, end_date)
+        )
 
     def get_broker_trading_for_stock_on_date(
         self,
@@ -172,7 +198,7 @@ class FinMindAPI(BaseDataAPI):
         return pd.read_sql_query(
             query,
             self.conn,
-            params=(stock_id, date),
+            params=self.sql_params(stock_id, date),
         )
 
     def get_broker_trading_for_stock_in_range(
@@ -192,7 +218,7 @@ class FinMindAPI(BaseDataAPI):
         return pd.read_sql_query(
             query,
             self.conn,
-            params=(stock_id, start_date, end_date),
+            params=self.sql_params(stock_id, start_date, end_date),
         )
 
     def get_broker_trading_by_broker_and_date(
@@ -209,5 +235,5 @@ class FinMindAPI(BaseDataAPI):
         return pd.read_sql_query(
             query,
             self.conn,
-            params=(securities_trader, date),
+            params=self.sql_params(securities_trader, date),
         )

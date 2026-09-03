@@ -48,7 +48,9 @@ class StockMarginAPI(BaseDataAPI):
         df: pd.DataFrame = pd.read_sql_query(
             query,
             self.conn,
-            params=(date,),
+            params=self.sql_params(
+                date,
+            ),
         )
         return df
 
@@ -69,7 +71,7 @@ class StockMarginAPI(BaseDataAPI):
         df: pd.DataFrame = pd.read_sql_query(
             query,
             self.conn,
-            params=(start_date, end_date),
+            params=self.sql_params(start_date, end_date),
         )
         return df
 
@@ -92,7 +94,7 @@ class StockMarginAPI(BaseDataAPI):
         df: pd.DataFrame = pd.read_sql_query(
             query,
             self.conn,
-            params=(stock_id, start_date, end_date),
+            params=self.sql_params(stock_id, start_date, end_date),
         )
         return df
 
@@ -107,7 +109,9 @@ class StockMarginAPI(BaseDataAPI):
         df: pd.DataFrame = pd.read_sql_query(
             query,
             self.conn,
-            params=(date,),
+            params=self.sql_params(
+                date,
+            ),
         )
         return df
 
@@ -172,7 +176,7 @@ class StockMarginAPI(BaseDataAPI):
         df: pd.DataFrame = pd.read_sql_query(
             query,
             self.conn,
-            params=(stock_id, date),
+            params=self.sql_params(stock_id, date),
         )
 
         if df.empty:

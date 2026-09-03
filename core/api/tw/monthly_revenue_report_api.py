@@ -51,7 +51,7 @@ class MonthlyRevenueReportAPI(BaseDataAPI):
         df: pd.DataFrame = pd.read_sql_query(
             query,
             self.conn,
-            params=(year, month),
+            params=self.sql_params(year, month),
         )
         return df
 
@@ -72,6 +72,6 @@ class MonthlyRevenueReportAPI(BaseDataAPI):
         df: pd.DataFrame = pd.read_sql_query(
             query,
             self.conn,
-            params=(start_year, end_year, start_month, end_month),
+            params=self.sql_params(start_year, end_year, start_month, end_month),
         )
         return df

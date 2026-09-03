@@ -4,6 +4,12 @@ from typing import Dict, List, Optional
 import numpy as np
 
 from core.backtest.analysis.base import BaseBacktestAnalyzer
+from core.backtest.analysis.risk_metrics import (
+    TRADING_DAYS_PER_YEAR,
+    compute_annualized_sharpe,
+    compute_annualized_sortino,
+    compute_period_returns,
+)
 from core.models import StockTradeRecord
 from core.strategies.stock import BaseStockStrategy
 
@@ -90,35 +96,81 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
         return round(mdd * 100, 2)
 
     # ===== Risk-Adjusted Metrics =====
-    def compute_volatility(self) -> float:
-        """計算報酬率的標準差（可視為風險程度）"""
-        return np.std([record.roi for record in self.trade_records])
+    def compute_daily_returns(
+        self, daily_equity: Optional[List[Dict]] = None
+    ) -> List[float]:
+        """由權益曲線算出**日報酬**序列（風險指標的樣本）"""
 
-    def compute_sharpe_ratio(self) -> Optional[float]:
-        """Compute Sharpe Ratio"""
+        return compute_period_returns(self.compute_equity_curve(daily_equity))
 
-        std_dev: float = self.compute_volatility()
-        roi_mean: float = np.mean([record.roi for record in self.trade_records])
+    def compute_volatility(
+        self, daily_equity: Optional[List[Dict]] = None
+    ) -> Optional[float]:
+        """
+        - Description:
+            年化波動度（%）
 
-        if std_dev > 0:
-            return (roi_mean - self.risk_free_rate) / std_dev
-        return None
+            **樣本是日報酬而不是每筆交易的 ROI**（健檢 F-068）：交易筆數與時間
+            無關，一年交易 5 次與 500 次算出的「波動度」不可比，也無從年化。
+        - Parameters:
+            - daily_equity: Optional[List[Dict]]
+                Backtester.daily_equity
+        - Return:
+            - Optional[float]
+                年化波動度（%）；樣本不足兩期時為 None
+        """
 
-    def compute_sortino_ratio(self) -> Optional[float]:
-        """Compute Sortino Ratio"""
+        returns: List[float] = self.compute_daily_returns(daily_equity)
+        if len(returns) < 2:
+            return None
 
-        downside_dev: float = np.std(
-            [
-                record.roi
-                for record in self.trade_records
-                if record.roi < self.risk_free_rate
-            ]
+        return round(
+            float(np.std(returns, ddof=1)) * np.sqrt(TRADING_DAYS_PER_YEAR) * 100, 2
         )
-        roi_mean: float = np.mean([record.roi for record in self.trade_records])
 
-        if downside_dev > 0:
-            return (roi_mean - self.risk_free_rate) / downside_dev
-        return None
+    def compute_sharpe_ratio(
+        self, daily_equity: Optional[List[Dict]] = None
+    ) -> Optional[float]:
+        """
+        - Description:
+            年化 Sharpe ratio；公式見 `risk_metrics.compute_annualized_sharpe()`
+
+            舊版的分子是 `record.roi`（百分比）、分母的無風險利率是 `0.02`
+            （小數），兩者差 100 倍，等於幾乎沒有扣無風險利率；而且沒有年化。
+        - Parameters:
+            - daily_equity: Optional[List[Dict]]
+                Backtester.daily_equity
+        - Return:
+            - Optional[float]
+                年化 Sharpe；資料不足時為 None
+        """
+
+        return compute_annualized_sharpe(
+            self.compute_daily_returns(daily_equity),
+            risk_free_rate=self.risk_free_rate or 0.0,
+        )
+
+    def compute_sortino_ratio(
+        self, daily_equity: Optional[List[Dict]] = None
+    ) -> Optional[float]:
+        """
+        - Description:
+            年化 Sortino ratio；公式見 `risk_metrics.compute_annualized_sortino()`
+
+            舊版對「低於門檻的那些報酬」取 `np.std`，那是它們**彼此之間**的
+            離散度；正確定義是相對於門檻的偏差平方，除以**全樣本**筆數再開根號。
+        - Parameters:
+            - daily_equity: Optional[List[Dict]]
+                Backtester.daily_equity
+        - Return:
+            - Optional[float]
+                年化 Sortino；資料不足時為 None
+        """
+
+        return compute_annualized_sortino(
+            self.compute_daily_returns(daily_equity),
+            risk_free_rate=self.risk_free_rate or 0.0,
+        )
 
     def compute_information_ratio(self) -> Optional[float]:
         """Compute Information Ratio（策略超額報酬相對於基準的穩定性）

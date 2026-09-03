@@ -185,7 +185,9 @@ class FuturesStockUniverseAPI(BaseDataAPI):
             f"SELECT snapshot_date, contract_size FROM {FUTURES_STOCK_UNIVERSE_TABLE_NAME} "
             f"WHERE product_id = ? ORDER BY snapshot_date",
             self.conn,
-            params=(product_id,),
+            params=self.sql_params(
+                product_id,
+            ),
         )
         if df.empty:
             return df

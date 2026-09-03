@@ -84,7 +84,11 @@ class FuturesChipAPI(BaseDataAPI):
             return pd.DataFrame()
 
         return pd.read_sql_query(
-            f"SELECT * FROM {table} WHERE date = ?", self.conn, params=(latest,)
+            f"SELECT * FROM {table} WHERE date = ?",
+            self.conn,
+            params=self.sql_params(
+                latest,
+            ),
         )
 
     def get_latest_available_date(
@@ -118,7 +122,11 @@ class FuturesChipAPI(BaseDataAPI):
 
         try:
             return pd.read_sql_query(
-                f"SELECT * FROM {table} WHERE date = ?", self.conn, params=(str(date),)
+                f"SELECT * FROM {table} WHERE date = ?",
+                self.conn,
+                params=self.sql_params(
+                    str(date),
+                ),
             )
         except pd.errors.DatabaseError:
             return pd.DataFrame()

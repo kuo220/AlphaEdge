@@ -1,6 +1,7 @@
+import datetime
 import sqlite3
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
@@ -17,6 +18,36 @@ class BaseDataAPI(ABC):
     def setup(self):
         """Set Up the Config of Data API"""
         pass
+
+    @staticmethod
+    def sql_params(*values: Any) -> Tuple[Any, ...]:
+        """
+        - Description:
+            把查詢參數轉成 SQLite 收得下的型別；`date`／`datetime` 轉 ISO 字串
+
+            **不轉的話是靠 Python 3.12 已 deprecated 的預設 date adapter**
+            （健檢 F-025）：那個 adapter 隨時可能被移除，屆時每一支 API 都會
+            在同一天壞掉，而且錯誤訊息只會說「型別不支援」。
+
+            資料表的 `date` 欄一律是 `TEXT`（`YYYY-MM-DD`），ISO 字串本來就是
+            正確的比較對象；`datetime` 只取日期部分，與欄位格式對齊。
+        - Parameters:
+            - values: Any
+                查詢參數；非日期型別原樣通過
+        - Return:
+            - Tuple[Any, ...]
+                可直接傳給 `params=` 的 tuple
+        """
+
+        converted: List[Any] = []
+        for value in values:
+            if isinstance(value, datetime.datetime):
+                converted.append(value.date().isoformat())
+            elif isinstance(value, datetime.date):
+                converted.append(value.isoformat())
+            else:
+                converted.append(value)
+        return tuple(converted)
 
     @staticmethod
     def build_column_map(df: pd.DataFrame, column: str) -> Dict[str, Any]:
