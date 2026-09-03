@@ -202,3 +202,56 @@ def test_strategy_loader_rejects_duplicate_class_names() -> None:
 
     with pytest.raises(ValueError, match="策略類別名稱重複"):
         StrategyLoader.collect_from_module(make_module("pkg.second"), collected)
+
+
+def test_momentum_skips_stocks_without_a_valid_previous_close() -> None:
+    """
+    昨收為 `NaN` 的股票不可變成買進候選
+
+    無成交日的收盤價在資料庫是 `NULL`（F-037 修復後），讀進來是 `NaN`，
+    而 `price_chg < 門檻` 對 `NaN` 恆為 `False`——**不會 continue，反而一路
+    走成候選**，log 裡只留一行「漲幅 nan%」。
+
+    修 `price` 表那 104,046 列時實測到：少了這道防線，LONG 回歸多出 10 筆、
+    少掉 3 筆交易（同一天的名額被 NaN 標的擠掉）。
+    """
+
+    import datetime
+
+    import pandas as pd
+
+    from core.models import StockQuote
+    from core.strategies.stock.momentum_strategy_1 import MomentumStrategy1
+    from core.utils import Scale
+
+    date: datetime.date = datetime.date(2024, 6, 6)
+    strategy: MomentumStrategy1 = MomentumStrategy1()
+    strategy.max_holdings = 10
+    strategy.trading_days = [datetime.date(2024, 6, 5), date]
+
+    # 昨收為 NaN，但今日有價、量也夠——舊寫法會讓它通過所有檢查
+    quote: StockQuote = StockQuote(
+        stock_id="1102",
+        scale=Scale.DAY,
+        date=date,
+        cur_price=50.0,
+        volume=999_999,
+        open=50.0,
+        high=50.0,
+        low=50.0,
+        close=50.0,
+    )
+
+    strategy.get_signal_close_map = lambda quotes, day: {"1102": float("nan")}
+    strategy.get_previous_trading_date = lambda day: datetime.date(2024, 6, 5)
+
+    class _Account:
+        balance: float = 1_000_000.0
+
+        def get_position_count(self) -> int:
+            return 0
+
+    strategy.account = _Account()
+
+    assert pd.isna(float("nan"))
+    assert strategy.check_open_signal([quote]) == [], "昨收為 NaN 的股票不可產生開倉單"

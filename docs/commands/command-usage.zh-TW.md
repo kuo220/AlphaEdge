@@ -7,7 +7,7 @@
 ### 功能說明
 
 `tasks.update_db` 是資料更新系統入口，透過 `--target` 指定要更新的資料類型，可單一或多選。
-未指定 `--target` 時，預設為 `no_tick`（更新全部資料但不含 tick）。
+未指定 `--target` 時，預設為 `no_tick`（更新全部資料，但不含**兩種** tick）。
 
 ### 參數
 
@@ -38,7 +38,7 @@
 | `broker_info`             | FinMind 證券商資訊                 |
 | `broker_trading`          | FinMind 券商分點統計                |
 | `all`                     | 全部資料（含 tick）                  |
-| `no_tick`                 | 全部資料（不含 `tick`，預設）。⚠️ **不排除 `futures_tick`**（見健檢 F-078） |
+| `no_tick`                 | 全部資料（不含 `tick` **與** `futures_tick`，預設）。兩者都需要 Shioaji 金鑰與 `[tick]` 選用相依，沒有的機器否則每晚都以結束碼 1 收場（2026-09-03 修正，健檢 F-078） |
 
 
 ### 單一 target 範例
@@ -97,6 +97,35 @@ python -m tasks.update_db --target chip price
 python -m tasks.update_db --target chip price tick
 python -m tasks.update_db --target stock_info broker_trading
 ```
+
+### `--from`：把起日往前拉
+
+```bash
+python -m tasks.update_db --target price --from 2013-01-01
+```
+
+**平常不需要用**：updater 的候選日期是「日曆 − 表內已有 − 已確認沒有資料」的
+差集，中間缺的日子會自動被補回來（2026-09-03 起，健檢 F-050）。
+`--from` 是給「要把起點拉到比預設更早」的情境用的，只影響以**日期**為單位的
+target；`fs`／`mrr` 這種以年季／年月為單位的不受影響。
+
+## 刪除單日行情：`python -m tasks.delete_price_data`
+
+**預設只預覽不刪除**——打錯一個日期就少掉一整天、上千檔的收盤行情，
+而且要重跑 ETL 才補得回來（2026-09-03 起，健檢 F-079）。
+
+```bash
+# 只報告會刪幾筆，不寫入
+python -m tasks.delete_price_data --date 2025-07-13
+
+# 實際刪除；會要求輸入完整日期做確認
+python -m tasks.delete_price_data --date 2025-07-13 --apply
+
+# 排程用：跳過互動確認
+python -m tasks.delete_price_data --date 2025-07-13 --apply --yes
+```
+
+非互動環境（無 tty）若沒有 `--yes` 一律拒絕執行，不會默默刪掉。
 
 ## 回測：`python run.py --strategy <StrategyClassName>`
 

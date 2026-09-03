@@ -2,6 +2,7 @@
 import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
+import pandas as pd
 from loguru import logger
 
 from core.backtest.datafeed.base import BaseDataFeed
@@ -166,9 +167,17 @@ class MomentumStrategy1(BaseStockStrategy):
                 continue
             yesterday_close_price: float = yesterday_close_map[stock_quote.stock_id]
 
-            if yesterday_close_price == 0:
+            # **`NaN` 一定要在這裡擋掉**：無成交日的收盤價在資料庫是 `NULL`
+            # （F-037 修復後），讀進來是 `NaN`。而下面的 `price_chg < 門檻`
+            # 對 `NaN` 恆為 `False`——**不會 `continue`，反而一路走成買進候選**，
+            # log 裡只會留下一行「漲幅 nan%」。
+            #
+            # 修 `price` 表那 104,046 列時實測到：少了這道防線，LONG 回歸
+            # 多出 10 筆、少掉 3 筆交易（同一天的名額被 NaN 標的擠掉）。
+            if pd.isna(yesterday_close_price) or not yesterday_close_price:
                 logger.warning(
-                    f"股票 {stock_quote.stock_id} {yesterday} 收盤價為 0 或 None"
+                    f"股票 {stock_quote.stock_id} {yesterday} 無有效收盤價"
+                    f"（NULL／NaN／0），本日跳過"
                 )
                 continue
 

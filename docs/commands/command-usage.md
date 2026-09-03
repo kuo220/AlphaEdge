@@ -7,7 +7,7 @@ This document collects common runtime commands, including data updates (`tasks.u
 ### Overview
 
 `tasks.update_db` is the entrypoint of the data update pipeline. Use `--target` to choose one or more update targets.
-If `--target` is omitted, the default is `no_tick` (all updates except tick data).
+If `--target` is omitted, the default is `no_tick` (all datasets except **both** tick targets).
 
 ### Parameter
 
@@ -37,7 +37,7 @@ If `--target` is omitted, the default is `no_tick` (all updates except tick data
 | `broker_info` | FinMind broker info |
 | `broker_trading` | FinMind broker trading stats |
 | `all` | All datasets (including tick) |
-| `no_tick` | All datasets except `tick` (default). ⚠️ `futures_tick` is **not** excluded (見健檢 F-078) |
+| `no_tick` | All datasets except `tick` **and** `futures_tick` (default). Both need Shioaji credentials and the `[tick]` extra; a machine without them would otherwise exit 1 every night (fixed 2026-09-03, 健檢 F-078) |
 
 ### Single Target Examples
 
@@ -112,6 +112,37 @@ python -m tasks.update_db --target chip price
 python -m tasks.update_db --target chip price tick
 python -m tasks.update_db --target stock_info broker_trading
 ```
+
+### `--from`: pull the start date earlier
+
+```bash
+python -m tasks.update_db --target price --from 2013-01-01
+```
+
+**Rarely needed**: candidate dates are the difference set "calendar − already in
+table − confirmed no data", so gaps in the middle are backfilled automatically
+(since 2026-09-03, 健檢 F-050). Use `--from` only to start earlier than the
+default. It affects date-based targets only; `fs`／`mrr` (year/season, year/month)
+are unaffected.
+
+## Deleting one day of price data: `python -m tasks.delete_price_data`
+
+**Previews by default** — one wrong date drops a whole day of quotes for
+thousands of stocks, recoverable only by re-running the ETL
+(since 2026-09-03, 健檢 F-079).
+
+```bash
+# Report the row count only, no write
+python -m tasks.delete_price_data --date 2025-07-13
+
+# Actually delete; asks you to type the full date to confirm
+python -m tasks.delete_price_data --date 2025-07-13 --apply
+
+# For schedulers: skip the interactive confirmation
+python -m tasks.delete_price_data --date 2025-07-13 --apply --yes
+```
+
+A non-interactive environment (no tty) without `--yes` refuses to run.
 
 ## Backtest: `python run.py --strategy <StrategyClassName>`
 

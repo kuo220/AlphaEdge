@@ -31,25 +31,48 @@ CSV，程序中斷後資料庫仍是 0 列。
 
 | Updater | 入庫時機 | Resume 依據 | 重載防護 | 失敗可見度 |
 |---------|----------|-------------|----------|-----------|
-| `StockPriceUpdater` | **每 100 天** | DB 最新 `date` +1 | 先查既有鍵再過濾 | `logger.error` |
-| `StockChipUpdater` | **每 100 天** | 同上 | `INSERT OR IGNORE` | `DataLoadError` |
-| `StockMarginUpdater` | **每 100 天** | 同上 | `INSERT OR IGNORE` | `DataLoadError` |
-| `StockDividendUpdater` | 全部跑完 | 同上 | `INSERT OR REPLACE` | `DataLoadError` |
+| `StockPriceUpdater` | **每 100 天** | **差集**（見下方說明） | `INSERT OR IGNORE` | `DataLoadError` |
+| `StockChipUpdater` | **每 100 天** | **差集**（日曆取自 `price` 表） | `INSERT OR IGNORE` | `DataLoadError` |
+| `StockMarginUpdater` | **每 100 天** | **差集**（日曆取自 `price` 表） | `INSERT OR IGNORE` | `DataLoadError` |
+| `StockDividendUpdater` | 全部跑完 | **每次都掃整個區間**（一年一次請求，13 年僅 26 次） | `INSERT OR REPLACE` | `DataLoadError` |
 | `MonthlyRevenueReportUpdater` | 全部跑完 | DB 最大年月 +1 | 先查既有鍵再過濾 | `DataLoadError` |
 | `FinancialStatementUpdater`（前三張報表） | 每種報表一次 | 各表最大年季 +1 | `INSERT OR IGNORE` | `DataLoadError` |
 | `FinancialStatementUpdater`（equity_change） | **每 100 檔** | 逐年季查已入庫的 `stock_id` | `INSERT OR IGNORE` | `DataLoadError` |
-| `FinMindUpdater`（broker_trading） | 逐組合、每 50 組 commit | metadata ＋ DB | 先查既有鍵再過濾 | — |
-| `StockTickUpdater` | 全部跑完 | 固定起日 ＋ `tick_metadata.json` | **無**（`keepDuplicates=ALL`） | — |
+| `FinMindUpdater`（broker_trading） | 逐組合、每 50 組 commit | metadata ＋ DB | 先查既有鍵再過濾 | `DataLoadError` |
+| `StockTickUpdater` | 全部跑完 | 固定起日 ＋ `tick_metadata.json` | **無**（`keepDuplicates=ALL`） | `DataLoadError` |
 | `FuturesPriceUpdater` | **每 100 天** | 逐**商品**查該商品在表內的最新 `date` +1 | `INSERT OR IGNORE` | `DataLoadError` |
 | `FuturesStockUniverseUpdater` | 一次（單次請求） | 當日快照是否已入庫 | `INSERT OR IGNORE` | `DataLoadError` |
 | `FuturesPriceUpdater.update_stock_futures()`（股期） | **每 100 天** | 逐商品最新 `date` +1；商品清單取自標的池前 N 檔 | `INSERT OR IGNORE` | `DataLoadError` |
-| `FuturesMarginUpdater` | 一次（單次請求） | 主鍵 `(effective_date, product)` 相同即略過 | `INSERT OR IGNORE` | `logger.error`（未拋 `DataLoadError`） |
-| `FuturesContinuousUpdater` | 整段重建（衍生表，不連網路） | 無 resume（逆向調整量會隨後續換月改變，一律重建） | 整表重建 | `logger.error`（未拋 `DataLoadError`） |
-| `FuturesChipUpdater` | 每個資料集跑完 | 三張表各自最新 `date` +1 | `INSERT OR IGNORE` | `logger.error`（未拋 `DataLoadError`） |
-| `FuturesTickUpdater` | 全部跑完 | 以日線行情表決定契約、預設只爬近月 | **無**（DolphinDB `keepDuplicates=ALL`，寫入路徑尚未實測） | — |
+| `FuturesMarginUpdater` | 一次（單次請求） | 主鍵 `(effective_date, product)` 相同即略過 | `INSERT OR IGNORE` | `DataLoadError` |
+| `FuturesContinuousUpdater` | 整段重建（衍生表，不連網路） | 無 resume（逆向調整量會隨後續換月改變，一律重建） | 整表重建 | `DataLoadError`（有行情卻排不出換月表時） |
+| `FuturesChipUpdater` | 每個資料集跑完 | 三張表各自最新 `date` +1 | `INSERT OR IGNORE` | `DataLoadError`（該有資料卻沒拿到時） |
+| `FuturesTickUpdater` | 全部跑完 | 以日線行情表決定契約、預設只爬近月 | **無**（DolphinDB `keepDuplicates=ALL`，寫入路徑尚未實測） | `DataLoadError` |
 
 **未分批的四個並非疏漏**：dividend／mrr／fs 的量級是十餘年 × 數十個年月或年季，
 單次執行以分鐘計，中斷重跑的成本可接受。tick 走 DolphinDB，語意與 SQLite 組不同。
+
+### Resume 為什麼是「差集」而不是 `MAX(date) + 1`
+
+2026-09-03 起（健檢 F-050），台股三支日更 updater 的候選日期改為：
+
+    候選 ＝ 日曆 − 表內已有的日期 − 已確認沒有資料的日期 ＋ 上次沒跑完的日期
+
+`MAX(date) + 1` 的問題是**中間缺的日子永遠不會再被嘗試**：某天因為連線失敗
+沒抓到，隔天照樣從新的 `MAX(date)+1` 起跑，那個洞就留在資料庫裡；
+而回測遇到缺日會當成休市靜默跳過（F-028）。
+
+最後一項尤其關鍵：price／chip／margin 每天都打**上市與上櫃兩次**請求。
+上市成功、上櫃失敗時，上市那批已經進了資料表——差集會把這天當成
+「已經有了」而排除，**上櫃那半永遠補不回來**。故失敗的日期另外記在
+`DateProgressStore` 的 `incomplete` 集合，用它把「表內已有」的排除翻回去。
+
+**只有站方明確回覆「查無資料」才會寫進 `no_data`**（見 `CrawlResult`）；
+連線失敗、被擋、版面解析不出來都不會，那些日子下次還會再試。
+且**當天（含未來）一律不寫入** `no_data`——`NO_DATA` 同時代表「休市」與
+「盤後尚未公布」，盤中跑一次就把今天寫進永久名單的話，收盤後那天的資料
+再也不會被抓。
+
+實作見 `core/pipeline/shared/date_planner.py` 的模組說明。
 
 **`equity_change` 是 fs 裡的例外**：MOPS 的權益變動表端點（`ajax_t164sb06`）是
 **逐檔查詢**，一個年季就要打兩千多次請求，整段回補以十萬次計——量級跟 price／chip／margin

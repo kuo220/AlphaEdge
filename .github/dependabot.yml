@@ -1,0 +1,37 @@
+# Dependabot 設定
+#
+# **原本只開了 security alerts、沒有這個檔案**：於是每次 push 都會看到
+# 「GitHub found N vulnerabilities」，卻不會有任何 PR 進來，紅字只能靠人工
+# 追。看久了就會變成背景雜訊——而背景雜訊裡混進真正該處理的東西時，
+# 沒有人會發現。
+#
+# 兩件事的分工：
+# - `security-updates`（GitHub 預設開啟，不需在此宣告）：有 CVE 時開 PR。
+# - 下面的 `updates`：定期把相依往前推，避免累積到一次要跳好幾個大版本。
+#
+# **`requirements.txt` 是完整 freeze**（含傳遞相依），所以 Dependabot 看得到
+# `aiohttp`／`urllib3` 這種專案自己沒有 import 的套件。這是刻意的：
+# 鎖住整棵相依樹才能重現環境，代價就是警報數量看起來比實際的直接相依多。
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    # 一次最多 5 個 PR：Shioaji／FinMind 這類套件的升級需要實跑驗證，
+    # 開太多只會讓每一個都沒被認真看
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - dependencies
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "chore(ci)"
+    labels:
+      - dependencies

@@ -17,8 +17,9 @@
 | S2 | 台股 5 支 crawler 的「休市 vs 失敗」分流 | `core/pipeline/shared/base_crawler.py`、`base_updater.py`、五支 crawler、四支 updater | `tests/test_crawl_result_semantics.py` 16 條：連線失敗回 `FAILED`、`unreachable` +1 而非 `no_data` | ✅ | F-030 ③④；2026-09-03 完成 |
 | S3 | loader 失敗一律拋 `DataLoadError` | `stock_price_loader.py`、`loaders/finmind/*.py`、`stock_tick_loader.py`、`sqlite_utils.py`、`futures_{margin,continuous,chip}_updater.py` | `tests/test_loader_failure_reporting.py` 擴充至 16 條 | ✅ | F-043、F-044、F-045、F-046、F-053、F-056；2026-09-03 完成 |
 | S4 | updater 缺口偵測與回補、統計行 | `core/pipeline/shared/date_planner.py`（新）、`core/utils/time.py`、六支 updater、`tasks/update_db.py` | `tests/test_date_gap_backfill.py` 19 條 | ✅ | F-050、F-051、F-052、F-054、F-002；F-053 已於 S3 完成；**`--target price` 實跑實測待期貨回補結束** |
-| S5 | cleaner 邊界：無成交日的 OHLC、TPEX 欄位數檢查、dividend 去重順序 | `base_cleaner.py`、`stock_price_cleaner.py`、`stock_chip_cleaner.py`、`stock_dividend_loader.py`、`stock_quote_adapter.py`、`scripts/fix_price_no_trade_rows.py` | `tests/test_cleaner_boundaries.py` 12 條；修復腳本 dry-run ＝ 104,046 | ✅ | F-037、F-038、F-047；**修復腳本尚未實際套用**（見完成紀錄） |
+| S5 | cleaner 邊界：無成交日的 OHLC、TPEX 欄位數檢查、dividend 去重順序 | `base_cleaner.py`、`stock_price_cleaner.py`、`stock_chip_cleaner.py`、`stock_dividend_loader.py`、`stock_quote_adapter.py`、`momentum_strategy_1.py`、`scripts/fix_price_no_trade_rows.py` | `tests/test_cleaner_boundaries.py` 12 條；**修復腳本已套用 104,046 列**，回歸雙線通過 | ✅ | F-037、F-038、F-047 |
 | S6 | 入口與日誌：`no_tick` 排除 `futures_tick`、`delete_price_data` 加 dry-run、loguru sink 隔離與 api 桶保留 | `tasks/{update_db,delete_price_data}.py`、`core/api/tw/*.py`、`core/config/{schema,settings}.py`、`core/utils/{notify,log_manager}.py`、`tests/conftest.py` | `tests/test_entrypoint_and_logging.py` 13 條；pytest 實測不再產生 `logs/` | ✅ | F-078、F-079、F-097、F-015、F-017、F-001；F-044 已於 S3 完成 |
+| S7 | 日誌檔被外部刪除後靜默消失（sink 不重建） | `core/utils/log_manager.py`、`tests/test_entrypoint_and_logging.py` | 刪掉正在寫入的 `.log` 後，下一筆記錄會重建檔案並寫進去 | ⬜ | 2026-09-03 19:12 實際發生，見下方事故紀錄；修法為 `logger.add(..., watch=True)` |
 
 ## 步驟詳述
 
@@ -184,11 +185,26 @@
 >   `keep="last"`，勝出的是誰取決於檔名字母順序——今天剛好是 `twse_`，
 >   日後多一個來源或改個前綴就會換人，而且不會有任何跡象。
 >
-> **⚠️ 修復腳本尚未實際套用**：`--dry-run` 已驗證，實際寫入會改動 `price` 表
-> 104,046 列，屬於使用者的正式資料庫，故留給使用者自行執行：
-> `python scripts/fix_price_no_trade_rows.py`。
-> **回歸不受影響**：`pytest -m slow` 10 條（含 LONG／SHORT 回歸）在 adapter
-> 改動後仍全綠——那些列本來就因成交量門檻不會被選進去，故不需重產 baseline。
+> **✅ 修復腳本已於 2026-09-03 實際套用**（動手前先 `cp` 一份
+> `data/db/tw_stock.db.bak-before-no-trade-fix`；當時 `price` 表沒有任何既有的
+> NULL 價格列，故「NULL → 0」即為精確的還原路徑）：
+> - 104,046 列的六個價格欄改為 NULL，總列數 6,247,050 不變，
+>   成交股數／成交金額原封不動（抽驗 `2833A` 台壽甲 2013-01-02：
+>   價格欄皆 None、股數 754、金額 27,521 保持原值）。
+>
+> **⚠️ 套用後 LONG 回歸破線，抓出一個真的 bug**：
+> `MomentumStrategy1.check_open_signal()` 用 `if yesterday_close_price == 0`
+> 擋「昨天沒有有效收盤價」的股票。改成 NULL 之後讀進來是 `NaN`，
+> 而 `NaN == 0` 是 `False`——**更糟的是下面的 `price_chg < 門檻` 對 `NaN` 也是
+> `False`，於是那些股票不但沒被跳過，還一路走成買進候選**，
+> log 裡只留下一行「漲幅 nan%」。
+> 實測影響：LONG 回歸多出 10 筆、少掉 3 筆交易（同一天的 `max_holdings`
+> 名額被 NaN 標的擠掉）。改為 `pd.isna(...) or not ...` 後回歸恢復逐筆相同，
+> 並補上 `test_momentum_skips_stocks_without_a_valid_previous_close`
+> （移除防線即失敗）。
+>
+> 這件事本身就是本份工作的論證：**把「沒有值」誠實地表達成 NULL，
+> 才會讓原本被 0 掩蓋住的判斷缺陷浮出來**。
 
 ### S6. 入口與日誌 ✅
 
@@ -236,3 +252,42 @@
 > - ⚠️ **同一個桶內的檔案仍會互收**（`update_price.log` 也會收到
 >   `update_chip.log` 的內容）。逐檔隔離必須讓每個呼叫端 bind 自己的名字，
 >   屬另一階段的工作；本次先拿掉跨桶重複，那是量體的主要來源。
+
+### S7. 日誌檔被外部刪除後靜默消失 ⬜
+
+- **目的**：`LogManager.setup_logger()` 建立 sink 之後，**不再確認目標檔案是否還在**。
+  loguru 只在達到 `rotation` 條件時才會重開檔案，因此目錄或檔案被外部刪掉時，
+  handler 會繼續寫進一個已 unlink 的 inode——**程序照跑、資料照寫、沒有任何錯誤，
+  但日誌從此不可見**。這正是本份工作反覆在講的「失敗不會浮出來」，只是這次
+  失去的是觀測能力本身。
+- **做法**：`logger.add()` 加上 **`watch=True`**（loguru ≥ 0.7.0 的 file sink 參數，
+  本專案為 0.7.3）。檔案被刪除或被外部程式取代時，下一筆記錄會重新建立它
+  （含缺少的父目錄）。這是單一參數的改動，不影響 `rotation`／`retention`／`filter`。
+- **產出**：`core/utils/log_manager.py`。
+- **驗證方式**：新增一條測試——`setup_logger()` 後寫一行、`unlink()` 該檔、再寫一行，
+  斷言檔案重新存在且含第二行。
+- **相依**：無（S6 的 `filter=` 已完成，兩者互不影響）。
+
+> **⚠️ 事故紀錄（2026-09-03 19:12）**
+>
+> S6 的驗收項「`rm -rf logs && pytest` 後不再產生 `logs/`」執行時，
+> **期貨行情回補（`backfill_price.py`，17:40 起跑、預計跑 8~10 小時）正在進行中**。
+> `logs/pipeline/` 與 `logs/backtest/` 整個消失，`logs/api/` 於 19:14 被後續程序重建。
+>
+> 回補程序完全沒有察覺：
+> - `lsof -p 47184` 顯示 fd 7 仍指向 `logs/pipeline/update_futures_price.log`，
+>   已寫入 4.3 MB，但該路徑在檔案系統上已不存在。
+> - 程序照常爬取與入庫（TF 於 19:26 補完 2,844 天），**`ERROR` 數 0**。
+> - 若當時不是用背景執行（stdout 另有一份副本），**這 9 小時的日誌會完全消失**，
+>   且沒有任何跡象可循。
+>
+> **不是 `tasks/clean_logs.py` 造成的**——它只刪檔名帶時間戳的輪替檔
+> （`path.name.count(".") < 2` 即跳過），且其 docstring 早就寫明了這個危害：
+> 「刪掉正在被 loguru 寫入的檔案，該 handler 會繼續寫進一個已不存在的 inode，
+> 日誌就此靜默消失」。**該防線只保護了 `clean_logs` 這一條路徑，
+> 保護不了任何一次手動的 `rm -rf logs`**——而那正是 S6 驗收步驟本身做的事。
+> 把防線放進 sink 本身（`watch=True`），才涵蓋得到所有路徑。
+>
+> **操作面的教訓**：長跑的 ETL 進行中不要動 `logs/`；要驗證 `rm -rf logs`
+> 這類行為，先確認 `ps aux | grep -E "backfill|update_db"` 沒有東西在跑。
+
