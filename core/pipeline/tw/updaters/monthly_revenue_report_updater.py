@@ -89,41 +89,45 @@ class MonthlyRevenueReportUpdater(BaseDataUpdater):
 
         logger.info(f"Latest data date in database: {start_year}/{start_month}")
         # Set Up Update Period
-        years: List[int] = TimeUtils.generate_year_range(start_year, end_year)
-        months: List[int] = TimeUtils.generate_month_range(start_month, end_month)
+        # **不可用 years × months 的笛卡兒積**：起點 2025/03、終點 2026/12 時
+        # `months` 只會是 [3..12]，2026/01 與 2026/02 不會被爬；起點月份大於終點
+        # 月份時 `months` 甚至是空清單，整輪什麼都不做。兩種情況都不會有任何錯誤
+        # ——那些年月只是從來沒出現在迴圈裡（健檢 F-054）
+        year_months: List[Tuple[int, int]] = TimeUtils.generate_year_period_range(
+            start_year, start_month, end_year, end_month, periods_per_year=12
+        )
         file_cnt: int = 0
         stats: UpdateStats = UpdateStats()
 
-        for year in years:
-            for month in months:
-                logger.info(f"* {year}/{month}")
-                result: CrawlResult = self.crawler.crawl(year, month)
-                stats.record(result)
+        for year, month in year_months:
+            logger.info(f"* {year}/{month}")
+            result: CrawlResult = self.crawler.crawl(year, month)
+            stats.record(result)
 
-                # Step 2: Clean
-                if not result.is_ok:
-                    continue
+            # Step 2: Clean
+            if not result.is_ok:
+                continue
 
-                cleaned_df: pd.DataFrame = self.cleaner.clean_monthly_revenue(
-                    result.tables, year, month
+            cleaned_df: pd.DataFrame = self.cleaner.clean_monthly_revenue(
+                result.tables, year, month
+            )
+
+            if cleaned_df is None or cleaned_df.empty:
+                logger.warning(
+                    f"Cleaned monthly revenue report dataframe empty on {year}/{month}"
                 )
+                continue
 
-                if cleaned_df is None or cleaned_df.empty:
-                    logger.warning(
-                        f"Cleaned monthly revenue report dataframe empty on {year}/{month}"
-                    )
-                    continue
-
-                file_cnt += 1
-                if file_cnt == self.BATCH_SLEEP_EVERY_N_FILES:
-                    logger.info("Sleep 30 seconds...")
-                    file_cnt = 0
-                    time.sleep(self.BATCH_SLEEP_DURATION_SECONDS)
-                else:
-                    delay: int = random.randint(
-                        self.BATCH_RANDOM_DELAY_MIN, self.BATCH_RANDOM_DELAY_MAX
-                    )
-                    time.sleep(delay)
+            file_cnt += 1
+            if file_cnt == self.BATCH_SLEEP_EVERY_N_FILES:
+                logger.info("Sleep 30 seconds...")
+                file_cnt = 0
+                time.sleep(self.BATCH_SLEEP_DURATION_SECONDS)
+            else:
+                delay: int = random.randint(
+                    self.BATCH_RANDOM_DELAY_MIN, self.BATCH_RANDOM_DELAY_MAX
+                )
+                time.sleep(delay)
 
         # `requested` 這裡的單位是「年月」而不是「天」
         stats.report("mrr（單位：年月）")

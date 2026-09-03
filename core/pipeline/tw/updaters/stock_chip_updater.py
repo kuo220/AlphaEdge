@@ -2,19 +2,19 @@ import datetime
 import random
 import sqlite3
 import time
-from typing import List, Optional
+from typing import List, Optional, Set
 
 import pandas as pd
 from loguru import logger
 
-from core.config import CHIP_TABLE_NAME, TW_STOCK_DB_PATH
+from core.config import CHIP_TABLE_NAME, PRICE_TABLE_NAME, TW_STOCK_DB_PATH
 from core.pipeline.shared.base_crawler import CrawlResult
 from core.pipeline.shared.base_updater import BaseDataUpdater, UpdateStats
+from core.pipeline.shared.date_planner import DatePlanner, NoDataDateStore
 from core.pipeline.tw.cleaners.stock_chip_cleaner import StockChipCleaner
 from core.pipeline.tw.crawlers.stock_chip_crawler import StockChipCrawler
 from core.pipeline.tw.loaders.stock_chip_loader import StockChipLoader
 from core.pipeline.utils.sqlite_utils import SQLiteUtils
-from core.utils import TimeUtils
 from core.utils.log_manager import LogManager
 
 """
@@ -80,20 +80,41 @@ class StockChipUpdater(BaseDataUpdater):
     def update(
         self,
         start_date: datetime.date,
-        end_date: datetime.date = datetime.date.today(),
+        end_date: Optional[datetime.date] = None,
     ) -> None:
-        """Update the Database"""
+        """
+        - Description:
+            更新三大法人籌碼
+
+            **以 `price` 表的交易日為日曆**：比「非週末」精確，涵蓋國定假日與
+            補行交易日；候選日期是差集而非 `MAX(date)+1`（健檢 F-050）。
+            `price` 尚未更新到的區間會少幾天，下次執行自然補上。
+        - Parameters:
+            - start_date: datetime.date
+                回補起日
+            - end_date: Optional[datetime.date]
+                回補迄日；None 取當日（預設值不可在 def 行求值，見 F-002）
+        """
 
         logger.info("* Start Updating TWSE & TPEX Chip Data...")
 
+        end_date: datetime.date = end_date or datetime.date.today()
+
         # Step 1: Crawl
-        # 取得要開始更新的日期
-        start_date: datetime.date = self.get_actual_update_start_date(
-            default_date=start_date
+        no_data_store: NoDataDateStore = NoDataDateStore("chip")
+        calendar_dates: Set[datetime.date] = DatePlanner.get_trading_dates(
+            self.conn, PRICE_TABLE_NAME, start_date, end_date
         )
-        logger.info(f"Latest data date in database: {start_date}")
-        # Set Up Update Period
-        dates: List[datetime.date] = TimeUtils.generate_date_range(start_date, end_date)
+        dates: List[datetime.date] = DatePlanner.plan(
+            conn=self.conn,
+            table_name=CHIP_TABLE_NAME,
+            start_date=start_date,
+            end_date=end_date,
+            no_data_dates=no_data_store.dates,
+            calendar_dates=calendar_dates or None,
+        )
+        logger.info(f"本次待更新日期：{len(dates)} 天（{start_date} ~ {end_date}）")
+
         file_cnt: int = 0
         batch_dates: List[str] = []
         stats: UpdateStats = UpdateStats()
@@ -102,7 +123,8 @@ class StockChipUpdater(BaseDataUpdater):
             logger.info(date.strftime("%Y/%m/%d"))
             twse: CrawlResult = self.crawler.crawl_twse_chip(date)
             tpex: CrawlResult = self.crawler.crawl_tpex_chip(date)
-            stats.record(twse, tpex)
+            if stats.record(twse, tpex):
+                no_data_store.add(date)
 
             # Step 2: Clean
             if twse.is_ok:
@@ -141,6 +163,7 @@ class StockChipUpdater(BaseDataUpdater):
         if batch_dates:
             self.load_batch(batch_dates)
 
+        no_data_store.save()
         stats.report("chip")
 
         # 更新後重新取得Table最新的日期
@@ -155,23 +178,3 @@ class StockChipUpdater(BaseDataUpdater):
             )
         else:
             logger.warning("No new stock chip data was updated")
-
-    def get_actual_update_start_date(
-        self, default_date: datetime.date
-    ) -> datetime.date:
-        """Get the actual start date for updating (1 day after latest date in table, or default_date)"""
-
-        latest_date: Optional[str] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn,
-            table_name=CHIP_TABLE_NAME,
-            col_name="date",
-        )
-
-        if latest_date is not None:
-            table_latest_date: datetime.date = datetime.datetime.strptime(
-                latest_date,
-                "%Y-%m-%d",
-            ).date()
-            return table_latest_date + datetime.timedelta(days=1)
-        else:
-            return default_date

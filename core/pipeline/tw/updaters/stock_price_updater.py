@@ -10,11 +10,11 @@ from loguru import logger
 from core.config import PRICE_TABLE_NAME, TW_STOCK_DB_PATH
 from core.pipeline.shared.base_crawler import CrawlResult
 from core.pipeline.shared.base_updater import BaseDataUpdater, UpdateStats
+from core.pipeline.shared.date_planner import DatePlanner, NoDataDateStore
 from core.pipeline.tw.cleaners.stock_price_cleaner import StockPriceCleaner
 from core.pipeline.tw.crawlers.stock_price_crawler import StockPriceCrawler
 from core.pipeline.tw.loaders.stock_price_loader import StockPriceLoader
 from core.pipeline.utils.sqlite_utils import SQLiteUtils
-from core.utils import TimeUtils
 from core.utils.log_manager import LogManager
 
 """
@@ -82,20 +82,39 @@ class StockPriceUpdater(BaseDataUpdater):
     def update(
         self,
         start_date: datetime.date,
-        end_date: datetime.date = datetime.date.today(),
+        end_date: Optional[datetime.date] = None,
     ) -> None:
-        """Update the Database"""
+        """
+        - Description:
+            更新收盤行情
+
+            **候選日期是差集而不是 `MAX(date)+1`**：後者讓中間缺的日子永遠不會
+            再被嘗試（健檢 F-050）。詳見 `date_planner` 的模組說明。
+        - Parameters:
+            - start_date: datetime.date
+                回補起日
+            - end_date: Optional[datetime.date]
+                回補迄日；None 取當日（**預設值不可寫成 `datetime.date.today()`**，
+                那是在 import 時求值的，長時間執行的行程會一直用啟動那天的日期）
+        """
 
         logger.info("* Start Updating TWSE & TPEX Price Data...")
 
+        end_date: datetime.date = end_date or datetime.date.today()
+
         # Step 1: Crawl
-        # 取得要開始更新的日期
-        start_date: datetime.date = self.get_actual_update_start_date(
-            default_date=start_date
+        # 候選日期＝平日 − 表內已有 − 已確認無資料（`price` 表自己就是日曆來源，
+        # 故沒有外部日曆可用，只能以平日為母集合）
+        no_data_store: NoDataDateStore = NoDataDateStore("price")
+        dates: List[datetime.date] = DatePlanner.plan(
+            conn=self.conn,
+            table_name=PRICE_TABLE_NAME,
+            start_date=start_date,
+            end_date=end_date,
+            no_data_dates=no_data_store.dates,
         )
-        logger.info(f"Latest data date in database: {start_date}")
-        # Set Up Update Period
-        dates: List[datetime.date] = TimeUtils.generate_date_range(start_date, end_date)
+        logger.info(f"本次待更新日期：{len(dates)} 天（{start_date} ~ {end_date}）")
+
         file_cnt: int = 0
         batch_dates: List[str] = []
         stats: UpdateStats = UpdateStats()
@@ -104,7 +123,10 @@ class StockPriceUpdater(BaseDataUpdater):
             logger.info(date.strftime("%Y/%m/%d"))
             twse: CrawlResult = self.crawler.crawl_twse_price(date)
             tpex: CrawlResult = self.crawler.crawl_tpex_price(date)
-            stats.record(twse, tpex)
+            if stats.record(twse, tpex):
+                # 兩邊都明確回覆沒有資料才記下來，之後不再重問；
+                # 連線失敗不寫入，下次執行會自動重試
+                no_data_store.add(date)
 
             # Step 2: Clean
             if twse.is_ok and len(twse.data) > self.MIN_DF_ROWS_AFTER_CLEAN:
@@ -143,6 +165,7 @@ class StockPriceUpdater(BaseDataUpdater):
         if batch_dates:
             self.load_batch(batch_dates)
 
+        no_data_store.save()
         stats.report("price")
 
         # 更新後重新取得Table最新的日期
@@ -157,23 +180,3 @@ class StockPriceUpdater(BaseDataUpdater):
             )
         else:
             logger.warning("No new price data was updated")
-
-    def get_actual_update_start_date(
-        self, default_date: datetime.date
-    ) -> datetime.date:
-        """Get the actual start date for updating (1 day after latest date in table, or default_date)"""
-
-        latest_date: Optional[str] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn,
-            table_name=PRICE_TABLE_NAME,
-            col_name="date",
-        )
-
-        if latest_date is not None:
-            table_latest_date: datetime.date = datetime.datetime.strptime(
-                latest_date,
-                "%Y-%m-%d",
-            ).date()
-            return table_latest_date + datetime.timedelta(days=1)
-        else:
-            return default_date

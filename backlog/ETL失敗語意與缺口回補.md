@@ -16,7 +16,7 @@
 | S1 | `RequestUtils` 回傳語意收斂（HTTP 狀態、None vs 空表） | `core/pipeline/shared/request_utils.py`、`core/pipeline/utils/exceptions.py`、`core/pipeline/tw/crawlers/stock_info_crawler.py` | 新增測試：4xx／5xx／逾時／被擋四種結果各自可辨識 | ✅ | F-030 ①②、F-031、F-032；2026-09-03 完成，`tests/test_request_utils.py` 12 條全綠 |
 | S2 | 台股 5 支 crawler 的「休市 vs 失敗」分流 | `core/pipeline/shared/base_crawler.py`、`base_updater.py`、五支 crawler、四支 updater | `tests/test_crawl_result_semantics.py` 16 條：連線失敗回 `FAILED`、`unreachable` +1 而非 `no_data` | ✅ | F-030 ③④；2026-09-03 完成 |
 | S3 | loader 失敗一律拋 `DataLoadError` | `stock_price_loader.py`、`loaders/finmind/*.py`、`stock_tick_loader.py`、`sqlite_utils.py`、`futures_{margin,continuous,chip}_updater.py` | `tests/test_loader_failure_reporting.py` 擴充至 16 條 | ✅ | F-043、F-044、F-045、F-046、F-053、F-056；2026-09-03 完成 |
-| S4 | updater 缺口偵測與回補、統計行 | `core/pipeline/tw/updaters/stock_*_updater.py`、`futures_chip_updater.py`、`financial_statement_updater.py`、`monthly_revenue_report_updater.py`、`finmind/broker_trading_updater.py` | 刪掉 `price` 表中間一天後 `--target price` 會補回；每批結束印 `N requested / N no data / N unreachable` | ⬜ | F-050、F-052、F-053、F-054、F-051、F-002（B008） |
+| S4 | updater 缺口偵測與回補、統計行 | `core/pipeline/shared/date_planner.py`（新）、`core/utils/time.py`、六支 updater、`tasks/update_db.py` | `tests/test_date_gap_backfill.py` 13 條：刪掉中間一天即重新進入候選；`--from` 覆寫 | ✅ | F-050、F-051、F-052、F-054、F-002；F-053 已於 S3 完成；**`--target price` 實跑實測待期貨回補結束** |
 | S5 | cleaner 邊界：無成交日的 OHLC、TPEX 欄位數檢查、dividend 去重順序 | `stock_price_cleaner.py`、`stock_chip_cleaner.py`、`stock_dividend_loader.py` | 新增測試：`--` 不再變成 0；欄位數不符即拋錯；三來源去重以來源優先序而非檔名字典序 | ⬜ | F-037、F-038、F-047 |
 | S6 | 入口與日誌：`no_tick` 排除 `futures_tick`、`delete_price_data` 加 dry-run、loguru sink 隔離與 api 桶保留 | `tasks/update_db.py`、`tasks/delete_price_data.py`、`core/utils/log_manager.py`、`core/api/tw/*.py`、`tests/conftest.py` | `python -m tasks.update_db` 無金鑰結束碼 0；`delete_price_data --dry-run` 不寫入；pytest 不再寫 `logs/`；`logs/api/` 檔案 sink 預設 WARNING | ⬜ | F-078、F-079、F-001、F-097、F-015、F-017、F-044；**`log_manager.py` 部分等期貨回補結束** |
 
@@ -94,13 +94,42 @@
 >   （新增 `UnbuildableSeriesError`，與「該商品尚未回補」區分開）、
 >   籌碼的 `blocked_windows`（該有資料卻沒拿到，多半是被擋流量，F-053）。
 
-### S4. updater 缺口偵測與回補、統計行 ⬜
+### S4. updater 缺口偵測與回補、統計行 ✅
 
 - **目的**：續跑起點一律 `MAX(date)+1`（F-050），中間缺的日子永遠不會再被嘗試；`years × seasons` 笛卡兒積（F-054）、quota 逾時只 warning（F-051）、Shioaji 例外算 skipped（F-052）、期貨籌碼月份失敗不計入（F-053）同屬此類。
 - **做法**：候選日期 ＝ 交易日曆（`price` 表或 `FuturesCalendar`）− 表內已有日期，而非 `MAX(date)+1`；提供 `--from` 覆寫；每批結束印統計行；`B008` 的 `today()` 預設改在函式內取值（F-002）。
 - **產出**：上表所列 updater、`tasks/update_db.py`。
 - **驗證方式**：以 tmp DB 建三天資料、刪中間一天、跑 updater 斷言該日被請求；統計行有測試比對字串。
 - **相依**：S2、S3。
+
+> **✅ 完成紀錄（2026-09-03）**
+> - 新增 `core/pipeline/shared/date_planner.py`：
+>   **候選日期 ＝ 日曆 − 表內已有 − 已確認沒有資料**，取代 `MAX(date)+1`。
+>   - `price`：沒有外部日曆可用（它自己就是日曆來源），母集合取平日。
+>   - `chip`／`margin`：以 `price` 表的交易日為日曆，涵蓋國定假日與**補行交易日**
+>     （原本 margin 有一段專屬邏輯處理開市的週六，現已被日曆自然涵蓋而刪除）。
+>   - `NoDataDateStore`：JSON 記錄「已向站方確認過、當天確實沒有資料」的日期，
+>     國定假日只問一次。**只有 `CrawlResult.NO_DATA` 才寫入**，連線失敗不寫，
+>     所以那些日子下次還會再試——這個分野就是整份工作的核心。
+> - `dividend` 改為每次都掃整個區間：本來源支援區間查詢，一年一次請求、13 年
+>   只有 26 次，而 `MAX(date)+1` 會讓中間任何一年的缺漏永遠補不回來。
+>   入庫本來就走 `INSERT OR REPLACE`，重跑是冪等的。
+> - **F-054**：`fs`（4 處）與 `mrr`（1 處）的 `for year in years: for period in periods`
+>   笛卡兒積改用新的 `TimeUtils.generate_year_period_range()`。原寫法在起點
+>   2024Q3、終點 2026Q4 時 `seasons` 只會是 `[3, 4]`，**2025Q1／Q2 與 2026Q1／Q2
+>   整整四季不會被爬**；月營收更糟，起點月份大於終點月份時 `months` 直接是空清單。
+> - **F-052**：`stock_tick_updater` 的 `if skipped_dates:` 先於失敗判斷，於是
+>   「有幾天連不上、其餘幾天本來就沒資料」的股票被算成 skipped；改為先判斷
+>   `failed_dates`，並在 `update()` 收尾時對 `failed_stocks > 0` 拋 `DataLoadError`。
+> - **F-051**：`broker_trading_updater` 的配額等不回來也計入失敗——舊版只記 warning，
+>   於是一次只做了三成的更新仍以結束碼 0 結束，排程看不出需要重跑。
+> - **F-002（ruff B008）**：八處 `end_date: datetime.date = datetime.date.today()`
+>   改為 `Optional[...] = None` ＋ 函式內取值。
+> - `tasks/update_db.py` 新增 `--from YYYY-MM-DD`，覆寫所有以日期為單位的 target 起日。
+>
+> **⚠️ 未完成的驗收項**：「刪掉 `price` 表任一天後 `--target price` 會回補該日」的
+> **實跑實測**要等期貨行情回補結束（避免搶 DB 鎖）。目前以 tmp DB 的單元測試涵蓋
+> 同一條路徑（`tests/test_date_gap_backfill.py::test_middle_gap_is_planned_again`）。
 
 ### S5. cleaner 邊界 ⬜
 

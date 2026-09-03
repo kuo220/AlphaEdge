@@ -10,11 +10,11 @@ from loguru import logger
 from core.config import MARGIN_TABLE_NAME, PRICE_TABLE_NAME, TW_STOCK_DB_PATH
 from core.pipeline.shared.base_crawler import CrawlResult
 from core.pipeline.shared.base_updater import BaseDataUpdater, UpdateStats
+from core.pipeline.shared.date_planner import DatePlanner, NoDataDateStore
 from core.pipeline.tw.cleaners.stock_margin_cleaner import StockMarginCleaner
 from core.pipeline.tw.crawlers.stock_margin_crawler import StockMarginCrawler
 from core.pipeline.tw.loaders.stock_margin_loader import StockMarginLoader
 from core.pipeline.utils.sqlite_utils import SQLiteUtils
-from core.utils import TimeUtils
 from core.utils.log_manager import LogManager
 
 """
@@ -26,10 +26,6 @@ from core.utils.log_manager import LogManager
     - 上櫃融資融券餘額：官方自民國 96/01（2007/01）起提供，
       本專案實測 2013/1/1 起可取得且表格結構未再改制
 """
-
-
-# 週六的 weekday() 值；用於判斷是否為週末
-SATURDAY: int = 5
 
 
 class StockMarginUpdater(BaseDataUpdater):
@@ -64,81 +60,6 @@ class StockMarginUpdater(BaseDataUpdater):
             self.conn: sqlite3.Connection = sqlite3.connect(TW_STOCK_DB_PATH)
         LogManager.setup_logger("update_margin.log")
 
-    def get_traded_weekend_dates(
-        self, start_date: datetime.date, end_date: datetime.date
-    ) -> Set[datetime.date]:
-        """
-        - Description:
-            取得區間內「週末但實際有開市」的日期，資料來源為 price 表
-
-            台股有**補行交易日**（補班補上課的週六照常開市），2013 起就有 11 天。
-            這些日子必須照爬，否則 margin 會缺整天的資料。
-        - Parameters:
-            - start_date: datetime.date
-                查詢起日
-            - end_date: datetime.date
-                查詢迄日
-        - Return:
-            - Set[datetime.date]
-                週末且 price 表有資料的日期
-        """
-
-        rows = self.conn.execute(
-            f"SELECT DISTINCT date FROM {PRICE_TABLE_NAME} WHERE date BETWEEN ? AND ?",
-            (start_date.isoformat(), end_date.isoformat()),
-        ).fetchall()
-
-        traded: Set[datetime.date] = set()
-        for (raw,) in rows:
-            date: datetime.date = datetime.date.fromisoformat(str(raw)[:10])
-            if date.weekday() >= SATURDAY:
-                traded.add(date)
-        return traded
-
-    def get_candidate_dates(
-        self, start_date: datetime.date, end_date: datetime.date
-    ) -> List[datetime.date]:
-        """
-        - Description:
-            決定要送出請求的日期清單
-
-            **平日一律照爬**：國定假日無法純靠日曆判斷，維持「送出請求後由回應判定」。
-
-            **週末原則上跳過**：台股週六日多半不開市，送出請求只會換回
-            「is a Holiday」，卻一樣要付兩次 HTTP ＋ 節流時間；2013 起的回補約
-            4,975 個日曆天中有 1,420 天是週末，跳過可省下約三成執行時間。
-
-            **但補行交易日例外**：以 price 表實際有資料的週末為準，不用「非週末」
-            近似。原本的寫法漏掉了 2013 年以來的 11 個補行交易日（皆為週六），
-            那幾天的 margin 資料整天缺失。
-
-            price 表落後於 margin 時，該區間的補行交易日會被漏掉——實務上
-            price 一律先於 margin 更新，故此風險極低；真的缺漏時重跑即可補上。
-        - Parameters:
-            - start_date: datetime.date
-                更新起日
-            - end_date: datetime.date
-                更新迄日
-        - Return:
-            - List[datetime.date]
-                要送出請求的日期
-        """
-
-        traded_weekends: Set[datetime.date] = self.get_traded_weekend_dates(
-            start_date, end_date
-        )
-        if traded_weekends:
-            logger.info(
-                f"區間內有 {len(traded_weekends)} 個補行交易日（週末開市），一併納入更新："
-                f"{sorted(traded_weekends)}"
-            )
-
-        return [
-            date
-            for date in TimeUtils.generate_date_range(start_date, end_date)
-            if date.weekday() < SATURDAY or date in traded_weekends
-        ]
-
     def load_batch(self, batch_dates: List[str]) -> None:
         """
         - Description:
@@ -159,20 +80,44 @@ class StockMarginUpdater(BaseDataUpdater):
     def update(
         self,
         start_date: datetime.date,
-        end_date: datetime.date = datetime.date.today(),
+        end_date: Optional[datetime.date] = None,
     ) -> None:
-        """Update the Database"""
+        """
+        - Description:
+            更新信用交易（融資融券餘額）
+
+            **以 `price` 表的交易日為日曆**：台股有補行交易日（補班的週六照常
+            開市，2013 起有 11 天），用「非週末」近似會整天漏抓。候選日期是差集
+            而非 `MAX(date)+1`（健檢 F-050）。
+
+            `price` 落後於 margin 時該區間會少幾天——實務上 price 一律先於
+            margin 更新，風險極低，且下次執行會自動補上。
+        - Parameters:
+            - start_date: datetime.date
+                回補起日
+            - end_date: Optional[datetime.date]
+                回補迄日；None 取當日（預設值不可在 def 行求值，見 F-002）
+        """
 
         logger.info("* Start Updating TWSE & TPEX Margin Data...")
 
+        end_date: datetime.date = end_date or datetime.date.today()
+
         # Step 1: Crawl
-        # 取得要開始更新的日期
-        start_date: datetime.date = self.get_actual_update_start_date(
-            default_date=start_date
+        no_data_store: NoDataDateStore = NoDataDateStore("margin")
+        calendar_dates: Set[datetime.date] = DatePlanner.get_trading_dates(
+            self.conn, PRICE_TABLE_NAME, start_date, end_date
         )
-        logger.info(f"Latest data date in database: {start_date}")
-        # Set Up Update Period
-        dates: List[datetime.date] = self.get_candidate_dates(start_date, end_date)
+        dates: List[datetime.date] = DatePlanner.plan(
+            conn=self.conn,
+            table_name=MARGIN_TABLE_NAME,
+            start_date=start_date,
+            end_date=end_date,
+            no_data_dates=no_data_store.dates,
+            calendar_dates=calendar_dates or None,
+        )
+        logger.info(f"本次待更新日期：{len(dates)} 天（{start_date} ~ {end_date}）")
+
         file_cnt: int = 0
         batch_dates: List[str] = []
         stats: UpdateStats = UpdateStats()
@@ -181,7 +126,8 @@ class StockMarginUpdater(BaseDataUpdater):
             logger.info(date.strftime("%Y/%m/%d"))
             twse: CrawlResult = self.crawler.crawl_twse_margin(date)
             tpex: CrawlResult = self.crawler.crawl_tpex_margin(date)
-            stats.record(twse, tpex)
+            if stats.record(twse, tpex):
+                no_data_store.add(date)
 
             # Step 2: Clean
             if twse.is_ok:
@@ -220,6 +166,7 @@ class StockMarginUpdater(BaseDataUpdater):
         if batch_dates:
             self.load_batch(batch_dates)
 
+        no_data_store.save()
         stats.report("margin")
 
         # 更新後重新取得Table最新的日期
@@ -234,23 +181,3 @@ class StockMarginUpdater(BaseDataUpdater):
             )
         else:
             logger.warning("No new stock margin data was updated")
-
-    def get_actual_update_start_date(
-        self, default_date: datetime.date
-    ) -> datetime.date:
-        """Get the actual start date for updating (1 day after latest date in table, or default_date)"""
-
-        latest_date: Optional[str] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn,
-            table_name=MARGIN_TABLE_NAME,
-            col_name="date",
-        )
-
-        if latest_date is not None:
-            table_latest_date: datetime.date = datetime.datetime.strptime(
-                latest_date,
-                "%Y-%m-%d",
-            ).date()
-            return table_latest_date + datetime.timedelta(days=1)
-        else:
-            return default_date

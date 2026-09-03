@@ -194,41 +194,44 @@ class FinancialStatementUpdater(BaseDataUpdater):
         )
         logger.info(f"Latest data date in database: {start_year}Q{start_season}")
         # Set Up Update Period
-        years: List[int] = TimeUtils.generate_season_range(start_year, end_year)
-        seasons: List[int] = TimeUtils.generate_season_range(start_season, end_season)
+        # **不可用 years × seasons 的笛卡兒積**：起點 2024Q3、終點 2026Q4 時
+        # `seasons` 只會是 [3, 4]，2025Q1／Q2 與 2026Q1／Q2 整整四季不會被爬，
+        # 且不會有任何錯誤——它們只是從來沒出現在迴圈裡（健檢 F-054）
+        year_seasons: List[Tuple[int, int]] = TimeUtils.generate_year_period_range(
+            start_year, start_season, end_year, end_season, periods_per_year=4
+        )
         file_cnt: int = 0
 
-        for year in years:
-            for season in seasons:
-                logger.info(f"* {year}Q{season}")
-                df_list: Optional[List[pd.DataFrame]] = (
-                    self.crawler.crawl_balance_sheet(year, season)
+        for year, season in year_seasons:
+            logger.info(f"* {year}Q{season}")
+            df_list: Optional[List[pd.DataFrame]] = self.crawler.crawl_balance_sheet(
+                year, season
+            )
+
+            # Step 2: Clean
+            if df_list is None or not df_list:
+                continue
+
+            cleaned_df: pd.DataFrame = self.cleaner.clean_balance_sheet(
+                df_list, year, season
+            )
+
+            if cleaned_df is None or cleaned_df.empty:
+                logger.warning(
+                    f"Cleaned balance sheet dataframe empty on {year}Q{season}"
                 )
+                continue
 
-                # Step 2: Clean
-                if df_list is None or not df_list:
-                    continue
-
-                cleaned_df: pd.DataFrame = self.cleaner.clean_balance_sheet(
-                    df_list, year, season
+            file_cnt += 1
+            if file_cnt == self.BATCH_SLEEP_EVERY_N_FILES:
+                logger.info("Sleep 30 seconds...")
+                file_cnt = 0
+                time.sleep(self.BATCH_SLEEP_DURATION_SECONDS)
+            else:
+                delay: int = random.randint(
+                    self.BATCH_RANDOM_DELAY_MIN, self.BATCH_RANDOM_DELAY_MAX
                 )
-
-                if cleaned_df is None or cleaned_df.empty:
-                    logger.warning(
-                        f"Cleaned balance sheet dataframe empty on {year}Q{season}"
-                    )
-                    continue
-
-                file_cnt += 1
-                if file_cnt == self.BATCH_SLEEP_EVERY_N_FILES:
-                    logger.info("Sleep 30 seconds...")
-                    file_cnt = 0
-                    time.sleep(self.BATCH_SLEEP_DURATION_SECONDS)
-                else:
-                    delay: int = random.randint(
-                        self.BATCH_RANDOM_DELAY_MIN, self.BATCH_RANDOM_DELAY_MAX
-                    )
-                    time.sleep(delay)
+                time.sleep(delay)
 
         # Step 3: Load
         self.loader.add_to_db(
@@ -274,41 +277,44 @@ class FinancialStatementUpdater(BaseDataUpdater):
         )
         logger.info(f"Latest data date in database: {start_year}Q{start_season}")
         # Set Up Update Period
-        years: List[int] = TimeUtils.generate_season_range(start_year, end_year)
-        seasons: List[int] = TimeUtils.generate_season_range(start_season, end_season)
+        # **不可用 years × seasons 的笛卡兒積**：起點 2024Q3、終點 2026Q4 時
+        # `seasons` 只會是 [3, 4]，2025Q1／Q2 與 2026Q1／Q2 整整四季不會被爬，
+        # 且不會有任何錯誤——它們只是從來沒出現在迴圈裡（健檢 F-054）
+        year_seasons: List[Tuple[int, int]] = TimeUtils.generate_year_period_range(
+            start_year, start_season, end_year, end_season, periods_per_year=4
+        )
         file_cnt: int = 0
 
-        for year in years:
-            for season in seasons:
-                logger.info(f"* {year}Q{season}")
-                df_list: Optional[List[pd.DataFrame]] = (
-                    self.crawler.crawl_comprehensive_income(year, season)
+        for year, season in year_seasons:
+            logger.info(f"* {year}Q{season}")
+            df_list: Optional[List[pd.DataFrame]] = (
+                self.crawler.crawl_comprehensive_income(year, season)
+            )
+
+            # Step 2: Clean
+            if df_list is None or not df_list:
+                continue
+
+            cleaned_df: pd.DataFrame = self.cleaner.clean_comprehensive_income(
+                df_list, year, season
+            )
+
+            if cleaned_df is None or cleaned_df.empty:
+                logger.warning(
+                    f"Cleaned comprehensive income dataframe empty on {year}Q{season}"
                 )
+                continue
 
-                # Step 2: Clean
-                if df_list is None or not df_list:
-                    continue
-
-                cleaned_df: pd.DataFrame = self.cleaner.clean_comprehensive_income(
-                    df_list, year, season
+            file_cnt += 1
+            if file_cnt == self.BATCH_SLEEP_EVERY_N_FILES:
+                logger.info("Sleep 30 seconds...")
+                file_cnt = 0
+                time.sleep(self.BATCH_SLEEP_DURATION_SECONDS)
+            else:
+                delay: int = random.randint(
+                    self.BATCH_RANDOM_DELAY_MIN, self.BATCH_RANDOM_DELAY_MAX
                 )
-
-                if cleaned_df is None or cleaned_df.empty:
-                    logger.warning(
-                        f"Cleaned comprehensive income dataframe empty on {year}Q{season}"
-                    )
-                    continue
-
-                file_cnt += 1
-                if file_cnt == self.BATCH_SLEEP_EVERY_N_FILES:
-                    logger.info("Sleep 30 seconds...")
-                    file_cnt = 0
-                    time.sleep(self.BATCH_SLEEP_DURATION_SECONDS)
-                else:
-                    delay: int = random.randint(
-                        self.BATCH_RANDOM_DELAY_MIN, self.BATCH_RANDOM_DELAY_MAX
-                    )
-                    time.sleep(delay)
+                time.sleep(delay)
 
         # Step 3: Load
         self.loader.add_to_db(
@@ -354,41 +360,42 @@ class FinancialStatementUpdater(BaseDataUpdater):
         )
         logger.info(f"Latest data date in database: {start_year}Q{start_season}")
         # Set Up Update Period
-        years: List[int] = TimeUtils.generate_season_range(start_year, end_year)
-        seasons: List[int] = TimeUtils.generate_season_range(start_season, end_season)
+        # **不可用 years × seasons 的笛卡兒積**：起點 2024Q3、終點 2026Q4 時
+        # `seasons` 只會是 [3, 4]，2025Q1／Q2 與 2026Q1／Q2 整整四季不會被爬，
+        # 且不會有任何錯誤——它們只是從來沒出現在迴圈裡（健檢 F-054）
+        year_seasons: List[Tuple[int, int]] = TimeUtils.generate_year_period_range(
+            start_year, start_season, end_year, end_season, periods_per_year=4
+        )
         file_cnt: int = 0
 
-        for year in years:
-            for season in seasons:
-                logger.info(f"* {year}Q{season}")
-                df_list: Optional[List[pd.DataFrame]] = self.crawler.crawl_cash_flow(
-                    year, season
+        for year, season in year_seasons:
+            logger.info(f"* {year}Q{season}")
+            df_list: Optional[List[pd.DataFrame]] = self.crawler.crawl_cash_flow(
+                year, season
+            )
+
+            # Step 2: Clean
+            if df_list is None or not df_list:
+                continue
+
+            cleaned_df: pd.DataFrame = self.cleaner.clean_cash_flow(
+                df_list, year, season
+            )
+
+            if cleaned_df is None or cleaned_df.empty:
+                logger.warning(f"Cleaned cash flow dataframe empty on {year}Q{season}")
+                continue
+
+            file_cnt += 1
+            if file_cnt == self.BATCH_SLEEP_EVERY_N_FILES:
+                logger.info("Sleep 30 seconds...")
+                file_cnt = 0
+                time.sleep(self.BATCH_SLEEP_DURATION_SECONDS)
+            else:
+                delay: int = random.randint(
+                    self.BATCH_RANDOM_DELAY_MIN, self.BATCH_RANDOM_DELAY_MAX
                 )
-
-                # Step 2: Clean
-                if df_list is None or not df_list:
-                    continue
-
-                cleaned_df: pd.DataFrame = self.cleaner.clean_cash_flow(
-                    df_list, year, season
-                )
-
-                if cleaned_df is None or cleaned_df.empty:
-                    logger.warning(
-                        f"Cleaned cash flow dataframe empty on {year}Q{season}"
-                    )
-                    continue
-
-                file_cnt += 1
-                if file_cnt == self.BATCH_SLEEP_EVERY_N_FILES:
-                    logger.info("Sleep 30 seconds...")
-                    file_cnt = 0
-                    time.sleep(self.BATCH_SLEEP_DURATION_SECONDS)
-                else:
-                    delay: int = random.randint(
-                        self.BATCH_RANDOM_DELAY_MIN, self.BATCH_RANDOM_DELAY_MAX
-                    )
-                    time.sleep(delay)
+                time.sleep(delay)
 
         # Step 3: Load
         self.loader.add_to_db(
@@ -446,36 +453,39 @@ class FinancialStatementUpdater(BaseDataUpdater):
             logger.warning("No target stocks for equity changes, skipped")
             return
 
-        years: List[int] = TimeUtils.generate_season_range(start_year, end_year)
-        seasons: List[int] = TimeUtils.generate_season_range(start_season, end_season)
+        # **不可用 years × seasons 的笛卡兒積**：起點 2024Q3、終點 2026Q4 時
+        # `seasons` 只會是 [3, 4]，2025Q1／Q2 與 2026Q1／Q2 整整四季不會被爬，
+        # 且不會有任何錯誤——它們只是從來沒出現在迴圈裡（健檢 F-054）
+        year_seasons: List[Tuple[int, int]] = TimeUtils.generate_year_period_range(
+            start_year, start_season, end_year, end_season, periods_per_year=4
+        )
 
         unreachable_cnt: int = 0
 
-        for year in years:
-            for season in seasons:
-                # Step 1: 逐檔 resume——只補這個年季還沒入庫的公司
-                crawled_stock_ids: Set[str] = self.get_crawled_stock_ids(year, season)
-                pending_stock_ids: List[str] = [
-                    stock_id
-                    for stock_id in target_stock_ids
-                    if stock_id not in crawled_stock_ids
-                ]
+        for year, season in year_seasons:
+            # Step 1: 逐檔 resume——只補這個年季還沒入庫的公司
+            crawled_stock_ids: Set[str] = self.get_crawled_stock_ids(year, season)
+            pending_stock_ids: List[str] = [
+                stock_id
+                for stock_id in target_stock_ids
+                if stock_id not in crawled_stock_ids
+            ]
 
-                if not pending_stock_ids:
-                    logger.info(f"* {year}Q{season} already complete, skipped")
-                    continue
+            if not pending_stock_ids:
+                logger.info(f"* {year}Q{season} already complete, skipped")
+                continue
 
-                if not self.is_season_filed(year, season, crawled_stock_ids):
-                    logger.info(f"* {year}Q{season} not yet filed, skipped")
-                    continue
+            if not self.is_season_filed(year, season, crawled_stock_ids):
+                logger.info(f"* {year}Q{season} not yet filed, skipped")
+                continue
 
-                logger.info(
-                    f"* {year}Q{season}: {len(pending_stock_ids)} stocks pending "
-                    f"({len(crawled_stock_ids)} already in database)"
-                )
-                unreachable_cnt += self.update_equity_changes_season(
-                    year=year, season=season, stock_ids=pending_stock_ids
-                )
+            logger.info(
+                f"* {year}Q{season}: {len(pending_stock_ids)} stocks pending "
+                f"({len(crawled_stock_ids)} already in database)"
+            )
+            unreachable_cnt += self.update_equity_changes_season(
+                year=year, season=season, stock_ids=pending_stock_ids
+            )
 
         if unreachable_cnt:
             # 站方過載造成的失敗不是「這檔沒資料」，下次重跑會自動補；但不講出來，

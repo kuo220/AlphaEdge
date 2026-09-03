@@ -2,7 +2,7 @@ import argparse
 import datetime
 import sys
 from contextlib import contextmanager
-from typing import Dict, List, Set, Union
+from typing import Dict, List, Optional, Set, Union
 
 from loguru import logger
 
@@ -191,11 +191,24 @@ def parse_arguments() -> argparse.Namespace:
         default=["no_tick"],
         help="Targets to update (default: no_tick)",
     )
+    parser.add_argument(
+        "--from",
+        dest="from_date",
+        type=datetime.date.fromisoformat,
+        default=None,
+        metavar="YYYY-MM-DD",
+        help=(
+            "覆寫所有以日期為單位的 target 的起日。"
+            "平常不需要——updater 會自動補齊表內的缺口；"
+            "要把起點往前拉到比預設更早時才用得到"
+        ),
+    )
     return parser.parse_args()
 
 
 def get_update_time_config(
     data_type: Union[DataType, str, None] = None,
+    from_date: Optional[datetime.date] = None,
 ) -> Dict[str, datetime.date | int]:
     """
     根據不同的資料類型返回對應的時間區間設定
@@ -209,7 +222,21 @@ def get_update_time_config(
     Note:
         預設結束日（end_date/end_year/end_month/end_season）皆更新到最新日（當日），
         以確保資料持續同步至今日。
+
+        `from_date` 為 `--from` 的覆寫值，只影響以日期為單位的 target；
+        年／季／月為單位的 target（fs、mrr）不受影響。
     """
+
+    config: Dict[str, datetime.date | int] = _build_time_config(data_type)
+    if from_date is not None and "start_date" in config:
+        config["start_date"] = from_date
+    return config
+
+
+def _build_time_config(
+    data_type: Union[DataType, str, None] = None,
+) -> Dict[str, datetime.date | int]:
+    """各 target 的預設時間區間（`get_update_time_config()` 的內部實作）"""
     if data_type == DataType.TICK:
         return {
             "start_date": TICK_UPDATE_START_DATE,
@@ -309,7 +336,11 @@ def target_guard(name: str, failed_targets: List[str]):
 def main() -> None:
     args: argparse.Namespace = parse_arguments()
     targets: Set[str] = set(args.target)
+    from_date: Optional[datetime.date] = args.from_date
     failed_targets: List[str] = []
+
+    if from_date is not None:
+        logger.info(f"--from {from_date}：以日期為單位的 target 一律由此日起算")
 
     # all = 所有資料類型（包含 tick 和 finmind）
     if "all" in targets:
@@ -322,7 +353,8 @@ def main() -> None:
     if DataType.TICK.name.lower() in targets:
         with target_guard("tick", failed_targets):
             time_config: Dict[str, datetime.date | int] = get_update_time_config(
-                DataType.TICK
+                data_type=DataType.TICK,
+                from_date=from_date,
             )
             stock_tick_updater: StockTickUpdater = StockTickUpdater()
             stock_tick_updater.update(
@@ -332,7 +364,8 @@ def main() -> None:
     if DataType.CHIP.name.lower() in targets:
         with target_guard("chip", failed_targets):
             time_config: Dict[str, datetime.date | int] = get_update_time_config(
-                DataType.CHIP
+                data_type=DataType.CHIP,
+                from_date=from_date,
             )
             stock_chip_updater: StockChipUpdater = StockChipUpdater()
             stock_chip_updater.update(
@@ -342,7 +375,8 @@ def main() -> None:
     if DataType.MARGIN.name.lower() in targets:
         with target_guard("margin", failed_targets):
             time_config: Dict[str, datetime.date | int] = get_update_time_config(
-                DataType.MARGIN
+                data_type=DataType.MARGIN,
+                from_date=from_date,
             )
             stock_margin_updater: StockMarginUpdater = StockMarginUpdater()
             stock_margin_updater.update(
@@ -352,7 +386,8 @@ def main() -> None:
     if DataType.DIVIDEND.name.lower() in targets:
         with target_guard("dividend", failed_targets):
             time_config: Dict[str, datetime.date | int] = get_update_time_config(
-                DataType.DIVIDEND
+                data_type=DataType.DIVIDEND,
+                from_date=from_date,
             )
             stock_dividend_updater: StockDividendUpdater = StockDividendUpdater()
             stock_dividend_updater.update(
@@ -362,7 +397,8 @@ def main() -> None:
     if DataType.PRICE.name.lower() in targets:
         with target_guard("price", failed_targets):
             time_config: Dict[str, datetime.date | int] = get_update_time_config(
-                DataType.PRICE
+                data_type=DataType.PRICE,
+                from_date=from_date,
             )
             stock_price_updater: StockPriceUpdater = StockPriceUpdater()
             stock_price_updater.update(
@@ -372,7 +408,8 @@ def main() -> None:
     if DataType.FUTURES_PRICE.name.lower() in targets:
         with target_guard("futures_price", failed_targets):
             time_config: Dict[str, datetime.date | int] = get_update_time_config(
-                DataType.FUTURES_PRICE
+                data_type=DataType.FUTURES_PRICE,
+                from_date=from_date,
             )
             futures_price_updater: FuturesPriceUpdater = FuturesPriceUpdater()
             futures_price_updater.update(
@@ -385,7 +422,8 @@ def main() -> None:
             # 清單改由 futures_stock_universe 提供。預設只爬流動性前 N 檔——
             # 全爬是每天 640 次請求，而尾端商品一天只成交個位數口
             time_config: Dict[str, datetime.date | int] = get_update_time_config(
-                DataType.FUTURES_PRICE
+                data_type=DataType.FUTURES_PRICE,
+                from_date=from_date,
             )
             stock_futures_updater: FuturesPriceUpdater = FuturesPriceUpdater()
             stock_futures_updater.update_stock_futures(
@@ -399,7 +437,8 @@ def main() -> None:
             # **要爬哪些契約由日線行情表決定**，不是自己推近月＋次月；
             # 預設只爬近月（期貨的量集中在近月，遠月同樣佔配額卻沒幾筆）
             time_config: Dict[str, datetime.date | int] = get_update_time_config(
-                DataType.FUTURES_PRICE
+                data_type=DataType.FUTURES_PRICE,
+                from_date=from_date,
             )
             futures_tick_updater: FuturesTickUpdater = FuturesTickUpdater()
             try:
@@ -451,7 +490,8 @@ def main() -> None:
     if DataType.FS.name.lower() in targets:
         with target_guard("fs", failed_targets):
             time_config: Dict[str, datetime.date | int] = get_update_time_config(
-                DataType.FS
+                data_type=DataType.FS,
+                from_date=from_date,
             )
             fs_updater: FinancialStatementUpdater = FinancialStatementUpdater()
             fs_updater.update(
@@ -464,7 +504,8 @@ def main() -> None:
     if DataType.MRR.name.lower() in targets:
         with target_guard("mrr", failed_targets):
             time_config: Dict[str, datetime.date | int] = get_update_time_config(
-                DataType.MRR
+                data_type=DataType.MRR,
+                from_date=from_date,
             )
             mrr_updater: MonthlyRevenueReportUpdater = MonthlyRevenueReportUpdater()
             mrr_updater.update(
@@ -478,7 +519,8 @@ def main() -> None:
     if DataType.FINMIND.name.lower() in targets:
         with target_guard("finmind", failed_targets):
             time_config: Dict[str, datetime.date | int] = get_update_time_config(
-                DataType.FINMIND
+                data_type=DataType.FINMIND,
+                from_date=from_date,
             )
             finmind_updater: FinMindUpdater = FinMindUpdater()
             finmind_updater.update_all(
@@ -504,7 +546,8 @@ def main() -> None:
     if FinMindDataType.BROKER_TRADING.value.lower() in targets:
         with target_guard("broker_trading", failed_targets):
             time_config: Dict[str, datetime.date | int] = get_update_time_config(
-                FinMindDataType.BROKER_TRADING.value.lower()
+                FinMindDataType.BROKER_TRADING.value.lower(),
+                from_date=from_date,
             )
             finmind_updater: FinMindUpdater = FinMindUpdater()
             finmind_updater.update_broker_trading_daily_report(

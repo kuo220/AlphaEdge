@@ -224,7 +224,7 @@ class FuturesPriceUpdater(BaseDataUpdater):
     def update(
         self,
         start_date: datetime.date = DEFAULT_FUTURES_START_DATE,
-        end_date: datetime.date = datetime.date.today(),
+        end_date: Optional[datetime.date] = None,
         products: Optional[List[str]] = None,
         resume: bool = True,
     ) -> None:
@@ -236,8 +236,8 @@ class FuturesPriceUpdater(BaseDataUpdater):
         - Parameters:
             - start_date: datetime.date
                 起日；`resume=True` 時會被該商品在表內的最新日覆蓋
-            - end_date: datetime.date
-                迄日
+            - end_date: Optional[datetime.date]
+                迄日；None 取當日
             - products: Optional[List[str]]
                 要更新的商品；None 表示取設定檔
             - resume: bool
@@ -247,6 +247,10 @@ class FuturesPriceUpdater(BaseDataUpdater):
                 且不會有任何錯誤訊息，只會顯示「已是最新」。
                 重複的日期由 loader 的 `INSERT OR IGNORE` 吸收，不會產生重複列。
         """
+
+        # 預設值不可寫成 `datetime.date.today()`——那是在 import 時求值的，
+        # 長時間執行的行程會一直用啟動那天的日期（健檢 F-002／ruff B008）
+        end_date: datetime.date = end_date or datetime.date.today()
 
         target_products: List[str] = products or FUTURES_TARGET_PRODUCTS
 
@@ -265,7 +269,7 @@ class FuturesPriceUpdater(BaseDataUpdater):
     def update_stock_futures(
         self,
         start_date: datetime.date = DEFAULT_FUTURES_START_DATE,
-        end_date: datetime.date = datetime.date.today(),
+        end_date: Optional[datetime.date] = None,
         top_n: Optional[int] = None,
         products: Optional[List[str]] = None,
         resume: bool = True,
@@ -294,6 +298,8 @@ class FuturesPriceUpdater(BaseDataUpdater):
             - resume: bool
                 是否從各商品表內的最新日接續
         """
+
+        end_date: datetime.date = end_date or datetime.date.today()
 
         targets: List[str] = products or self.resolve_stock_futures_products(
             top_n, end_date

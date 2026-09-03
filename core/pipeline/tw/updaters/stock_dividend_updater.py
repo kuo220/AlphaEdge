@@ -59,18 +59,26 @@ class StockDividendUpdater(BaseDataUpdater):
     def update(
         self,
         start_date: datetime.date,
-        end_date: datetime.date = datetime.date.today(),
+        end_date: Optional[datetime.date] = None,
     ) -> None:
-        """Update the Database"""
+        """
+        - Description:
+            更新除權除息計算結果表
+
+            **每次都掃整個區間，不從 `MAX(date)+1` 續跑**：本來源支援區間查詢，
+            一年只要一次請求，13 年也只有 26 次；而 `MAX(date)+1` 會讓中間任何
+            一年的缺漏永遠補不回來（健檢 F-050）。入庫走 `INSERT OR REPLACE`，
+            重跑是冪等的。
+        - Parameters:
+            - start_date: datetime.date
+                回補起日
+            - end_date: Optional[datetime.date]
+                回補迄日；None 取當日（預設值不可在 def 行求值，見 F-002）
+        """
 
         logger.info("* Start Updating TWSE & TPEX Dividend Data...")
 
-        # Step 1: Crawl
-        # 取得要開始更新的日期
-        start_date: datetime.date = self.get_actual_update_start_date(
-            default_date=start_date
-        )
-        logger.info(f"Latest data date in database: {start_date}")
+        end_date: datetime.date = end_date or datetime.date.today()
 
         if start_date > end_date:
             logger.info("Dividend data is already up to date")
@@ -134,23 +142,3 @@ class StockDividendUpdater(BaseDataUpdater):
             )
         else:
             logger.warning("No new stock dividend data was updated")
-
-    def get_actual_update_start_date(
-        self, default_date: datetime.date
-    ) -> datetime.date:
-        """Get the actual start date for updating (1 day after latest date in table, or default_date)"""
-
-        latest_date: Optional[str] = SQLiteUtils.get_table_latest_value(
-            conn=self.conn,
-            table_name=DIVIDEND_TABLE_NAME,
-            col_name="date",
-        )
-
-        if latest_date is not None:
-            table_latest_date: datetime.date = datetime.datetime.strptime(
-                latest_date,
-                "%Y-%m-%d",
-            ).date()
-            return table_latest_date + datetime.timedelta(days=1)
-        else:
-            return default_date

@@ -257,8 +257,9 @@ def test_target_guard_isolates_failure() -> None:
 class _FakeArgs:
     """取代 argparse.Namespace 的最小替身"""
 
-    def __init__(self, target: List[str]):
+    def __init__(self, target: List[str], from_date=None):
         self.target: List[str] = target
+        self.from_date = from_date
 
 
 # === S3：每個 loader 的「壞檔 → DataLoadError」 ===

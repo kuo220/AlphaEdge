@@ -144,7 +144,7 @@ class FuturesTickUpdater(BaseDataUpdater):
     def update(
         self,
         start_date: datetime.date,
-        end_date: datetime.date = datetime.date.today(),
+        end_date: Optional[datetime.date] = None,
         products: Optional[List[str]] = None,
         near_month_only: bool = True,
     ) -> Dict[str, int]:
@@ -155,8 +155,10 @@ class FuturesTickUpdater(BaseDataUpdater):
             **預設只爬近月**（`near_month_only`）：期貨的量集中在近月，
             遠月一天可能只有幾百筆卻同樣佔配額。要做價差策略再打開。
         - Parameters:
-            - start_date / end_date: datetime.date
-                回補區間
+            - start_date: datetime.date
+                回補起日
+            - end_date: Optional[datetime.date]
+                回補迄日；None 取當日
             - products: Optional[List[str]]
                 商品清單；None 取 `FUTURES_TARGET_PRODUCTS`
             - near_month_only: bool
@@ -165,6 +167,8 @@ class FuturesTickUpdater(BaseDataUpdater):
             - Dict[str, int]
                 統計（爬取契約數、入庫列數、跳過數）
         """
+
+        end_date: datetime.date = end_date or datetime.date.today()
 
         targets: List[str] = products or list(FUTURES_TARGET_PRODUCTS)
         stats: Dict[str, int] = {"contracts": 0, "rows": 0, "skipped": 0}

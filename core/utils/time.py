@@ -1,5 +1,5 @@
 import datetime
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Tuple
 
 import pandas as pd
 from dateutil.rrule import DAILY, MONTHLY, rrule
@@ -91,6 +91,51 @@ class TimeUtils:
     ) -> List[int]:
         """產生從 start_season 到 end_season 的所有季度"""
         return [season for season in range(start_season, end_season + 1)]
+
+    @staticmethod
+    def generate_year_period_range(
+        start_year: int,
+        start_period: int,
+        end_year: int,
+        end_period: int,
+        periods_per_year: int,
+    ) -> List[Tuple[int, int]]:
+        """
+        - Description:
+            產生連續的「(年, 期)」序列，期可以是季（4）或月（12）
+
+            **不可用 `for year in years: for period in periods:` 的笛卡兒積**
+            （健檢 F-054）：起點 2024Q3、終點 2026Q4 時，`periods` 會是 `[3, 4]`，
+            於是 2025Q1／Q2 與 2026Q1／Q2 **整整四季不會被爬**，而且不會有任何錯誤
+            ——它們只是從來沒出現在迴圈裡。
+        - Parameters:
+            - start_year: int
+                起始年
+            - start_period: int
+                起始期（1 起算）
+            - end_year: int
+                結束年
+            - end_period: int
+                結束期
+            - periods_per_year: int
+                一年幾期；季報為 4、月營收為 12
+        - Return:
+            - List[Tuple[int, int]]
+                由早到晚的 (年, 期)；起點晚於終點時為空清單
+        """
+
+        if not 1 <= start_period <= periods_per_year:
+            raise ValueError(f"start_period 應在 1 到 {periods_per_year} 之間")
+        if not 1 <= end_period <= periods_per_year:
+            raise ValueError(f"end_period 應在 1 到 {periods_per_year} 之間")
+
+        start_index: int = start_year * periods_per_year + (start_period - 1)
+        end_index: int = end_year * periods_per_year + (end_period - 1)
+
+        return [
+            (index // periods_per_year, index % periods_per_year + 1)
+            for index in range(start_index, end_index + 1)
+        ]
 
     @staticmethod
     def to_date(value: Any) -> Optional[datetime.date]:

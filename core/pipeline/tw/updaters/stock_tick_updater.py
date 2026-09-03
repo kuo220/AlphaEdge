@@ -14,6 +14,7 @@ from core.pipeline.tw.cleaners.stock_tick_cleaner import StockTickCleaner
 from core.pipeline.tw.crawlers.stock_info_crawler import StockInfoCrawler
 from core.pipeline.tw.crawlers.stock_tick_crawler import StockTickCrawler
 from core.pipeline.tw.loaders.stock_tick_loader import StockTickLoader
+from core.pipeline.utils.exceptions import DataLoadError
 from core.pipeline.utils.stock_tick_utils import StockTickUtils
 from core.utils import ShioajiAccount, ShioajiAPI, TimeUtils
 from core.utils.log_manager import LogManager
@@ -96,9 +97,22 @@ class StockTickUpdater(BaseDataUpdater):
     def update(
         self,
         start_date: datetime.date,
-        end_date: datetime.date = datetime.date.today(),
+        end_date: Optional[datetime.date] = None,
     ):
-        """Update the Database"""
+        """
+        - Description:
+            更新 tick 資料
+
+            跑完若有任何股票爬取失敗即拋 `DataLoadError`——失敗數只印在統計表裡
+            的話，行程仍以結束碼 0 回報成功（健檢 F-052）。
+        - Parameters:
+            - start_date: datetime.date
+                回補起日
+            - end_date: Optional[datetime.date]
+                回補迄日；None 取當日（預設值不可在 def 行求值，見 F-002）
+        """
+
+        end_date: datetime.date = end_date or datetime.date.today()
 
         # 重置全局統計信息
         self.global_stats: Dict[str, Any] = {
@@ -244,6 +258,14 @@ class StockTickUpdater(BaseDataUpdater):
 
             # 輸出完整的統計報告
             self._print_update_summary(self.global_stats, start_date, end_date)
+
+            failed_stocks: int = self.global_stats["failed_stocks"]
+            if failed_stocks:
+                raise DataLoadError(
+                    "tick",
+                    [f"{failed_stocks} 檔股票爬取失敗，詳見上方 log"],
+                    succeeded=self.global_stats["successful_stocks"],
+                )
         except Exception as e:
             logger.error(f"Update process failed with exception: {e}", exc_info=True)
             self._print_update_summary(self.global_stats, start_date, end_date)
@@ -354,7 +376,16 @@ class StockTickUpdater(BaseDataUpdater):
 
             # 改進邏輯：即使部分日期失敗，也保存成功的數據
             if not df_list:
-                if skipped_dates:
+                # **先看有沒有失敗的日期**：舊版先判斷 `skipped_dates`，於是
+                # 「有幾天連不上、其餘幾天本來就沒資料」的股票會被算成 skipped，
+                # 失敗在統計表裡完全看不見（健檢 F-052）
+                if failed_dates:
+                    logger.warning(
+                        f"Stock {stock_id}: {len(failed_dates)} 個日期爬取失敗、"
+                        f"{len(skipped_dates)} 個日期無資料或已存在"
+                    )
+                    stats["failed_stocks"] += 1
+                elif skipped_dates:
                     logger.info(
                         f"Stock {stock_id}: All dates skipped (already exist or no data). "
                         f"Total skipped: {len(skipped_dates)}"
