@@ -13,6 +13,7 @@ from .exceptions import (
     DataLoadError,
     FinMindError,
     FinMindQuotaExhaustedError,
+    IPBlockedError,
     PipelineError,
 )
 from .url_manager import URLManager

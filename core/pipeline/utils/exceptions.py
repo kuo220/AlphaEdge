@@ -115,6 +115,31 @@ class FinMindQuotaExhaustedError(FinMindError):
 
 
 # -----------------------------------------------------------------------------
+# Crawler 例外
+# -----------------------------------------------------------------------------
+
+
+class IPBlockedError(PipelineError):
+    """連續多次建立 Session 失敗，本機 IP 多半已被交易所封鎖。
+
+    **存在的理由是「被擋」不能長得像「沒資料」**：舊版 `find_best_session()`
+    連續失敗後只印三行提示就回 `None`，呼叫端接著把 `None` 當成休市，
+    於是整段回補會安靜地跳過每一天，事後才發現資料整片缺失。
+
+    這是需要人介入（換 IP、重開數據機）才能解除的狀態，故用例外表達。
+    """
+
+    def __init__(self, url: str, attempts: int, last_error: Optional[str] = None):
+        self.url: str = url
+        self.attempts: int = attempts
+        self.last_error: Optional[str] = last_error
+        super().__init__(
+            f"連續 {attempts} 次無法建立 Session（{url}），IP 可能已被封鎖"
+            + (f"；最後一次錯誤：{last_error}" if last_error else "")
+        )
+
+
+# -----------------------------------------------------------------------------
 # Loader 例外
 # -----------------------------------------------------------------------------
 

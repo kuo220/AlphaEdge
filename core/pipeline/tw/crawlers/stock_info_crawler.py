@@ -2,12 +2,20 @@ from io import StringIO
 from typing import List, Optional
 
 import pandas as pd
-import requests
 from loguru import logger
 
 from core.pipeline.shared.base_crawler import BaseDataCrawler
-from core.pipeline.shared.request_utils import RequestUtils
+from core.pipeline.shared.request_utils import FetchResult, RequestUtils
 from core.pipeline.utils import URLManager
+from core.pipeline.utils.exceptions import PipelineError
+
+"""
+上市櫃基本資料爬蟲
+
+**回傳值一律是「拿到資料」或「拋例外」，沒有中間態**：股票清單是
+`broker_trading` 等下游流程的輸入，靜靜回一份殘缺的清單，會讓下游少更新幾百檔股票
+卻不留任何錯誤紀錄。
+"""
 
 
 class StockInfoCrawler(BaseDataCrawler):
@@ -27,13 +35,43 @@ class StockInfoCrawler(BaseDataCrawler):
         pass
 
     @staticmethod
+    def fetch_html(url: str, label: str) -> str:
+        """
+        - Description:
+            取得頁面內容；非 HTTP 2xx 一律拋出，不把錯誤頁交給 `pd.read_html()`
+
+            舊寫法直接讀 `response.text`，`requests_get()` 回 `None` 時會撞
+            `AttributeError`，站方回 404 錯誤頁時則會被 `read_html` 解析成
+            一張看起來很正常、實際上完全錯誤的表。
+        - Parameters:
+            - url: str
+                目標網址
+            - label: str
+                來源名稱，用於錯誤訊息
+        - Return:
+            - str
+                頁面內容
+        - Raise:
+            - PipelineError
+                請求未成功
+        """
+
+        result: FetchResult = RequestUtils.fetch(url)
+        if not result.ok:
+            raise PipelineError(
+                f"取得 {label} 失敗：status={result.status.value}, "
+                f"http={result.status_code}, error={result.error}"
+            )
+        return result.text
+
+    @staticmethod
     def crawl_twse_stock_info() -> pd.DataFrame:
         """爬取上市公司的基本股票資訊（股票代號、上市日期、產業類別等）"""
 
-        response: requests.Response = RequestUtils.requests_get(
-            URLManager.get_url("TWSE_CODE_URL")
+        html: str = StockInfoCrawler.fetch_html(
+            URLManager.get_url("TWSE_CODE_URL"), "TWSE stock info"
         )
-        twse_df: pd.DataFrame = pd.read_html(StringIO(response.text))[0]
+        twse_df: pd.DataFrame = pd.read_html(StringIO(html))[0]
 
         twse_df.columns = twse_df.iloc[0]
         twse_df = twse_df.drop(index=[0, 1])
@@ -66,10 +104,10 @@ class StockInfoCrawler(BaseDataCrawler):
     def crawl_tpex_stock_info() -> pd.DataFrame:
         """爬取上櫃公司的基本股票資訊（股票代號、上櫃日期、產業類別等）"""
 
-        response: requests.Response = RequestUtils.requests_get(
-            URLManager.get_url("TPEX_CODE_URL")
+        html: str = StockInfoCrawler.fetch_html(
+            URLManager.get_url("TPEX_CODE_URL"), "TPEX stock info"
         )
-        tpex_df: pd.DataFrame = pd.read_html(StringIO(response.text))[0]
+        tpex_df: pd.DataFrame = pd.read_html(StringIO(html))[0]
 
         tpex_df.columns = tpex_df.iloc[0]
         tpex_df = tpex_df.drop(index=[0, 1])

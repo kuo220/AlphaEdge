@@ -13,7 +13,7 @@
 
 | 編號 | 步驟名稱 | 產出檔案 | 驗證方式 | 狀態 | 備註／中斷點 |
 |------|----------|----------|----------|:----:|--------------|
-| S1 | `RequestUtils` 回傳語意收斂（HTTP 狀態、None vs 空表） | `core/pipeline/shared/request_utils.py` | 新增測試：4xx／5xx／逾時／空表四種結果各自可辨識 | ⬜ | F-030 ①②、F-031、F-032 |
+| S1 | `RequestUtils` 回傳語意收斂（HTTP 狀態、None vs 空表） | `core/pipeline/shared/request_utils.py`、`core/pipeline/utils/exceptions.py`、`core/pipeline/tw/crawlers/stock_info_crawler.py` | 新增測試：4xx／5xx／逾時／被擋四種結果各自可辨識 | ✅ | F-030 ①②、F-031、F-032；2026-09-03 完成，`tests/test_request_utils.py` 12 條全綠 |
 | S2 | 台股 5 支 crawler 的「休市 vs 失敗」分流 | `core/pipeline/tw/crawlers/stock_{price,chip,margin,dividend}_crawler.py`、`monthly_revenue_report_crawler.py` | 連線失敗時回傳失敗物件而非 None／空表；「is a Holiday!」只在確認為休市時出現 | ⬜ | F-030 ③④；相依 S1 |
 | S3 | loader 失敗一律拋 `DataLoadError` | `core/pipeline/tw/loaders/stock_price_loader.py`、`loaders/finmind/*.py`、`futures_{margin,continuous,chip}_loader.py`、`stock_tick_loader.py`、`core/pipeline/utils/sqlite_utils.py` | `tests/test_loader_failure_reporting.py` 擴充：每個 loader 注入一個壞檔即 `DataLoadError`，結束碼 1 | ⬜ | F-043、F-045、F-046、F-056、`etl-ingestion.md` §二 三列期貨 loader 為 `logger.error` |
 | S4 | updater 缺口偵測與回補、統計行 | `core/pipeline/tw/updaters/stock_*_updater.py`、`futures_chip_updater.py`、`financial_statement_updater.py`、`monthly_revenue_report_updater.py`、`finmind/broker_trading_updater.py` | 刪掉 `price` 表中間一天後 `--target price` 會補回；每批結束印 `N requested / N no data / N unreachable` | ⬜ | F-050、F-052、F-053、F-054、F-051、F-002（B008） |
@@ -22,13 +22,24 @@
 
 ## 步驟詳述
 
-### S1. `RequestUtils` 回傳語意收斂 ⬜
+### S1. `RequestUtils` 回傳語意收斂 ✅
 
 - **目的**：`requests_get/post()` 重試耗盡回 `None` 且從不檢查 HTTP 狀態碼，呼叫端無法區分「被擋」「逾時」「站方回空表」（F-030 ①②、F-031、F-032）。
 - **做法**：回傳值改為明確型別（例如 `Optional[requests.Response]` ＋ `raise_for_status()`，或自訂 `FetchResult(status, body, error)`）；`find_best_session()` 10 次失敗改為拋出 `IPBlockedError`；`stock_info_crawler` 對 `response.text` 先檢查狀態碼。
 - **產出**：`core/pipeline/shared/request_utils.py`、`core/pipeline/utils/exceptions.py`（新增例外）。
 - **驗證方式**：`tests/test_request_utils.py` 擴充四種結果；既有 crawler 測試不變。
 - **相依**：無。
+
+> **✅ 完成紀錄（2026-09-03）**
+> - 新增 `FetchStatus`（`OK`／`HTTP_ERROR`／`UNREACHABLE`／`BLOCKED`）與 `FetchResult`，
+>   以 `RequestUtils.fetch()` 為新入口；4xx 直接回 `HTTP_ERROR` 不重試，
+>   429／5xx 列入 `RETRYABLE_STATUS_CODES` 重試後才降為 `UNREACHABLE`。
+> - `find_best_session()` 10 次失敗改拋 `IPBlockedError`（新增於 `exceptions.py`）。
+>   回 `None` 的舊行為會讓呼叫端接著撞 `AttributeError`，或把「被擋」當成「休市」。
+> - `requests_get()`／`requests_post()` 保留 `Optional[Response]` 舊介面（改為 `fetch()` 的薄包裝、
+>   只在 HTTP 2xx 回 Response），故期貨等尚未改寫的呼叫端行為不變。
+> - `stock_info_crawler` 新增 `fetch_html()`：非 2xx 一律拋 `PipelineError`，
+>   不再把錯誤頁交給 `pd.read_html()` 解析成一張看起來正常、實際全錯的表。
 
 ### S2. 台股 5 支 crawler 的「休市 vs 失敗」分流 ⬜
 
