@@ -113,7 +113,7 @@ class TwStockDataFeed(BaseDataFeed):
 
             **回測遇到缺日會當成休市靜默跳過**（健檢 F-028）：資料缺一天與
             當天休市在引擎眼裡完全相同，策略少做一天的判斷卻不會有任何跡象。
-            根治在 ETL（見 `backlog/ETL失敗語意與缺口回補.md` S4），這裡負責
+            根治在 ETL（見 `core/pipeline/shared/date_planner.py`），這裡負責
             **讓它在回測起跑時就被看見**。
 
             **扣掉 ETL 已確認為休市的日期**：`DateProgressStore("price").no_data`

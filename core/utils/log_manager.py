@@ -14,6 +14,25 @@ backtest 桶只收回測相關套件、pipeline 桶收其餘。這樣不需要�
 ⚠️ **同一個桶內的檔案仍會互收**（例如 `update_price.log` 也會收到
 `update_chip.log` 的內容）。要做到逐檔隔離必須讓每個呼叫端 bind 自己的名字，
 屬另一階段的工作；本次先把跨桶的重複拿掉，那是量體的主要來源。
+
+---
+
+**`watch=True`：檔案被刪掉之後要能重建**
+
+loguru 的 file sink 只在達到 `rotation` 條件時才重開檔案。目錄或檔案被外部
+刪掉時，handler 會繼續寫進一個**已 unlink 的 inode**——程序照跑、資料照寫、
+沒有任何錯誤，但日誌從此不可見。
+
+2026-09-03 19:12 實際發生過：驗證「pytest 不再產生 `logs/`」時執行了
+`rm -rf logs`，而當時台期貨行情回補已跑了 1 小時 32 分。`lsof` 顯示該程序的
+fd 仍指向 `logs/pipeline/update_futures_price.log`、已寫入 4.3 MB，
+但那個路徑在檔案系統上已不存在；程序毫無察覺地繼續跑完，`ERROR` 數 0。
+
+`tasks/clean_logs.py` 的 docstring 早就寫明了這個危害，但它只保護自己那條
+路徑——保護不了任何一次手動的 `rm -rf logs`。**把防線放進 sink 本身才涵蓋
+得到所有路徑**：`watch=True` 讓下一筆記錄重新建立檔案（含缺少的父目錄）。
+
+已經寫進舊 inode 的內容救不回來，這個參數保證的是「之後不再繼續消失」。
 """
 
 from pathlib import Path
@@ -138,6 +157,9 @@ class LogManager:
             enqueue=True,  # Thread-safe logging
             # 沒有 filter 的話，這個 sink 會收下整個行程的每一行（F-001）
             filter=LogManager.build_bucket_filter(log_dir),
+            # **檔案被外部刪掉時要重建**（2026-09-03 事故，見模組說明）
+            watch=True,
+            # **檔案被外部刪掉時要重建**（2026-09-03 事故，見模組說明）
         )
 
         # Track this log file as configured

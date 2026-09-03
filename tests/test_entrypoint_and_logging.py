@@ -238,3 +238,54 @@ def test_pipeline_bucket_is_the_complement() -> None:
     assert accept(make_record("tasks.update_db"))
     assert accept(make_record("some.brand.new.package")), "沒被認領的要落進 pipeline"
     assert not accept(make_record("core.api.tw.stock_price_api"))
+
+
+# === S7：日誌檔被外部刪除後要重建（2026-09-03 事故）===
+def test_log_file_is_recreated_after_external_deletion(tmp_path: Path) -> None:
+    """
+    檔案被刪掉之後，下一筆記錄要重新建立它
+
+    loguru 的 file sink 只在達到 `rotation` 條件時才重開檔案。少了 `watch=True`，
+    目錄被 `rm -rf` 之後 handler 會繼續寫進一個**已 unlink 的 inode**
+    ——程序照跑、資料照寫、沒有任何錯誤，但日誌從此不可見。
+
+    2026-09-03 19:12 實際發生：驗證「pytest 不再產生 logs/」時執行了
+    `rm -rf logs`，而台期貨回補已跑了 1 小時 32 分；`lsof` 顯示該程序的 fd
+    仍指向已不存在的 `update_futures_price.log`、已寫入 4.3 MB。
+    """
+
+    import time
+
+    from loguru import logger
+
+    from core.utils.log_manager import LogManager
+
+    log_dir: Path = tmp_path / "pipeline"
+    target: Path = log_dir / "watch_test.log"
+
+    # `conftest.py` 把 `setup_logger` 換成 no-op（避免測試寫 `logs/`），
+    # 但這條測試要驗的正是 sink 本身，故取用它保留下來的原函式
+    LogManager._configured_logs.discard(str(target))
+    handler_ids_before = set(logger._core.handlers)
+    LogManager.real_setup_logger("watch_test.log", log_dir=log_dir, level="INFO")
+    new_handlers = set(logger._core.handlers) - handler_ids_before
+
+    try:
+        logger.info("BEFORE_DELETE")
+        logger.complete()
+        time.sleep(0.2)
+        assert target.exists()
+
+        target.unlink()
+        assert not target.exists()
+
+        logger.info("AFTER_DELETE")
+        logger.complete()
+        time.sleep(0.3)
+
+        assert target.exists(), "檔案被刪除後，下一筆記錄必須重建它"
+        assert "AFTER_DELETE" in target.read_text(encoding="utf-8")
+    finally:
+        for handler_id in new_handlers:
+            logger.remove(handler_id)
+        LogManager._configured_logs.discard(str(target))

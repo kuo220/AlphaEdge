@@ -74,6 +74,22 @@ CSV，程序中斷後資料庫仍是 0 列。
 
 實作見 `core/pipeline/shared/date_planner.py` 的模組說明。
 
+**2026-09-03 的實跑驗證**（`--target price --from 2026-06-18`，56 個平日）：
+
+```
+本次待更新日期：56 天（2026-06-18 ~ 2026-09-03）
+[price] 本批統計：56 requested / 54 ok / 0 no data / 2 unreachable
+        ；unreachable 的日期下次執行會自動重試        ← WARNING 等級
+[price] 入庫完成：新寫入 108 檔、已存在跳過 0 檔、失敗 0 檔
+```
+
+- 事前刻意刪掉的 2026-06-18（2,377 列）**原數回補**，證實缺口偵測有效。
+- 2026-06-19 與 2026-07-10 兩天 TWSE 回了解析不出表格的內容。
+  **舊版會記成「is a Holiday!」並永遠跳過**；新版判為 `FAILED`、寫進
+  `DateProgressStore.incomplete`，下次執行會重試（`no_data` 維持空集合）。
+- 新入庫的資料 **0 價列數為 0、NULL 價列數 1,722**，證實 cleaner 的
+  「無成交價保持 NULL」在真實資料上生效。
+
 **`equity_change` 是 fs 裡的例外**：MOPS 的權益變動表端點（`ajax_t164sb06`）是
 **逐檔查詢**，一個年季就要打兩千多次請求，整段回補以十萬次計——量級跟 price／chip／margin
 同一等級，所以入庫時機與 resume 依據都得比照它們，而不是比照同一支 updater 裡的另外三張報表。
@@ -210,7 +226,7 @@ log 也沒有任何錯誤——只有一行 `first 30 stocks have no data` 語�
 
 ## 五、健檢 C 級結論（2026-09-02）
 
-[全專案架構與邏輯健檢.md](../dev/health-check-2026-09.md) S7~S10 逐檔核對四層後，A／B 級已轉入 `backlog/ETL失敗語意與缺口回補.md`；下列 C 級是**結構性的取捨**，先記錄、等該區塊真的要動時再處理：
+[全專案架構與邏輯健檢.md](../dev/health-check-2026-09.md) S7~S10 逐檔核對四層後，A／B 級已於 2026-09-03 全數完成（規劃文件已依 `manage-backlog` skill §5 移出 `backlog/`，成果見本文件 §二與 `core/pipeline/shared/` 的模組說明）；下列 C 級是**結構性的取捨**，先記錄、等該區塊真的要動時再處理：
 
 | 編號 | 結論 |
 |---|---|
