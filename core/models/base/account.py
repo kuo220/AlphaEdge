@@ -96,10 +96,28 @@ class BaseAccount:
         symbol: str,
         position_type: Optional[PositionType] = None,
     ) -> bool:
-        """檢查指定的商品是否有在庫存；position_type 為 None 時不分方向（維持既有行為）"""
+        """
+        - Description:
+            檢查指定的商品是否有**未平倉**部位
+
+            **`is_closed` 一定要濾掉**（健檢 F-020）：`positions` 是只增不減的
+            清單，平倉只是把 `is_closed` 設為 True。少了這個條件，一檔賣掉之後
+            仍會被當成「還在庫存」——雙向持倉檢查會永久拒絕該標的的反向開倉，
+            而 `Backtester` 用它挑出「有部位的報價」時也會一直帶著已平倉的標的。
+            同檔案的 `get_positions()` 本來就有濾，兩者不一致本身就是徵兆。
+        - Parameters:
+            - symbol: str
+                商品代碼
+            - position_type: Optional[PositionType]
+                方向；None 表示不分方向
+        - Return:
+            - bool
+                有未平倉部位為 True
+        """
 
         return any(
-            position.symbol == symbol
+            not position.is_closed
+            and position.symbol == symbol
             and (position_type is None or position.position_type == position_type)
             for position in self.positions
         )

@@ -79,6 +79,19 @@ class StockPositionManager(BasePositionManager):
                 f"* Open Long Position: {stock_order.stock_id} ({stock_order.volume} lots)"
             )
 
+            # 同一標的不允許同時持有反向部位（放空框架 §7.5「反之亦然」）。
+            # **舊版只在放空端檢查**（健檢 F-057）：先做多再放空會被擋，
+            # 先放空再做多卻放行，同一檔於是同時掛著多空兩個部位——
+            # 兩邊各自盯市、各自計算維持率，帳面曝險與實際完全對不上
+            if self.account.check_has_position(
+                stock_order.stock_id, PositionType.SHORT
+            ):
+                logger.warning(
+                    f"[Open Long] {stock_order.stock_id} 已有放空部位，"
+                    f"不允許同標的雙向持倉，拒絕開倉"
+                )
+                return None
+
             # Calculate open commission & tax & total open cost
             open_commission: int = self.cost_model.commission(
                 price=stock_order.price,

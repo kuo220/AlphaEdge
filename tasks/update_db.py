@@ -390,6 +390,21 @@ def main() -> None:
                 start_date=time_config["start_date"], end_date=time_config["end_date"]
             )
 
+    # **PRICE 必須排在 CHIP／MARGIN 之前**：那兩個以 `price` 表的交易日為
+    # 日曆，price 還沒更新到今天的話，它們今天就不會被請求——結果是永遠
+    # 落後一天。`DatePlanner.extend_calendar_tail()` 是第二層保險，
+    # 但正確的執行順序仍應在這裡表達
+    if DataType.PRICE.name.lower() in targets:
+        with target_guard("price", failed_targets):
+            time_config: Dict[str, datetime.date | int] = get_update_time_config(
+                data_type=DataType.PRICE,
+                from_date=from_date,
+            )
+            stock_price_updater: StockPriceUpdater = StockPriceUpdater()
+            stock_price_updater.update(
+                start_date=time_config["start_date"], end_date=time_config["end_date"]
+            )
+
     if DataType.CHIP.name.lower() in targets:
         with target_guard("chip", failed_targets):
             time_config: Dict[str, datetime.date | int] = get_update_time_config(
@@ -420,17 +435,6 @@ def main() -> None:
             )
             stock_dividend_updater: StockDividendUpdater = StockDividendUpdater()
             stock_dividend_updater.update(
-                start_date=time_config["start_date"], end_date=time_config["end_date"]
-            )
-
-    if DataType.PRICE.name.lower() in targets:
-        with target_guard("price", failed_targets):
-            time_config: Dict[str, datetime.date | int] = get_update_time_config(
-                data_type=DataType.PRICE,
-                from_date=from_date,
-            )
-            stock_price_updater: StockPriceUpdater = StockPriceUpdater()
-            stock_price_updater.update(
                 start_date=time_config["start_date"], end_date=time_config["end_date"]
             )
 
@@ -584,6 +588,10 @@ def main() -> None:
                 end_date=time_config["end_date"],
             )
 
+    # **一定要在結束碼判斷之前**：失敗的那幾天正是 `logs/api/` 長最多的時候，
+    # 放在 `sys.exit(1)` 之後等於永遠跑不到
+    cleanup_api_logs()
+
     if failed_targets:
         logger.error(
             f"❌ Database Update Failed. 失敗的 target："
@@ -591,8 +599,6 @@ def main() -> None:
             f"（成功：{', '.join(sorted(targets - set(failed_targets))) or '無'}）"
         )
         sys.exit(1)
-
-    cleanup_api_logs()
 
     logger.info(f"✅ Database Update Completed. Updated: {', '.join(sorted(targets))}")
 

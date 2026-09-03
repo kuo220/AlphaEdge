@@ -16,7 +16,7 @@
 | S1 | `RequestUtils` 回傳語意收斂（HTTP 狀態、None vs 空表） | `core/pipeline/shared/request_utils.py`、`core/pipeline/utils/exceptions.py`、`core/pipeline/tw/crawlers/stock_info_crawler.py` | 新增測試：4xx／5xx／逾時／被擋四種結果各自可辨識 | ✅ | F-030 ①②、F-031、F-032；2026-09-03 完成，`tests/test_request_utils.py` 12 條全綠 |
 | S2 | 台股 5 支 crawler 的「休市 vs 失敗」分流 | `core/pipeline/shared/base_crawler.py`、`base_updater.py`、五支 crawler、四支 updater | `tests/test_crawl_result_semantics.py` 16 條：連線失敗回 `FAILED`、`unreachable` +1 而非 `no_data` | ✅ | F-030 ③④；2026-09-03 完成 |
 | S3 | loader 失敗一律拋 `DataLoadError` | `stock_price_loader.py`、`loaders/finmind/*.py`、`stock_tick_loader.py`、`sqlite_utils.py`、`futures_{margin,continuous,chip}_updater.py` | `tests/test_loader_failure_reporting.py` 擴充至 16 條 | ✅ | F-043、F-044、F-045、F-046、F-053、F-056；2026-09-03 完成 |
-| S4 | updater 缺口偵測與回補、統計行 | `core/pipeline/shared/date_planner.py`（新）、`core/utils/time.py`、六支 updater、`tasks/update_db.py` | `tests/test_date_gap_backfill.py` 13 條：刪掉中間一天即重新進入候選；`--from` 覆寫 | ✅ | F-050、F-051、F-052、F-054、F-002；F-053 已於 S3 完成；**`--target price` 實跑實測待期貨回補結束** |
+| S4 | updater 缺口偵測與回補、統計行 | `core/pipeline/shared/date_planner.py`（新）、`core/utils/time.py`、六支 updater、`tasks/update_db.py` | `tests/test_date_gap_backfill.py` 19 條 | ✅ | F-050、F-051、F-052、F-054、F-002；F-053 已於 S3 完成；**`--target price` 實跑實測待期貨回補結束** |
 | S5 | cleaner 邊界：無成交日的 OHLC、TPEX 欄位數檢查、dividend 去重順序 | `base_cleaner.py`、`stock_price_cleaner.py`、`stock_chip_cleaner.py`、`stock_dividend_loader.py`、`stock_quote_adapter.py`、`scripts/fix_price_no_trade_rows.py` | `tests/test_cleaner_boundaries.py` 12 條；修復腳本 dry-run ＝ 104,046 | ✅ | F-037、F-038、F-047；**修復腳本尚未實際套用**（見完成紀錄） |
 | S6 | 入口與日誌：`no_tick` 排除 `futures_tick`、`delete_price_data` 加 dry-run、loguru sink 隔離與 api 桶保留 | `tasks/update_db.py`、`tasks/delete_price_data.py`、`core/api/tw/*.py`、`core/config/{schema,settings}.py`、`core/utils/notify.py`、`tests/conftest.py` | `tests/test_entrypoint_and_logging.py` 10 條；pytest 實測不再產生 `logs/` | 🔄 | F-078、F-079、F-097、F-015、F-017 ✅；F-044 已於 S3 完成；**F-001（`log_manager.py` 的 `filter=`）⏸ 等期貨回補結束** |
 
@@ -89,6 +89,9 @@
 > - `sqlite_utils.py`：三個查詢函式不再 `except sqlite3.Error` 後回 `None`／預設值。
 >   「表不存在」與「表是空的」先明確判斷後回 `None`，其餘往外拋——
 >   吞掉會讓 updater 以為表是空的而從預設起日重跑整段回補。
+> - **（2026-09-03 複查修正）** `futures_margin_updater` 的兩段隔離迴圈原本寫了
+>   `except DataLoadError: raise`，而兩個 step 自己正是用 `DataLoadError` 表達失敗——
+>   最常見的失敗會直接往外炸，第二段根本不會跑。已改為一併攔下。
 > - 期貨三支 updater 的「warning 後跳過」改為拋 `DataLoadError`：
 >   保證金一覽表取得／清洗失敗、連續合約**有行情卻排不出換月表**
 >   （新增 `UnbuildableSeriesError`，與「該商品尚未回補」區分開）、
@@ -130,6 +133,24 @@
 > **⚠️ 未完成的驗收項**：「刪掉 `price` 表任一天後 `--target price` 會回補該日」的
 > **實跑實測**要等期貨行情回補結束（避免搶 DB 鎖）。目前以 tmp DB 的單元測試涵蓋
 > 同一條路徑（`tests/test_date_gap_backfill.py::test_middle_gap_is_planned_again`）。
+>
+> **🔁 2026-09-03 複查後補強**（`/code-review high` 抓到兩條會讓本步驟失效的問題）：
+> - **同一天只成功一半的日期永遠補不回來**。price／chip／margin 每天打**兩次**
+>   請求（上市＋上櫃）。上市成功、上櫃失敗時，上市那批已入庫，於是下次執行時
+>   這天落在「表內已有」裡被差集排除——上櫃那半永遠補不回來，而統計行還印著
+>   「unreachable 的日期下次執行會自動重試」。
+>   `NoDataDateStore` 因此改為 `DateProgressStore`，同時持有 `no_data`
+>   （所有來源都說沒有）與 `incomplete`（至少一個來源沒問到），後者會**蓋過**
+>   「表內已有」的排除。`UpdateStats.record()` 的回傳值由 `bool` 改為 `CrawlStatus`。
+> - **盤中跑一次就把今天永久列為「沒有資料」**。`NO_DATA` 同時代表「休市」與
+>   「盤後尚未公布」，兩者在回應上無法區分。`record_no_data()` 因此拒絕寫入
+>   當天（含未來）的日期——收盤後那天的資料還抓得到。
+> - **chip／margin 結構性落後 price 一天**：兩者以 `price` 表為日曆，而
+>   `update_db` 的 CHIP／MARGIN 區塊原本排在 PRICE **之前**。已把 PRICE 移到最前，
+>   並加上 `DatePlanner.extend_calendar_tail()`（日曆尾端補平日）作為第二層保險。
+> - **cleaner 的 `ColumnLayoutError` 會炸掉整段回補**：一個異常的歷史日期會讓
+>   本批已爬好、尚未入庫的日期全部作廢。新增 `BaseDataUpdater.clean_one()`
+>   逐日隔離，計入 `clean_failed` 並標記為待重試。
 
 ### S5. cleaner 邊界 ✅
 

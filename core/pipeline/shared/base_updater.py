@@ -1,9 +1,12 @@
+import datetime
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Callable, List, Optional
 
+import pandas as pd
 from loguru import logger
 
-from core.pipeline.shared.base_crawler import CrawlResult
+from core.pipeline.shared.base_crawler import CrawlResult, CrawlStatus
 
 """
 所有 updater 的共同基底，以及**每批一行的結果統計**
@@ -23,43 +26,58 @@ class UpdateStats:
     ok: int = 0  # 拿到資料
     no_data: int = 0  # 站方明確回覆沒有資料（休市或尚未公布）
     unreachable: int = 0  # 取不到且無法斷定站方有沒有資料，下次會重試
+    clean_failed: int = 0  # 抓到了但清洗失敗（版面異常），同樣下次會重試
 
-    def record(self, *results: CrawlResult) -> bool:
+    def record(self, *results: CrawlResult) -> CrawlStatus:
         """
         - Description:
-            記錄同一天的多個來源結果，並回報這一天是否**確定**沒有資料
+            記錄同一天的多個來源結果，並回報這一天整體算哪一種
 
-            同一天的上市與上櫃各爬一次：只要有任何一邊失敗，這天就**不算**
-            確定沒資料——否則下次就不會再補這天了。
+            同一天的上市與上櫃各爬一次，三種結果的判準：
+
+            - 任一來源失敗 → `FAILED`。**即使另一邊成功也算失敗**，
+              因為這天只拿到一半的資料，下次必須重來。
+            - 全部來源都說沒有 → `NO_DATA`，可以記進永久名單。
+            - 其餘 → `OK`。
         - Parameters:
             - results: CrawlResult
                 同一天各來源的結果
         - Return:
-            - bool
-                所有來源都明確回覆沒有資料為 True
+            - CrawlStatus
+                這一天的整體結果
         """
 
         self.requested += 1
 
         if any(result.is_failed for result in results):
             self.unreachable += 1
-            return False
+            return CrawlStatus.FAILED
 
         if all(result.is_no_data for result in results):
             self.no_data += 1
-            return True
+            return CrawlStatus.NO_DATA
 
         self.ok += 1
-        return False
+        return CrawlStatus.OK
+
+    def count_clean_failure(self) -> None:
+        """清洗失敗：從 ok 移到 unreachable，並單獨計數"""
+
+        self.ok = max(self.ok - 1, 0)
+        self.unreachable += 1
+        self.clean_failed += 1
 
     def summary_line(self, source: str) -> str:
         """單行統計字串"""
 
-        return (
+        line: str = (
             f"[{source}] 本批統計："
             f"{self.requested} requested / {self.ok} ok / "
             f"{self.no_data} no data / {self.unreachable} unreachable"
         )
+        if self.clean_failed:
+            line += f"（其中 {self.clean_failed} 天是清洗失敗）"
+        return line
 
     def report(self, source: str) -> None:
         """
@@ -85,6 +103,63 @@ class BaseDataUpdater(ABC):
 
     def __init__(self):
         pass
+
+    @staticmethod
+    def clean_one(
+        clean: Callable[..., Optional[pd.DataFrame]],
+        raw: pd.DataFrame,
+        date: datetime.date,
+        label: str,
+    ) -> bool:
+        """
+        - Description:
+            清洗單一來源的單日資料，**把失敗隔離在這一天之內**
+
+            `BaseDataCleaner.check_column_count()` 會在版面不符時拋
+            `ColumnLayoutError`。若讓它一路往上炸，一個異常的歷史日期就會中止
+            整段回補——而且是在最壞的時間點：本批已爬好、尚未入庫的日期全部作廢
+            （`load_batch()` 每 100 天才呼叫一次）。
+
+            爬取層的失敗已經是逐日隔離的（見 `CrawlResult`），清洗層沒有理由不是。
+        - Parameters:
+            - clean: Callable
+                cleaner 的清洗函式
+            - raw: pd.DataFrame
+                原始表格
+            - date: datetime.date
+                該日
+            - label: str
+                來源名稱，只用於訊息
+        - Return:
+            - bool
+                清洗成功且有資料為 True
+        """
+
+        try:
+            cleaned: Optional[pd.DataFrame] = clean(raw, date)
+        except Exception as error:
+            logger.error(
+                f"[{label}] {date} 清洗失敗（{type(error).__name__}: {error}），"
+                f"本日計為失敗、下次執行會重試"
+            )
+            return False
+
+        if cleaned is None or cleaned.empty:
+            logger.warning(f"Cleaned {label} dataframe empty on {date}")
+
+        return True
+
+    @staticmethod
+    def report_cleaner_failures(dates: List[datetime.date]) -> None:
+        """清洗失敗的日期列一次，讓「哪幾天要重跑」不必翻整份 log"""
+
+        if not dates:
+            return
+
+        logger.error(
+            f"* 有 {len(dates)} 天清洗失敗、已標記為待重試：{dates[:10]}"
+            + ("…（僅列前 10 筆）" if len(dates) > 10 else "")
+        )
 
     @abstractmethod
     def setup(self, *args, **kwargs) -> None:

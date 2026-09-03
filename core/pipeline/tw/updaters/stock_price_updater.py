@@ -4,13 +4,12 @@ import sqlite3
 import time
 from typing import List, Optional
 
-import pandas as pd
 from loguru import logger
 
 from core.config import PRICE_TABLE_NAME, TW_STOCK_DB_PATH
-from core.pipeline.shared.base_crawler import CrawlResult
+from core.pipeline.shared.base_crawler import CrawlResult, CrawlStatus
 from core.pipeline.shared.base_updater import BaseDataUpdater, UpdateStats
-from core.pipeline.shared.date_planner import DatePlanner, NoDataDateStore
+from core.pipeline.shared.date_planner import DatePlanner, DateProgressStore
 from core.pipeline.tw.cleaners.stock_price_cleaner import StockPriceCleaner
 from core.pipeline.tw.crawlers.stock_price_crawler import StockPriceCrawler
 from core.pipeline.tw.loaders.stock_price_loader import StockPriceLoader
@@ -105,43 +104,46 @@ class StockPriceUpdater(BaseDataUpdater):
         # Step 1: Crawl
         # 候選日期＝平日 − 表內已有 − 已確認無資料（`price` 表自己就是日曆來源，
         # 故沒有外部日曆可用，只能以平日為母集合）
-        no_data_store: NoDataDateStore = NoDataDateStore("price")
+        progress: DateProgressStore = DateProgressStore("price")
         dates: List[datetime.date] = DatePlanner.plan(
             conn=self.conn,
             table_name=PRICE_TABLE_NAME,
             start_date=start_date,
             end_date=end_date,
-            no_data_dates=no_data_store.dates,
+            no_data_dates=progress.no_data,
+            incomplete_dates=progress.incomplete,
         )
         logger.info(f"本次待更新日期：{len(dates)} 天（{start_date} ~ {end_date}）")
 
         file_cnt: int = 0
         batch_dates: List[str] = []
         stats: UpdateStats = UpdateStats()
+        cleaner_failures: List[datetime.date] = []
 
         for date in dates:
             logger.info(date.strftime("%Y/%m/%d"))
             twse: CrawlResult = self.crawler.crawl_twse_price(date)
             tpex: CrawlResult = self.crawler.crawl_tpex_price(date)
-            if stats.record(twse, tpex):
-                # 兩邊都明確回覆沒有資料才記下來，之後不再重問；
-                # 連線失敗不寫入，下次執行會自動重試
-                no_data_store.add(date)
+            day_status: CrawlStatus = stats.record(twse, tpex)
 
             # Step 2: Clean
+            cleaned: bool = True
             if twse.is_ok and len(twse.data) > self.MIN_DF_ROWS_AFTER_CLEAN:
-                cleaned_twse_df: pd.DataFrame = self.cleaner.clean_twse_price(
-                    twse.data, date
+                cleaned &= self.clean_one(
+                    self.cleaner.clean_twse_price, twse.data, date, "TWSE"
                 )
-                if cleaned_twse_df is None or cleaned_twse_df.empty:
-                    logger.warning(f"Cleaned TWSE dataframe empty on {date}")
 
             if tpex.is_ok and len(tpex.data) > self.MIN_DF_ROWS_AFTER_CLEAN:
-                cleaned_tpex_df: pd.DataFrame = self.cleaner.clean_tpex_price(
-                    tpex.data, date
+                cleaned &= self.clean_one(
+                    self.cleaner.clean_tpex_price, tpex.data, date, "TPEX"
                 )
-                if cleaned_tpex_df is None or cleaned_tpex_df.empty:
-                    logger.warning(f"Cleaned TPEX dataframe empty on {date}")
+
+            if not cleaned:
+                cleaner_failures.append(date)
+                day_status = CrawlStatus.FAILED
+                stats.count_clean_failure()
+
+            progress.record(date, day_status)
 
             file_cnt += 1
             batch_dates.append(date.strftime("%Y%m%d"))
@@ -151,7 +153,7 @@ class StockPriceUpdater(BaseDataUpdater):
                 self.load_batch(batch_dates)
                 batch_dates = []
                 # 與入庫同步落盤：中斷時已確認過的休市日不必再問一次
-                no_data_store.save()
+                progress.save()
 
             if file_cnt == self.BATCH_SLEEP_EVERY_N_FILES:
                 logger.info("Sleep 2 minutes...")
@@ -167,8 +169,9 @@ class StockPriceUpdater(BaseDataUpdater):
         if batch_dates:
             self.load_batch(batch_dates)
 
-        no_data_store.save()
+        progress.save()
         stats.report("price")
+        self.report_cleaner_failures(cleaner_failures)
 
         # 更新後重新取得Table最新的日期
         table_latest_date: str = SQLiteUtils.get_table_latest_value(

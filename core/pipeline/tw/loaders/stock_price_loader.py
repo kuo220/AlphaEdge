@@ -138,7 +138,6 @@ class StockPriceLoader(BaseDataLoader):
         succeeded: int = 0
         skipped_files: int = 0
         failed_files: List[str] = []
-        partial_files: List[str] = []
 
         for idx, file_path in enumerate(csv_files, start=1):
             try:
@@ -179,11 +178,14 @@ class StockPriceLoader(BaseDataLoader):
                 continue
 
             if ignored:
+                # **不進 `partial_files`**：`INSERT OR IGNORE` 只知道「主鍵已存在」，
+                # 不知道值有沒有不同。重跑一個部分入庫過的日期（例如 `--from`
+                # 往前拉）本來就會有大量 ignored，把它當成「同鍵不同值」示警
+                # 只會訓練讀 log 的人忽略那行警告
                 logger.info(
                     f"Saved {file_path.name} into database "
-                    f"({inserted} new rows, {ignored} skipped)"
+                    f"({inserted} new rows, {ignored} already existed)"
                 )
-                partial_files.append(file_path.name)
             else:
                 logger.info(f"Saved {file_path.name} into database ({inserted} rows)")
             succeeded += 1
@@ -198,5 +200,4 @@ class StockPriceLoader(BaseDataLoader):
             remove_files=remove_files,
             downloads_path=self.price_dir,
             skipped_files=skipped_files,
-            partial_files=partial_files,
         )

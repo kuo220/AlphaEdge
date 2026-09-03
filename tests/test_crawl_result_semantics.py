@@ -199,27 +199,30 @@ def test_connection_failure_counts_as_unreachable_not_no_data() -> None:
     """
 
     stats: UpdateStats = UpdateStats()
-    confirmed_empty: bool = stats.record(
+    day_status: CrawlStatus = stats.record(
         CrawlResult.failed("unreachable: ReadTimeout"),
         CrawlResult.no_data("站方回覆查無資料"),
     )
 
     assert stats.unreachable == 1
     assert stats.no_data == 0
-    assert not confirmed_empty, "有任一來源失敗時，這天不可被認定為確定沒資料"
+    assert day_status is CrawlStatus.FAILED, (
+        "有任一來源失敗時，這天不可被認定為確定沒資料——"
+        "另一半的資料已經入庫，差集會把這天當成『已經有了』而永遠不再補"
+    )
 
 
 def test_all_sources_no_data_is_a_confirmed_holiday() -> None:
     """兩邊都明確回覆沒資料，才算確定休市"""
 
     stats: UpdateStats = UpdateStats()
-    confirmed_empty: bool = stats.record(
+    day_status: CrawlStatus = stats.record(
         CrawlResult.no_data("站方回覆查無資料"),
         CrawlResult.no_data("站方回覆查無資料"),
     )
 
     assert stats.no_data == 1
-    assert confirmed_empty
+    assert day_status is CrawlStatus.NO_DATA
 
 
 def test_summary_line_carries_the_three_counters() -> None:

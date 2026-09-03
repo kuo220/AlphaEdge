@@ -5,7 +5,8 @@ from typing import List, Set, Tuple
 
 import pytest
 
-from core.pipeline.shared.date_planner import DatePlanner, NoDataDateStore
+from core.pipeline.shared.base_crawler import CrawlStatus
+from core.pipeline.shared.date_planner import DatePlanner, DateProgressStore
 from core.utils import TimeUtils
 
 """
@@ -118,16 +119,17 @@ def test_calendar_dates_cover_traded_weekends(tmp_path: Path) -> None:
     make_table(conn, ["2024-01-06"])  # 週六補行交易日
 
     calendar: Set[datetime.date] = DatePlanner.get_trading_dates(
-        conn, "price", datetime.date(2024, 1, 1), datetime.date(2024, 1, 31)
+        conn, "price", datetime.date(2024, 1, 1), datetime.date(2024, 1, 6)
     )
     conn.execute("CREATE TABLE margin (date TEXT)")
     conn.commit()
 
+    # 迄日就是日曆最後一天，故不會觸發尾端補平日（那條另有測試）
     candidates: List[datetime.date] = DatePlanner.plan(
         conn=conn,
         table_name="margin",
         start_date=datetime.date(2024, 1, 1),
-        end_date=datetime.date(2024, 1, 31),
+        end_date=datetime.date(2024, 1, 6),
         calendar_dates=calendar,
     )
 
@@ -151,32 +153,139 @@ def test_missing_table_is_not_an_error(tmp_path: Path) -> None:
     conn.close()
 
 
-# === no-data 紀錄的持久化 ===
-def test_no_data_store_round_trip(tmp_path: Path) -> None:
+# === 進度紀錄的持久化 ===
+def test_progress_store_round_trip(tmp_path: Path) -> None:
     """寫入後再讀回要拿到同一組日期"""
 
-    path: Path = tmp_path / "price_no_data_dates.json"
-    store: NoDataDateStore = NoDataDateStore("price", path=path)
-    store.add(datetime.date(2024, 1, 1))
-    store.add(datetime.date(2024, 2, 28))
+    path: Path = tmp_path / "price_date_progress.json"
+    store: DateProgressStore = DateProgressStore("price", path=path)
+    store.record_no_data(datetime.date(2024, 1, 1), today=datetime.date(2024, 3, 1))
+    store.record_no_data(datetime.date(2024, 2, 28), today=datetime.date(2024, 3, 1))
+    store.record_incomplete(datetime.date(2024, 2, 29))
     store.save()
 
-    reloaded: NoDataDateStore = NoDataDateStore("price", path=path)
+    reloaded: DateProgressStore = DateProgressStore("price", path=path)
 
-    assert reloaded.dates == {datetime.date(2024, 1, 1), datetime.date(2024, 2, 28)}
+    assert reloaded.no_data == {datetime.date(2024, 1, 1), datetime.date(2024, 2, 28)}
+    assert reloaded.incomplete == {datetime.date(2024, 2, 29)}
 
 
-def test_corrupt_no_data_store_is_treated_as_empty(tmp_path: Path) -> None:
+def test_corrupt_progress_store_is_treated_as_empty(tmp_path: Path) -> None:
     """
     檔案損毀時當成空集合
 
     最壞的結果只是多問幾次；把「沒問到」誤認成「問過了沒有」才是真正的風險。
     """
 
-    path: Path = tmp_path / "price_no_data_dates.json"
+    path: Path = tmp_path / "price_date_progress.json"
     path.write_text("{ not json")
 
-    assert NoDataDateStore("price", path=path).dates == set()
+    store: DateProgressStore = DateProgressStore("price", path=path)
+
+    assert store.no_data == set()
+    assert store.incomplete == set()
+
+
+def test_today_is_never_written_to_the_permanent_no_data_list(tmp_path: Path) -> None:
+    """
+    盤中跑一次更新，不可把今天永久列為「沒有資料」
+
+    `NO_DATA` 同時代表「休市」與「盤後尚未公布」，兩者在回應上無法區分。
+    寫進去的話，收盤後那天的資料**再也不會被抓**。
+    """
+
+    today: datetime.date = datetime.date(2024, 1, 10)
+    store: DateProgressStore = DateProgressStore("price", path=tmp_path / "p.json")
+
+    store.record_no_data(today, today=today)
+
+    assert store.no_data == set()
+
+
+def test_incomplete_day_is_requested_again_even_though_data_exists(
+    tmp_path: Path,
+) -> None:
+    """
+    同一天的多個來源只成功了一半時，下次一定要重來
+
+    price／chip／margin 每天都打上市與上櫃兩次請求。上市成功、上櫃失敗時，
+    上市那批已經進了資料表——差集會把這天當成「已經有了」而排除，
+    **上櫃那半永遠補不回來**（本檔存在的最主要理由）。
+    """
+
+    conn = sqlite3.connect(tmp_path / "test.db")
+    make_table(conn, ["2024-01-02"])  # 只有上市那半入庫
+
+    candidates: List[datetime.date] = DatePlanner.plan(
+        conn=conn,
+        table_name="price",
+        start_date=datetime.date(2024, 1, 2),
+        end_date=datetime.date(2024, 1, 2),
+        incomplete_dates={datetime.date(2024, 1, 2)},
+    )
+
+    assert candidates == [datetime.date(2024, 1, 2)]
+    conn.close()
+
+
+def test_progress_record_dispatches_on_status(tmp_path: Path) -> None:
+    """`UpdateStats.record()` 的回傳值可以直接餵進進度紀錄"""
+
+    today: datetime.date = datetime.date(2024, 3, 1)
+    store: DateProgressStore = DateProgressStore("price", path=tmp_path / "p.json")
+
+    store.record(datetime.date(2024, 1, 2), CrawlStatus.FAILED, today=today)
+    store.record(datetime.date(2024, 1, 3), CrawlStatus.NO_DATA, today=today)
+    store.record(datetime.date(2024, 1, 4), CrawlStatus.OK, today=today)
+
+    assert store.incomplete == {datetime.date(2024, 1, 2)}
+    assert store.no_data == {datetime.date(2024, 1, 3)}
+
+
+def test_success_clears_a_previous_retry_mark(tmp_path: Path) -> None:
+    """補成功之後就不該再重試"""
+
+    store: DateProgressStore = DateProgressStore("price", path=tmp_path / "p.json")
+    date: datetime.date = datetime.date(2024, 1, 2)
+
+    store.record_incomplete(date)
+    store.record_complete(date)
+
+    assert store.incomplete == set()
+    assert store.no_data == set()
+
+
+def test_calendar_tail_is_extended_to_end_date(tmp_path: Path) -> None:
+    """
+    日曆來源（`price`）落後時，尾端要補上平日
+
+    否則 chip／margin 會**永遠落後 price 一天**：今天不在日曆裡、今天不被請求，
+    要等明天那一輪才補上。
+    """
+
+    calendar: Set[datetime.date] = {datetime.date(2024, 1, 2)}
+
+    extended: Set[datetime.date] = DatePlanner.extend_calendar_tail(
+        calendar, datetime.date(2024, 1, 4)
+    )
+
+    assert extended == {
+        datetime.date(2024, 1, 2),
+        datetime.date(2024, 1, 3),
+        datetime.date(2024, 1, 4),
+    }
+
+
+def test_calendar_tail_extension_skips_weekends() -> None:
+    """補的是平日，不是每一個曆日"""
+
+    calendar: Set[datetime.date] = {datetime.date(2024, 1, 5)}  # 週五
+
+    extended: Set[datetime.date] = DatePlanner.extend_calendar_tail(
+        calendar, datetime.date(2024, 1, 8)
+    )
+
+    assert extended == {datetime.date(2024, 1, 5), datetime.date(2024, 1, 8)}
 
 
 # === 年 × 期的笛卡兒積（F-054）===

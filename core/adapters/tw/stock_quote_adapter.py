@@ -1,5 +1,5 @@
 import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 import pandas as pd
 from loguru import logger
@@ -116,23 +116,25 @@ class StockQuoteAdapter:
         elif scale == Scale.DAY:
             all_stock_ids: List[str] = [stock.stock_id for stock in data]
 
-            # 過濾掉非一般股票（ETF、權證等）
-            filtered_stock_ids: List[str] = StockUtils.filter_common_stocks(
-                all_stock_ids
+            # 過濾掉非一般股票（ETF、權證等）。
+            # **一定要轉成 set**：這是每根 bar 都會跑的熱路徑，
+            # 對 list 做 `in` 是線性掃描，1,000 檔就是每天百萬次比較
+            filtered_stock_ids: Set[str] = set(
+                StockUtils.filter_common_stocks(all_stock_ids)
             )
 
             adjusted_close_map = adjusted_close_map or {}
 
-            tradable: List[Any] = [
-                stock
-                for stock in data
-                if stock.stock_id in filtered_stock_ids
-                and StockQuoteAdapter.has_valid_price(stock)
-            ]
+            tradable: List[Any] = []
+            skipped: int = 0
+            for stock in data:
+                if stock.stock_id not in filtered_stock_ids:
+                    continue
+                if not StockQuoteAdapter.has_valid_price(stock):
+                    skipped += 1
+                    continue
+                tradable.append(stock)
 
-            skipped: int = len(
-                [stock for stock in data if stock.stock_id in filtered_stock_ids]
-            ) - len(tradable)
             if skipped:
                 logger.debug(f"{date}: 略過 {skipped} 檔無成交價的個股（無成交日）")
 

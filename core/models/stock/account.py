@@ -1,5 +1,7 @@
 from typing import Dict, List, Optional
 
+from loguru import logger
+
 from core.models.base.account import BaseAccount
 from core.utils import PositionType, Units
 
@@ -63,15 +65,46 @@ class StockAccount(BaseAccount):
         return super().check_has_position(symbol=stock_id, position_type=position_type)
 
     # === 台股信用交易專屬 ===
-    def get_short_market_value(self, prices: Dict[str, float]) -> float:
-        """依傳入的價格計算所有放空部位的市值（算維持率與空頭曝險用）"""
+    def get_short_market_value(
+        self,
+        prices: Dict[str, float],
+        prev_close: Optional[Dict[str, float]] = None,
+    ) -> float:
+        """
+        - Description:
+            依傳入的價格計算所有放空部位的市值（算維持率與空頭曝險用）
 
-        return sum(
-            prices.get(position.stock_id, position.price)
-            * position.volume
-            * Units.LOT.value
-            for position in self.get_positions(position_type=PositionType.SHORT)
-        )
+            **停牌時退回前收，而不是開倉價**（健檢 F-021）：開倉價是這檔停牌前
+            可能已經漲了好幾成的**起點**，拿它當市值會把維持率算得比實際好看
+            ——而停牌正是最需要正確維持率的時候。取價順序與
+            `TwStockSettlementModel.get_mark_price()` 一致：當日價 → 前收 → 開倉價。
+        - Parameters:
+            - prices: Dict[str, float]
+                當日價格
+            - prev_close: Optional[Dict[str, float]]
+                前一交易日收盤價；None 時直接退回開倉價（並記 warning）
+        - Return:
+            - float
+                所有放空部位的市值
+        """
+
+        prev_close = prev_close or {}
+        total: float = 0.0
+
+        for position in self.get_positions(position_type=PositionType.SHORT):
+            price: Optional[float] = prices.get(position.stock_id)
+            if not price:
+                price = prev_close.get(position.stock_id)
+                if not price:
+                    logger.warning(
+                        f"[Short Market Value] {position.stock_id} 當日與前一交易日"
+                        f"皆無報價，退回開倉價 {position.price} 計算市值"
+                    )
+                    price = position.price
+
+            total += price * position.volume * Units.LOT.value
+
+        return total
 
     def update_transaction_cost(self) -> None:
         """更新交易成本"""

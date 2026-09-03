@@ -94,10 +94,11 @@ class FuturesMarginUpdater(BaseDataUpdater):
         ):
             try:
                 step()
-            except DataLoadError:
-                raise
             except Exception as error:
-                # 兩段互不相干，一段失敗不該讓另一段完全不跑；但跑完要一起拋出
+                # 兩段互不相干，一段失敗不該讓另一段完全不跑；但跑完要一起拋出。
+                # **`DataLoadError` 也要攔**：兩個 step 自己就是用它表達失敗的
+                # （取得一覽表失敗、清洗結果為空），漏掉它等於這個迴圈白寫——
+                # 最常見的失敗會直接往外炸，`update_stock_margin()` 根本不會跑
                 logger.error(
                     f"[Futures Margin] {name} 失敗：{type(error).__name__}: {error}"
                 )
