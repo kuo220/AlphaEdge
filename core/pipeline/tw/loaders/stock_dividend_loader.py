@@ -1,6 +1,6 @@
 import sqlite3
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Set
 
 import pandas as pd
 from loguru import logger
@@ -20,6 +20,16 @@ FinMind 歷史回補與 TPEX 日更。因此入庫走 `INSERT OR REPLACE` 而非
 
 class StockDividendLoader(BaseDataLoader):
     """Stock Dividend Loader"""
+
+    # 同一筆除權息若跨來源重複，保留優先序**最高**的那一筆。
+    #
+    # **不可依檔名字典序決定**（健檢 F-047）：舊版直接對 `sorted(dir.iterdir())`
+    # 的結果 `drop_duplicates(keep="last")`，於是「留下哪一筆」取決於檔名的
+    # 字母順序——今天剛好是 `twse_` 勝出，日後多一個來源（例如 `finmind_`）
+    # 或檔名改個前綴，勝出的就換人，而且不會有任何跡象。
+    #
+    # 排序原則：交易所官方資料優先於第三方回補。清單中沒列到的來源排在最後。
+    SOURCE_PRIORITY: List[str] = ["finmind", "tpex", "twse"]
 
     def __init__(self):
         super().__init__()
@@ -134,7 +144,7 @@ class StockDividendLoader(BaseDataLoader):
         # 跨檔去重：同一筆除權息可能同時來自 FinMind 回補與 TPEX 日更
         merged_df: pd.DataFrame = pd.concat(dfs, ignore_index=True)
         row_cnt: int = len(merged_df)
-        merged_df = merged_df.drop_duplicates(subset=["date", "stock_id"], keep="last")
+        merged_df = self.dedup_by_source_priority(merged_df)
         logger.info(f"Dividend rows: {row_cnt} -> {len(merged_df)} after dedup")
 
         self.upsert(merged_df)
@@ -148,6 +158,54 @@ class StockDividendLoader(BaseDataLoader):
             failed_files=failed_files,
             remove_files=remove_files,
             downloads_path=DIVIDEND_DOWNLOADS_PATH,
+        )
+
+    def dedup_by_source_priority(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        - Description:
+            以「來源優先序」跨檔去重，而不是以檔名字典序
+
+            同一個 `(date, stock_id)` 可能同時來自多個來源；依 `SOURCE_PRIORITY`
+            由低到高排序後 `keep="last"`，勝出的就是優先序最高的那一筆。
+        - Parameters:
+            - df: pd.DataFrame
+                合併後的除權息資料
+        - Return:
+            - pd.DataFrame
+                去重後的資料（欄位順序不變）
+        """
+
+        if "資料來源" not in df.columns:
+            logger.warning("除權息資料沒有「資料來源」欄，退回以出現順序去重")
+            return df.drop_duplicates(subset=["date", "stock_id"], keep="last")
+
+        # 清單中沒列到的來源排在最前（優先序最低）
+        rank: pd.Series = (
+            df["資料來源"]
+            .map(
+                {
+                    source: index
+                    for index, source in enumerate(self.SOURCE_PRIORITY, start=1)
+                }
+            )
+            .fillna(0)
+        )
+
+        unknown: Set[str] = set(df.loc[rank == 0, "資料來源"].unique())
+        if unknown:
+            logger.warning(
+                f"除權息出現未列入優先序的來源 {sorted(unknown)}，"
+                f"將被排在最後（優先序最低）；請補進 SOURCE_PRIORITY"
+            )
+
+        ordered: pd.DataFrame = df.assign(_rank=rank).sort_values(
+            "_rank", kind="stable"
+        )
+        deduped: pd.DataFrame = ordered.drop_duplicates(
+            subset=["date", "stock_id"], keep="last"
+        )
+        return deduped.drop(columns=["_rank"]).sort_values(
+            ["date", "stock_id"], kind="stable"
         )
 
     def upsert(self, df: pd.DataFrame) -> None:

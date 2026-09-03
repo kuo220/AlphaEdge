@@ -1,5 +1,6 @@
 import datetime
 from pathlib import Path
+from typing import List
 
 import pandas as pd
 
@@ -8,12 +9,38 @@ from core.pipeline.shared.base_cleaner import BaseDataCleaner
 from core.pipeline.utils.data_utils import DataUtils
 from core.utils import TimeUtils
 
+"""
+收盤行情清洗
+
+**無成交日的價格欄保持 NULL，不填 0**（健檢 F-037）：來源給的是 `--`，
+轉數值後是 NaN，填成 0 之後就變成「當天成交價是 0 元」——一個看起來完全正常的
+假價格。`price` 表現存 104,046 列即為此，修復腳本見
+`scripts/fix_price_no_trade_rows.py`；下游由 `StockQuoteAdapter` 濾掉無價的列。
+
+上櫃的欄位是**依位置**命名的（來源不給欄名），故命名前一定要先檢查欄位數：
+版面一改，位置命名會把每一欄都對到錯的名字，而且完全不會報錯（F-038）。
+"""
+
 
 class StockPriceCleaner(BaseDataCleaner):
     """Stock Price Cleaner (Transform)"""
 
     # 上櫃從此日起 csv 欄位格式不同（109/4/30）
     TPEX_TABLE_CHANGE_DATE: datetime.date = datetime.date(2020, 4, 30)
+
+    # 無成交時維持 NULL 的欄位；成交量／金額／筆數不在此列，填 0 是正確的
+    PRICE_COLUMNS: List[str] = [
+        "開盤價",
+        "最高價",
+        "最低價",
+        "收盤價",
+        "最後揭示買價",
+        "最後揭示賣價",
+    ]
+
+    # 上櫃依位置命名時的欄位數（改制前後各一組）
+    TPEX_COLUMN_COUNT_AFTER_CHANGE: int = 15
+    TPEX_COLUMN_COUNT_BEFORE_CHANGE: int = 13
 
     def __init__(self):
         super().__init__()
@@ -65,8 +92,8 @@ class StockPriceCleaner(BaseDataCleaner):
             keep="first",
         )
 
-        # Replace NaN with 0
-        df = DataUtils.fill_nan(df, 0)
+        # 價格欄維持 NaN（入庫為 NULL），其餘填 0
+        df = DataUtils.fill_nan(df, 0, exclude_cols=self.PRICE_COLUMNS)
 
         df.to_csv(
             self.price_dir / f"twse_{TimeUtils.format_date(date)}.csv",
@@ -93,6 +120,13 @@ class StockPriceCleaner(BaseDataCleaner):
             columns=["發行股數", "次日漲停價", "次日跌停價"]
         ).astype(str)
         df.insert(0, "date", date)
+
+        expected_columns: int = (
+            self.TPEX_COLUMN_COUNT_AFTER_CHANGE
+            if date >= self.tpex_table_change_date
+            else self.TPEX_COLUMN_COUNT_BEFORE_CHANGE
+        )
+        self.check_column_count(df, expected_columns, f"TPEX price {date}")
 
         if date >= self.tpex_table_change_date:
             df.columns = [
@@ -142,8 +176,8 @@ class StockPriceCleaner(BaseDataCleaner):
             keep="first",
         )
 
-        # Replace NaN with 0
-        df = DataUtils.fill_nan(df, 0)
+        # 價格欄維持 NaN（入庫為 NULL），其餘填 0
+        df = DataUtils.fill_nan(df, 0, exclude_cols=self.PRICE_COLUMNS)
 
         df.to_csv(
             self.price_dir / f"tpex_{TimeUtils.format_date(date)}.csv",

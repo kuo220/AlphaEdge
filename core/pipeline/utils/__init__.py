@@ -10,6 +10,7 @@ from .constant import (
     UpdateStatus,
 )
 from .exceptions import (
+    ColumnLayoutError,
     DataLoadError,
     FinMindError,
     FinMindQuotaExhaustedError,

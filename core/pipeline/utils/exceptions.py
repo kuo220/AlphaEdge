@@ -21,7 +21,7 @@ Usage:
         ...
 """
 
-from typing import List, Optional
+from typing import Any, List, Optional
 
 # -----------------------------------------------------------------------------
 # Pipeline 通用（未來可擴充 CrawlerError, LoaderError 等）
@@ -147,6 +147,37 @@ class UnbuildableSeriesError(PipelineError):
     """
 
     pass
+
+
+# -----------------------------------------------------------------------------
+# Cleaner 例外
+# -----------------------------------------------------------------------------
+
+
+class ColumnLayoutError(PipelineError):
+    """來源表格的欄位數與預期不符。
+
+    針對**依位置命名欄位**的來源（上櫃的多張表都不給欄名）：版面一改，
+    位置命名會把每一欄都對到錯的名字——最低價變成成交量、成交金額變成收盤價
+    ——而且完全不會報錯，資料照樣入庫。與其事後從數字裡看出不對勁，
+    不如在命名之前就停下來。
+    """
+
+    def __init__(
+        self,
+        label: str,
+        expected: int,
+        actual: int,
+        columns: Optional[List[Any]] = None,
+    ):
+        self.label: str = label
+        self.expected: int = expected
+        self.actual: int = actual
+        self.columns: Optional[List[Any]] = columns
+        super().__init__(
+            f"{label} 欄位數不符：預期 {expected} 欄、實際 {actual} 欄"
+            + (f"；實際欄位：{columns}" if columns else "")
+        )
 
 
 # -----------------------------------------------------------------------------

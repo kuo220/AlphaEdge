@@ -17,7 +17,7 @@
 | S2 | 台股 5 支 crawler 的「休市 vs 失敗」分流 | `core/pipeline/shared/base_crawler.py`、`base_updater.py`、五支 crawler、四支 updater | `tests/test_crawl_result_semantics.py` 16 條：連線失敗回 `FAILED`、`unreachable` +1 而非 `no_data` | ✅ | F-030 ③④；2026-09-03 完成 |
 | S3 | loader 失敗一律拋 `DataLoadError` | `stock_price_loader.py`、`loaders/finmind/*.py`、`stock_tick_loader.py`、`sqlite_utils.py`、`futures_{margin,continuous,chip}_updater.py` | `tests/test_loader_failure_reporting.py` 擴充至 16 條 | ✅ | F-043、F-044、F-045、F-046、F-053、F-056；2026-09-03 完成 |
 | S4 | updater 缺口偵測與回補、統計行 | `core/pipeline/shared/date_planner.py`（新）、`core/utils/time.py`、六支 updater、`tasks/update_db.py` | `tests/test_date_gap_backfill.py` 13 條：刪掉中間一天即重新進入候選；`--from` 覆寫 | ✅ | F-050、F-051、F-052、F-054、F-002；F-053 已於 S3 完成；**`--target price` 實跑實測待期貨回補結束** |
-| S5 | cleaner 邊界：無成交日的 OHLC、TPEX 欄位數檢查、dividend 去重順序 | `stock_price_cleaner.py`、`stock_chip_cleaner.py`、`stock_dividend_loader.py` | 新增測試：`--` 不再變成 0；欄位數不符即拋錯；三來源去重以來源優先序而非檔名字典序 | ⬜ | F-037、F-038、F-047 |
+| S5 | cleaner 邊界：無成交日的 OHLC、TPEX 欄位數檢查、dividend 去重順序 | `base_cleaner.py`、`stock_price_cleaner.py`、`stock_chip_cleaner.py`、`stock_dividend_loader.py`、`stock_quote_adapter.py`、`scripts/fix_price_no_trade_rows.py` | `tests/test_cleaner_boundaries.py` 12 條；修復腳本 dry-run ＝ 104,046 | ✅ | F-037、F-038、F-047；**修復腳本尚未實際套用**（見完成紀錄） |
 | S6 | 入口與日誌：`no_tick` 排除 `futures_tick`、`delete_price_data` 加 dry-run、loguru sink 隔離與 api 桶保留 | `tasks/update_db.py`、`tasks/delete_price_data.py`、`core/utils/log_manager.py`、`core/api/tw/*.py`、`tests/conftest.py` | `python -m tasks.update_db` 無金鑰結束碼 0；`delete_price_data --dry-run` 不寫入；pytest 不再寫 `logs/`；`logs/api/` 檔案 sink 預設 WARNING | ⬜ | F-078、F-079、F-001、F-097、F-015、F-017、F-044；**`log_manager.py` 部分等期貨回補結束** |
 
 ## 步驟詳述
@@ -131,13 +131,38 @@
 > **實跑實測**要等期貨行情回補結束（避免搶 DB 鎖）。目前以 tmp DB 的單元測試涵蓋
 > 同一條路徑（`tests/test_date_gap_backfill.py::test_middle_gap_is_planned_again`）。
 
-### S5. cleaner 邊界 ⬜
+### S5. cleaner 邊界 ✅
 
 - **目的**：無成交的 `--` 被 `fillna(0)` 成 0 價（F-037，`price` 表 104,046 列）、TPEX 位置命名無欄位數檢查（F-038）、dividend 三來源去重依檔名字典序（F-047）。
 - **做法**：無成交日 OHLC 保留 `NULL`（或另加 `is_traded` 欄），下游 `StockQuoteAdapter` 濾掉；位置命名前 `assert len(columns) == N`；去重改以來源優先序排序後 `keep="last"`。**注意**：改 `--` 語意會改變 `price` 表既有的 104,046 列，需一次性修復腳本（比照 `scripts/fix_price_etf_stock_id.py`，含 `--dry-run`）。
 - **產出**：兩支 cleaner、`stock_dividend_loader.py`、`scripts/fix_price_no_trade_rows.py`。
 - **驗證方式**：cleaner 單元測試；修復腳本 dry-run 列數 ＝ 104,046；LONG 回歸若因此改變需與 [回測口徑與日期邊界收斂.md](./回測口徑與日期邊界收斂.md) S2 同批重產 baseline。
 - **相依**：無。
+
+> **✅ 完成紀錄（2026-09-03）**
+> - **F-037**：`DataUtils.fill_nan()` 新增 `exclude_cols`，`stock_price_cleaner`
+>   讓六個價格欄（OHLC ＋ 最後揭示買／賣價）維持 NaN、入庫為 NULL；
+>   成交量／金額／筆數仍填 0（那是對的）。
+> - `StockQuoteAdapter` 新增 `has_valid_price()`，**NULL 與 0 都濾掉**——
+>   尚未執行修復腳本的資料庫也不會拿 0 元價去成交。
+> - 新增 `scripts/fix_price_no_trade_rows.py`（含 `--dry-run`），dry-run 實測
+>   **104,046 列**，與健檢數字相符。其中 96,089 列成交股數也是 0（真的沒成交），
+>   另 7,957 列**有成交量卻 OHLC 全 0**（版面錯位；例如 `2833A` 台壽甲
+>   2013-01-02 成交金額 27,521 ÷ 股數 754 ＝ 每股 36.5 元）。兩種都要修。
+> - **F-038**：`BaseDataCleaner.check_column_count()` ＋ 新例外 `ColumnLayoutError`；
+>   套用於 `stock_price_cleaner.clean_tpex_price()`（改制前 13 欄／改制後 15 欄）
+>   與 `stock_chip_cleaner.clean_tpex_chip()` 的三處 `dict(zip(...))` 重新命名。
+>   `zip()` 長度不一時會**安靜地截斷**，多出來的欄位保留原名、之後被 reindex 填成 0。
+> - **F-047**：`StockDividendLoader.SOURCE_PRIORITY` ＝ `["finmind", "tpex", "twse"]`，
+>   去重改為依此排序後 `keep="last"`。舊版直接對 `sorted(dir.iterdir())` 的結果
+>   `keep="last"`，勝出的是誰取決於檔名字母順序——今天剛好是 `twse_`，
+>   日後多一個來源或改個前綴就會換人，而且不會有任何跡象。
+>
+> **⚠️ 修復腳本尚未實際套用**：`--dry-run` 已驗證，實際寫入會改動 `price` 表
+> 104,046 列，屬於使用者的正式資料庫，故留給使用者自行執行：
+> `python scripts/fix_price_no_trade_rows.py`。
+> **回歸不受影響**：`pytest -m slow` 10 條（含 LONG／SHORT 回歸）在 adapter
+> 改動後仍全綠——那些列本來就因成交量門檻不會被選進去，故不需重產 baseline。
 
 ### S6. 入口與日誌 ⬜
 

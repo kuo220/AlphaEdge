@@ -123,6 +123,19 @@ class StockQuoteAdapter:
 
             adjusted_close_map = adjusted_close_map or {}
 
+            tradable: List[Any] = [
+                stock
+                for stock in data
+                if stock.stock_id in filtered_stock_ids
+                and StockQuoteAdapter.has_valid_price(stock)
+            ]
+
+            skipped: int = len(
+                [stock for stock in data if stock.stock_id in filtered_stock_ids]
+            ) - len(tradable)
+            if skipped:
+                logger.debug(f"{date}: 略過 {skipped} 檔無成交價的個股（無成交日）")
+
             quotes: List[StockQuote] = [
                 StockQuoteAdapter.generate_stock_quote(
                     stock,
@@ -131,8 +144,7 @@ class StockQuoteAdapter:
                     scale,
                     adjusted_close_map.get(stock.stock_id),
                 )
-                for stock in data
-                if stock.stock_id in filtered_stock_ids
+                for stock in tradable
             ]
 
             StockQuoteAdapter.warn_duplicate_symbols(quotes, date)
@@ -168,6 +180,29 @@ class StockQuoteAdapter:
                 f"{sorted(duplicates)[:10]}；建對照表時只會留下最後一筆，"
                 f"請確認該代號是否被不同商品共用"
             )
+
+    @staticmethod
+    def has_valid_price(stock: Any) -> bool:
+        """
+        - Description:
+            該列是否有可交易的成交價
+
+            **無成交日的 OHLC 是 NULL（或歷史資料裡的 0）**：來源給的是 `--`，
+            舊版 cleaner 填成 0 之後就變成「當天成交價是 0 元」，回測會照著它成交
+            （健檢 F-037）。cleaner 已改為保留 NULL，這裡把兩種形態一起濾掉，
+            讓尚未執行修復腳本的資料庫也不會拿 0 元價去成交。
+        - Parameters:
+            - stock: Any
+                `price` 表的一列
+        - Return:
+            - bool
+                收盤價存在且大於 0 為 True
+        """
+
+        close: Any = stock.收盤價
+        if close is None or pd.isna(close):
+            return False
+        return float(close) > 0
 
     @staticmethod
     def generate_stock_quote(

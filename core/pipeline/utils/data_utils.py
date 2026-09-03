@@ -60,11 +60,42 @@ class DataUtils:
         return str(n).zfill(2)
 
     @staticmethod
-    def fill_nan(df: pd.DataFrame, value: int = 0) -> pd.DataFrame:
-        """檢查 DataFrame 是否有 NaN 值，若有則將所有 NaN 值填補為指定值"""
+    def fill_nan(
+        df: pd.DataFrame,
+        value: int = 0,
+        exclude_cols: Optional[List[str]] = None,
+    ) -> pd.DataFrame:
+        """
+        - Description:
+            把 NaN 填補為指定值，`exclude_cols` 的欄位維持 NaN
 
-        if df.isnull().values.any():
+            **價格欄一定要排除**：無成交日的 OHLC 在來源是 `--`，轉數值後為 NaN，
+            填成 0 之後就變成「當天成交價是 0 元」——那是一個**看起來完全正常的
+            假價格**，回測會照著它成交（健檢 F-037，`price` 表 104,046 列）。
+            成交量、成交金額、成交筆數填 0 則是正確的。
+        - Parameters:
+            - df: pd.DataFrame
+                要處理的資料
+            - value: int
+                填補值
+            - exclude_cols: Optional[List[str]]
+                不填補、維持 NaN 的欄位（入庫後即為 NULL）
+        - Return:
+            - pd.DataFrame
+        """
+
+        if not df.isnull().values.any():
+            return df
+
+        keep_cols: List[str] = [
+            col for col in (exclude_cols or []) if col in df.columns
+        ]
+        if not keep_cols:
             df.fillna(value, inplace=True)
+            return df
+
+        target_cols: List[str] = [col for col in df.columns if col not in keep_cols]
+        df[target_cols] = df[target_cols].fillna(value)
         return df
 
     @staticmethod
