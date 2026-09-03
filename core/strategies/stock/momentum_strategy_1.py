@@ -33,6 +33,9 @@ class MomentumStrategy1(BaseStockStrategy):
     # 買進參數
     MIN_PRICE_CHANGE_PCT_FOR_SIGNAL: float = 9.0  # 相對昨收之最小漲幅（%）
     MIN_VOLUME_LOTS: int = 5000  # 最小成交量（張）
+    # 交易日清單往回多抓幾個曆日：第一根 bar 要的是「回測起始日之前」的交易日，
+    # 只抓區間內拿不到。30 天的餘裕與 `MarketCalendar.MAX_LOOKBACK_DAYS` 一致
+    CALENDAR_LOOKBACK_DAYS: int = 30
 
     def __init__(self):
         super().__init__()
@@ -43,6 +46,9 @@ class MomentumStrategy1(BaseStockStrategy):
 
         self.start_date: datetime.date = self.DEFAULT_BACKTEST_START_DATE
         self.end_date: datetime.date = self.DEFAULT_BACKTEST_END_DATE
+
+        # 回測區間的交易日清單；`setup_apis()` 建一次（見 `build_trading_days()`）
+        self.trading_days: List[datetime.date] = []
 
     def setup_account(self, account: StockAccount) -> None:
         """設置虛擬帳戶資訊"""
@@ -61,6 +67,51 @@ class MomentumStrategy1(BaseStockStrategy):
 
         elif self.scale == Scale.DAY:
             self.price = feed.price
+            self.trading_days = self.build_trading_days()
+
+    def build_trading_days(self) -> List[datetime.date]:
+        """
+        - Description:
+            預先取好回測區間的交易日清單
+
+            **每根 bar 都呼叫 `get_last_trading_date()` 是每根 bar 一次
+            `SELECT *`**（健檢 F-066）；換成一次取清單、之後以 `bisect` 平移。
+
+            起點往前多抓 `CALENDAR_LOOKBACK_DAYS` 天：第一根 bar 要的是
+            **回測起始日之前**的那個交易日，只抓區間內是拿不到的。
+        - Return:
+            - List[datetime.date]
+                已排序的交易日
+        """
+
+        if self.price is None or not self.start_date or not self.end_date:
+            return []
+
+        return self.price.get_trading_days(
+            self.start_date - datetime.timedelta(days=self.CALENDAR_LOOKBACK_DAYS),
+            self.end_date,
+        )
+
+    def get_previous_trading_date(self, date: datetime.date) -> datetime.date:
+        """
+        - Description:
+            取得前一個交易日；優先查預備好的清單，查不到才回頭問資料庫
+        - Parameters:
+            - date: datetime.date
+                基準日
+        - Return:
+            - datetime.date
+                前一個交易日
+        """
+
+        if self.trading_days:
+            previous: Optional[datetime.date] = MarketCalendar.shift_trading_days(
+                self.trading_days, date, offset=-1
+            )
+            if previous is not None:
+                return previous
+
+        return MarketCalendar.get_last_trading_date(api=self.price, date=date)
 
     def check_open_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
         """開倉策略：昨收基準漲幅達門檻且成交量達門檻，做多；部位數由 calculate_position_size 依 max_holdings 與資金切分"""
@@ -71,9 +122,7 @@ class MomentumStrategy1(BaseStockStrategy):
             return []
 
         # 以「前一交易日」收盤為基準計算當日漲跌幅（非日曆昨日）
-        yesterday: datetime.date = MarketCalendar.get_last_trading_date(
-            api=self.price, date=stock_quotes[0].date
-        )
+        yesterday: datetime.date = self.get_previous_trading_date(stock_quotes[0].date)
 
         # 訊號用收盤價：與下方的 signal_close 成對，由引擎的還原模式統一決定
         yesterday_close_map: Dict[str, Any] = self.get_signal_close_map(

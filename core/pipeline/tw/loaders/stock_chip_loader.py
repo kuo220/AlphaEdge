@@ -96,6 +96,9 @@ class StockChipLoader(BaseDataLoader):
         ):
             self.create_db()
 
+        # 主鍵是 (date, stock_id, ...)，「某一檔的整段歷史」查不到索引（F-099）
+        self.create_symbol_date_index(self.conn, CHIP_TABLE_NAME)
+
     def add_to_db(
         self,
         remove_files: bool = False,

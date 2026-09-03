@@ -3,6 +3,7 @@ import sqlite3
 from typing import Dict, List, Optional, Set
 
 import pandas as pd
+from loguru import logger
 
 from core.adapters import StockQuoteAdapter
 from core.api.tw.financial_statement_api import FinancialStatementAPI
@@ -16,6 +17,7 @@ from core.backtest.datafeed.base import BaseDataFeed
 from core.backtest.datafeed.tw.market_calendar import MarketCalendar
 from core.config import TW_STOCK_DB_PATH
 from core.models import StockQuote
+from core.pipeline.shared.date_planner import DatePlanner, DateProgressStore
 from core.strategies.base import BaseStrategy
 from core.utils import Scale
 
@@ -58,6 +60,11 @@ class TwStockDataFeed(BaseDataFeed):
         # {融券最後回補日: {stock_id}}；由除權息行事曆推導，整場回測只建一次
         self.force_cover_map: Optional[Dict[datetime.date, Set[str]]] = None
 
+        # 回測區間內的交易日集合；`setup()` 建一次，供 `is_market_open()` 查表。
+        # **不建的話每個曆日都會對 price 表做一次 `SELECT *` 只為了判斷空不空**
+        # （健檢 F-066）——13 年就是 4,700 次全表掃描
+        self.trading_days: Optional[Set[datetime.date]] = None
+
     def setup(self, strategy: BaseStrategy) -> None:
         """從資料庫載入資料；Tick 級別才建立 DolphinDB 連線"""
 
@@ -75,10 +82,75 @@ class TwStockDataFeed(BaseDataFeed):
         if strategy.scale == Scale.TICK:
             self.tick = StockTickAPI()
 
+        # 交易日集合一次建立（F-066），順便報告區間內的可疑缺日（F-028）
+        self.trading_days = set(
+            self.price.get_trading_days(self.start_date, self.end_date)
+        )
+        self.report_calendar_gaps()
+
     def is_market_open(self, date: datetime.date) -> bool:
         """台股開盤日判定：當日有日 K 資料即視為開盤"""
 
+        if self.trading_days is not None:
+            return date in self.trading_days
+
+        # `setup()` 尚未跑過（單元測試直接呼叫）時退回逐日查詢
         return MarketCalendar.check_stock_market_open(api=self.price, date=date)
+
+    def report_calendar_gaps(self) -> int:
+        """
+        - Description:
+            報告回測區間內「平日卻沒有行情」的日期
+
+            **回測遇到缺日會當成休市靜默跳過**（健檢 F-028）：資料缺一天與
+            當天休市在引擎眼裡完全相同，策略少做一天的判斷卻不會有任何跡象。
+            根治在 ETL（見 `backlog/ETL失敗語意與缺口回補.md` S4），這裡負責
+            **讓它在回測起跑時就被看見**。
+
+            **扣掉 ETL 已確認為休市的日期**：`DateProgressStore("price").no_data`
+            記的是「已向交易所確認過、當天確實沒有資料」，那些是國定假日、
+            不是缺口。這份紀錄不存在時（剛 clone 的環境）就全部算成不確定，
+            只報數字不下判斷——寧可說不知道，也不要把連假講成資料缺失。
+        - Return:
+            - int
+                無法歸因為休市的缺日數
+        """
+
+        if not self.start_date or not self.end_date or self.trading_days is None:
+            return 0
+
+        missing: Set[datetime.date] = (
+            DatePlanner.generate_weekdays(self.start_date, self.end_date)
+            - self.trading_days
+        )
+        if not missing:
+            return 0
+
+        confirmed_holidays: Set[datetime.date] = DateProgressStore("price").no_data
+        unexplained: List[datetime.date] = sorted(missing - confirmed_holidays)
+
+        if not unexplained:
+            logger.info(
+                f"[Calendar] 區間內有 {len(missing)} 個平日沒有行情，"
+                f"皆已由 ETL 確認為休市"
+            )
+            return 0
+
+        if not confirmed_holidays:
+            logger.info(
+                f"[Calendar] 區間內有 {len(unexplained)} 個平日沒有行情。"
+                f"本機沒有 ETL 的休市紀錄，無法分辨連假與缺日——"
+                f"跑過一次 `--target price` 之後這行會變精確"
+            )
+            return len(unexplained)
+
+        logger.warning(
+            f"[Calendar] 區間內有 {len(unexplained)} 個平日沒有行情、"
+            f"且**不在** ETL 已確認的休市清單裡，很可能是資料缺口："
+            f"{unexplained[:10]}"
+            + ("…（僅列前 10 筆）" if len(unexplained) > 10 else "")
+        )
+        return len(unexplained)
 
     def get_quotes(
         self,

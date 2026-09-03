@@ -14,6 +14,16 @@ class MarketCalendar:
 
     MARKET_CALENDAR_TEST_STOCK_ID: str = "2330"  # 用以判斷前一交易日是否開盤
 
+    # 往前找前一個交易日時，最多回推幾個曆日。
+    #
+    # **上界不是效能考量，是防卡死**（健檢 F-065）：舊版是 `while` 無界迴圈，
+    # 起始日落在資料庫最早一筆之前時，它會一天一天往回查到 1970 年也不會停，
+    # 而且不會有任何錯誤訊息——回測看起來就是「卡住了」。
+    #
+    # 30 天的依據：2023 年春節連休 12 天是台股史上最長的一次休市，
+    # 30 天留了兩倍以上的餘裕；超過就代表真的是資料缺口，該讓人知道。
+    MAX_LOOKBACK_DAYS: int = 30
+
     @staticmethod
     def check_stock_market_open(api: StockPriceAPI, date: datetime.date) -> bool:
         """
@@ -65,42 +75,59 @@ class MarketCalendar:
         api: sj.Shioaji | StockPriceAPI, date: datetime.date
     ) -> datetime.date:
         """
-        - Description: 取得指定日期的前一個交易日日期
+        - Description:
+            取得指定日期的前一個交易日
+
+            **最多往前找 `MAX_LOOKBACK_DAYS` 個曆日**：舊版是無界 `while`，
+            起始日落在資料庫最早一筆之前時會一路查到 1970 年也不會停，
+            而且沒有任何錯誤訊息——回測看起來就是「卡住了」（健檢 F-065）。
         - Parameters:
-            - api: 資料 API
-            - date: 指定的日期
-        -Return:
+            - api: sj.Shioaji | StockPriceAPI
+                資料 API
+            - date: datetime.date
+                指定的日期
+        - Return:
             - datetime.date
+                前一個交易日
+        - Raise:
+            - LookupError
+                回推上界內都找不到交易日（多半是起始日早於資料涵蓋範圍）
+            - ValueError
+                API 型別不支援
         """
 
-        stock_test: str = MarketCalendar.MARKET_CALENDAR_TEST_STOCK_ID
-        last_trading_date: datetime.date = date - datetime.timedelta(days=1)
-
         if isinstance(api, sj.Shioaji):
-            tick: Ticks = api.ticks(
-                contract=api.Contracts.Stocks[stock_test],
-                date=last_trading_date.strftime("%Y-%m-%d"),
-                query_type=sj.constant.TicksQueryType.LastCount,
-                last_cnt=1,
-            )
-
-            while tick is None or len(tick.close) == 0:
-                last_trading_date = last_trading_date - datetime.timedelta(days=1)
-                tick: Ticks = api.ticks(
-                    contract=api.Contracts.Stocks[stock_test],
-                    date=last_trading_date.strftime("%Y-%m-%d"),
-                    query_type=sj.constant.TicksQueryType.LastCount,
-                    last_cnt=1,
-                )
-            return last_trading_date
-
+            has_data = MarketCalendar.check_shioaji_has_tick
         elif isinstance(api, StockPriceAPI):
-            price_df: pd.DataFrame = api.get(last_trading_date)
-
-            while price_df is None or price_df.empty:
-                last_trading_date = last_trading_date - datetime.timedelta(days=1)
-                price_df: pd.DataFrame = api.get(last_trading_date)
-            return last_trading_date
-
+            has_data = MarketCalendar.check_price_api_has_data
         else:
             raise ValueError("Invalid API type")
+
+        for offset in range(1, MarketCalendar.MAX_LOOKBACK_DAYS + 1):
+            candidate: datetime.date = date - datetime.timedelta(days=offset)
+            if has_data(api, candidate):
+                return candidate
+
+        raise LookupError(
+            f"自 {date} 往前 {MarketCalendar.MAX_LOOKBACK_DAYS} 個曆日內找不到交易日；"
+            f"多半是回測起始日早於資料涵蓋範圍，或 price 表缺了一整段"
+        )
+
+    @staticmethod
+    def check_shioaji_has_tick(api: sj.Shioaji, date: datetime.date) -> bool:
+        """Shioaji 路徑：該日是否有 tick"""
+
+        tick: Ticks = api.ticks(
+            contract=api.Contracts.Stocks[MarketCalendar.MARKET_CALENDAR_TEST_STOCK_ID],
+            date=date.strftime("%Y-%m-%d"),
+            query_type=sj.constant.TicksQueryType.LastCount,
+            last_cnt=1,
+        )
+        return tick is not None and len(tick.close) > 0
+
+    @staticmethod
+    def check_price_api_has_data(api: StockPriceAPI, date: datetime.date) -> bool:
+        """資料庫路徑：該日 `price` 表是否有資料"""
+
+        price_df: pd.DataFrame = api.get(date)
+        return price_df is not None and not price_df.empty
