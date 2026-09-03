@@ -130,9 +130,14 @@
 >   改為 `Optional[...] = None` ＋ 函式內取值。
 > - `tasks/update_db.py` 新增 `--from YYYY-MM-DD`，覆寫所有以日期為單位的 target 起日。
 >
-> **⚠️ 未完成的驗收項**：「刪掉 `price` 表任一天後 `--target price` 會回補該日」的
-> **實跑實測**要等期貨行情回補結束（避免搶 DB 鎖）。目前以 tmp DB 的單元測試涵蓋
-> 同一條路徑（`tests/test_date_gap_backfill.py::test_middle_gap_is_planned_again`）。
+> **驗收項「刪掉 `price` 表任一天後會回補該日」**（2026-09-03）：
+> - 單元測試涵蓋同一條路徑（`test_date_gap_backfill.py::test_middle_gap_is_planned_again`）。
+> - 另以**正式 `price` 表的真實日期分布**做等價驗證（唯讀複製到暫存 DB，不動正式資料）：
+>   2025-06-02 ~ 2026-06-18 共 257 個交易日，完整時候選為 0 天；
+>   刪掉中間的 2025-12-03 後，候選恰為 `[2025-12-03]`，且統計行印出
+>   「偵測到 1 天缺口（表內最新為 2026-06-18），本次一併回補」。
+> - **仍未做**：真正跑一次 `python -m tasks.update_db --target price` 的端到端實測。
+>   那會連網並改動正式資料庫，留給使用者自行觸發。
 >
 > **🔁 2026-09-03 複查後補強**（`/code-review high` 抓到兩條會讓本步驟失效的問題）：
 > - **同一天只成功一半的日期永遠補不回來**。price／chip／margin 每天打**兩次**
