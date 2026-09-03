@@ -228,3 +228,46 @@ def test_shift_trading_days_gets_the_previous_day() -> None:
     )
 
     assert previous == datetime.date(2024, 1, 5)
+
+
+def test_lookback_bound_covers_a_month_long_data_gap() -> None:
+    """
+    上界要按「`price` 表可能缺多久」抓，不是按連假長度
+
+    `report_calendar_gaps()` 這條防線存在，正是因為表裡真的會有缺口——
+    上界抓 30 天的話，一段一個月的缺漏會讓整場回測以 `LookupError` 中止，
+    而舊的無界迴圈反而找得到。
+    """
+
+    assert MarketCalendar.MAX_LOOKBACK_DAYS >= 60
+
+
+def test_strategy_prefetch_window_matches_the_calendar_bound() -> None:
+    """
+    策略的交易日預抓窗不可小於日曆上界
+
+    小於的話 `get_previous_trading_date()` 會在清單裡查不到而退回逐日查詢，
+    等於把 F-066 的優化悄悄關掉——綁住的是策略這一邊。
+    """
+
+    from core.strategies.stock.momentum_strategy_1 import MomentumStrategy1
+
+    assert MomentumStrategy1.CALENDAR_LOOKBACK_DAYS >= MarketCalendar.MAX_LOOKBACK_DAYS
+
+
+def test_datafeed_setup_survives_a_strategy_without_dates() -> None:
+    """
+    `BaseStrategy` 的 `start_date`／`end_date` 預設是 None
+
+    沒設區間的策略在 `setup()` 查 `get_trading_days(None, None)` 會 TypeError；
+    那種策略應退回逐日查詢，而不是讓 `load_datasets()` 當場炸掉。
+    """
+
+    from core.backtest.datafeed.tw.stock_datafeed import TwStockDataFeed
+
+    feed: TwStockDataFeed = TwStockDataFeed.__new__(TwStockDataFeed)
+    feed.start_date = None
+    feed.end_date = None
+    feed.trading_days = None
+
+    assert feed.report_calendar_gaps() == 0

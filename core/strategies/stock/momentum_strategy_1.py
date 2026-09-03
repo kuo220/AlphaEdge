@@ -43,8 +43,12 @@ class MomentumStrategy1(BaseStockStrategy):
     MIN_PRICE_CHANGE_PCT_FOR_SIGNAL: float = 9.0  # 相對昨收之最小漲幅（%）
     MIN_VOLUME_LOTS: int = 5000  # 最小成交量（張）
     # 交易日清單往回多抓幾個曆日：第一根 bar 要的是「回測起始日之前」的交易日，
-    # 只抓區間內拿不到。30 天的餘裕與 `MarketCalendar.MAX_LOOKBACK_DAYS` 一致
-    CALENDAR_LOOKBACK_DAYS: int = 30
+    # 只抓區間內拿不到。
+    #
+    # **與 `MarketCalendar.MAX_LOOKBACK_DAYS` 對齊**：這個窗若比它小，
+    # `get_previous_trading_date()` 會在清單裡查不到而退回逐日查詢，
+    # 等於把 F-066 的優化悄悄關掉——綁住的是這一邊，不是日曆那一邊
+    CALENDAR_LOOKBACK_DAYS: int = MarketCalendar.MAX_LOOKBACK_DAYS
 
     def __init__(self):
         super().__init__()

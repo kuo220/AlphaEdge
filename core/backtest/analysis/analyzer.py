@@ -2,6 +2,7 @@ import datetime
 from typing import Dict, List, Optional
 
 import numpy as np
+from loguru import logger
 
 from core.backtest.analysis.base import BaseBacktestAnalyzer
 from core.backtest.analysis.risk_metrics import (
@@ -98,8 +99,32 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
     # ===== Risk-Adjusted Metrics =====
     def compute_daily_returns(
         self, daily_equity: Optional[List[Dict]] = None
-    ) -> List[float]:
-        """由權益曲線算出**日報酬**序列（風險指標的樣本）"""
+    ) -> Optional[List[float]]:
+        """
+        - Description:
+            由權益曲線算出**日報酬**序列（風險指標的樣本）
+
+            **沒有 `daily_equity` 就回 `None`，不退回逐筆交易的曲線**：
+            `compute_equity_curve()` 的 fallback 是「每平倉一筆一個節點」，
+            那是**每筆交易**的報酬而不是日報酬。拿它去乘 √252 年化，
+            等於宣稱「一年有 252 筆交易」——正是 `risk_metrics` 模組說明裡
+            列的第 2、3 個缺陷，只是換成從這個可選參數溜進來。
+
+            年化指標寧可算不出來，也不要算出一個看起來合理的錯數字。
+        - Parameters:
+            - daily_equity: Optional[List[Dict]]
+                Backtester.daily_equity
+        - Return:
+            - Optional[List[float]]
+                日報酬序列；沒有逐日權益時為 None
+        """
+
+        if not daily_equity:
+            logger.warning(
+                "[Analyzer] 沒有逐日權益（daily_equity），風險指標無法年化，"
+                "本次回傳 None——逐筆交易的報酬不是日報酬，乘 √252 只會得到假數字"
+            )
+            return None
 
         return compute_period_returns(self.compute_equity_curve(daily_equity))
 
@@ -120,8 +145,8 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
                 年化波動度（%）；樣本不足兩期時為 None
         """
 
-        returns: List[float] = self.compute_daily_returns(daily_equity)
-        if len(returns) < 2:
+        returns: Optional[List[float]] = self.compute_daily_returns(daily_equity)
+        if returns is None or len(returns) < 2:
             return None
 
         return round(
@@ -145,9 +170,12 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
                 年化 Sharpe；資料不足時為 None
         """
 
+        returns: Optional[List[float]] = self.compute_daily_returns(daily_equity)
+        if returns is None:
+            return None
+
         return compute_annualized_sharpe(
-            self.compute_daily_returns(daily_equity),
-            risk_free_rate=self.risk_free_rate or 0.0,
+            returns, risk_free_rate=self.risk_free_rate or 0.0
         )
 
     def compute_sortino_ratio(
@@ -167,9 +195,12 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
                 年化 Sortino；資料不足時為 None
         """
 
+        returns: Optional[List[float]] = self.compute_daily_returns(daily_equity)
+        if returns is None:
+            return None
+
         return compute_annualized_sortino(
-            self.compute_daily_returns(daily_equity),
-            risk_free_rate=self.risk_free_rate or 0.0,
+            returns, risk_free_rate=self.risk_free_rate or 0.0
         )
 
     def compute_information_ratio(self) -> Optional[float]:

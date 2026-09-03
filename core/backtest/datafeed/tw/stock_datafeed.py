@@ -82,11 +82,20 @@ class TwStockDataFeed(BaseDataFeed):
         if strategy.scale == Scale.TICK:
             self.tick = StockTickAPI()
 
-        # 交易日集合一次建立（F-066），順便報告區間內的可疑缺日（F-028）
-        self.trading_days = set(
-            self.price.get_trading_days(self.start_date, self.end_date)
-        )
-        self.report_calendar_gaps()
+        # 交易日集合一次建立（F-066），順便報告區間內的可疑缺日（F-028）。
+        # **`start_date`／`end_date` 在 `BaseStrategy` 是 Optional 且預設 None**，
+        # 沒設的策略在這裡查 `get_trading_days(None, None)` 會 TypeError；
+        # 那種策略退回逐日查詢即可（`is_market_open()` 有 fallback）
+        if self.start_date and self.end_date:
+            self.trading_days = set(
+                self.price.get_trading_days(self.start_date, self.end_date)
+            )
+            self.report_calendar_gaps()
+        else:
+            logger.warning(
+                "[DataFeed] 策略未設定回測區間，交易日集合不預先建立，"
+                "改為逐日查詢（每個曆日一次 SELECT）"
+            )
 
     def is_market_open(self, date: datetime.date) -> bool:
         """台股開盤日判定：當日有日 K 資料即視為開盤"""

@@ -211,8 +211,13 @@ def check_open_signal(self, stock_quotes: List[StockQuote]) -> List[StockOrder]:
 
     open_positions: List[StockQuote] = []
 
-    # 檢查是否已達最大持倉數
-    if self.max_holdings > 0 and self.account.get_position_count() >= self.max_holdings:
+    # 檢查是否已達最大持倉數。
+    # **一定要先判斷 None**：基底預設是 `None`（不限制），直接拿去比大小會
+    # `TypeError: '>' not supported between instances of 'NoneType' and 'int'`
+    if (
+        self.max_holdings is not None
+        and self.account.get_position_count() >= self.max_holdings
+    ):
         return []
 
     # 取得前一個交易日（非日曆昨日）
@@ -438,6 +443,11 @@ def calculate_position_size(
 > **⚠️ `max_holdings` 另有引擎側硬上限**：即使策略回傳超額開倉單，引擎也會剔除超出
 > `max_holdings` 的部分並計數，所以 `max_holdings` 是真正的硬上限而非建議值。
 > 詳見 `core/backtest/README.md`〈部位大小與檔數上限〉。
+>
+> **基底預設是 `None`（不限制）**，2026-09-03 由 `0` 改過來（健檢 F-076）：
+> 舊預設會讓忘記設定的新策略**每一張開倉單都被引擎剔除**，回測跑完是零筆交易、
+> 零錯誤訊息。改成 `None` 之後忘記設定不會靜默歸零，但也就沒有引擎替你把關
+> ——**每支策略都應該自己設一個值**。
 
 ## 策略設定參數說明
 
@@ -459,7 +469,7 @@ def calculate_position_size(
 | 參數 | 類型 | 說明 | 預設值 |
 |------|------|------|--------|
 | `init_capital` | `float` | 初始資金（元） | `0` |
-| `max_holdings` | `Optional[int]` | 最大持倉檔數，`None` 表示無限制 | `0` |
+| `max_holdings` | `Optional[int]` | 最大持倉檔數，`None` 表示**無限制**（＝基底預設；每支策略都該自己設一個值） | `None` |
 
 ### 回測設定
 

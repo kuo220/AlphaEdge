@@ -206,6 +206,10 @@ class TwFuturesDataFeed(BaseDataFeed):
         # **多商品要取聯集**（健檢 F-070）：舊版只看 `products[0]`，
         # 於是第一個商品停止交易（下市、尚未上市、資料缺一段）的那些日子，
         # 整場回測都會被判定為休市——連還在交易的其他商品都跟著停擺。
+        #
+        # 這份日曆同時餵給 `roll_config.calendar`（結算日順延），聯集在那裡
+        # 一樣是對的：順延依的是**交易所休市日**，不是個別商品的暫停交易。
+        # 單一商品的判準仍可用 `FuturesCalendar.from_api(product=...)`。
         end: datetime.date = self.end_date + datetime.timedelta(
             days=self.CALENDAR_LOOKAHEAD_DAYS
         )

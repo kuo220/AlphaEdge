@@ -35,17 +35,17 @@ class BaseBacktestAnalyzer(ABC):
 
     # ===== Risk-Adjusted Metrics =====
     @abstractmethod
-    def compute_volatility(self) -> float:
-        """計算報酬率的標準差（可視為風險程度）"""
+    def compute_volatility(self, *args, **kwargs) -> Optional[float]:
+        """年化波動度（%）；樣本不足或沒有逐日權益時為 None"""
         pass
 
     @abstractmethod
-    def compute_sharpe_ratio(self) -> Optional[float]:
+    def compute_sharpe_ratio(self, *args, **kwargs) -> Optional[float]:
         """計算 Sharpe Ratio"""
         pass
 
     @abstractmethod
-    def compute_sortino_ratio(self) -> Optional[float]:
+    def compute_sortino_ratio(self, *args, **kwargs) -> Optional[float]:
         """計算 Sortino Ratio"""
         pass
 

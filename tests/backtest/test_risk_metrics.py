@@ -150,3 +150,65 @@ def test_analyzer_metrics_are_none_without_trades() -> None:
     assert analyzer.compute_sharpe_ratio() is None
     assert analyzer.compute_sortino_ratio() is None
     assert analyzer.compute_volatility() is None
+
+
+def test_analyzer_refuses_to_annualize_per_trade_returns() -> None:
+    """
+    沒有逐日權益時回 None，**不可退回逐筆交易的曲線**
+
+    `compute_equity_curve()` 的 fallback 是「每平倉一筆一個節點」，那是每筆
+    交易的報酬而不是日報酬。拿它去乘 √252 等於宣稱「一年有 252 筆交易」——
+    正是本模組說明裡列的第 2、3 個缺陷，只是換成從可選參數溜進來。
+    """
+
+    from core.backtest.analysis.analyzer import StockBacktestAnalyzer
+
+    class _Record:
+        def __init__(self, pnl: float, day: int):
+            self.realized_pnl = pnl
+            self.exit_date = None
+            self.roi = pnl / 10000
+
+    analyzer: StockBacktestAnalyzer = StockBacktestAnalyzer.__new__(
+        StockBacktestAnalyzer
+    )
+
+    class _Account:
+        init_capital = 1000000.0
+
+    analyzer.account = _Account()
+    analyzer.trade_records = [_Record(1000.0, i) for i in range(20)]
+    analyzer.risk_free_rate = 0.02
+
+    assert analyzer.compute_daily_returns() is None
+    assert analyzer.compute_sharpe_ratio() is None
+    assert analyzer.compute_sortino_ratio() is None
+
+
+def test_analyzer_computes_metrics_from_daily_equity() -> None:
+    """有逐日權益時照常算得出來"""
+
+    from core.backtest.analysis.analyzer import StockBacktestAnalyzer
+
+    analyzer: StockBacktestAnalyzer = StockBacktestAnalyzer.__new__(
+        StockBacktestAnalyzer
+    )
+
+    class _Account:
+        init_capital = 1000000.0
+
+    analyzer.account = _Account()
+    analyzer.trade_records = []
+    analyzer.risk_free_rate = 0.0
+
+    daily_equity = [
+        {"Equity": 1010000.0},
+        {"Equity": 1005000.0},
+        {"Equity": 1020000.0},
+        {"Equity": 1015000.0},
+    ]
+
+    returns = analyzer.compute_daily_returns(daily_equity)
+
+    assert returns is not None and len(returns) == 4
+    assert analyzer.compute_sharpe_ratio(daily_equity) is not None

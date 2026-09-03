@@ -20,9 +20,12 @@ class MarketCalendar:
     # 起始日落在資料庫最早一筆之前時，它會一天一天往回查到 1970 年也不會停，
     # 而且不會有任何錯誤訊息——回測看起來就是「卡住了」。
     #
-    # 30 天的依據：2023 年春節連休 12 天是台股史上最長的一次休市，
-    # 30 天留了兩倍以上的餘裕；超過就代表真的是資料缺口，該讓人知道。
-    MAX_LOOKBACK_DAYS: int = 30
+    # **90 天而不是 30 天**：上界要按「`price` 表可能缺多久」抓，不是按連假長度
+    # （史上最長是 2023 年春節的 12 天）。`report_calendar_gaps()` 這條防線存在，
+    # 正是因為表裡真的會有缺口——上界抓 30 天的話，一段一個月的缺漏會讓整場回測
+    # 以 `LookupError` 中止，而舊的無界迴圈反而找得到。90 天仍在毫秒內結束，
+    # 又不會把「有資料、只是隔得遠」誤判成「沒有資料」。
+    MAX_LOOKBACK_DAYS: int = 90
 
     @staticmethod
     def check_stock_market_open(api: StockPriceAPI, date: datetime.date) -> bool:

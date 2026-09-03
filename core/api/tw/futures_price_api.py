@@ -121,7 +121,7 @@ class FuturesPriceAPI(BaseDataAPI):
         return pd.read_sql_query(
             query,
             self.conn,
-            params=[date, *product_params, *session_params],
+            params=self.sql_params(date, *product_params, *session_params),
         )
 
     def get_range(
@@ -147,7 +147,9 @@ class FuturesPriceAPI(BaseDataAPI):
         return pd.read_sql_query(
             query,
             self.conn,
-            params=[start_date, end_date, *product_params, *session_params],
+            params=self.sql_params(
+                start_date, end_date, *product_params, *session_params
+            ),
         )
 
     def get_contract_price(
@@ -193,7 +195,9 @@ class FuturesPriceAPI(BaseDataAPI):
         return pd.read_sql_query(
             query,
             self.conn,
-            params=[product, expiry, start_date, end_date, *session_params],
+            params=self.sql_params(
+                product, expiry, start_date, end_date, *session_params
+            ),
         )
 
     def get_trading_days(
@@ -235,7 +239,7 @@ class FuturesPriceAPI(BaseDataAPI):
             df: pd.DataFrame = pd.read_sql_query(
                 query,
                 self.conn,
-                params=[start_date, end_date, *product_params],
+                params=self.sql_params(start_date, end_date, *product_params),
             )
         except pd.errors.DatabaseError:
             # 表還不存在＝尚未跑過 `--target futures_price`。**回空清單而不是拋錯**：
@@ -287,7 +291,7 @@ class FuturesPriceAPI(BaseDataAPI):
         df: pd.DataFrame = pd.read_sql_query(
             query,
             self.conn,
-            params=[date, product, *session_params],
+            params=self.sql_params(date, product, *session_params),
         )
 
         if df.empty:
