@@ -341,3 +341,128 @@ def test_borrow_check_disabled_by_default() -> None:
     )
 
     assert fill_model.fill(order, make_quote()) is order
+
+
+# === 成交路徑防線（健檢 F-064、F-037 殘餘、F-022）===
+def test_slippage_pushed_price_is_clamped_back() -> None:
+    """
+    滑價把價格推出當日區間時要夾回（F-064）
+
+    `validate()` 跑在 `fill()` **之前**，於是滑價之後沒有任何檢查——
+    一筆本來在區間內的單，加了滑價就可能成交在當日根本沒出現過的價位。
+    """
+
+    event_counts: Dict[str, int] = make_event_counts()
+    fill_model: TwStockFillModel = TwStockFillModel(event_counts=event_counts)
+    quote: StockQuote = make_quote()  # 區間 [95, 105]
+
+    order: StockOrder = make_order(price=110.0)
+    clamped = fill_model.clamp_filled_price(order, quote)
+
+    assert clamped.price == 105.0
+    assert event_counts["fill_price_clamped"] == 1
+
+
+def test_price_inside_range_is_untouched() -> None:
+    """區間內的價格不動，也不計數"""
+
+    event_counts: Dict[str, int] = make_event_counts()
+    fill_model: TwStockFillModel = TwStockFillModel(event_counts=event_counts)
+
+    order: StockOrder = make_order(price=100.0)
+    result = fill_model.clamp_filled_price(order, make_quote())
+
+    assert result is order
+    assert result.price == 100.0
+    assert "fill_price_clamped" not in event_counts
+
+
+def test_close_leg_only_warns_and_counts() -> None:
+    """
+    平倉腿超出區間只計數，不改價也不拒單
+
+    拒掉一張平倉單會讓部位被迫留倉，那是比價格偏一點嚴重得多的失真。
+    """
+
+    event_counts: Dict[str, int] = make_event_counts()
+    fill_model: TwStockFillModel = TwStockFillModel(event_counts=event_counts)
+
+    order: StockOrder = make_order(price=110.0)
+    fill_model.warn_close_price_out_of_range(order, make_quote())
+
+    assert order.price == 110.0, "平倉價不可被改動"
+    assert event_counts["close_price_out_of_range"] == 1
+
+
+def test_no_volume_day_is_rejected() -> None:
+    """
+    當日無成交量一律拒單（F-037 的下游殘餘）
+
+    無成交日的 `high`／`low` 都是 0，`get_price_range()` 回 `(None, None)`
+    而**跳過**區間檢查——策略因此能在整天無量的標的上以任意價格成交。
+    """
+
+    event_counts: Dict[str, int] = make_event_counts()
+    fill_model: TwStockFillModel = TwStockFillModel(event_counts=event_counts)
+
+    quote: StockQuote = StockQuote(
+        stock_id=STOCK_ID,
+        scale=Scale.DAY,
+        date=DATE,
+        cur_price=0.0,
+        volume=0,
+        open=0.0,
+        high=0.0,
+        low=0.0,
+        close=0.0,
+    )
+
+    assert not fill_model.validate(make_order(price=100.0), quote)
+    assert event_counts["rejected_fill_price"] == 1
+
+
+def test_normal_day_still_passes() -> None:
+    """有量的正常交易日不受影響"""
+
+    fill_model: TwStockFillModel = TwStockFillModel(event_counts=make_event_counts())
+
+    assert fill_model.validate(make_order(price=100.0), make_quote())
+
+
+def test_tick_scale_is_never_rejected_for_volume() -> None:
+    """TICK 的每一筆本來就是成交，不套用「當日無量」的判斷"""
+
+    fill_model: TwStockFillModel = TwStockFillModel(event_counts=make_event_counts())
+    quote: StockQuote = make_quote(volume=0, scale=Scale.TICK)
+
+    assert fill_model.has_tradable_quote(quote)
+
+
+def test_tick_quote_carries_a_price() -> None:
+    """
+    tick 路徑的 `cur_price`／`close`／`volume` 必須帶出來（F-022）
+
+    舊版只掛 `tick=tick_quote`，OHLC 與 cur_price 全部留在預設值 0.0，
+    於是任何讀 `quote.close` 的地方都拿到 0 元。
+    """
+
+    from core.adapters.tw.stock_quote_adapter import StockQuoteAdapter
+
+    class _Tick:
+        stock_id = STOCK_ID
+        time = DATE
+        close = 601.0
+        volume = 3
+        bid_price = 600.0
+        bid_volume = 1
+        ask_price = 602.0
+        ask_volume = 2
+        tick_type = 1
+
+    quote: StockQuote = StockQuoteAdapter.generate_stock_quote(
+        _Tick(), STOCK_ID, DATE, Scale.TICK
+    )
+
+    assert quote.close == 601.0
+    assert quote.cur_price == 601.0
+    assert quote.volume == 3

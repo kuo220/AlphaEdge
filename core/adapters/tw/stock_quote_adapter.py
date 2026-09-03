@@ -245,8 +245,20 @@ class StockQuoteAdapter:
                 ask_volume=data.ask_volume,
                 tick_type=data.tick_type,
             )
+            # **cur_price／close／volume 一定要帶**（健檢 F-022）：
+            # 舊版只掛 `tick=tick_quote`，OHLC 與 cur_price 全部留在預設值 0.0，
+            # 於是任何讀 `quote.close` 的地方（部位盯市、報表、策略）都拿到 0 元。
+            #
+            # `open`／`high`／`low` 維持 0：單一 tick 本來就沒有 OHLC，
+            # 需要當日區間的地方（`FillModel`）自己累計 `intraday_range`。
             return StockQuote(
-                stock_id=data.stock_id, scale=scale, date=date, tick=tick_quote
+                stock_id=data.stock_id,
+                scale=scale,
+                date=date,
+                cur_price=tick_quote.close,
+                volume=tick_quote.volume,
+                close=tick_quote.close,
+                tick=tick_quote,
             )
 
         elif scale == Scale.DAY:

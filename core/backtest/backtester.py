@@ -45,6 +45,8 @@ def new_event_counts() -> Dict[str, int]:
     return {
         "rejected_direction": 0,  # 方向不合法被剔除的訂單
         "rejected_fill_price": 0,  # 成交價不合理被拒的訂單
+        "fill_price_clamped": 0,  # 滑價把成交價推出當日區間、被夾回的開倉單
+        "close_price_out_of_range": 0,  # 平倉成交價超出當日區間（不拒單，只計數）
         "forced_cover_day_trade": 0,  # 當沖日終強制回補
         "forced_cover_margin_call": 0,  # 維持率追繳強制回補
         "forced_cover_max_holding": 0,  # 超過最長持有天數強制回補
@@ -306,7 +308,7 @@ class Backtester:
         return self.fill_model.validate(order, quote)
 
     def apply_fill_model(
-        self, order: BaseOrder, quote: Optional[BaseQuote]
+        self, order: BaseOrder, quote: Optional[BaseQuote], is_close: bool = False
     ) -> Optional[BaseOrder]:
         """
         - Description:
@@ -314,11 +316,18 @@ class Backtester:
 
             未啟用任何假設時回傳原物件本身，行為與導入前逐筆相同。
             查無報價時直接放行——那是資料缺口，不是成交假設該處理的事。
+
+            **成交後還要再驗一次價格區間**（健檢 F-064）：`validate_fill_price()`
+            跑在滑價之前，滑價把價格推出 `[low, high]` 之後沒有任何檢查。
+            開倉腿夾回區間、平倉腿只警告——拒掉平倉單會讓部位被迫留倉，
+            那是比價格偏一點嚴重得多的失真。
         - Parameters:
             - order: BaseOrder
                 策略產生的訂單
             - quote: Optional[BaseQuote]
                 同一標的的當根 bar 報價
+            - is_close: bool
+                是否為平倉腿（決定超出區間時夾回還是只警告）
         - Return:
             - Optional[BaseOrder]
                 可成交的訂單；不可成交時為 None
@@ -327,7 +336,15 @@ class Backtester:
         if quote is None:
             return order
 
-        return self.fill_model.fill(order, quote)
+        filled_order: Optional[BaseOrder] = self.fill_model.fill(order, quote)
+        if filled_order is None:
+            return None
+
+        if is_close:
+            self.fill_model.warn_close_price_out_of_range(filled_order, quote)
+            return filled_order
+
+        return self.fill_model.clamp_filled_price(filled_order, quote)
 
     def get_price_range(
         self, quote: BaseQuote
@@ -581,9 +598,10 @@ class Backtester:
         for order in stop_loss_orders:
             # 平倉同樣套用市場執行假設（滑價、成交量上限）；
             # 但**不做**價格合理性檢查——那是既有的開倉專屬擋板，
-            # 若在此新增會讓原本必定成交的平倉單可能被拒，改變既有行為
+            # 若在此新增會讓原本必定成交的平倉單可能被拒，改變既有行為。
+            # 超出當日區間時只警告並計入 `close_price_out_of_range`
             filled_order: Optional[BaseOrder] = self.apply_fill_model(
-                order, quote_map.get(order.symbol)
+                order, quote_map.get(order.symbol), is_close=True
             )
             if filled_order is None:
                 continue
@@ -607,7 +625,7 @@ class Backtester:
         # Execute close orders
         for order in close_orders:
             filled_order: Optional[BaseOrder] = self.apply_fill_model(
-                order, quote_map.get(order.symbol)
+                order, quote_map.get(order.symbol), is_close=True
             )
             if filled_order is None:
                 continue

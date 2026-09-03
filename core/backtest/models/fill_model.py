@@ -205,6 +205,14 @@ class TwStockFillModel(BaseFillModel):
     def validate(self, order: BaseOrder, quote: BaseQuote) -> bool:
         """成交價合理性檢查（前視偏誤與不可能成交的擋板）"""
 
+        if not self.has_tradable_quote(quote):
+            logger.warning(
+                f"[Validate Fill] {order.symbol} 當日無成交（volume={quote.volume}、"
+                f"close={quote.close}），拒單"
+            )
+            self.event_counts["rejected_fill_price"] += 1
+            return False
+
         low, high = self.get_price_range(quote)
         if low is not None and high is not None and not (low <= order.price <= high):
             logger.warning(
@@ -234,6 +242,32 @@ class TwStockFillModel(BaseFillModel):
             )
 
         return True
+
+    @staticmethod
+    def has_tradable_quote(quote: BaseQuote) -> bool:
+        """
+        - Description:
+            該報價當日是否真的有成交
+
+            **無成交日仍可下單是 F-037 的下游殘餘**：來源給 `--`，舊版 cleaner
+            填成 0，於是 `high`／`low` 都是 0，`get_price_range()` 回
+            `(None, None)` 而**跳過**區間檢查——策略因此能在一個根本沒開盤
+            或整天無量的標的上以任意價格成交。
+
+            只擋 DAY 級別：TICK 的每一筆本來就是成交，`volume` 為 0 的 tick
+            （試撮）由 `intraday_range` 自行處理。
+        - Parameters:
+            - quote: BaseQuote
+                當根 bar 的報價
+        - Return:
+            - bool
+                有成交為 True
+        """
+
+        if quote.scale == Scale.TICK:
+            return True
+
+        return bool(quote.volume) and bool(quote.close or quote.cur_price)
 
     def get_price_range(
         self, quote: BaseQuote
@@ -320,6 +354,75 @@ class TwStockFillModel(BaseFillModel):
         filled_order.price = price
         filled_order.volume = volume
         return filled_order
+
+    def clamp_filled_price(self, order: BaseOrder, quote: BaseQuote) -> BaseOrder:
+        """
+        - Description:
+            把成交價夾回當根 bar 的 `[low, high]`
+
+            **`validate()` 跑在 `fill()` 之前**，於是滑價把價格推出區間之後
+            沒有任何檢查（健檢 F-064）：一筆本來在區間內的單，加了 0.5% 滑價
+            就可能成交在當日根本沒出現過的價位，而回測不會有任何跡象。
+
+            夾回而不是拒單：滑價是使用者刻意開啟的假設，拒單會讓「加了滑價之後
+            訊號數反而變少」，那比價格偏一點更難解釋。
+        - Parameters:
+            - order: BaseOrder
+                已套用滑價的訂單
+            - quote: BaseQuote
+                當根 bar 的報價
+        - Return:
+            - BaseOrder
+                價格落在區間內的訂單（未超出時為原物件）
+        """
+
+        low, high = self.get_price_range(quote)
+        if low is None or high is None:
+            return order
+
+        clamped: float = min(max(order.price, low), high)
+        if clamped == order.price:
+            return order
+
+        logger.warning(
+            f"[Fill] {order.symbol} 滑價後成交價 {order.price} 超出當日區間 "
+            f"[{low}, {high}]，夾回 {clamped}"
+        )
+        self.event_counts["fill_price_clamped"] = (
+            self.event_counts.get("fill_price_clamped", 0) + 1
+        )
+
+        order.price = clamped
+        return order
+
+    def warn_close_price_out_of_range(self, order: BaseOrder, quote: BaseQuote) -> None:
+        """
+        - Description:
+            平倉腿的成交價超出當日區間時只警告並計數，不拒單
+
+            **平倉不能被拒**：拒掉一張平倉單會讓部位被迫留倉，那是比價格偏一點
+            嚴重得多的失真。但超出區間仍是值得看見的事，故留一個事件計數。
+        - Parameters:
+            - order: BaseOrder
+                平倉訂單
+            - quote: BaseQuote
+                當根 bar 的報價
+        """
+
+        low, high = self.get_price_range(quote)
+        if low is None or high is None:
+            return
+
+        if low <= order.price <= high:
+            return
+
+        logger.warning(
+            f"[Fill] {order.symbol} 平倉成交價 {order.price} 超出當日區間 "
+            f"[{low}, {high}]（平倉不拒單，僅計數）"
+        )
+        self.event_counts["close_price_out_of_range"] = (
+            self.event_counts.get("close_price_out_of_range", 0) + 1
+        )
 
     def check_short_borrowable(self, order: BaseOrder) -> bool:
         """
