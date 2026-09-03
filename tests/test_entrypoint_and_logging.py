@@ -184,3 +184,57 @@ def test_every_api_module_uses_the_shared_level() -> None:
     for path in modules:
         source: str = path.read_text(encoding="utf-8")
         assert "API_LOG_FILE_LEVEL" in source, f"{path.name} 沒有指定 api 桶日誌等級"
+
+
+# === F-001：sink 要帶 filter，否則每個檔案都收下整個行程的每一行 ===
+def make_record(name: str) -> dict:
+    """最小的 loguru record 替身；filter 只看 `name`"""
+
+    return {"name": name}
+
+
+def test_api_bucket_only_accepts_api_records() -> None:
+    """
+    `logs/api/` 每天長約 100 MB，大部分不是 api 自己的日誌
+
+    loguru 的 sink 預設收下整個行程的每一行；本專案有 33 個 `setup_logger()`
+    呼叫端，少了 `filter=` 的話，一次查詢會同時寫進三個桶底下的每一個檔案。
+    """
+
+    from core.utils.log_manager import LogManager
+
+    accept = LogManager.build_bucket_filter(Path("logs/api"))
+
+    assert accept(make_record("core.api.tw.stock_price_api"))
+    assert not accept(make_record("core.pipeline.shared.date_planner"))
+    assert not accept(make_record("core.backtest.backtester"))
+
+
+def test_backtest_bucket_only_accepts_backtest_records() -> None:
+    """回測桶收回測相關套件，不收 ETL"""
+
+    from core.utils.log_manager import LogManager
+
+    accept = LogManager.build_bucket_filter(Path("logs/backtest"))
+
+    assert accept(make_record("core.backtest.backtester"))
+    assert accept(make_record("core.strategies.stock.momentum_strategy_1"))
+    assert not accept(make_record("core.pipeline.tw.updaters.stock_price_updater"))
+
+
+def test_pipeline_bucket_is_the_complement() -> None:
+    """
+    其餘桶收「沒有被其他桶認領」的記錄
+
+    **刻意是排除法而不是白名單**：新增一個套件時它會自動落進 pipeline 桶，
+    而不是整批消失——日誌設定的預設值該偏向多收，少收是查不出來的。
+    """
+
+    from core.utils.log_manager import LogManager
+
+    accept = LogManager.build_bucket_filter(Path("logs/pipeline"))
+
+    assert accept(make_record("core.pipeline.tw.updaters.stock_price_updater"))
+    assert accept(make_record("tasks.update_db"))
+    assert accept(make_record("some.brand.new.package")), "沒被認領的要落進 pipeline"
+    assert not accept(make_record("core.api.tw.stock_price_api"))

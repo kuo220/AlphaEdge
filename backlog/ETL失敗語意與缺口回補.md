@@ -18,7 +18,7 @@
 | S3 | loader 失敗一律拋 `DataLoadError` | `stock_price_loader.py`、`loaders/finmind/*.py`、`stock_tick_loader.py`、`sqlite_utils.py`、`futures_{margin,continuous,chip}_updater.py` | `tests/test_loader_failure_reporting.py` 擴充至 16 條 | ✅ | F-043、F-044、F-045、F-046、F-053、F-056；2026-09-03 完成 |
 | S4 | updater 缺口偵測與回補、統計行 | `core/pipeline/shared/date_planner.py`（新）、`core/utils/time.py`、六支 updater、`tasks/update_db.py` | `tests/test_date_gap_backfill.py` 19 條 | ✅ | F-050、F-051、F-052、F-054、F-002；F-053 已於 S3 完成；**`--target price` 實跑實測待期貨回補結束** |
 | S5 | cleaner 邊界：無成交日的 OHLC、TPEX 欄位數檢查、dividend 去重順序 | `base_cleaner.py`、`stock_price_cleaner.py`、`stock_chip_cleaner.py`、`stock_dividend_loader.py`、`stock_quote_adapter.py`、`scripts/fix_price_no_trade_rows.py` | `tests/test_cleaner_boundaries.py` 12 條；修復腳本 dry-run ＝ 104,046 | ✅ | F-037、F-038、F-047；**修復腳本尚未實際套用**（見完成紀錄） |
-| S6 | 入口與日誌：`no_tick` 排除 `futures_tick`、`delete_price_data` 加 dry-run、loguru sink 隔離與 api 桶保留 | `tasks/update_db.py`、`tasks/delete_price_data.py`、`core/api/tw/*.py`、`core/config/{schema,settings}.py`、`core/utils/notify.py`、`tests/conftest.py` | `tests/test_entrypoint_and_logging.py` 10 條；pytest 實測不再產生 `logs/` | 🔄 | F-078、F-079、F-097、F-015、F-017 ✅；F-044 已於 S3 完成；**F-001（`log_manager.py` 的 `filter=`）⏸ 等期貨回補結束** |
+| S6 | 入口與日誌：`no_tick` 排除 `futures_tick`、`delete_price_data` 加 dry-run、loguru sink 隔離與 api 桶保留 | `tasks/{update_db,delete_price_data}.py`、`core/api/tw/*.py`、`core/config/{schema,settings}.py`、`core/utils/{notify,log_manager}.py`、`tests/conftest.py` | `tests/test_entrypoint_and_logging.py` 13 條；pytest 實測不再產生 `logs/` | ✅ | F-078、F-079、F-097、F-015、F-017、F-001；F-044 已於 S3 完成 |
 
 ## 步驟詳述
 
@@ -185,7 +185,7 @@
 > **回歸不受影響**：`pytest -m slow` 10 條（含 LONG／SHORT 回歸）在 adapter
 > 改動後仍全綠——那些列本來就因成交量門檻不會被選進去，故不需重產 baseline。
 
-### S6. 入口與日誌 🔄
+### S6. 入口與日誌 ✅
 
 - **目的**：預設 `no_tick` 含 `futures_tick`（F-078）讓每晚預設更新永遠紅；`delete_price_data` 無 dry-run（F-079）；loguru sink 未帶 `filter=`（F-001）且 `logs/api/` 每天長 100 MB（F-097）；`TICK_DB_PATH` 在 `.env` 缺 `DDB_PATH` 時變成 `NonetickDB`（F-015）；LINE Notify 已停服（F-017）；`stock_price_loader` 每批把整表主鍵讀進記憶體（F-044）。
 - **做法**：`no_tick` 排除 `{TICK, FUTURES_TICK}`；`delete_price_data` 加 `--dry-run`／`--yes`；`LogManager.setup_logger()` 帶 `filter=lambda r: r["extra"].get("module") == name`，api 桶檔案 sink 預設 `WARNING`；`tests/conftest.py` 以 `pytest_sessionstart` 把 `setup_logger`／`setup_backtest_logger` 換成 no-op（健檢期間已用 scratchpad 外掛驗證可行）；`clean_logs --apply --bucket api --days 7` 掛在 `update_db` 收尾；`TICK_DB_PATH` 缺值即 raise；`notify.py` 改 LINE Messaging API 或移除；主鍵去重改成 `INSERT OR IGNORE` 後比對 `rowcount`。
@@ -218,6 +218,16 @@
 > - `tests/conftest.py` 以 `pytest_sessionstart` 把 `setup_logger`／
 >   `setup_backtest_logger` 換成 no-op；實測 `rm -rf logs && pytest` 後不再產生 `logs/`。
 >
-> **⏸ 未完成：**
-> - **F-001**（`LogManager.setup_logger()` 帶 `filter=`）要改 `core/utils/log_manager.py`，
->   依本文件前置條件須等期貨行情回補結束。2026-09-03 18:20 確認該程序仍在執行。
+> **F-001（2026-09-03 19:05 期貨回補結束後補上）**：
+> - loguru 的 sink **預設收下整個行程的每一行**，而本專案有 33 個
+>   `setup_logger()` 呼叫端——`core/api/` 的一次查詢會同時寫進 `logs/api/`、
+>   `logs/pipeline/`、`logs/backtest/` 底下的**每一個**檔案。
+>   `logs/api/` 每天長 100 MB（F-097），大部分不是 api 自己的日誌。
+> - 新增 `LogManager.build_bucket_filter()`，三個桶構成一個**分割**：
+>   `api`／`backtest` 用白名單前綴，其餘（含 `pipeline`）用**排除法**收
+>   「沒有被其他桶認領」的記錄。
+> - **刻意不用 `logger.bind(module=...)` 過濾**：沒有 bind 的模組會整批消失，
+>   那比寫太多更糟；排除法則讓新增的套件自動落進 pipeline 桶。
+> - ⚠️ **同一個桶內的檔案仍會互收**（`update_price.log` 也會收到
+>   `update_chip.log` 的內容）。逐檔隔離必須讓每個呼叫端 bind 自己的名字，
+>   屬另一階段的工作；本次先拿掉跨桶重複，那是量體的主要來源。
