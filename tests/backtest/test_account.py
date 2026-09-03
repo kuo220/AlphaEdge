@@ -71,15 +71,51 @@ def test_get_positions_filter() -> None:
 
 
 def test_get_short_market_value() -> None:
-    """空頭市值依傳入價格計算；缺價時退回開倉價"""
+    """空頭市值依傳入價格計算"""
 
     account: StockAccount = build_account()
 
     prices: Dict[str, float] = {"2317": 110.0}
     assert account.get_short_market_value(prices) == 220000.0
 
-    # 未提供價格時以開倉價估算
-    assert account.get_short_market_value({}) == 200000.0
+
+def test_short_market_value_falls_back_to_prev_close() -> None:
+    """
+    停牌時退回**前收**，而不是開倉價（健檢 F-021）
+
+    開倉價是這檔停牌前可能已經漲了好幾成的**起點**，拿它當市值會把維持率
+    算得比實際好看——而停牌正是最需要正確維持率的時候。
+    """
+
+    account: StockAccount = build_account()
+
+    assert account.get_short_market_value({}, prev_close={"2317": 130.0}) == 260000.0
+
+
+def test_short_market_value_last_resort_is_the_open_price() -> None:
+    """當日與前一交易日都沒有價格時才退回開倉價"""
+
+    account: StockAccount = build_account()
+
+    assert account.get_short_market_value({}, prev_close={}) == 200000.0
+
+
+def test_check_has_position_ignores_closed_positions() -> None:
+    """
+    已平倉的部位不算「還在庫存」（健檢 F-020）
+
+    `positions` 是只增不減的清單，平倉只是把 `is_closed` 設為 True。
+    少了這個條件，一檔賣掉之後仍會被當成有部位——雙向持倉檢查會永久拒絕
+    該標的的反向開倉。同檔案的 `get_positions()` 本來就有濾，兩者不一致本身就是徵兆。
+    """
+
+    account: StockAccount = build_account()
+    assert account.check_has_position("2330")
+
+    for position in account.positions:
+        position.is_closed = True
+
+    assert not account.check_has_position("2330")
 
 
 def test_margin_used_default() -> None:

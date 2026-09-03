@@ -329,3 +329,85 @@ def test_close_position_ignores_opposite_direction(make_order) -> None:
 
     assert records == []
     assert len(manager.account.get_positions(position_type=PositionType.SHORT)) == 1
+
+
+# === 同標的雙向持倉：兩個方向都要擋（健檢 F-057）===
+def test_short_after_long_is_rejected(make_order) -> None:
+    """先做多再放空會被擋（既有行為）"""
+
+    manager: StockPositionManager = build_manager(ShortMethod.MARGIN)
+    manager.open_position(
+        make_order(action=Action.BUY, position_type=PositionType.LONG, price=100.0)
+    )
+
+    blocked: Optional[StockPosition] = manager.open_position(
+        make_order(
+            action=Action.SELL,
+            position_type=PositionType.SHORT,
+            price=100.0,
+            short_method=ShortMethod.MARGIN,
+        )
+    )
+
+    assert blocked is None
+
+
+def test_long_after_short_is_also_rejected(make_order) -> None:
+    """
+    先放空再做多**同樣**要被擋（放空框架 §7.5「反之亦然」）
+
+    舊版只在放空端檢查，於是同一檔會同時掛著多空兩個部位——兩邊各自盯市、
+    各自計算維持率，帳面曝險與實際完全對不上。
+    """
+
+    manager: StockPositionManager = build_manager(ShortMethod.MARGIN)
+    manager.open_position(
+        make_order(
+            action=Action.SELL,
+            position_type=PositionType.SHORT,
+            price=100.0,
+            short_method=ShortMethod.MARGIN,
+        )
+    )
+
+    blocked: Optional[StockPosition] = manager.open_position(
+        make_order(action=Action.BUY, position_type=PositionType.LONG, price=100.0)
+    )
+
+    assert blocked is None
+    assert len(manager.account.get_positions()) == 1
+
+
+def test_long_is_allowed_after_the_short_is_covered(make_order) -> None:
+    """
+    回補之後就該能做多——否則這道防線會變成「一輩子不能再碰這檔」
+
+    這條同時釘住 F-020：`check_has_position()` 若不濾 `is_closed`，
+    已平倉的部位會讓反向開倉被永久拒絕。
+    """
+
+    manager: StockPositionManager = build_manager(ShortMethod.MARGIN)
+    short_position: Optional[StockPosition] = manager.open_position(
+        make_order(
+            action=Action.SELL,
+            position_type=PositionType.SHORT,
+            price=100.0,
+            short_method=ShortMethod.MARGIN,
+        )
+    )
+    assert short_position is not None
+
+    manager.close_position(
+        make_order(
+            action=Action.BUY,
+            position_type=PositionType.SHORT,
+            price=98.0,
+            volume=short_position.volume,
+        )
+    )
+
+    long_position: Optional[StockPosition] = manager.open_position(
+        make_order(action=Action.BUY, position_type=PositionType.LONG, price=100.0)
+    )
+
+    assert long_position is not None
