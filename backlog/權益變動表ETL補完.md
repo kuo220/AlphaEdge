@@ -21,7 +21,7 @@
 | S2 | cleaner：實作 `clean_equity_changes()` | `core/pipeline/tw/cleaners/financial_statement_cleaner.py` | 單元測試（不連網、不連 DB），比照 `tests/test_stock_margin_cleaner.py` | ✅ | 攤平成**長表**（見 S2）；`tests/test_financial_statement_cleaner_equity_change.py` 8 項通過 |
 | S3 | loader：建表與欄位定義 | `core/pipeline/tw/loaders/financial_statement_loader.py` | `create_missing_tables()` 後 `equity_change` 表存在 | ✅ | PK 偏離原規格（不含 `公司名稱`、改含攤平後的兩個維度），見 S3 |
 | S4 | updater 接線與簽名修正 | `core/pipeline/tw/updaters/financial_statement_updater.py` | `--target fs` 跑通、增量更新正確 | ✅ | resume 改為**逐檔**而非逐年季，理由見 S4 |
-| S5 | 歷史回補與驗證 | DB `equity_change` 表 | 2013Q1 起資料入庫，抽樣與 MOPS 原站比對 | 🔄 | **2020Q1 已完成**（2026-08-22，230,163 列 / 1,743 檔，抽樣 6 檔 1,993 列比對 mismatch = 0）；其餘 55 個年季未跑。過程中修掉一個會靜默漏 323 檔的早退 bug，見 S5 |
+| S5 | 歷史回補與驗證 | DB `equity_change` 表 | 2013Q1 起資料入庫，抽樣與 MOPS 原站比對 | 🔄 | **2020Q1 已完成**（2026-08-22，230,163 列 / 1,743 檔，抽樣 6 檔 1,993 列比對 mismatch = 0）。**2026-09-03 21:59 起跑 2020Q2 節流驗證梯次**（2,087 檔），其餘 52 個年季待跑 |
 
 ## 步驟詳述
 
@@ -179,12 +179,29 @@
 >   2. 不含興櫃（`emerging`）。
 >   3. 站方過載造成的暫時性失敗會在 log 尾端彙總（`N requests unreachable after retries`），重跑即可補上，但**必須真的去看那行 log**。
 
+> **🔄 2026-09-03 21:59：2020Q2 節流驗證梯次起跑**
+>
+> **為什麼先跑單季而不是直接開 54 季**：2026-08-28 放寬的節流（0.5~1.5 秒/檔、每 50 檔睡 15 秒）
+> 至今**沒有實測過**，上方表格自己標了「推估，尚未實測」。直接開整段回補，若放太寬會在
+> 幾小時後才以一整片 `unreachable` 呈現，而那些檔在 DB 裡不留任何列，與「還沒爬」無法區分。
+> 故先跑一季，看收尾的 `N requested, N no data, N unreachable` 再決定要不要調回中間值。
+>
+> - 範圍：`update_equity_changes(2020, 2020, 2, 2)`，`is_season_filed()` 探測通過，
+>   **2,087 檔 pending**（DB 內該季 0 列）。
+> - 開跑前確認：`tests/test_financial_statement_cleaner_equity_change.py` 11 項全綠；
+>   無其他程序寫 `tw_stock.db`（同時在跑的期貨行情回補寫的是 `tw_futures.db`，不衝突）。
+> - **今日的 F-054 修正正好是本步驟的前提**：`update_equity_changes()` 原本用
+>   `years × seasons` 笛卡兒積，跨年季區間（例如 2013Q1~2026Q2）會整季整季漏掉且無錯誤；
+>   已於 `05e55f5` 改用 `TimeUtils.generate_year_period_range()`，實測 2013Q1~2026Q2 得 54 個年季。
+>   **在那之前，S5 的整段回補跑下去會是錯的。**
+> - 下一步：本季跑完看統計行 → 決定節流值 → 再開整段（剩 52 季，依現行速率估約 47 小時）。
+
 ---
 
 ## 關聯與狀態
 
 - **優先級**：P3（S5 歷史回補純屬執行，可隨時中斷續跑）
-- **進度**：4 / 5 項 ✅（S1~S4，2026-08-22）；S5 🔄 2020Q1 已完成（230,163 列 / 1,743 檔），其餘 55 個年季未跑
+- **進度**：4 / 5 項 ✅（S1~S4，2026-08-22）；S5 🔄 2020Q1 已完成（230,163 列 / 1,743 檔），2026-09-03 起跑 2020Q2 節流驗證梯次，其餘 52 個年季待跑
 - **相關程式**：`core/pipeline/tw/crawlers/financial_statement_crawler.py`、`core/pipeline/tw/cleaners/financial_statement_cleaner.py`、`core/pipeline/tw/loaders/financial_statement_loader.py`、`core/pipeline/tw/updaters/financial_statement_updater.py`、`core/config.py`（`EQUITY_CHANGE_TABLE_NAME`）、`tests/test_financial_statement_cleaner_equity_change.py`
 - **相關文件**：
   - [權益變動表](../docs/pipeline/equity-change.md)——2026-08-29 由本文件抽出的長期參考內容（資料形狀、涵蓋範圍、已知限制、節流）
