@@ -24,6 +24,7 @@ import plotly.graph_objects as go
 import yfinance as yf
 
 from core.api.tw.stock_price_api import StockPriceAPI
+from core.strategies.ridge import ridge_fit_predict, tune_alpha
 from core.utils import Units
 from core.utils.instrument import StockUtils
 
@@ -47,21 +48,6 @@ _PLOT_MARGIN = dict(l=72, r=108, t=100, b=80)
 
 def _apply_figure_margins(fig: go.Figure) -> None:
     fig.update_layout(margin=_PLOT_MARGIN)
-
-
-def _ridge_fit_predict(
-    X_train: np.ndarray,
-    y_train: np.ndarray,
-    X_pred: np.ndarray,
-    alpha: float,
-) -> Tuple[np.ndarray, np.ndarray]:
-    n, p = X_train.shape
-    X1 = np.c_[np.ones(n), X_train]
-    reg = np.eye(p + 1)
-    reg[0, 0] = 0.0
-    coef = np.linalg.solve(X1.T @ X1 + alpha * reg, X1.T @ y_train)
-    y_hat = np.c_[np.ones(len(X_pred)), X_pred] @ coef
-    return coef, y_hat
 
 
 def _ols_fit_predict(
@@ -233,24 +219,6 @@ def fetch_panel(start: dt.date, end: dt.date) -> Tuple[pd.DataFrame, pd.DataFram
         .reset_index(drop=True)
     )
     return close_df, panel
-
-
-def tune_alpha(
-    X_train: np.ndarray,
-    y_train: np.ndarray,
-    X_val: np.ndarray,
-    y_val: np.ndarray,
-    grid: np.ndarray,
-) -> float:
-    best_alpha = float(grid[0])
-    best_mse = np.inf
-    for a in grid:
-        _, y_hat = _ridge_fit_predict(X_train, y_train, X_val, float(a))
-        mse = float(np.mean((y_val - y_hat) ** 2))
-        if mse < best_mse:
-            best_mse = mse
-            best_alpha = float(a)
-    return best_alpha
 
 
 def run_backtest_with_signal(
@@ -890,11 +858,11 @@ def main(
     fit_mask = panel["date"] <= VAL_END
     X_fit = panel.loc[fit_mask, x_cols].values.astype(float)
     y_fit = panel.loc[fit_mask, "r_2330"].values.astype(float)
-    coef, _ = _ridge_fit_predict(X_fit, y_fit, X_fit, alpha)
+    coef, _ = ridge_fit_predict(X_fit, y_fit, X_fit, alpha)
 
     panel_test = test.reset_index(drop=True)
     Xt = panel_test[x_cols].values.astype(float)
-    _, pred_test = _ridge_fit_predict(X_fit, y_fit, Xt, alpha)
+    _, pred_test = ridge_fit_predict(X_fit, y_fit, Xt, alpha)
     signal_df = panel_test[["date", "r_2330", "close_2330"]].copy()
     signal_df["pred"] = pred_test
     signal_df["signal"] = (signal_df["pred"] > 0.0).astype(int)

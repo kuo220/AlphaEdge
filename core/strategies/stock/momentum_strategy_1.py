@@ -13,7 +13,7 @@ from core.utils import Action, PositionType, Scale
 
 class MomentumStrategy1(BaseStockStrategy):
     """
-    動能策略 1（日線）
+    動能策略 1（**只支援日線**）
 
     買進條件（全部滿足）：
     - 當日收盤相對「前一交易日」收盤漲幅 ≥ 門檻（預設 9%）
@@ -24,6 +24,15 @@ class MomentumStrategy1(BaseStockStrategy):
 
     停損條件：
     - 未實作（一律不回傳停損單）
+
+    **已持有的標的仍會再次進入開倉候選（＝允許加碼）**：本策略不過濾
+    `check_has_position()`，同一檔在連續多天都符合條件時會開出多個部位，
+    實際能開幾個由 `max_holdings` 與 `calculate_position_size()` 決定。
+    這是刻意的語意（動能延續就繼續加），但先前 docstring 沒寫，
+    看回測結果的人無從判斷那些重複的開倉是設計還是 bug（健檢 F-075 ②）。
+
+    **TICK 級別不支援**：訊號建立在「前一交易日收盤」上，TICK 路徑沒有對應的
+    取價方式；`setup_apis()` 會直接 `NotImplementedError`（F-075 ①）。
     """
 
     DEFAULT_MAX_HOLDINGS: int = 10
@@ -56,18 +65,35 @@ class MomentumStrategy1(BaseStockStrategy):
         self.account: StockAccount = account
 
     def setup_apis(self, feed: BaseDataFeed) -> None:
-        """宣告本策略要用的資料源；實例由 DataFeed 統一持有"""
+        """
+        - Description:
+            宣告本策略要用的資料源；實例由 DataFeed 統一持有
+
+            **TICK 級別當場擋下**（健檢 F-075）：本策略的訊號建立在「前一交易日
+            收盤」上，TICK 路徑只會掛 `self.tick`、`self.price` 維持 None，
+            第一根 bar 就會在 `get_previous_trading_date()` 撞
+            `ValueError("Invalid API type")`。docstring 寫的是「日線」，
+            但沒有任何東西擋住把 `scale` 改成 TICK。
+        - Parameters:
+            - feed: BaseDataFeed
+                引擎持有的資料源
+        - Raise:
+            - NotImplementedError
+                `scale` 不是 `Scale.DAY`
+        """
+
+        if self.scale != Scale.DAY:
+            raise NotImplementedError(
+                f"{self.strategy_name} 只支援日線（Scale.DAY）："
+                f"訊號以『前一交易日收盤』為基準，TICK 級別沒有對應的取價方式。"
+                f"目前的 scale 是 {self.scale}"
+            )
 
         self.chip = feed.chip
         self.mrr = feed.mrr
         self.fs = feed.fs
-
-        if self.scale == Scale.TICK:
-            self.tick = feed.tick
-
-        elif self.scale == Scale.DAY:
-            self.price = feed.price
-            self.trading_days = self.build_trading_days()
+        self.price = feed.price
+        self.trading_days = self.build_trading_days()
 
     def build_trading_days(self) -> List[datetime.date]:
         """

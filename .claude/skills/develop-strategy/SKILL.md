@@ -10,7 +10,7 @@ when_to_use: 使用者想要新增一支新策略、修改既有策略的開倉/
 ## 執行步驟
 
 1. **一律先完整讀取 `core/strategies/README.md`**（不要只憑記憶或猜測），再開始撰寫或修改策略程式碼。
-2. 新策略檔案依商品類別放：台股放 `core/strategies/stock/` 繼承 `BaseStockStrategy`；台期貨放 `core/strategies/futures/` 繼承 `BaseFuturesStrategy`（口數、保證金、換月的差異見該基底 docstring 與 `docs/futures/tw-futures-platform.md`）。類別名稱即為 `python run.py --strategy <ClassName>` 使用的識別名稱；**`max_holdings` 記得設**（基底預設 0 會讓引擎剔除所有開倉單）。
+2. 新策略檔案依商品類別放：台股放 `core/strategies/stock/` 繼承 `BaseStockStrategy`；台期貨放 `core/strategies/futures/` 繼承 `BaseFuturesStrategy`（口數、保證金、換月的差異見該基底 docstring 與 `docs/futures/tw-futures-platform.md`）。類別名稱即為 `python run.py --strategy <ClassName>` 使用的識別名稱；**`max_holdings` 記得設**（基底預設 `None` ＝ 不限制檔數，引擎不會替你把關）。
 3. 依 README 的方法簽章與範例實作全部必要方法；不要自創介面或跳過任一必實作方法。特別注意兩條收斂過的邊界：
    - **資料取用**：不要直接對 raw `DataFrame` 取中文欄位（`"收盤價"`、`"成交股數"`），一律走 `core/api/` 的具名查詢方法（`get_close_map()`／`get_volume_lots_map()`／`get_close_series()`／`get_trust_net_shares_map()`）。`tests/test_strategy_data_access.py` 會擋下違規。
    - **部位大小**：`calculate_position_size()` 的 `BUY` 分支不要自己算「可開檔數 ÷ 餘額 ÷ 張數」，交給 `self.sizer.size(self.account, candidates, self.max_holdings)`，策略只負責選標的與參考價（見 `core/backtest/README.md`〈部位大小與檔數上限〉）。`max_holdings` 另有引擎側硬上限，超額開倉單會被剔除並計數。

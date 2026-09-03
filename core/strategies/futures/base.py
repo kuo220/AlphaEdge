@@ -70,9 +70,9 @@ class BaseFuturesStrategy(BaseStrategy):
         # （前一交易日夜盤 ＋ 當日日盤，跨盤別跳空保留在 bar 內，見 Phase4-2）
         self.session: FuturesSession = FuturesSession.DAY
         self.max_lots: int = 0  # 總口數上限（0 表示不開倉）
-        # 期貨限制的是**總口數**不是持倉檔數，故解除引擎的檔數上限。
-        # `BaseStrategy` 的預設值是 0，而 `Backtester.check_max_holdings()` 只把
-        # `None` 當成「不限制」——沿用 0 會讓每一張期貨開倉單都被引擎剔除
+        # 期貨限制的是**總口數**不是持倉檔數，故明確解除引擎的檔數上限。
+        # `BaseStrategy` 的預設值已於 2026-09-03 由 0 改為 None（健檢 F-076），
+        # 此處保留是為了讓「期貨不用檔數上限」這件事在基底裡看得見
         self.max_holdings: Optional[int] = None
         # 單次開倉最多動用可動用餘額的比例；保證金交易若不設限，
         # 一次就能把帳戶壓到追繳邊緣

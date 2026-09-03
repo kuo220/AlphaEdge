@@ -1,5 +1,5 @@
 import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -8,6 +8,7 @@ from loguru import logger
 
 from core.backtest.datafeed.base import BaseDataFeed
 from core.models import StockAccount, StockOrder, StockPosition, StockQuote
+from core.strategies.ridge import ridge_fit_predict, tune_alpha
 from core.strategies.stock import BaseStockStrategy
 from core.utils import Action, PositionType, Scale, Units
 
@@ -53,55 +54,32 @@ class OvernightLeadEventStrategy(BaseStockStrategy):
         self.start_date: datetime.date = self.TEST_START
         self.end_date: datetime.date = self.MODEL_DATA_END
 
-        # Signal cache: {date: 0/1}
+        # Signal cache: {date: 0/1}；由 `setup_apis()` 之後才建得起來
         self.signal_by_date: Dict[datetime.date, int] = {}
         self.alpha: float = float("nan")
-
-        self._build_signals()
 
     def setup_account(self, account: StockAccount) -> None:
         self.account = account
 
     def setup_apis(self, feed: BaseDataFeed) -> None:
-        """宣告本策略要用的資料源；實例由 DataFeed 統一持有"""
+        """
+        - Description:
+            宣告本策略要用的資料源，並在拿到 API 之後才建訊號
+
+            **訊號不能在 `__init__()` 裡建**（健檢 F-072）：`_build_signals()`
+            要用 `self.price`，而 `self.price` 是這裡才掛上去的——舊版在
+            `__init__()` 末尾就呼叫它，於是 `OvernightLeadEventStrategy()`
+            這行本身就會 `AttributeError`。引擎的 factory 是先建策略、
+            再 `setup_apis()`，順序反了就沒有任何方法救得回來。
+        - Parameters:
+            - feed: BaseDataFeed
+                引擎持有的資料源
+        """
 
         if self.scale == Scale.DAY:
             self.price = feed.price
 
-    @staticmethod
-    def _ridge_fit_predict(
-        X_train: np.ndarray,
-        y_train: np.ndarray,
-        X_pred: np.ndarray,
-        alpha: float,
-    ) -> Tuple[np.ndarray, np.ndarray]:
-        n, p = X_train.shape
-        X1 = np.c_[np.ones(n), X_train]
-        reg = np.eye(p + 1)
-        reg[0, 0] = 0.0
-        coef = np.linalg.solve(X1.T @ X1 + alpha * reg, X1.T @ y_train)
-        y_hat = np.c_[np.ones(len(X_pred)), X_pred] @ coef
-        return coef, y_hat
-
-    @staticmethod
-    def _tune_alpha(
-        X_train: np.ndarray,
-        y_train: np.ndarray,
-        X_val: np.ndarray,
-        y_val: np.ndarray,
-        grid: np.ndarray,
-    ) -> float:
-        best_alpha = float(grid[0])
-        best_mse = np.inf
-        for a in grid:
-            _, y_hat = OvernightLeadEventStrategy._ridge_fit_predict(
-                X_train, y_train, X_val, float(a)
-            )
-            mse = float(np.mean((y_val - y_hat) ** 2))
-            if mse < best_mse:
-                best_mse = mse
-                best_alpha = float(a)
-        return best_alpha
+        self._build_signals()
 
     def _build_signals(self) -> None:
         """Train ridge and create date->signal map for backtest dates."""
@@ -199,12 +177,12 @@ class OvernightLeadEventStrategy(BaseStockStrategy):
         y_va = val["r_2330"].values.astype(float)
 
         alpha_grid = np.logspace(-4, 3, 30)
-        self.alpha = self._tune_alpha(X_tr, y_tr, X_va, y_va, alpha_grid)
+        self.alpha = tune_alpha(X_tr, y_tr, X_va, y_va, alpha_grid)
 
         fit = panel[panel["date"] <= self.VAL_END]
         X_fit = fit[x_cols].values.astype(float)
         y_fit = fit["r_2330"].values.astype(float)
-        coef, _ = self._ridge_fit_predict(X_fit, y_fit, X_fit, self.alpha)
+        coef, _ = ridge_fit_predict(X_fit, y_fit, X_fit, self.alpha)
 
         pred = np.c_[np.ones(len(panel)), panel[x_cols].values.astype(float)] @ coef
         panel = panel.copy()
