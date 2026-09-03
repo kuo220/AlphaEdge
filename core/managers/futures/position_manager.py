@@ -331,6 +331,9 @@ class FuturesPositionManager(BasePositionManager):
 
             **與股票不同，不檢查「餘額是否足以買下契約價值」**，而是檢查
             「可動用餘額是否足以繳出保證金與交易成本」。
+
+            **同一契約不允許雙向持倉**：已有反向未平倉部位即拒單，與股票端
+            同一判準（放空框架 §7.5）。跨月份的價差部位不受此限。
         - Parameters:
             - order: FuturesOrder
                 目標契約的訂單資訊
@@ -350,6 +353,26 @@ class FuturesPositionManager(BasePositionManager):
             logger.warning(
                 f"[Open Position] 方向與動作不一致：{order.contract_id} "
                 f"{order.position_type} / {order.action}"
+            )
+            return None
+
+        # 同一契約不允許同時持有反向部位（判準沿用放空框架 §7.5「反之亦然」，
+        # 股票端已於健檢 F-057 補上對稱檢查）。**期貨端漏了這條**（健檢 F-058）：
+        # 同契約多空並存時，`get_open_lots()` 把兩邊相抵成淨口數（＝曝險為 0），
+        # 但 `margin_used` 卻各佔一份原始保證金——帳上「沒有曝險卻押著兩份保證金」，
+        # 而交易所對沖部位只收單邊，可開口數因此被系統性低估。
+        # 擋在開倉端而不是去模擬保證金減收：TAIFEX 的**價差部位保證金**是另一套
+        # 費率表，本專案沒有該資料源（見 backlog/台期貨保證金ETL.md），
+        # 硬寫一個比率只是用一個猜測換掉另一個猜測。
+        opposite_type: PositionType = (
+            PositionType.SHORT
+            if order.position_type == PositionType.LONG
+            else PositionType.LONG
+        )
+        if self.account.check_has_position(order.symbol, opposite_type):
+            logger.warning(
+                f"[Open Position] {order.contract_id} 已有 {opposite_type.value} 部位，"
+                f"不允許同契約雙向持倉，拒絕開倉"
             )
             return None
 

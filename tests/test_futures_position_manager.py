@@ -376,13 +376,31 @@ def test_fifo_closes_the_earliest_position_first(
 def test_close_only_matches_the_same_direction(
     manager: FuturesPositionManager,
 ) -> None:
-    """賣出平的是多單，不會誤平空單"""
+    """
+    賣出平的是多單，不會誤平空單
+
+    **空單直接塞進帳戶而不走 `open_position()`**：同契約雙向持倉已被開倉端擋掉
+    （見 `test_open_rejects_the_opposite_direction_on_the_same_contract`），
+    但 `close_position()` 的方向比對本身仍要釘住——它是最後一道防線，
+    不能因為前一道擋住了就沒有測試。
+    """
 
     manager.open_position(
         make_order(Action.BUY, PositionType.LONG, price=18000, volume=1)
     )
-    manager.open_position(
-        make_order(Action.SELL, PositionType.SHORT, price=18000, volume=1)
+    manager.account.positions.append(
+        FuturesPosition(
+            id=manager.account.generate_trade_id(),
+            product="TX",
+            expiry="202601",
+            is_closed=False,
+            position_type=PositionType.SHORT,
+            date=DAY_1,
+            price=18000,
+            volume=1,
+            multiplier=MULTIPLIER,
+            margin=0.0,
+        )
     )
 
     records: List[FuturesTradeRecord] = manager.close_position(
@@ -395,17 +413,130 @@ def test_close_only_matches_the_same_direction(
 
 
 # === 帳戶彙總 ===
-def test_open_lots_nets_long_and_short(manager: FuturesPositionManager) -> None:
-    """同一契約的多空相抵後回傳淨口數"""
+def test_open_lots_is_gross_when_one_direction_per_contract(
+    manager: FuturesPositionManager,
+) -> None:
+    """
+    同契約只可能單一方向，淨口數的絕對值即毛口數
+
+    `MomentumFuturesStrategy` 以 `lots != 0` 判斷「是否已有部位」、以
+    `sum(abs(lots))` 對 `max_lots` 扣減，兩者都預設這條性質成立。
+    """
 
     manager.open_position(
         make_order(Action.BUY, PositionType.LONG, price=18000, volume=3)
     )
     manager.open_position(
-        make_order(Action.SELL, PositionType.SHORT, price=18000, volume=1)
+        make_order(Action.BUY, PositionType.LONG, price=18100, volume=1, date=DAY_2)
     )
 
-    assert manager.account.get_open_lots() == {"TX202601": 2}
+    assert manager.account.get_open_lots() == {"TX202601": 4}
+
+
+def test_open_lots_signs_short_positions_negative(
+    manager: FuturesPositionManager,
+) -> None:
+    """空單以負數表示，不同契約各自獨立"""
+
+    manager.open_position(
+        make_order(Action.SELL, PositionType.SHORT, price=18000, volume=2)
+    )
+    manager.open_position(
+        make_order(
+            Action.BUY, PositionType.LONG, price=18050, volume=1, expiry="202602"
+        )
+    )
+
+    assert manager.account.get_open_lots() == {"TX202601": -2, "TX202602": 1}
+
+
+# === 同契約雙向持倉（健檢 F-058）===
+def test_open_rejects_the_opposite_direction_on_the_same_contract(
+    manager: FuturesPositionManager,
+) -> None:
+    """
+    同一契約已有反向部位即拒單，保證金不被重複佔用
+
+    判準與股票端同一條（放空框架 §7.5「反之亦然」）。舊版放行之後，
+    `get_open_lots()` 相抵成淨口數 0（＝帳上看起來沒有曝險），
+    `margin_used` 卻押著兩份原始保證金——而交易所對沖部位只收單邊。
+    """
+
+    long_position: Optional[FuturesPosition] = manager.open_position(
+        make_order(Action.BUY, PositionType.LONG, price=18000, volume=1)
+    )
+    margin_after_long: float = manager.account.margin_used
+
+    rejected: Optional[FuturesPosition] = manager.open_position(
+        make_order(Action.SELL, PositionType.SHORT, price=18000, volume=1, date=DAY_2)
+    )
+
+    assert long_position is not None
+    assert rejected is None
+    assert manager.account.margin_used == margin_after_long
+    assert len(manager.account.get_positions()) == 1
+    assert manager.account.get_open_lots() == {"TX202601": 1}
+
+
+def test_open_rejects_a_long_when_a_short_is_open(
+    manager: FuturesPositionManager,
+) -> None:
+    """反向亦然：先空後多同樣拒單（兩個分支都要擋，不能只擋一半）"""
+
+    manager.open_position(
+        make_order(Action.SELL, PositionType.SHORT, price=18000, volume=1)
+    )
+    rejected: Optional[FuturesPosition] = manager.open_position(
+        make_order(Action.BUY, PositionType.LONG, price=18000, volume=1, date=DAY_2)
+    )
+
+    assert rejected is None
+    assert manager.account.get_open_lots() == {"TX202601": -1}
+
+
+def test_open_allows_the_opposite_direction_on_another_expiry(
+    manager: FuturesPositionManager,
+) -> None:
+    """
+    跨月份的反向部位不受限
+
+    這是**價差部位**（calendar spread），不是同一契約的雙向持倉；
+    交易所另有價差部位保證金費率，本專案尚無該資料源，故兩腿各繳全額——
+    方向保守（高估保證金），不會讓績效變好看。
+    """
+
+    near: Optional[FuturesPosition] = manager.open_position(
+        make_order(Action.BUY, PositionType.LONG, price=18000, volume=1)
+    )
+    far: Optional[FuturesPosition] = manager.open_position(
+        make_order(
+            Action.SELL, PositionType.SHORT, price=18100, volume=1, expiry="202602"
+        )
+    )
+
+    assert near is not None
+    assert far is not None
+    assert manager.account.get_open_lots() == {"TX202601": 1, "TX202602": -1}
+
+
+def test_reopening_the_opposite_direction_after_a_close_is_allowed(
+    manager: FuturesPositionManager,
+) -> None:
+    """平倉之後可以反手：`is_closed` 的部位不算佔位（同健檢 F-020）"""
+
+    manager.open_position(
+        make_order(Action.BUY, PositionType.LONG, price=18000, volume=1)
+    )
+    manager.close_position(
+        make_order(Action.SELL, PositionType.LONG, price=18100, volume=1, date=DAY_2)
+    )
+
+    reversed_position: Optional[FuturesPosition] = manager.open_position(
+        make_order(Action.SELL, PositionType.SHORT, price=18100, volume=1, date=DAY_2)
+    )
+
+    assert reversed_position is not None
+    assert manager.account.get_open_lots() == {"TX202601": -1}
 
 
 def test_roi_is_based_on_margin_not_contract_value(
