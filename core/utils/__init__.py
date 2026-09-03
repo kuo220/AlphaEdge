@@ -2,6 +2,7 @@ from .account import ShioajiAccount, ShioajiAPI
 from .callback import Callback
 from .constant import (
     DAY_TRADE_TAX_EXPIRY,
+    DAY_TRADE_TAX_START,
     DAYS_PER_YEAR,
     FUTURES_MULTIPLIER,
     PRICE_LIMIT_RATIO,

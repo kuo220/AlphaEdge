@@ -395,17 +395,21 @@ class TwStockSettlementModel(BaseSettlementModel):
                 應補徵的稅額（全額稅 − 已收的當沖減半稅）
         """
 
+        # 補徵的是「開倉那天」的差額，故兩次都用開倉日的稅制
+        open_date: Optional[datetime.date] = TimeUtils.to_date(position.date)
         full_tax: int = self.cost_model.tax(
             price=position.price,
             volume=position.volume,
             action=Action.SELL,
             is_day_trade=False,
+            date=open_date,
         )
         day_trade_tax: int = self.cost_model.tax(
             price=position.price,
             volume=position.volume,
             action=Action.SELL,
             is_day_trade=True,
+            date=open_date,
         )
         return max(0, full_tax - day_trade_tax)
 
@@ -475,22 +479,49 @@ class TwStockSettlementModel(BaseSettlementModel):
         - Description:
             逐日計提持有成本並更新持有天數
 
+            **持有天數與計提天數都是曆日，不是 bar 數**（健檢 F-059、F-063）：
+            週五開的空單到週一只過了 1 根 bar，卻是 3 個曆日的借券費。舊版每根
+            bar `+= 1` 並以 `holding_days=1` 計提，一年只計到 252 天，
+            年化費率因此低估約 31%（1 − 252/365）；而 `holding_days` 這個名字
+            在 `TradeRecord` 那邊指的是曆日，同名不同義。
+
             只有 SBL 借券費在此逐日累加；MARGIN 的融券手續費在開倉時一次收取、
-            融券利息於平倉時依日期差一次計算，
-            在此重複計算會造成雙重計費。
+            融券利息於平倉時依日期差一次計算，在此重複計算會造成雙重計費。
+        - Parameters:
+            - date: datetime.date
+                當前交易日
+            - quote_map: Dict[str, StockQuote]
+                當日報價對照表
+            - account: BaseAccount
+                交易帳戶
         """
 
         for position in account.get_positions(position_type=PositionType.SHORT):
-            position.holding_days += 1
+            open_date: Optional[datetime.date] = TimeUtils.to_date(position.date)
+            if open_date is None:
+                logger.warning(
+                    f"[SBL] {position.symbol} 的開倉日無法解析，本日不計提借券費"
+                )
+                continue
+
+            position.holding_days = max((date - open_date).days, 0)
 
             if position.short_method != ShortMethod.SBL:
                 continue
+
+            # 上次計提到哪一天；剛開倉時視為開倉日（開倉當日不計費）
+            last_accrual: datetime.date = position.last_accrual_date or open_date
+            elapsed_days: int = (date - last_accrual).days
+            if elapsed_days <= 0:
+                continue
+
+            position.last_accrual_date = date
 
             price: float = self.get_mark_price(position, quote_map)
             position.accrued_borrow_fee += self.cost_model.borrow_fee(
                 price=price,
                 volume=position.volume,
-                holding_days=1,
+                holding_days=elapsed_days,
                 short_method=ShortMethod.SBL,
             )
 

@@ -276,3 +276,69 @@ def test_short_constraint_defaults() -> None:
     )
     assert limited.check_day_tradable("2330", datetime.date(2024, 1, 2)) is False
     assert limited.check_day_tradable("2317", datetime.date(2024, 1, 2)) is True
+
+
+# === 成本與稅率的日期邊界（健檢 F-059、F-060）===
+def test_day_trade_tax_is_full_before_2017_04_28() -> None:
+    """
+    當沖證交稅減半自 2017-04-28 起實施，之前一律 0.3%
+
+    不看日期就一律減半的話，2013-01 ~ 2017-04 的每一筆當沖賣出都少算一半的稅
+    ——約 4 年 4 個月，而且結果只會偏樂觀（健檢 F-060）。
+    """
+
+    model: StockCostModel = StockCostModel()
+
+    assert (
+        model.tax(
+            100.0, 1, Action.SELL, is_day_trade=True, date=datetime.date(2017, 4, 27)
+        )
+        == 300
+    )
+
+
+def test_day_trade_tax_is_halved_on_the_start_date() -> None:
+    """起始日當天就適用減半（含端點）"""
+
+    model: StockCostModel = StockCostModel()
+
+    assert (
+        model.tax(
+            100.0, 1, Action.SELL, is_day_trade=True, date=datetime.date(2017, 4, 28)
+        )
+        == 150
+    )
+
+
+def test_day_trade_tax_is_full_after_expiry() -> None:
+    """落日之後回到全額稅率"""
+
+    model: StockCostModel = StockCostModel()
+
+    assert (
+        model.tax(
+            100.0, 1, Action.SELL, is_day_trade=True, date=datetime.date(2028, 1, 3)
+        )
+        == 300
+    )
+
+
+def test_tax_without_date_keeps_current_regime() -> None:
+    """沒有日期資訊時視為現行制度，維持舊行為（既有呼叫端不受影響）"""
+
+    model: StockCostModel = StockCostModel()
+
+    assert model.tax(100.0, 1, Action.SELL, is_day_trade=True) == 150
+
+
+def test_non_day_trade_tax_ignores_the_date() -> None:
+    """非當沖一律全額，日期不影響"""
+
+    model: StockCostModel = StockCostModel()
+
+    assert (
+        model.tax(
+            100.0, 1, Action.SELL, is_day_trade=False, date=datetime.date(2016, 1, 4)
+        )
+        == 300
+    )

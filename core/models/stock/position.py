@@ -40,6 +40,7 @@ class StockPosition(BasePosition):
         accrued_borrow_fee: float = 0.0,
         dividend_compensation: float = 0.0,
         holding_days: int = 0,
+        last_accrual_date: Optional[datetime.date] = None,
     ):
         super().__init__(
             id=id,
@@ -67,7 +68,11 @@ class StockPosition(BasePosition):
         self.accrued_borrow_fee: float = accrued_borrow_fee  # SBL 逐日計提的借券費
         # 除息日補償給出借方的現金股利（放空專屬支出）
         self.dividend_compensation: float = dividend_compensation
-        self.holding_days: int = holding_days  # 已持有曆日數
+        self.holding_days: int = holding_days  # 已持有曆日數（＝當前日期 − 開倉日）
+        # SBL 借券費上次計提到哪一天。**逐日計提必須看曆日而不是 bar**：
+        # 週五開的空單到週一只過了 1 根 bar，卻是 3 個曆日的借券費。
+        # 每根 bar 計 1/365 的話，一年只計到 252 天、年費低估約 31%（健檢 F-059）
+        self.last_accrual_date: Optional[datetime.date] = last_accrual_date
         # 連續無報價天數；停牌／下市的部位靠它才有出場依據
         self.no_quote_days: int = 0
 

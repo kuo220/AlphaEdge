@@ -109,7 +109,12 @@ STOCK_FUTURES_TYPE_MINI_SINGLE = "小型個股期貨"  # 100 股
 STOCK_FUTURES_TYPE_ETF = "ETF期貨"  # 10,000 受益權單位
 STOCK_FUTURES_TYPE_MINI_ETF = "小型ETF期貨"  # 1,000 受益權單位
 
-# 現股當沖證交稅減半的落日日期（放 module-level：float Enum 無法承載 date）
+# 現股當沖證交稅減半的**適用區間**（放 module-level：float Enum 無法承載 date）
+#
+# **起始日同樣重要**：減半優惠自 2017-04-28 起實施，在那之前現股當沖賣出一律
+# 課 0.3%。回測若不看日期就一律用減半稅率，2013-01 ~ 2017-04 的每一筆當沖
+# 賣出都少算一半的稅——約 4 年 4 個月的區間，而且結果只會偏樂觀（健檢 F-060）。
+DAY_TRADE_TAX_START: datetime.date = datetime.date(2017, 4, 28)
 DAY_TRADE_TAX_EXPIRY: datetime.date = datetime.date(2027, 12, 31)
 
 # 計息基準日數（放 module-level：float Enum 內混入整數語意會失真）
@@ -193,7 +198,8 @@ class Commission(float, Enum):
     Discount = 0.3  # 券商手續費折扣（commission discount）
     MinFee = 20.0  # 券商最低手續費限制（minimum fee）
     TaxRate = 0.003  # 證券交易稅（Securities Transaction Tax Rate）
-    DayTradeTaxRate = 0.0015  # 現股當沖證交稅（減半，適用至 DAY_TRADE_TAX_EXPIRY）
+    # 現股當沖證交稅（減半）；適用區間為 DAY_TRADE_TAX_START ~ DAY_TRADE_TAX_EXPIRY
+    DayTradeTaxRate = 0.0015
 
 
 class ShortCost(float, Enum):

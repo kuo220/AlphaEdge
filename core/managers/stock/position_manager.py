@@ -6,7 +6,7 @@ from loguru import logger
 from core.backtest.models.cost_model import CostConfig, StockCostModel
 from core.managers.base.position_manager import BasePositionManager
 from core.models import StockAccount, StockOrder, StockPosition, StockTradeRecord
-from core.utils import Action, PositionType, ShortMethod
+from core.utils import Action, PositionType, ShortMethod, TimeUtils
 from core.utils.instrument import StockUtils
 
 
@@ -89,6 +89,7 @@ class StockPositionManager(BasePositionManager):
                 price=stock_order.price,
                 volume=stock_order.volume,
                 action=Action.BUY,
+                date=TimeUtils.to_date(stock_order.date),
             )
             open_cost: int = open_commission + open_tax
 
@@ -168,6 +169,7 @@ class StockPositionManager(BasePositionManager):
             volume=stock_order.volume,
             action=Action.SELL,
             is_day_trade=stock_order.is_day_trade,
+            date=TimeUtils.to_date(stock_order.date),
         )
         borrow_fee: int = self.cost_model.borrow_fee(
             price=stock_order.price,
@@ -278,6 +280,7 @@ class StockPositionManager(BasePositionManager):
             price=stock_order.price,
             volume=close_volume,
             action=Action.SELL,
+            date=TimeUtils.to_date(stock_order.date),
         )
 
         # 開倉成本依平倉張數等比例攤提。
@@ -338,6 +341,49 @@ class StockPositionManager(BasePositionManager):
 
         return record
 
+    def accrue_final_borrow_fee(
+        self,
+        position: StockPosition,
+        stock_order: StockOrder,
+    ) -> None:
+        """
+        - Description:
+            回補前補計提「上次計提日 → 回補日」的 SBL 借券費
+
+            `SettlementModel.accrue_holding_cost()` 在每根 bar **收盤後**計提，
+            而回補發生在盤中——回補當日那根 bar 收盤時部位已經平掉，於是
+            最後一段（通常 1 個曆日，跨週末則 3 天）永遠不會被計提。
+
+            補在這裡而不是 settlement，是因為只有平倉路徑知道「借券到哪一天為止」。
+            計費價沿用回補價，與 SBL「以計費當日價格計費」的口徑一致。
+        - Parameters:
+            - position: StockPosition
+                被回補的放空部位
+            - stock_order: StockOrder
+                回補訂單
+        """
+
+        if position.short_method != ShortMethod.SBL:
+            return
+
+        close_date: Optional[datetime.date] = TimeUtils.to_date(stock_order.date)
+        open_date: Optional[datetime.date] = TimeUtils.to_date(position.date)
+        if close_date is None or open_date is None:
+            return
+
+        last_accrual: datetime.date = position.last_accrual_date or open_date
+        elapsed_days: int = (close_date - last_accrual).days
+        if elapsed_days <= 0:
+            return
+
+        position.last_accrual_date = close_date
+        position.accrued_borrow_fee += self.cost_model.borrow_fee(
+            price=stock_order.price,
+            volume=position.volume,
+            holding_days=elapsed_days,
+            short_method=ShortMethod.SBL,
+        )
+
     def close_short_position(
         self,
         position: StockPosition,
@@ -362,6 +408,9 @@ class StockPositionManager(BasePositionManager):
             - record: StockTradeRecord
                 本次回補產生的交易紀錄
         """
+
+        # 先補計提「上次計提日 → 回補日」那段借券費，再依張數攤提
+        self.accrue_final_borrow_fee(position, stock_order)
 
         # 依張數比例攤提開倉時的各項成本與擔保品
         ratio: float = close_volume / position.volume

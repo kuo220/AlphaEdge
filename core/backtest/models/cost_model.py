@@ -9,6 +9,7 @@ from loguru import logger
 from core.models import BaseOrder, StockOrder
 from core.utils import (
     DAY_TRADE_TAX_EXPIRY,
+    DAY_TRADE_TAX_START,
     DAYS_PER_YEAR,
     Action,
     Commission,
@@ -317,15 +318,38 @@ class StockCostModel(BaseCostModel):
             int(price * shares * self.config.comm_rate * self.config.comm_discount),
         )
 
+    @staticmethod
+    def is_day_trade_tax_effective(date: Optional[datetime.date]) -> bool:
+        """
+        - Description:
+            該日是否適用現股當沖證交稅減半
+
+            **減半優惠自 2017-04-28 起實施**，在那之前一律課 0.3%。不看日期就
+            一律減半的話，2013-01 ~ 2017-04 的每一筆當沖賣出都少算一半的稅
+            ——約 4 年 4 個月，而且結果只會偏樂觀（健檢 F-060）。
+        - Parameters:
+            - date: Optional[datetime.date]
+                成交日；None 代表呼叫端沒有日期資訊，視為現行制度
+        - Return:
+            - bool
+                適用減半為 True
+        """
+
+        if date is None:
+            return True
+
+        return DAY_TRADE_TAX_START <= date <= DAY_TRADE_TAX_EXPIRY
+
     def tax(
         self,
         price: float,
         volume: int,
         action: Action,
         is_day_trade: Optional[bool] = None,
+        date: Optional[datetime.date] = None,
     ) -> int:
         """
-        - Description: 計算證交稅；買進恆為 0，賣出依是否當沖選用減半稅率
+        - Description: 計算證交稅；買進恆為 0，賣出依「是否當沖 ＋ 成交日」選稅率
         - Parameters:
             - price: float
                 成交價格
@@ -335,6 +359,9 @@ class StockCostModel(BaseCostModel):
                 訂單動作（買進不課稅）
             - is_day_trade: Optional[bool]
                 是否為現股當沖；None 時取用 config 的設定
+            - date: Optional[datetime.date]
+                成交日；決定當沖減半是否已實施（見 `is_day_trade_tax_effective()`）。
+                None 時視為現行制度，維持舊行為
         - Return:
             - tax: int
                 證交稅
@@ -346,8 +373,9 @@ class StockCostModel(BaseCostModel):
         day_trade: bool = (
             self.config.is_day_trade if is_day_trade is None else is_day_trade
         )
+        halved: bool = day_trade and self.is_day_trade_tax_effective(date)
         tax_rate: float = (
-            self.config.day_trade_tax_rate if day_trade else self.config.tax_rate
+            self.config.day_trade_tax_rate if halved else self.config.tax_rate
         )
         shares: int = StockUtils.convert_lot_to_share(volume)
         return max(1, int(price * shares * tax_rate))

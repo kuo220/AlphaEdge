@@ -489,7 +489,10 @@ def test_borrow_fee_not_double_counted(
     position: StockPosition = backtester.account.get_positions()[0]
     assert position.accrued_borrow_fee == 0  # MARGIN 不逐日計提
     assert position.borrow_fee == 80  # 開倉時一次收取
-    assert position.holding_days == 11
+    # **曆日而非 bar 數**：DAY_1 開倉、跑到 DAY_1 + 10 天，中間相隔 10 個曆日。
+    # 舊版每根 bar +1 會得到 11（含開倉那根），與 `TradeRecord.holding_days`
+    # 的曆日語意不一致（健檢 F-063）
+    assert position.holding_days == 10
 
 
 def test_sbl_borrow_fee_accrued_daily(
@@ -523,8 +526,54 @@ def test_sbl_borrow_fee_accrued_daily(
     )
 
     position: StockPosition = backtester.account.get_positions()[0]
-    # 每日 100000 × 3% / 365 = 8.21 → 捨去為 8，兩天共 16
-    assert position.accrued_borrow_fee == 16
+    # DAY_1 開倉、DAY_2 計提，中間是 **1 個曆日**：100000 × 3% / 365 = 8.21 → 8。
+    # 開倉當日不計費（借券當天到隔天才算一天利息），舊版連開倉那根 bar 也計一天
+    assert position.accrued_borrow_fee == 8
+
+
+def test_sbl_borrow_fee_covers_the_whole_weekend(
+    make_strategy, make_backtester, make_quote
+) -> None:
+    """
+    跨週末只有 1 根 bar，卻是 3 個曆日的借券費（健檢 F-059）
+
+    舊版每根 bar 計 1/365，一年只計到 252 個交易日，年化費率因此低估
+    約 31%（1 − 252/365）——而借券費是**按日曆計息**的，週末照收。
+    """
+
+    friday: datetime.date = datetime.date(2024, 1, 5)
+    monday: datetime.date = datetime.date(2024, 1, 8)
+    assert friday.weekday() == 4 and monday.weekday() == 0
+
+    strategy = short_strategy(
+        make_strategy,
+        short_method=ShortMethod.SBL,
+        open_script={
+            friday: [
+                StockOrder(
+                    stock_id="2330",
+                    date=friday,
+                    action=Action.SELL,
+                    position_type=PositionType.SHORT,
+                    price=100.0,
+                    volume=1,
+                )
+            ]
+        },
+    )
+    backtester: Backtester = make_backtester(strategy)
+
+    backtester.execute_bar(
+        friday, [make_quote(date=friday, cur_price=100.0, high=101.0, low=99.0)]
+    )
+    backtester.execute_bar(
+        monday, [make_quote(date=monday, cur_price=100.0, high=101.0, low=99.0)]
+    )
+
+    position: StockPosition = backtester.account.get_positions()[0]
+    # 100000 × 3% × 3 / 365 = 24.65 → 捨去為 24（一次計提 3 天，而非 1 天的 8）
+    assert position.accrued_borrow_fee == 24
+    assert position.holding_days == 3
 
 
 def test_max_holding_days_force_cover(
