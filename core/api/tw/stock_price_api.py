@@ -6,7 +6,12 @@ import pandas as pd
 
 from core.api.base import BaseDataAPI
 from core.api.tw.stock_dividend_api import StockDividendAPI
-from core.config import API_LOGS_DIR_PATH, PRICE_TABLE_NAME, TW_STOCK_DB_PATH
+from core.config import (
+    API_LOG_FILE_LEVEL,
+    API_LOGS_DIR_PATH,
+    PRICE_TABLE_NAME,
+    TW_STOCK_DB_PATH,
+)
 from core.pipeline.utils.constant import PriceColumn
 from core.utils.constant import Units
 from core.utils.log_manager import LogManager
@@ -36,7 +41,11 @@ class StockPriceAPI(BaseDataAPI):
 
         if self.owns_conn:
             self.conn = sqlite3.connect(TW_STOCK_DB_PATH)
-        LogManager.setup_logger("stock_price_api.log", log_dir=API_LOGS_DIR_PATH)
+        LogManager.setup_logger(
+            "stock_price_api.log",
+            log_dir=API_LOGS_DIR_PATH,
+            level=API_LOG_FILE_LEVEL,
+        )
 
     def get_dividend_api(self) -> StockDividendAPI:
         """取得除權息 API（延遲建立，與本 API 共用同一條連線）"""

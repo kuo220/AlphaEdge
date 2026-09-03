@@ -18,7 +18,7 @@
 | S3 | loader 失敗一律拋 `DataLoadError` | `stock_price_loader.py`、`loaders/finmind/*.py`、`stock_tick_loader.py`、`sqlite_utils.py`、`futures_{margin,continuous,chip}_updater.py` | `tests/test_loader_failure_reporting.py` 擴充至 16 條 | ✅ | F-043、F-044、F-045、F-046、F-053、F-056；2026-09-03 完成 |
 | S4 | updater 缺口偵測與回補、統計行 | `core/pipeline/shared/date_planner.py`（新）、`core/utils/time.py`、六支 updater、`tasks/update_db.py` | `tests/test_date_gap_backfill.py` 13 條：刪掉中間一天即重新進入候選；`--from` 覆寫 | ✅ | F-050、F-051、F-052、F-054、F-002；F-053 已於 S3 完成；**`--target price` 實跑實測待期貨回補結束** |
 | S5 | cleaner 邊界：無成交日的 OHLC、TPEX 欄位數檢查、dividend 去重順序 | `base_cleaner.py`、`stock_price_cleaner.py`、`stock_chip_cleaner.py`、`stock_dividend_loader.py`、`stock_quote_adapter.py`、`scripts/fix_price_no_trade_rows.py` | `tests/test_cleaner_boundaries.py` 12 條；修復腳本 dry-run ＝ 104,046 | ✅ | F-037、F-038、F-047；**修復腳本尚未實際套用**（見完成紀錄） |
-| S6 | 入口與日誌：`no_tick` 排除 `futures_tick`、`delete_price_data` 加 dry-run、loguru sink 隔離與 api 桶保留 | `tasks/update_db.py`、`tasks/delete_price_data.py`、`core/utils/log_manager.py`、`core/api/tw/*.py`、`tests/conftest.py` | `python -m tasks.update_db` 無金鑰結束碼 0；`delete_price_data --dry-run` 不寫入；pytest 不再寫 `logs/`；`logs/api/` 檔案 sink 預設 WARNING | ⬜ | F-078、F-079、F-001、F-097、F-015、F-017、F-044；**`log_manager.py` 部分等期貨回補結束** |
+| S6 | 入口與日誌：`no_tick` 排除 `futures_tick`、`delete_price_data` 加 dry-run、loguru sink 隔離與 api 桶保留 | `tasks/update_db.py`、`tasks/delete_price_data.py`、`core/api/tw/*.py`、`core/config/{schema,settings}.py`、`core/utils/notify.py`、`tests/conftest.py` | `tests/test_entrypoint_and_logging.py` 10 條；pytest 實測不再產生 `logs/` | 🔄 | F-078、F-079、F-097、F-015、F-017 ✅；F-044 已於 S3 完成；**F-001（`log_manager.py` 的 `filter=`）⏸ 等期貨回補結束** |
 
 ## 步驟詳述
 
@@ -164,10 +164,39 @@
 > **回歸不受影響**：`pytest -m slow` 10 條（含 LONG／SHORT 回歸）在 adapter
 > 改動後仍全綠——那些列本來就因成交量門檻不會被選進去，故不需重產 baseline。
 
-### S6. 入口與日誌 ⬜
+### S6. 入口與日誌 🔄
 
 - **目的**：預設 `no_tick` 含 `futures_tick`（F-078）讓每晚預設更新永遠紅；`delete_price_data` 無 dry-run（F-079）；loguru sink 未帶 `filter=`（F-001）且 `logs/api/` 每天長 100 MB（F-097）；`TICK_DB_PATH` 在 `.env` 缺 `DDB_PATH` 時變成 `NonetickDB`（F-015）；LINE Notify 已停服（F-017）；`stock_price_loader` 每批把整表主鍵讀進記憶體（F-044）。
 - **做法**：`no_tick` 排除 `{TICK, FUTURES_TICK}`；`delete_price_data` 加 `--dry-run`／`--yes`；`LogManager.setup_logger()` 帶 `filter=lambda r: r["extra"].get("module") == name`，api 桶檔案 sink 預設 `WARNING`；`tests/conftest.py` 以 `pytest_sessionstart` 把 `setup_logger`／`setup_backtest_logger` 換成 no-op（健檢期間已用 scratchpad 外掛驗證可行）；`clean_logs --apply --bucket api --days 7` 掛在 `update_db` 收尾；`TICK_DB_PATH` 缺值即 raise；`notify.py` 改 LINE Messaging API 或移除；主鍵去重改成 `INSERT OR IGNORE` 後比對 `rowcount`。
 - **產出**：`tasks/update_db.py`、`tasks/delete_price_data.py`、`core/utils/log_manager.py`、`core/utils/notify.py`、`core/config/schema.py`、`tests/conftest.py`。
 - **驗證方式**：見進度表。
 - **相依**：`log_manager.py` 部分等期貨回補結束；其餘無。
+
+> **🔄 進度紀錄（2026-09-03）**
+>
+> **已完成：**
+> - **F-078**：新增 `TICK_DATA_TYPES = {TICK, FUTURES_TICK}`，`no_tick` 一律排除。
+>   舊版只排除 `DataType.TICK`，於是預設的 `python -m tasks.update_db` 會去跑
+>   期貨 tick——沒有 Shioaji 金鑰的機器每晚都以結束碼 1 收場，久了就沒人在看那個紅燈。
+> - **F-079**：`delete_price_data` 改為**預設只預覽**，`--apply` 才寫入，
+>   且互動確認要求輸入完整日期；`--yes` 供排程跳過確認，非互動環境沒有 `--yes`
+>   一律拒絕執行。
+> - **F-097**：`API_LOG_FILE_LEVEL = "WARNING"` 收在 `core/config/settings.py`，
+>   12 支 `core/api/tw/*.py` 共用；console 不受影響。
+>   `update_db` 收尾新增 `cleanup_api_logs()`（`clean_logs --apply --bucket api --days 7`），
+>   清理失敗只記 warning、不影響更新結果。
+> - **F-015**：`TICK_DB_PATH` 缺 `DDB_PATH` 時為 `None` 而非 `"NonetickDB"`，
+>   新增 `require_tick_db_path()` 在三處（`stock_tick_loader.connect()`、
+>   `futures_tick_loader.connect()`、`stock_tick_api.setup()`）連線前拋出。
+>   **刻意不在 import 時 raise**：`core.config` 是全專案共用入口，沒有 DolphinDB
+>   的機器（CI、容器、只跑回測的開發機）連 import 都會失敗。
+> - **F-017**：`notify.py` 由已停服的 LINE Notify（2025-03-31）改為
+>   **LINE Messaging API** 的 push message；未設定 `LINE_CHANNEL_ACCESS_TOKEN`／
+>   `LINE_PUSH_TARGET_ID` 時只警告一次並跳過（盤中不該因通知沒設定而中斷下單），
+>   但送出失敗一定記 `logger.error`——舊版連回應狀態都不看。`.env.example` 已補上。
+> - `tests/conftest.py` 以 `pytest_sessionstart` 把 `setup_logger`／
+>   `setup_backtest_logger` 換成 no-op；實測 `rm -rf logs && pytest` 後不再產生 `logs/`。
+>
+> **⏸ 未完成：**
+> - **F-001**（`LogManager.setup_logger()` 帶 `filter=`）要改 `core/utils/log_manager.py`，
+>   依本文件前置條件須等期貨行情回補結束。2026-09-03 18:20 確認該程序仍在執行。

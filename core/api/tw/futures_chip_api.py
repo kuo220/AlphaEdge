@@ -6,6 +6,7 @@ import pandas as pd
 
 from core.api.base import BaseDataAPI
 from core.config import (
+    API_LOG_FILE_LEVEL,
     API_LOGS_DIR_PATH,
     FUTURES_INSTITUTIONAL_CHIP_TABLE_NAME,
     FUTURES_LARGE_TRADER_TABLE_NAME,
@@ -50,7 +51,11 @@ class FuturesChipAPI(BaseDataAPI):
 
         if self.owns_conn:
             self.conn = sqlite3.connect(TW_FUTURES_DB_PATH)
-        LogManager.setup_logger("futures_chip_api.log", log_dir=API_LOGS_DIR_PATH)
+        LogManager.setup_logger(
+            "futures_chip_api.log",
+            log_dir=API_LOGS_DIR_PATH,
+            level=API_LOG_FILE_LEVEL,
+        )
 
     # === 前視偏差對齊：回測一律走這一組 ===
     def get_available(

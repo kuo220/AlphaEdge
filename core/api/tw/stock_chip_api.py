@@ -5,7 +5,12 @@ from typing import Any, Dict, Optional
 import pandas as pd
 
 from core.api.base import BaseDataAPI
-from core.config import API_LOGS_DIR_PATH, CHIP_TABLE_NAME, TW_STOCK_DB_PATH
+from core.config import (
+    API_LOG_FILE_LEVEL,
+    API_LOGS_DIR_PATH,
+    CHIP_TABLE_NAME,
+    TW_STOCK_DB_PATH,
+)
 from core.pipeline.utils.constant import ChipColumn
 from core.utils.log_manager import LogManager
 
@@ -27,7 +32,11 @@ class StockChipAPI(BaseDataAPI):
 
         if self.owns_conn:
             self.conn = sqlite3.connect(TW_STOCK_DB_PATH)
-        LogManager.setup_logger("stock_chip_api.log", log_dir=API_LOGS_DIR_PATH)
+        LogManager.setup_logger(
+            "stock_chip_api.log",
+            log_dir=API_LOGS_DIR_PATH,
+            level=API_LOG_FILE_LEVEL,
+        )
 
     def get(self, date: datetime.date) -> pd.DataFrame:
         """取得所有股票指定日期的三大法人籌碼"""

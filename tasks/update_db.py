@@ -41,6 +41,10 @@ from core.pipeline.tw.updaters.stock_margin_updater import StockMarginUpdater
 from core.pipeline.tw.updaters.stock_price_updater import StockPriceUpdater
 from core.pipeline.tw.updaters.stock_tick_updater import StockTickUpdater
 from core.pipeline.utils import DataLoadError, DataType, FinMindDataType
+from tasks.clean_logs import clean_logs
+
+# api 桶日誌的保留天數（`update_db` 收尾會自動清理）
+API_LOG_RETENTION_DAYS: int = 7
 
 """
 資料更新任務主程式 (update_db)
@@ -95,8 +99,8 @@ Target 對照表
   stock_info_with_warrant     FinMind 台股總覽（含權證）
   broker_info                 FinMind 證券商資訊
   broker_trading              FinMind 券商分點統計
-  all                         全部資料（含 tick）
-  no_tick                     全部資料（不含 tick，預設）
+  all                         全部資料（含 tick 與 futures_tick）
+  no_tick                     全部資料（不含 tick 與 futures_tick，預設）
 
 ================================================================================
 各資料更新指令（單一 target）
@@ -159,7 +163,7 @@ Target 對照表
   # 全部資料（含 tick）
   python -m tasks.update_db --target all
 
-  # 全部資料（不含 tick，等同預設）
+  # 全部資料（不含 tick 與 futures_tick，等同預設）
   python -m tasks.update_db --target no_tick
   或
   python -m tasks.update_db
@@ -172,6 +176,10 @@ Target 對照表
   python -m tasks.update_db --target chip price tick
   python -m tasks.update_db --target stock_info broker_trading
 """
+
+
+# 需要 Shioaji 金鑰與 `[tick]` 選用相依的 target；`no_tick` 一律排除這些
+TICK_DATA_TYPES: Set[DataType] = {DataType.TICK, DataType.FUTURES_TICK}
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -333,6 +341,22 @@ def target_guard(name: str, failed_targets: List[str]):
         failed_targets.append(name)
 
 
+def cleanup_api_logs() -> None:
+    """
+    - Description:
+        收尾清掉過舊的 api 桶日誌
+
+        `logs/api/` 每天長約 100 MB（健檢 F-097）——每次查詢都寫一行，
+        而回測一跑就是數十萬次查詢。保留 7 天足夠追查昨晚的問題，
+        再久就只是佔硬碟。清理失敗不影響更新結果，故只記 warning。
+    """
+
+    try:
+        clean_logs(days=API_LOG_RETENTION_DAYS, buckets=["api"], apply=True)
+    except Exception as error:
+        logger.warning(f"清理 api 日誌失敗（不影響更新結果）：{error}")
+
+
 def main() -> None:
     args: argparse.Namespace = parse_arguments()
     targets: Set[str] = set(args.target)
@@ -346,9 +370,14 @@ def main() -> None:
     if "all" in targets:
         targets.update(dt.name.lower() for dt in DataType)
 
-    # no_tick = 所有資料類型 - tick（包含 finmind）
+    # no_tick = 所有資料類型 − **所有** tick（包含 finmind）
+    #
+    # **`futures_tick` 也要排除**（健檢 F-078）：舊版只排除 `DataType.TICK`，
+    # 於是預設的 `python -m tasks.update_db` 會去跑期貨 tick——那需要 Shioaji
+    # 金鑰與 `[tick]` 選用相依，沒有的機器每晚都以結束碼 1 收場，
+    # 久了就沒人在看那個紅燈了。
     if "no_tick" in targets:
-        targets.update(dt.name.lower() for dt in DataType if dt != DataType.TICK)
+        targets.update(dt.name.lower() for dt in DataType if dt not in TICK_DATA_TYPES)
 
     if DataType.TICK.name.lower() in targets:
         with target_guard("tick", failed_targets):
@@ -562,6 +591,8 @@ def main() -> None:
             f"（成功：{', '.join(sorted(targets - set(failed_targets))) or '無'}）"
         )
         sys.exit(1)
+
+    cleanup_api_logs()
 
     logger.info(f"✅ Database Update Completed. Updated: {', '.join(sorted(targets))}")
 

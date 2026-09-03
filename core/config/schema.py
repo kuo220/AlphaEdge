@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from typing import Optional
 
 from .paths import DATABASE_DIR_PATH, get_static_resolved_path
 
@@ -17,7 +18,36 @@ TICK_DB_NAME: str = "tickDB"
 TW_STOCK_DB_PATH: Path = get_static_resolved_path(
     base_dir=DATABASE_DIR_PATH, dir_name=TW_STOCK_DB_NAME
 )
-TICK_DB_PATH: str = f"{os.getenv('DDB_PATH')}{TICK_DB_NAME}"
+# **`DDB_PATH` 沒設定時不可拼成 `"NonetickDB"`**（健檢 F-015）：
+# 那是一個看起來像路徑的字串，DolphinDB 會拿它去建一個名字很怪的資料庫，
+# 或是查一個永遠不存在的路徑，錯誤訊息完全指不到真正的原因。
+#
+# 但也**不能在 import 時就 raise**——`core.config` 是全專案的共用入口，
+# 沒有 DolphinDB 的機器（CI、容器、只跑回測的開發機）連 import 都會失敗。
+# 故缺值時為 `None`，真正要用的地方呼叫 `require_tick_db_path()`。
+_DDB_PATH: Optional[str] = os.getenv("DDB_PATH")
+TICK_DB_PATH: Optional[str] = f"{_DDB_PATH}{TICK_DB_NAME}" if _DDB_PATH else None
+
+
+def require_tick_db_path() -> str:
+    """
+    - Description:
+        取得 tick DB 路徑；`DDB_PATH` 未設定時當場拋出
+    - Return:
+        - str
+            DolphinDB 的資料庫路徑
+    - Raise:
+        - RuntimeError
+            `.env` 缺少 `DDB_PATH`
+    """
+
+    if TICK_DB_PATH is None:
+        raise RuntimeError(
+            "環境變數 DDB_PATH 未設定，無法決定 tick DB 路徑；"
+            "請在 .env 補上（例如 DDB_PATH=dfs://）"
+        )
+    return TICK_DB_PATH
+
 
 # 期貨與股票分庫：合約碼（contract_id）與 stock_id 語意不同，混在同一個 DB
 # 會讓「這張表的主鍵到底是什麼」失去單一答案

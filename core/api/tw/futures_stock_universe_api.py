@@ -6,6 +6,7 @@ import pandas as pd
 
 from core.api.base import BaseDataAPI
 from core.config import (
+    API_LOG_FILE_LEVEL,
     API_LOGS_DIR_PATH,
     FUTURES_PRICE_DAILY_TABLE_NAME,
     FUTURES_STOCK_UNIVERSE_TABLE_NAME,
@@ -55,7 +56,9 @@ class FuturesStockUniverseAPI(BaseDataAPI):
         if self.owns_conn:
             self.conn = sqlite3.connect(TW_FUTURES_DB_PATH)
         LogManager.setup_logger(
-            "futures_stock_universe_api.log", log_dir=API_LOGS_DIR_PATH
+            "futures_stock_universe_api.log",
+            log_dir=API_LOGS_DIR_PATH,
+            level=API_LOG_FILE_LEVEL,
         )
 
     # === 快照查詢 ===

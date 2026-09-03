@@ -160,3 +160,13 @@ API_KEYS: List[Optional[str]] = [os.getenv(f"API_KEY_{i + 1}") for i in range(NU
 API_SECRET_KEYS: List[Optional[str]] = [
     os.getenv(f"API_SECRET_KEY_{i + 1}") for i in range(NUM_API)
 ]
+
+
+# -----------------------------------------------------------------------
+# === Logging ===
+# -----------------------------------------------------------------------
+#
+# api 桶的**檔案** sink 只留 WARNING 以上：`core/api/` 每次查詢都寫一行，
+# 回測一跑就是數十萬次查詢，`logs/api/` 每天長約 100 MB（健檢 F-097）。
+# console 不受影響，開發時照樣看得到 INFO
+API_LOG_FILE_LEVEL: str = "WARNING"

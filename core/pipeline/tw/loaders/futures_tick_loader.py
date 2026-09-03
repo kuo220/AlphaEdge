@@ -20,6 +20,7 @@ from core.config import (
     FUTURES_TICK_TABLE_NAME,
     TICK_DB_NAME,
     TICK_DB_PATH,
+    require_tick_db_path,
 )
 from core.pipeline.shared.base_loader import BaseDataLoader
 
@@ -84,6 +85,10 @@ class FuturesTickLoader(BaseDataLoader):
         沒有 DolphinDB 的環境（例如 CI 與只跑日線回測的機器）不該因為
         import 到本類就整個壞掉。實際寫入時才會再檢查一次。
         """
+
+        # `DDB_PATH` 沒設定時舊版會拼出 `"NonetickDB"` 這種看起來像路徑的字串，
+        # 錯誤訊息完全指不到真正的原因（健檢 F-015）；在連線之前就攔下來
+        require_tick_db_path()
 
         attempts: int = max_retries or self.CONNECT_MAX_RETRIES
         delay: float = retry_delay or self.CONNECT_RETRY_DELAY

@@ -1,8 +1,19 @@
-"""刪除 price 表中指定日期的資料"""
+"""刪除 price 表中指定日期的資料
+
+**這支腳本會不可逆地刪資料**，卻沒有任何預覽或確認（健檢 F-079）：
+打錯一個日期就少掉一整天、上千檔的收盤行情，而且要重跑 ETL 才補得回來。
+
+故改為預設**只預覽不刪除**：
+
+    python -m tasks.delete_price_data --date 2025-07-13              # 只報告
+    python -m tasks.delete_price_data --date 2025-07-13 --apply      # 互動確認後刪除
+    python -m tasks.delete_price_data --date 2025-07-13 --apply --yes  # 不確認（排程用）
+"""
 
 import argparse
 import datetime
 import sqlite3
+import sys
 from typing import List
 
 from loguru import logger
@@ -29,8 +40,38 @@ def parse_date(date_str: str) -> str:
     raise ValueError(f"無法解析日期格式: {date_str}")
 
 
-def delete_price_data_by_date(date_str: str) -> None:
-    """刪除 price 表中指定日期的所有資料"""
+def confirm(formatted_date: str, count: int) -> bool:
+    """互動確認；非互動環境（無 tty）一律視為未確認"""
+
+    if not sys.stdin.isatty():
+        logger.error("非互動環境無法確認，請改用 --yes")
+        return False
+
+    answer: str = input(
+        f"確定要刪除 {formatted_date} 的 {count} 筆 price 資料嗎？"
+        f"此操作不可逆。輸入日期以確認："
+    ).strip()
+    return answer == formatted_date
+
+
+def delete_price_data_by_date(
+    date_str: str,
+    apply: bool = False,
+    assume_yes: bool = False,
+) -> None:
+    """
+    - Description:
+        刪除 price 表中指定日期的所有資料
+
+        **預設只預覽不刪除**：`apply` 為 True 才會真的寫入。
+    - Parameters:
+        - date_str: str
+            要刪除的日期
+        - apply: bool
+            True 才實際刪除；False 只報告筆數
+        - assume_yes: bool
+            跳過互動確認（排程用）
+    """
 
     # 解析日期
     try:
@@ -38,8 +79,6 @@ def delete_price_data_by_date(date_str: str) -> None:
     except ValueError as e:
         logger.error(f"日期解析失敗: {e}")
         return
-
-    logger.info(f"準備刪除 price table 中日期為 {formatted_date} 的資料...")
 
     # 連接資料庫
     conn: sqlite3.Connection = sqlite3.connect(TW_STOCK_DB_PATH)
@@ -55,7 +94,15 @@ def delete_price_data_by_date(date_str: str) -> None:
             logger.warning(f"price table 中沒有日期為 {formatted_date} 的資料")
             return
 
-        logger.info(f"找到 {count} 筆資料需要刪除")
+        logger.info(f"{formatted_date} 在 price table 中有 {count} 筆資料")
+
+        if not apply:
+            logger.info("預覽模式：未刪除任何資料（加 --apply 才會實際執行）")
+            return
+
+        if not assume_yes and not confirm(formatted_date, count):
+            logger.info("未確認，已取消")
+            return
 
         # 刪除資料
         delete_query: str = f'DELETE FROM "{PRICE_TABLE_NAME}" WHERE date = ?'
@@ -91,8 +138,19 @@ def main() -> None:
         help="要刪除的日期 (格式: YYYY-MM-DD 或 YYYY/MM/DD，例如: 2025-07-13 或 2025/7/13)",
     )
 
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="實際刪除；未指定時只預覽筆數（預設）",
+    )
+    parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="跳過互動確認（排程用；需搭配 --apply）",
+    )
+
     args: argparse.Namespace = parser.parse_args()
-    delete_price_data_by_date(args.date)
+    delete_price_data_by_date(args.date, apply=args.apply, assume_yes=args.yes)
 
 
 if __name__ == "__main__":
