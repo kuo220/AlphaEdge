@@ -8,7 +8,11 @@ from core.pipeline.tw.updaters.finmind.common import (
     BrokerTradingMetadataStore,
     FinMindContext,
 )
-from core.pipeline.utils import FinMindQuotaExhaustedError, UpdateStatus
+from core.pipeline.utils import (
+    DataLoadError,
+    FinMindQuotaExhaustedError,
+    UpdateStatus,
+)
 from core.utils import TimeUtils
 from core.utils.instrument import StockUtils
 
@@ -328,6 +332,17 @@ class BrokerTradingUpdater:
             f"Already Up-to-date={stats[UpdateStatus.ALREADY_UP_TO_DATE.value]}, "
             f"Errors={stats[UpdateStatus.ERROR.value]}"
         )
+
+        # **有錯誤就必須讓行程非零結束**：舊版只把錯誤數印在統計行裡，
+        # `update_db` 照樣印 `✅ Database Update Completed`。單一組合失敗不中止
+        # 整批（其餘組合仍該更新），但跑完之後不能當作沒發生（健檢 F-045）。
+        error_count: int = stats[UpdateStatus.ERROR.value]
+        if error_count:
+            raise DataLoadError(
+                "broker_trading",
+                [f"{error_count} 個 (券商, 股票) 組合更新失敗，詳見上方 log"],
+                succeeded=stats[UpdateStatus.SUCCESS.value],
+            )
 
     def update_combination(
         self,

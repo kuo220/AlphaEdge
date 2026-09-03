@@ -1,7 +1,6 @@
-import shutil
 import sqlite3
 from pathlib import Path
-from typing import List, Optional, Set, Tuple
+from typing import List, Optional, Set
 
 import pandas as pd
 from loguru import logger
@@ -98,7 +97,27 @@ class StockPriceLoader(BaseDataLoader):
         remove_files: bool = False,
         only_dates: Optional[Set[str]] = None,
     ) -> None:
-        """Add Data into Database"""
+        """
+        - Description:
+            將 downloads 內的 CSV 入庫；**有任何檔案失敗就拋 `DataLoadError`**
+
+            舊版逐檔 `except Exception` 後只記 `logger.error` 並 `error_cnt += 1`，
+            跑完照樣印一行 summary 就結束，行程結束碼是 0（健檢 F-043）。
+            這與 2026-08-16 margin 事故是同一個形狀：缺的列要事後逐日比對才會發現。
+
+            **去重改走 `INSERT OR IGNORE`**：舊版每批都把整張 `price` 表的主鍵
+            （近 1,300 萬列）讀進記憶體建 set（F-044）。改用資料庫自己的主鍵約束，
+            記憶體不再隨資料量成長，且「重跑」與「真的出錯」仍分得開——
+            重複列靜靜跳過，欄位不符、檔案損毀才會拋出。
+        - Parameters:
+            - remove_files: bool
+                全部成功後是否刪除 downloads 目錄
+            - only_dates: Optional[Set[str]]
+                只處理這些日期（`YYYYMMDD`）的檔案；None 表示整個目錄
+        - Raise:
+            - DataLoadError
+                有任何檔案入庫失敗
+        """
 
         if self.conn is None:
             self.connect()
@@ -116,110 +135,68 @@ class StockPriceLoader(BaseDataLoader):
 
         logger.info(f"Found {total_files} CSV files to process")
 
-        # 查詢資料庫中已存在的資料（根據主鍵）
-        # 使用更有效率的查詢方式，只查詢需要的欄位
-        logger.info("Loading existing data from database...")
-        existing_query: str = f"""
-        SELECT date, stock_id, "證券名稱"
-        FROM {PRICE_TABLE_NAME}
-        """
-        existing_df: pd.DataFrame = pd.read_sql_query(existing_query, self.conn)
-
-        # 如果有已存在的資料，建立一個 set 來快速查找
-        existing_keys: Set[Tuple[str, str, str]] = set()
-        if not existing_df.empty:
-            existing_keys = set(
-                zip(
-                    existing_df["date"].astype(str),
-                    existing_df["stock_id"].astype(str),
-                    existing_df["證券名稱"].astype(str),
-                )
-            )
-            logger.info(f"Loaded {len(existing_keys)} existing records from database")
-        else:
-            logger.info("Database is empty, will insert all data")
-
-        file_cnt: int = 0
-        skipped_cnt: int = 0
-        error_cnt: int = 0
+        succeeded: int = 0
+        skipped_files: int = 0
+        failed_files: List[str] = []
+        partial_files: List[str] = []
 
         for idx, file_path in enumerate(csv_files, start=1):
             try:
-                # 顯示進度
                 logger.info(f"Processing [{idx}/{total_files}] {file_path.name}...")
 
                 df: pd.DataFrame = pd.read_csv(file_path)
 
                 if df.empty:
                     logger.warning(f"Skipped {file_path.name} (file is empty)")
-                    skipped_cnt += 1
+                    skipped_files += 1
                     continue
 
-                # 記錄原始資料筆數
+                # 同一檔內的重複列先去掉：`INSERT OR IGNORE` 擋得掉，
+                # 但先去掉才數得準「這檔到底寫進去幾列」
                 original_count: int = len(df)
-
-                # 建立當前資料的 key tuple（用於過濾和去重）
-                df["_key"] = list(
-                    zip(
-                        df["date"].astype(str),
-                        df["stock_id"].astype(str),
-                        df["證券名稱"].astype(str),
-                    )
+                df = df.drop_duplicates(
+                    subset=["date", "stock_id", "證券名稱"], keep="first"
                 )
-
-                # 先處理同一個檔案內的重複資料（保留第一筆）
-                if df["_key"].duplicated().any():
-                    df = df.drop_duplicates(subset=["_key"], keep="first")
+                if len(df) < original_count:
                     logger.debug(
-                        f"Removed {original_count - len(df)} duplicate rows within {file_path.name}"
+                        f"Removed {original_count - len(df)} duplicate rows "
+                        f"within {file_path.name}"
                     )
 
-                # 過濾掉資料庫中已存在的資料
-                if not existing_keys:
-                    # 如果資料庫是空的，直接插入所有資料
-                    new_df: pd.DataFrame = df.drop(columns=["_key"])
-                    new_keys: Set[Tuple[str, str, str]] = set(df["_key"])
-                else:
-                    # 過濾出新資料（不在 existing_keys 中的）
-                    mask: pd.Series = ~df["_key"].isin(existing_keys)
-                    new_df: pd.DataFrame = df[mask].drop(columns=["_key"])
-
-                    if new_df.empty:
-                        logger.info(
-                            f"Skipped {file_path.name} (all data already exists)"
-                        )
-                        skipped_cnt += 1
-                        continue
-
-                    # 取得要插入的新資料的 key（用於後續更新 existing_keys）
-                    new_keys: Set[Tuple[str, str, str]] = set(df.loc[mask, "_key"])
-
-                # 插入新資料（只有在插入成功後才更新 existing_keys）
-                new_df.to_sql(
-                    PRICE_TABLE_NAME, self.conn, if_exists="append", index=False
+                inserted: int
+                ignored: int
+                inserted, ignored = self.insert_dataframe(
+                    self.conn, PRICE_TABLE_NAME, df
                 )
-
-                # 插入成功後，更新 existing_keys 避免後續檔案的重複資料
-                existing_keys.update(new_keys)
-                skipped_rows: int = original_count - len(new_df)
-                if skipped_rows > 0:
-                    logger.info(
-                        f"Saved {file_path.name} into database ({len(new_df)} new rows, {skipped_rows} skipped)"
-                    )
-                else:
-                    logger.info(
-                        f"Saved {file_path.name} into database ({len(new_df)} rows)"
-                    )
-                file_cnt += 1
             except Exception as e:
-                logger.error(f"Error saving {file_path.name}: {e}", exc_info=True)
-                error_cnt += 1
+                logger.error(f"Error saving {file_path.name}: {e}")
+                failed_files.append(file_path.name)
+                continue
+
+            if inserted == 0:
+                logger.info(f"Skipped {file_path.name} (all data already exists)")
+                skipped_files += 1
+                continue
+
+            if ignored:
+                logger.info(
+                    f"Saved {file_path.name} into database "
+                    f"({inserted} new rows, {ignored} skipped)"
+                )
+                partial_files.append(file_path.name)
+            else:
+                logger.info(f"Saved {file_path.name} into database ({inserted} rows)")
+            succeeded += 1
 
         self.conn.commit()
         self.disconnect()
 
-        if remove_files:
-            shutil.rmtree(self.price_dir)
-        logger.info(
-            f"Total files processed: {file_cnt} new, {skipped_cnt} skipped, {error_cnt} errors"
+        self.finish_load(
+            source="price",
+            succeeded=succeeded,
+            failed_files=failed_files,
+            remove_files=remove_files,
+            downloads_path=self.price_dir,
+            skipped_files=skipped_files,
+            partial_files=partial_files,
         )

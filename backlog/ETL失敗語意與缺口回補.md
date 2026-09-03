@@ -15,7 +15,7 @@
 |------|----------|----------|----------|:----:|--------------|
 | S1 | `RequestUtils` 回傳語意收斂（HTTP 狀態、None vs 空表） | `core/pipeline/shared/request_utils.py`、`core/pipeline/utils/exceptions.py`、`core/pipeline/tw/crawlers/stock_info_crawler.py` | 新增測試：4xx／5xx／逾時／被擋四種結果各自可辨識 | ✅ | F-030 ①②、F-031、F-032；2026-09-03 完成，`tests/test_request_utils.py` 12 條全綠 |
 | S2 | 台股 5 支 crawler 的「休市 vs 失敗」分流 | `core/pipeline/shared/base_crawler.py`、`base_updater.py`、五支 crawler、四支 updater | `tests/test_crawl_result_semantics.py` 16 條：連線失敗回 `FAILED`、`unreachable` +1 而非 `no_data` | ✅ | F-030 ③④；2026-09-03 完成 |
-| S3 | loader 失敗一律拋 `DataLoadError` | `core/pipeline/tw/loaders/stock_price_loader.py`、`loaders/finmind/*.py`、`futures_{margin,continuous,chip}_loader.py`、`stock_tick_loader.py`、`core/pipeline/utils/sqlite_utils.py` | `tests/test_loader_failure_reporting.py` 擴充：每個 loader 注入一個壞檔即 `DataLoadError`，結束碼 1 | ⬜ | F-043、F-045、F-046、F-056、`etl-ingestion.md` §二 三列期貨 loader 為 `logger.error` |
+| S3 | loader 失敗一律拋 `DataLoadError` | `stock_price_loader.py`、`loaders/finmind/*.py`、`stock_tick_loader.py`、`sqlite_utils.py`、`futures_{margin,continuous,chip}_updater.py` | `tests/test_loader_failure_reporting.py` 擴充至 16 條 | ✅ | F-043、F-044、F-045、F-046、F-053、F-056；2026-09-03 完成 |
 | S4 | updater 缺口偵測與回補、統計行 | `core/pipeline/tw/updaters/stock_*_updater.py`、`futures_chip_updater.py`、`financial_statement_updater.py`、`monthly_revenue_report_updater.py`、`finmind/broker_trading_updater.py` | 刪掉 `price` 表中間一天後 `--target price` 會補回；每批結束印 `N requested / N no data / N unreachable` | ⬜ | F-050、F-052、F-053、F-054、F-051、F-002（B008） |
 | S5 | cleaner 邊界：無成交日的 OHLC、TPEX 欄位數檢查、dividend 去重順序 | `stock_price_cleaner.py`、`stock_chip_cleaner.py`、`stock_dividend_loader.py` | 新增測試：`--` 不再變成 0；欄位數不符即拋錯；三來源去重以來源優先序而非檔名字典序 | ⬜ | F-037、F-038、F-047 |
 | S6 | 入口與日誌：`no_tick` 排除 `futures_tick`、`delete_price_data` 加 dry-run、loguru sink 隔離與 api 桶保留 | `tasks/update_db.py`、`tasks/delete_price_data.py`、`core/utils/log_manager.py`、`core/api/tw/*.py`、`tests/conftest.py` | `python -m tasks.update_db` 無金鑰結束碼 0；`delete_price_data --dry-run` 不寫入；pytest 不再寫 `logs/`；`logs/api/` 檔案 sink 預設 WARNING | ⬜ | F-078、F-079、F-001、F-097、F-015、F-017、F-044；**`log_manager.py` 部分等期貨回補結束** |
@@ -66,13 +66,33 @@
 > - TPEX 除權息的「區間不符」由 `None` 改判 `FAILED`：那是**取錯資料**（拿到近三日
 >   而非整年），不是沒有資料，記成 `NO_DATA` 會讓這一年再也不補。
 
-### S3. loader 失敗一律拋 `DataLoadError` ⬜
+### S3. loader 失敗一律拋 `DataLoadError` ✅
 
 - **目的**：`etl-ingestion.md` §3.2「失敗必須浮出來」在 `stock_price_loader`、FinMind 三路徑、三支期貨 loader、tick loader 都沒落實（F-043、F-045、F-046、F-056）。
 - **做法**：全部改走 `BaseDataLoader.insert_dataframe()` ＋ `finish_load()`；`sqlite_utils.get_table_*_value()` 不再吞 `sqlite3.Error`。
 - **產出**：上表所列 loader、`sqlite_utils.py`。
 - **驗證方式**：`tests/test_loader_failure_reporting.py` 對每個 loader 各一條「壞檔 → `DataLoadError`」；`update_db` 結束碼 1。
 - **相依**：無（可與 S1／S2 平行）。
+
+> **✅ 完成紀錄（2026-09-03）**
+> - `stock_price_loader.add_to_db()` 改走 `insert_dataframe()` ＋ `finish_load()`。
+>   **順帶解掉 F-044**：舊版每批都把整張 `price` 表的主鍵（近千萬列）讀進記憶體建 set，
+>   改用資料庫自己的主鍵約束後記憶體不再隨資料量成長。
+> - `finmind/reference_table_loader.py` 的 `except Exception` 改為 `raise DataLoadError`。
+> - `finmind/broker_trading_loader.py`：DataFrame 路徑**移除「失敗後盲插」的 fallback**
+>   （舊版失敗回 0，呼叫端把 0 當成「本批皆為重複」而回報 SUCCESS）；
+>   CSV 路徑的失敗檔不再併入 `skipped_files`，改由 `finish_load()` 拋出。
+> - `finmind/broker_trading_updater.py`：跑完若 `stats[ERROR] > 0` 即拋 `DataLoadError`。
+>   單一組合失敗仍不中止整批，但不能當作沒發生。
+> - `stock_tick_loader.py`：DolphinDB 寫入失敗**原本記在 `info` 等級**（與正常訊息無異），
+>   改為 `logger.error` ＋ `DataLoadError`；建庫失敗同樣拋出。
+> - `sqlite_utils.py`：三個查詢函式不再 `except sqlite3.Error` 後回 `None`／預設值。
+>   「表不存在」與「表是空的」先明確判斷後回 `None`，其餘往外拋——
+>   吞掉會讓 updater 以為表是空的而從預設起日重跑整段回補。
+> - 期貨三支 updater 的「warning 後跳過」改為拋 `DataLoadError`：
+>   保證金一覽表取得／清洗失敗、連續合約**有行情卻排不出換月表**
+>   （新增 `UnbuildableSeriesError`，與「該商品尚未回補」區分開）、
+>   籌碼的 `blocked_windows`（該有資料卻沒拿到，多半是被擋流量，F-053）。
 
 ### S4. updater 缺口偵測與回補、統計行 ⬜
 

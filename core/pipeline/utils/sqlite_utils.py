@@ -4,7 +4,16 @@ from typing import Any, Optional, Tuple
 
 from loguru import logger
 
-"""Utility class for common SQLite operations: table check, date retrieval, query execution"""
+"""
+SQLite 共用操作：表存在檢查、最早／最新值查詢、刪表
+
+**這裡不吞 `sqlite3.Error`**：舊版三個查詢函式一律 `except sqlite3.Error` 後
+回 `None`／預設值，於是「資料表還沒建立」（正常）與「欄位打錯、DB 損毀、被鎖住」
+（不正常）長得一模一樣。updater 拿到 `None` 就從預設起日重跑，
+把一個查詢錯誤變成一次靜默的全量回補。
+
+唯一該回 `None` 的是「表不存在」與「表是空的」，兩者都先明確判斷，其餘往外拋。
+"""
 
 
 class SQLiteUtils:
@@ -24,26 +33,27 @@ class SQLiteUtils:
     ) -> Optional[datetime.date]:
         """Retrieve the earliest value in the table for the column; None if not found"""
 
+        if not SQLiteUtils.check_table_exist(conn=conn, table_name=table_name):
+            logger.debug(
+                f"Table '{table_name}' does not exist yet. "
+                f"This is normal for first-time updates."
+            )
+            return None
+
         query: str = (
             f"SELECT {col_name} FROM {table_name} ORDER BY {col_name} ASC LIMIT 1"
         )
+        cursor: sqlite3.Cursor = conn.execute(query)
+        result: Optional[Tuple[Any, ...]] = cursor.fetchone()
 
-        try:
-            cursor: sqlite3.Cursor = conn.execute(query)
-            result: Optional[tuple[Any, ...]] = cursor.fetchone()
-
-            if result is None or result[0] is None:
-                logger.debug(
-                    f"No value found for column '{col_name}' in table: '{table_name}'. "
-                    f"Table is empty or column has no data. This is normal for first-time updates."
-                )
-                return None
-
-            return result[0]
-
-        except sqlite3.Error as e:
-            logger.error(f"SQLite error while querying {table_name}.{col_name}: {e}")
+        if result is None or result[0] is None:
+            logger.debug(
+                f"No value found for column '{col_name}' in table: '{table_name}'. "
+                f"Table is empty or column has no data. This is normal for first-time updates."
+            )
             return None
+
+        return result[0]
 
     @staticmethod
     def get_table_latest_value(
@@ -63,28 +73,35 @@ class SQLiteUtils:
                 Name of the value column to search.
 
         - Return: Optional[Any]
-            - The latest value in the column, or None if not found.
+            - The latest value in the column, or None if the table does not exist
+              or has no data.
+
+        - Raise:
+            - sqlite3.Error
+                表存在但查詢失敗（欄位不存在、DB 損毀、被鎖住）。
+                **不可吞掉**：吞掉會讓 updater 從預設起日重跑整段回補。
         """
+
+        if not SQLiteUtils.check_table_exist(conn=conn, table_name=table_name):
+            logger.debug(
+                f"Table '{table_name}' does not exist yet. "
+                f"This is normal for first-time updates."
+            )
+            return None
 
         query: str = (
             f"SELECT {col_name} FROM {table_name} ORDER BY {col_name} DESC LIMIT 1"
         )
+        cursor: sqlite3.Cursor = conn.execute(query)
+        result: Optional[Tuple[Any, ...]] = cursor.fetchone()
 
-        try:
-            cursor: sqlite3.Cursor = conn.execute(query)
-            result: Optional[Tuple[Any, ...]] = cursor.fetchone()
-
-            if result is None or result[0] is None:
-                logger.debug(
-                    f"No value found for column '{col_name}' in table: '{table_name}'. "
-                    f"Table is empty or column has no data. This is normal for first-time updates."
-                )
-                return None
-            return result[0]
-
-        except sqlite3.Error as e:
-            logger.error(f"SQLite error while querying {table_name}.{col_name}: {e}")
+        if result is None or result[0] is None:
+            logger.debug(
+                f"No value found for column '{col_name}' in table: '{table_name}'. "
+                f"Table is empty or column has no data. This is normal for first-time updates."
+            )
             return None
+        return result[0]
 
     @staticmethod
     def get_max_secondary_value_by_primary(
@@ -127,17 +144,13 @@ class SQLiteUtils:
             LIMIT 1
         """
 
-        try:
-            cursor: sqlite3.Cursor = conn.execute(query, (latest_primary,))
-            result: Optional[Tuple[Any, ...]] = cursor.fetchone()
-            latest_secondary: Optional[Any] = (
-                result[0] if result and result[0] is not None else None
-            )
-        except Exception as e:
-            logger.error(
-                f"Failed to query {secondary_col} for {primary_col}={latest_primary} in table '{table_name}': {e}"
-            )
-            return default_primary_value, default_secondary_value
+        # 這裡同樣不吞例外：`latest_primary` 查得到就代表表存在且有資料，
+        # 此時再查 secondary 還會失敗，就是真的有問題（欄位名打錯等），必須浮出來
+        cursor: sqlite3.Cursor = conn.execute(query, (latest_primary,))
+        result: Optional[Tuple[Any, ...]] = cursor.fetchone()
+        latest_secondary: Optional[Any] = (
+            result[0] if result and result[0] is not None else None
+        )
 
         if latest_secondary is None:
             return default_primary_value, default_secondary_value

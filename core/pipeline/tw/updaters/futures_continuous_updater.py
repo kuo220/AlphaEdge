@@ -11,6 +11,7 @@ from core.config import DEFAULT_FUTURES_START_DATE, FUTURES_TARGET_PRODUCTS
 from core.pipeline.shared.base_updater import BaseDataUpdater
 from core.pipeline.tw.loaders.futures_continuous_loader import FuturesContinuousLoader
 from core.pipeline.utils.constant import FuturesPriceColumn
+from core.pipeline.utils.exceptions import DataLoadError, UnbuildableSeriesError
 from core.utils import FuturesAdjustMethod, FuturesRollRule, FuturesSession
 from core.utils.log_manager import LogManager
 
@@ -113,17 +114,33 @@ class FuturesContinuousUpdater(BaseDataUpdater):
 
         logger.info(f"* Start building futures continuous series: {targets}")
 
+        failures: List[str] = []
+
         for product in targets:
             for roll_rule in roll_rules or self.DEFAULT_ROLL_RULES:
-                self.update_product(
-                    product=product,
-                    start_date=start,
-                    end_date=end,
-                    session=session,
-                    methods=methods or self.DEFAULT_METHODS,
-                    roll_rule=roll_rule,
-                    days_before_expiry=days_before_expiry,
-                )
+                try:
+                    self.update_product(
+                        product=product,
+                        start_date=start,
+                        end_date=end,
+                        session=session,
+                        methods=methods or self.DEFAULT_METHODS,
+                        roll_rule=roll_rule,
+                        days_before_expiry=days_before_expiry,
+                    )
+                except UnbuildableSeriesError as error:
+                    # 單一商品排不出換月表不該中止其餘商品，但跑完必須拋出——
+                    # 只記 warning 的話，連續合約整段沒重建也是結束碼 0
+                    logger.error(f"[Futures Continuous] {error}")
+                    failures.append(f"{product}/{roll_rule.value}")
+
+        if failures:
+            raise DataLoadError(
+                "futures_continuous",
+                failures,
+                succeeded=len(targets) * len(roll_rules or self.DEFAULT_ROLL_RULES)
+                - len(failures),
+            )
 
     def update_product(
         self,
@@ -141,6 +158,8 @@ class FuturesContinuousUpdater(BaseDataUpdater):
             start_date, end_date, product=product, session=session
         )
         if price_df.empty:
+            # **這是正常狀態**：該商品可能還沒回補、或在區間內尚未上市，
+            # 與「有行情卻排不出換月表」是兩回事，故不列為失敗
             logger.warning(f"[Futures Continuous] {product} 在區間內沒有行情，跳過")
             return 0
 
@@ -157,8 +176,10 @@ class FuturesContinuousUpdater(BaseDataUpdater):
             open_interest_by_date=self.build_open_interest_by_date(price_df),
         )
         if not schedule:
-            logger.warning(f"[Futures Continuous] {product} 排不出換月表，跳過")
-            return 0
+            # 有行情卻排不出換月表＝到期月代碼異常或日曆有問題，是真的出錯
+            raise UnbuildableSeriesError(
+                f"{product} / {roll_rule.value} 有 {len(price_df)} 列行情卻排不出換月表"
+            )
 
         series: pd.DataFrame = self.build_series(price_df, schedule)
 

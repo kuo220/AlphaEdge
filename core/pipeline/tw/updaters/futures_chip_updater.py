@@ -16,6 +16,7 @@ from core.pipeline.shared.base_updater import BaseDataUpdater
 from core.pipeline.tw.cleaners.futures_chip_cleaner import FuturesChipCleaner
 from core.pipeline.tw.crawlers.futures_chip_crawler import FuturesChipCrawler
 from core.pipeline.tw.loaders.futures_chip_loader import FuturesChipLoader
+from core.pipeline.utils.exceptions import DataLoadError
 from core.utils.log_manager import LogManager
 
 """
@@ -138,13 +139,26 @@ class FuturesChipUpdater(BaseDataUpdater):
         """
 
         end: datetime.date = end_date or datetime.date.today()
+        blocked: List[str] = []
 
         for table, label, crawl, clean in self.get_datasets():
             start: datetime.date = self.resolve_start_date(
                 table, start_date, resume=resume
             )
             start = self.clamp_start_date(table, label, start)
-            self.update_dataset(table, label, crawl, clean, start, end)
+            _, blocked_windows = self.update_dataset(
+                table, label, crawl, clean, start, end
+            )
+            blocked.extend(
+                f"{table} {window_start}~{window_end}"
+                for window_start, window_end in blocked_windows
+            )
+
+        # **「該有資料卻沒拿到」必須讓行程非零結束**：TAIFEX 擋流量時回的是
+        # HTTP 200 ＋ 一整頁 HTML，與非交易日的回應一模一樣。舊版只記 warning，
+        # 於是被擋的月份會被當成「那幾個月沒有籌碼」而永遠不再補（健檢 F-053）。
+        if blocked:
+            raise DataLoadError("futures_chip", blocked)
 
     def resolve_start_date(
         self,
@@ -196,12 +210,25 @@ class FuturesChipUpdater(BaseDataUpdater):
         clean: Callable,
         start_date: datetime.date,
         end_date: datetime.date,
-    ) -> int:
-        """逐月爬取、清洗並入庫單一資料集；回傳新增列數"""
+    ) -> Tuple[int, List[Tuple[datetime.date, datetime.date]]]:
+        """
+        - Description:
+            逐月爬取、清洗並入庫單一資料集
+        - Parameters:
+            - table / label: str
+                目標資料表與 log 用名稱
+            - crawl / clean: Callable
+                該資料集的爬取與清洗函式
+            - start_date / end_date: datetime.date
+                回補區間
+        - Return:
+            - Tuple[int, List[Tuple[datetime.date, datetime.date]]]
+                （新增列數, 該有資料卻沒拿到的月份區間）
+        """
 
         if start_date > end_date:
             logger.info(f"[Futures Chip] {table} 已是最新（{start_date} > {end_date}）")
-            return 0
+            return 0, []
 
         logger.info(f"* Updating {table}: {start_date} ~ {end_date}（月批次）")
 
@@ -228,13 +255,13 @@ class FuturesChipUpdater(BaseDataUpdater):
             self.throttle()
 
         if blocked_windows:
-            logger.warning(
+            logger.error(
                 f"[Futures Chip] {table} 有 {len(blocked_windows)} 個月份「該有資料卻沒拿到」，"
                 f"多半是被擋流量，請稍後重跑：{blocked_windows[:5]}"
             )
 
         logger.info(f"[Futures Chip] {table}：本次新增 {inserted} 列")
-        return inserted
+        return inserted, blocked_windows
 
     def crawl_window(
         self,

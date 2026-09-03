@@ -7,6 +7,7 @@ import pandas as pd
 from loguru import logger
 
 from core.pipeline.utils import FinMindDataType
+from core.pipeline.utils.exceptions import DataLoadError
 
 """
 FinMind「參考資料表」的共用入庫流程
@@ -59,6 +60,13 @@ def load_reference_table(
             該張表的入庫規格
     - Return:
         - None
+    - Raise:
+        - DataLoadError
+            入庫失敗（欄位不符、檔案損毀、DB 錯誤）
+
+            舊版整段包在 `try/except Exception` 裡、只記一行 `logger.error` 就回，
+            於是三張 FinMind 參考表的入庫失敗會被算成「跳過」，
+            `update_db` 照樣以結束碼 0 回報成功（健檢 F-045）。
     """
 
     data_type_dir: Path = finmind_dir / spec.data_type.value.lower()
@@ -129,3 +137,4 @@ def load_reference_table(
 
     except Exception as e:
         logger.error(f"Error loading {csv_path.name}: {e}", exc_info=True)
+        raise DataLoadError(spec.label, [csv_path.name], succeeded=0) from e

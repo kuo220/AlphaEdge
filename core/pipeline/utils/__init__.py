@@ -15,5 +15,6 @@ from .exceptions import (
     FinMindQuotaExhaustedError,
     IPBlockedError,
     PipelineError,
+    UnbuildableSeriesError,
 )
 from .url_manager import URLManager

@@ -259,3 +259,216 @@ class _FakeArgs:
 
     def __init__(self, target: List[str]):
         self.target: List[str] = target
+
+
+# === S3：每個 loader 的「壞檔 → DataLoadError」 ===
+def make_price_loader(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """建立指向暫存 DB 與暫存 downloads 目錄的 price loader"""
+
+    import core.pipeline.tw.loaders.stock_price_loader as loader_module
+
+    downloads: Path = tmp_path / "price"
+    downloads.mkdir(exist_ok=True)
+    monkeypatch.setattr(loader_module, "TW_STOCK_DB_PATH", str(tmp_path / "test.db"))
+    monkeypatch.setattr(loader_module, "PRICE_DOWNLOADS_PATH", downloads)
+
+    loader = loader_module.StockPriceLoader()
+    loader.price_dir = downloads
+    return loader, downloads
+
+
+PRICE_COLUMNS: List[str] = [
+    "date",
+    "stock_id",
+    "證券名稱",
+    "開盤價",
+    "最高價",
+    "最低價",
+    "收盤價",
+    "漲跌價差",
+    "成交股數",
+    "成交金額",
+    "成交筆數",
+    "最後揭示買價",
+    "最後揭示買量",
+    "最後揭示賣價",
+    "最後揭示賣量",
+    "本益比",
+]
+
+
+def make_price_rows(date: str, stock_ids: List[str]) -> pd.DataFrame:
+    """建立多列最小可用的 price 資料"""
+
+    return pd.DataFrame(
+        [[date, sid, "台積電"] + [1.0] * 13 for sid in stock_ids],
+        columns=PRICE_COLUMNS,
+    )
+
+
+def test_price_loader_raises_on_broken_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    price loader 的壞檔必須拋出（健檢 F-043）
+
+    舊版逐檔 `except Exception` 後只記 `logger.error`、`error_cnt += 1`，
+    跑完照樣印 summary 就結束，行程結束碼是 0。
+    """
+
+    loader, downloads = make_price_loader(tmp_path, monkeypatch)
+    pd.DataFrame([{"unexpected_column": 1}]).to_csv(
+        downloads / "twse_20240104.csv", index=False
+    )
+
+    with pytest.raises(DataLoadError) as exc_info:
+        loader.add_to_db()
+
+    assert exc_info.value.failed_files == ["twse_20240104.csv"]
+
+
+def test_price_loader_reload_is_not_a_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """重跑同一批檔案不得拋出，否則每天的更新都會非零結束"""
+
+    loader, downloads = make_price_loader(tmp_path, monkeypatch)
+    make_price_rows("2024-01-02", ["2330"]).to_csv(
+        downloads / "twse_20240102.csv", index=False
+    )
+    loader.add_to_db()
+
+    loader2, _ = make_price_loader(tmp_path, monkeypatch)
+    loader2.add_to_db()  # 不得拋出
+
+    conn = sqlite3.connect(tmp_path / "test.db")
+    assert conn.execute("select count(*) from price").fetchone()[0] == 1
+    conn.close()
+
+
+def test_price_loader_does_not_read_whole_table_into_memory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    去重改走 `INSERT OR IGNORE`，不再把整張 price 表的主鍵讀進記憶體（F-044）
+
+    以「讀不到既有資料也能正確去重」反向釘住：若還在用記憶體 set，
+    這裡把 `read_sql_query` 換掉就會壞。
+    """
+
+    import core.pipeline.tw.loaders.stock_price_loader as loader_module
+
+    loader, downloads = make_price_loader(tmp_path, monkeypatch)
+    make_price_rows("2024-01-02", ["2330", "2317"]).to_csv(
+        downloads / "twse_20240102.csv", index=False
+    )
+    loader.add_to_db()
+
+    def explode(*args, **kwargs):
+        raise AssertionError("不應再整表讀取主鍵")
+
+    monkeypatch.setattr(loader_module.pd, "read_sql_query", explode)
+
+    loader2, _ = make_price_loader(tmp_path, monkeypatch)
+    make_price_rows("2024-01-03", ["2330"]).to_csv(
+        downloads / "twse_20240103.csv", index=False
+    )
+    loader2.add_to_db()
+
+    conn = sqlite3.connect(tmp_path / "test.db")
+    assert conn.execute("select count(*) from price").fetchone()[0] == 3
+    conn.close()
+
+
+def test_finmind_reference_table_loader_raises_on_broken_file(
+    tmp_path: Path,
+) -> None:
+    """FinMind 參考表入庫失敗必須拋出，不可被算成「跳過」（F-045）"""
+
+    from core.pipeline.tw.loaders.finmind.reference_table_loader import (
+        load_reference_table,
+    )
+    from core.pipeline.tw.loaders.finmind.stock_info_loader import STOCK_INFO_SPEC
+
+    finmind_dir: Path = tmp_path / "finmind"
+    data_dir: Path = finmind_dir / STOCK_INFO_SPEC.data_type.value.lower()
+    data_dir.mkdir(parents=True)
+    pd.DataFrame([{"unexpected_column": 1}]).to_csv(
+        data_dir / STOCK_INFO_SPEC.csv_name, index=False
+    )
+
+    conn = sqlite3.connect(tmp_path / "test.db")
+
+    with pytest.raises(DataLoadError):
+        load_reference_table(conn, finmind_dir, STOCK_INFO_SPEC)
+
+    conn.close()
+
+
+def test_finmind_broker_trading_dataframe_path_raises(tmp_path: Path) -> None:
+    """
+    券商分點的 DataFrame 路徑失敗不可再回 0
+
+    舊版失敗後回 0，呼叫端把 0 當成「本批皆為重複」而回報 SUCCESS，
+    於是入庫失敗被算成成功。
+    """
+
+    from core.pipeline.tw.loaders.finmind import broker_trading_loader
+
+    conn = sqlite3.connect(tmp_path / "test.db")  # 沒有建表，寫入必失敗
+    df: pd.DataFrame = pd.DataFrame(
+        [
+            {
+                "securities_trader": "元大",
+                "securities_trader_id": "9800",
+                "stock_id": "2330",
+                "date": "2024-01-02",
+                "buy_volume": 1,
+                "sell_volume": 1,
+                "buy_price": 1.0,
+                "sell_price": 1.0,
+            }
+        ]
+    )
+
+    with pytest.raises(DataLoadError):
+        broker_trading_loader.load_from_dataframe(conn, df)
+
+    conn.close()
+
+
+def test_sqlite_utils_does_not_swallow_query_errors(tmp_path: Path) -> None:
+    """
+    表存在但欄位打錯要拋出，不可回 None（F-046）
+
+    回 None 會讓 updater 以為「表是空的」而從預設起日重跑整段回補。
+    """
+
+    from core.pipeline.utils.sqlite_utils import SQLiteUtils
+
+    conn = sqlite3.connect(tmp_path / "test.db")
+    conn.execute("CREATE TABLE demo (date TEXT)")
+
+    with pytest.raises(sqlite3.Error):
+        SQLiteUtils.get_table_latest_value(
+            conn=conn, table_name="demo", col_name="no_such_column"
+        )
+
+    conn.close()
+
+
+def test_sqlite_utils_returns_none_for_missing_table(tmp_path: Path) -> None:
+    """表還沒建立是**正常**的初次更新狀態，仍回 None"""
+
+    from core.pipeline.utils.sqlite_utils import SQLiteUtils
+
+    conn = sqlite3.connect(tmp_path / "test.db")
+
+    assert (
+        SQLiteUtils.get_table_latest_value(
+            conn=conn, table_name="not_created_yet", col_name="date"
+        )
+        is None
+    )
+
+    conn.close()

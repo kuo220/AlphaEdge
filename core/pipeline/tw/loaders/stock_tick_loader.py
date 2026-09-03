@@ -22,6 +22,7 @@ from core.config import (
     TICK_TABLE_NAME,
 )
 from core.pipeline.shared.base_loader import BaseDataLoader
+from core.pipeline.utils.exceptions import DataLoadError
 
 
 class StockTickLoader(BaseDataLoader):
@@ -138,12 +139,16 @@ class StockTickLoader(BaseDataLoader):
             """
             try:
                 self.session.run(script)
-                if self.session.existsDatabase(TICK_DB_PATH):
-                    logger.info("Tick dolphinDB create successfully!")
-                else:
-                    logger.warning("Tick dolphinDB create unsuccessfully!")
             except Exception as e:
-                logger.warning(f"Tick dolphinDB create unsuccessfully!\n{e}")
+                # 建不出資料庫時後續每一次寫入都會失敗，沒有繼續下去的意義
+                logger.error(f"Tick dolphinDB create unsuccessfully!\n{e}")
+                raise DataLoadError("tick", ["<create_db>"], succeeded=0) from e
+
+            if self.session.existsDatabase(TICK_DB_PATH):
+                logger.info("Tick dolphinDB create successfully!")
+            else:
+                logger.error("Tick dolphinDB create unsuccessfully!")
+                raise DataLoadError("tick", ["<create_db>"], succeeded=0)
 
     def create_missing_tables(self) -> None:
         """確保 Tick DB 存在，否則建立"""
@@ -189,7 +194,10 @@ class StockTickLoader(BaseDataLoader):
             logger.info("The csv file successfully save into database and table!")
 
         except Exception as e:
-            logger.info(f"The csv file fail to save into database and table!\n{e}")
+            # **原本記在 `info` 等級**：DolphinDB 寫入失敗與正常訊息在 log 裡
+            # 完全一樣，一整天的 tick 沒進去也不會有人知道（健檢 F-056）
+            logger.error(f"The csv file fail to save into database and table!\n{e}")
+            raise DataLoadError("tick", [csv_path.name], succeeded=0) from e
 
     def append_all_csv_to_dolphinDB(self, dir_path: Path) -> None:
         """將資料夾內所有 CSV 檔案附加到已建立的 DolphinDB 資料表"""
@@ -230,7 +238,9 @@ class StockTickLoader(BaseDataLoader):
             logger.info("All csv files successfully save into database and table!")
 
         except Exception as e:
-            logger.info(f"All csv files fail to save into database and table!\n{e}")
+            # 整批一次送進 DolphinDB，失敗時無從得知是哪幾檔，故把整批列為失敗
+            logger.error(f"All csv files fail to save into database and table!\n{e}")
+            raise DataLoadError("tick", csv_files, succeeded=0) from e
 
     def clear_all_cache(self) -> None:
         """清除 Cache Data"""

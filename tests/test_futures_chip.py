@@ -401,9 +401,14 @@ def test_update_resolves_start_dates_for_every_dataset(monkeypatch) -> None:
     ]
 
     called: List[tuple] = []
-    updater.update_dataset = lambda table, label, crawl, clean, start, end: (
+
+    def record_dataset(table, label, crawl, clean, start, end):
+        """`update_dataset()` 回傳「（新增列數, 被擋的月份）」，替身要照著回"""
+
         called.append((table, start, end))
-    )
+        return 0, []
+
+    updater.update_dataset = record_dataset
 
     updater.update(
         start_date=datetime.date(2015, 1, 1),

@@ -6,7 +6,9 @@ import pandas as pd
 from loguru import logger
 
 from core.config import STOCK_TRADING_DAILY_REPORT_TABLE_NAME
+from core.pipeline.shared.base_loader import BaseDataLoader
 from core.pipeline.utils import FinMindDataType
+from core.pipeline.utils.exceptions import DataLoadError
 
 """
 券商分點統計表的入庫：DataFrame 直入與 CSV 目錄批次兩條路徑
@@ -141,38 +143,14 @@ def load_from_dataframe(
         return len(new_df)
 
     except Exception as e:
+        # **不再有 fallback 盲插、也不再回 0**：舊版失敗後回 0，
+        # 呼叫端把 0 當成「本批皆為重複」而回報 SUCCESS，
+        # 於是入庫失敗被算成成功（健檢 F-045）。
         logger.error(
             f"Error loading broker trading daily report from DataFrame: {e}",
             exc_info=True,
         )
-        # 如果檢查失敗，嘗試直接插入（可能會因為重複鍵而失敗，但至少嘗試）
-        try:
-            column_order: List[str] = [
-                "securities_trader",
-                "securities_trader_id",
-                "stock_id",
-                "date",
-                "buy_volume",
-                "sell_volume",
-                "buy_price",
-                "sell_price",
-            ]
-            available_columns: List[str] = [
-                col for col in column_order if col in df.columns
-            ]
-            df[available_columns].to_sql(
-                STOCK_TRADING_DAILY_REPORT_TABLE_NAME,
-                conn,
-                if_exists="append",
-                index=False,
-            )
-            if commit:
-                conn.commit()
-            logger.info(f"✅ Saved {len(df)} records to database (fallback mode)")
-            return len(df)
-        except Exception as insert_error:
-            logger.error(f"Error inserting data to database: {insert_error}")
-            return 0
+        raise DataLoadError("broker_trading", ["<dataframe>"], succeeded=0) from e
 
 
 def load_from_files(conn: sqlite3.Connection, finmind_dir: Path) -> None:
@@ -220,6 +198,7 @@ def load_from_files(conn: sqlite3.Connection, finmind_dir: Path) -> None:
     total_skipped_rows: int = 0
     processed_files: int = 0
     skipped_files: int = 0
+    failed_files: List[str] = []
 
     # 遍歷每個 broker_id 資料夾
     for broker_dir in broker_dirs:
@@ -328,16 +307,28 @@ def load_from_files(conn: sqlite3.Connection, finmind_dir: Path) -> None:
                 existing_keys.update(new_keys)
 
             except Exception as e:
+                # **失敗不再算成 skipped**：兩者混在一起時，
+                # 「今天有 300 檔沒入庫」與「今天有 300 檔本來就沒新資料」
+                # 在 log 裡長得一模一樣。單檔失敗仍不中止整批（其餘券商照跑），
+                # 但跑完會由 `finish_load()` 拋出。
                 logger.error(
                     f"Error loading {broker_id}/{stock_id}.csv: {e}",
                     exc_info=True,
                 )
-                skipped_files += 1
+                failed_files.append(f"{broker_id}/{stock_id}.csv")
                 continue
 
     # 輸出總結
     logger.info(
-        f"✅ Broker trading daily report loading completed. "
-        f"Processed {processed_files} files, skipped {skipped_files} files. "
+        f"Broker trading daily report loading finished. "
+        f"Processed {processed_files} files, skipped {skipped_files} files, "
+        f"failed {len(failed_files)} files. "
         f"Total: {total_new_rows} new rows, {total_skipped_rows} skipped rows"
+    )
+
+    BaseDataLoader.finish_load(
+        source="broker_trading",
+        succeeded=processed_files - skipped_files - len(failed_files),
+        failed_files=failed_files,
+        skipped_files=skipped_files,
     )

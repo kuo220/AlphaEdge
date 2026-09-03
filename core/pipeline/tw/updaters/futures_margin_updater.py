@@ -15,6 +15,7 @@ from core.pipeline.shared.base_updater import BaseDataUpdater
 from core.pipeline.tw.cleaners.futures_margin_cleaner import FuturesMarginCleaner
 from core.pipeline.tw.crawlers.futures_margin_crawler import FuturesMarginCrawler
 from core.pipeline.tw.loaders.futures_margin_loader import FuturesMarginLoader
+from core.pipeline.utils.exceptions import DataLoadError
 from core.utils import TimeUtils
 from core.utils.log_manager import LogManager
 
@@ -85,9 +86,27 @@ class FuturesMarginUpdater(BaseDataUpdater):
             本來就不同，把它們綁在一起只會讓一邊的站方問題連累另一邊。
         """
 
-        self.update_index_margin()
-        self.update_stock_margin()
+        failures: List[str] = []
+
+        for name, step in (
+            ("index_margin", self.update_index_margin),
+            ("stock_margin", self.update_stock_margin),
+        ):
+            try:
+                step()
+            except DataLoadError:
+                raise
+            except Exception as error:
+                # 兩段互不相干，一段失敗不該讓另一段完全不跑；但跑完要一起拋出
+                logger.error(
+                    f"[Futures Margin] {name} 失敗：{type(error).__name__}: {error}"
+                )
+                failures.append(name)
+
         self.log_summary()
+
+        if failures:
+            raise DataLoadError("futures_margin", failures, succeeded=2 - len(failures))
 
     def update_index_margin(self) -> None:
         """
@@ -101,13 +120,13 @@ class FuturesMarginUpdater(BaseDataUpdater):
 
         text: Optional[str] = self.crawler.crawl_index_margin()
         if text is None:
-            logger.warning("[Futures Margin] 取得指數類一覽表失敗，跳過")
-            return
+            # **「跳過」不能是靜默的**：保證金一覽表沒抓到就代表這次沒有任何
+            # 新資料，若只記 warning，行程仍以成功結束，缺漏要事後對帳才會發現
+            raise DataLoadError("futures_margin", ["index: 取得一覽表失敗"])
 
         cleaned_df: Optional[pd.DataFrame] = self.cleaner.clean_index_margin(text)
         if cleaned_df is None or cleaned_df.empty:
-            logger.warning("[Futures Margin] 指數類清洗結果為空，跳過")
-            return
+            raise DataLoadError("futures_margin", ["index: 清洗結果為空"])
 
         effective_date: str = str(cleaned_df["effective_date"].iloc[0])
         inserted: int = self.loader.add_to_db(cleaned_df)
@@ -130,15 +149,13 @@ class FuturesMarginUpdater(BaseDataUpdater):
 
         text: Optional[str] = self.crawler.crawl_stock_margin()
         if text is None:
-            logger.warning("[Stock Futures Margin] 取得股票類一覽表失敗，跳過")
-            return
+            raise DataLoadError("futures_margin", ["stock: 取得一覽表失敗"])
 
         cleaned: Optional[Dict[str, Optional[pd.DataFrame]]] = (
             self.cleaner.clean_stock_margin(text)
         )
         if cleaned is None:
-            logger.warning("[Stock Futures Margin] 股票類清洗結果為空，跳過")
-            return
+            raise DataLoadError("futures_margin", ["stock: 清洗結果為空"])
 
         rate_df: Optional[pd.DataFrame] = cleaned.get("rate")
         if rate_df is not None and not rate_df.empty:
