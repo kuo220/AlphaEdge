@@ -13,7 +13,7 @@
 | 月營收          | 台股資料來源（由 pipeline 更新） | `MonthlyRevenueReportAPI` | SQLite `monthly_revenue` | 2013-01（`DEFAULT_START_YEAR` 起、1 月）                                                                   | 基本面可用                                |
 | 財報           | 台股資料來源（由 pipeline 更新） | `FinancialStatementAPI`   | SQLite 各財報表              | 2013 年第 1 季（`DEFAULT_START_YEAR`）；**`equity_change` 例外，目前僅 2020Q1**                                    | 基本面可用；權益變動表的資料形狀與限制見 [權益變動表](../pipeline/equity-change.md) |
 | FinMind 參考資料 | FinMind API           | `FinMindAPI`              | SQLite FinMind 相關表       | 券商分點：`2021-06-30`（`FINMIND_BROKER_TRADING_START_DATE`）；台股總覽／證券商為 API 快照，更新流程未帶歷史起日                    | 股票、券商、分點                             |
-| 台期貨日線       | TAIFEX 每日行情頁（POST） | `FuturesPriceAPI`（`core/api/tw/futures_price_api.py`） | SQLite `tw_futures.db` `futures_price_daily` | 2015-01-01（`DEFAULT_FUTURES_START_DATE`）                                                              | 日盤／夜盤分列存（`session` 欄位）；指數期貨 7 檔（`FUTURES_TARGET_PRODUCTS`：TX／MTX／TMF／TE／ZEF／TF／ZFF，歷史回補進行中）＋ 股票期貨（`--target futures_stock_price`，預設流動性前 20 檔） |
+| 台期貨日線       | TAIFEX 每日行情頁（POST） | `FuturesPriceAPI`（`core/api/tw/futures_price_api.py`） | SQLite `tw_futures.db` `futures_price_daily` | 2015-01-01（`DEFAULT_FUTURES_START_DATE`）                                                              | 日盤／夜盤分列存（`session` 欄位）；指數期貨 7 檔（`FUTURES_TARGET_PRODUCTS`：TX／MTX／TMF／TE／ZEF／TF／ZFF，**歷史回補已於 2026-09-04 完成並驗收**，逐檔涵蓋見〈已知限制〉）＋ 股票期貨（`--target futures_stock_price`，預設流動性前 20 檔） |
 | 台期貨連續合約   | 由 `futures_price_daily` 衍生（不連網路） | `FuturesPriceAPI`（`get_continuous*`） | SQLite `tw_futures.db` `futures_continuous` | 同上                                                                                                    | 3 種調整方式 × 3 種換月規則；每次 `--target futures_continuous` 整段重建 |
 | 台期貨保證金     | TAIFEX 公告附件（CSV） | `FuturesMarginAPI`          | SQLite `tw_futures.db` `futures_margin_history`（指數類每口金額）、`stock_futures_margin_rate_history`（股票類比例） | 2020-03（更早為掃描影像，見 [台期貨保證金ETL](../../backlog/台期貨保證金ETL.md) S6） | 變動序列，達門檻才有新列 |
 | 台期貨籌碼       | TAIFEX 三大法人／大額交易人／選擇權 PCR | `FuturesChipAPI`            | SQLite `tw_futures.db` `futures_institutional_chip`、`futures_large_trader`、`futures_put_call_ratio` | 歷史回補進行中（2026-09-02）                                                                          | `get_available()` 只回傳查詢日之前已公布者（避免前視） |
@@ -106,6 +106,37 @@ python -m tasks.update_db --target <targets...>
 - `tick` 依賴 DolphinDB 環境與對應連線參數，未設定時無法使用 tick 相關流程。
 - 上表「起始日期」與 `tasks.update_db` 的 `get_update_time_config` 一致者，皆定義於 `core/config/settings.py`（`DEFAULT_PRICE_START_DATE`、`DEFAULT_CHIP_START_DATE`、`DEFAULT_START_YEAR`、`TICK_UPDATE_START_DATE`、`FINMIND_BROKER_TRADING_START_DATE` 等）。
 - 實際本地 SQLite／DolphinDB 內容可能與預設起日不同，以庫內最早一筆為準。
+
+### 指數期貨日行情的實際涵蓋（2026-09-04 驗收）
+
+七檔指數期貨的歷史回補已完成。**日盤自上市日起零缺漏**，以 TX＋MTX 的交易日聯集
+為基準日曆逐日比對：
+
+| 商品 | 涵蓋區間 | 交易日數 | 對基準日曆的缺漏 | 夜盤起始 |
+|------|----------|---------:|:----------------:|----------|
+| TX | 2015-01-05 ~ | 2,843 | —（基準本身） | 2017-05-16 |
+| MTX | 2015-01-05 ~ | 2,843 | —（基準本身） | 2017-05-16 |
+| TE | 2015-01-05 ~ | 2,843 | 0 | 2018-11-20 |
+| TF | 2015-01-05 ~ | 2,844 | 0 | **2025-06-24** |
+| ZEF | 2021-06-28 ~ | 1,263 | 0 | 2021-06-29（上市次日） |
+| ZFF | 2021-12-06 ~ | 1,151 | 0 | **2025-06-24** |
+| TMF | 2024-07-29 ~ | 512 | 0 | 2024-07-30（上市次日） |
+
+間隔超過 5 天的斷點共 28 個（TF 14、ZEF 6、ZFF 6、TMF 2），**全部**在基準日曆上
+同樣沒有交易日——都是農曆年、清明等連假，無不明缺口。
+
+**夜盤的涵蓋率遠低於日盤，而且是來源如此，不是漏抓**：
+
+- 各商品被納入盤後交易的時間不同，**TF 與 ZFF 同為 2025-06-24**，在那之前來源
+  就沒有這兩檔的夜盤資料。crawler 對每個日期都會打日盤、夜盤兩次
+  （`futures_price_crawler.py` 的 `for session in FuturesSession.data_sessions()`），
+  空結果只記 `no data` 而**不落檔**，所以「沒有檔案」等於「來源沒有資料」。
+- **要用夜盤資料的策略必須先確認該商品的夜盤起始日**，否則會把「制度上還沒有夜盤」
+  誤讀成「當天沒有夜盤成交」。
+- 夜盤era 內另有零星缺日（占比 0.2%）：TX／MTX 各缺 5 天
+  （2017-06-05、2017-10-02、2018-04-02、2018-07-11、2018-12-24），
+  TE 缺 3 天（2018-12-24、2024-06-18、2024-07-03）。日盤當天都有資料，
+  故不影響日線策略；未逐一向交易所查證是臨時暫停還是來源缺漏。
 
 ### 股價還原的已知限制
 
