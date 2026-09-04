@@ -11,7 +11,7 @@
 
 | 編號 | 步驟名稱 | 產出檔案 | 驗證方式 | 狀態 | 備註／中斷點 |
 |------|----------|----------|----------|:----:|--------------|
-| S1 | 回歸腳本假綠燈與 CI 護欄 | `scripts/run_regression.sh`、`.github/workflows/ci.yml`、`tests/backtest/test_long_regression.py`、`docs/dev/code-quality.md` | 無 DB 時腳本非零結束並印「LONG 線未執行」；CI 新增 SHORT 線步驟 | ⬜ | F-090、F-095（ruff 版本釘死 `==0.16.3` 或 `>=0.16,<0.17`） |
+| S1 | 回歸腳本假綠燈與 CI 護欄 | `scripts/run_regression.sh`、`.github/workflows/ci.yml`、`.pre-commit-config.yaml`、`pyproject.toml`、`docs/dev/{code-quality,health-check-2026-09}.md` | 無 DB 時腳本非零結束並印「LONG 線未執行」；CI 新增 SHORT 線步驟 | ✅ | **2026-09-05 完成**。無 DB 實測結束碼 3；CI 另加分層閘門；ruff 釘死 `==0.16.3`。`test_long_regression.py` 未改（`skipif` 是對的，錯的是腳本把 skip 當通過） |
 | S2 | 容器可跑：前端相依、`core` 掛 `data/`、只裝 pyproject 相依 | `frontend/requirements.txt`（新增）、`frontend/Dockerfile`、`core/Dockerfile`、`docker-compose.yml`、`README*.md` | `docker compose config` OK；`compose up` 跑完示範策略；映像不含 Flask／ipython 等無關套件 | ⬜ | F-093、F-094、F-096(5) |
 | S3 | 入口退出碼與 `--mode live` | `run.py`、`tests/test_run_entry.py`（新增） | subprocess 測試：找不到策略 exit 2；`live` 明確 `NotImplementedError` | ⬜ | F-077 |
 | S4 | 一次性腳本清理與 `tests/manual_*` 搬家 | `scripts/dataframe_dot_to_bracket.py`（刪）、`generate_docs.py`（刪）、`clean_pycache.ps1`（修）、`tasks/migrate_db_naming.py`（搬 `scripts/migrations/`）、`tests/manual_*.py`（搬 `scripts/manual/`） | `git rm` 後 `pytest` 全綠；`grep return False tests/` 為 0 | ⬜ | F-089、F-091、F-081、F-092 |
@@ -20,13 +20,43 @@
 
 ## 步驟詳述
 
-### S1. 回歸腳本假綠燈與 CI 護欄 ⬜
+### S1. 回歸腳本假綠燈與 CI 護欄 ✅
 
 - **目的**：F-090／F-095。
 - **做法**：腳本以 `pytest -rs` 執行並 grep `SKIPPED`，有即 `exit 3` 並印原因；CI 新增「SHORT 回歸線」步驟（純記憶體）；`dev` extras 釘 ruff 版本與 pre-commit 一致；`docs/dev/code-quality.md` §4.2 已於健檢 S21 補「回歸雙線只在本機」。
 - **產出**：見進度表。
 - **驗證方式**：在暫時改名 `tw_stock.db` 的情況下跑腳本，結束碼非 0。
 - **相依**：無。
+
+> **✅ 完成紀錄（2026-09-05）**
+> - **`run_regression.sh` 改以 `-rs` 執行並偵測 `SKIPPED`**，有即以**結束碼 3** 結束，
+>   印出被 skip 的項目、原因，以及「LONG 線需要 `data/db/tw_stock.db`」。
+>   結束碼分三種：`0` 兩條線都實際跑過且通過、`3` 有測試被 skip（護欄未生效）、
+>   其他為 pytest 自身的失敗碼。順帶修掉註解裡的舊檔名（`data/db/stock.db` → `tw_stock.db`）。
+> - **`test_long_regression.py` 一行未改**。`skipif` 本身是對的——沒有資料庫時那條測試
+>   確實跑不了，硬改成 fail 只會讓 CI 永遠紅。錯的是**腳本把 skip 當成通過**，
+>   所以修的是腳本。
+> - **驗證方式偏離原規格**：原訂「暫時改名 `tw_stock.db`」，但**另一個 session 的權益變動表
+>   回補正在寫這個檔**（已跑 11 小時、估 60~66 小時），改名會直接讓它炸掉。
+>   改用 `ALPHAEDGE_DATA_DIR` 指向空目錄來模擬「沒有資料庫的機器」——
+>   同樣走到 `skipif`，但完全不碰真的 DB。實測結束碼 **3**，事後確認 `tw_stock.db`
+>   仍是 3.2 GB、未被動到。
+> - **CI 新增兩步**（`.github/workflows/ci.yml`）：
+>   1. **分層相依檢查**（`scripts/check_layer_deps.py`，約 0.5 秒）——這支腳本原本
+>      永遠 exit 1（`strategy_lab` 的循環 import 把整個閘門鎖住），2026-09-04 解掉之後
+>      才有資格當閘門（健檢 F-006）。同時掛進 pre-commit（`pass_filenames: false` ＋
+>      `always_run: true`，因為它看的是「邊」不是單檔）。
+>   2. **SHORT 回歸線**（純記憶體、不需要資料庫，約 0.7 秒）。已用
+>      `ALPHAEDGE_DATA_DIR` 指向空目錄模擬 CI 環境實測通過（6 passed）。
+>   LONG 線仍只能在本機——CI 沒有 `tw_stock.db`，這點沒有解法，但腳本現在會明說它沒跑。
+> - **ruff 版本釘死 `==0.16.3`**（原 `ruff>=0.6`），與 `.pre-commit-config.yaml` 的
+>   `rev: v0.16.3` 一致。選擇完全相等而非 `>=0.16,<0.17`：格式規則跨版本會變，
+>   而「本機綠、CI 紅」那種紅燈與程式碼品質無關，只會訓練大家忽略 CI。
+> - `docs/dev/code-quality.md` §4.2 改寫為四條護欄的對照表（何處執行、為什麼），
+>   `docs/dev/health-check-2026-09.md` 的 F-090／F-095 兩列補上結果。
+> - 驗證：`pytest -m "not slow"` **890 passed**、`./scripts/run_regression.sh` 結束碼 0、
+>   無 DB 模擬結束碼 3、`check_layer_deps.py` 結束碼 0、`ruff check` 與
+>   `ruff format --check` 全綠。
 
 ### S2. 容器可跑 ⬜
 

@@ -182,7 +182,18 @@ pytest                              # 全部（需 data/db/tw_stock.db）
 
 目前標為 slow 的有 12 檔（2026-09-02）：`tests/backtest/test_long_regression.py`（需 `tw_stock.db`）與 8 支需要 `tw_futures.db` 或外部 API 的 `tests/test_futures_*.py`，另 3 支為 `manual_*`。`test_short_regression.py` 純記憶體、**不是** slow。
 
-**回歸雙線只在本機跑**：CI 的 `-m "not slow"` 不含 LONG 線，`scripts/run_regression.sh` 也沒有任何 workflow 在執行；且該腳本在沒有 `tw_stock.db` 的機器上會因 `skipif` 而回綠（見 [全專案架構與邏輯健檢](health-check-2026-09.md) F-090／F-095）。動引擎前請在有資料庫的機器手動跑。
+**2026-09-05 起 CI 跑 SHORT 線與分層閘門**（健檢 F-090／F-095）：
+
+| 護欄 | 何處執行 | 說明 |
+|------|----------|------|
+| `ruff check` / `ruff format --check` | CI ＋ pre-commit | 版本已釘死 `ruff==0.16.3`，與 `.pre-commit-config.yaml` 的 rev 一致——不釘的話 CI 裝最新版，格式規則一變就出現「本機綠、CI 紅」，而那種紅燈與程式碼品質無關，只會訓練大家忽略 CI |
+| `scripts/check_layer_deps.py` | CI ＋ pre-commit | 反向 import、循環 import、市場語意洩漏、跨軸目錄污染。約 0.5 秒 |
+| SHORT 回歸線 | CI ＋ 本機 | 純記憶體、不需要資料庫，約 0.7 秒 |
+| **LONG 回歸線** | **只在本機** | 需要 `data/db/tw_stock.db`（未進版控），CI 沒有 |
+
+**LONG 線仍只在本機，但 skip 不再算通過**：`scripts/run_regression.sh` 改以 `-rs` 執行並偵測 `SKIPPED`，
+有即以**結束碼 3** 結束並印出是哪一條、為什麼。舊版在沒有資料庫的機器上照樣印「回歸雙線通過」——
+於是「沒有資料庫」與「回歸真的通過」在輸出上長得一模一樣。動引擎前仍請在有資料庫的機器跑一次。
 
 ### 4.2.1 `tests/manual_*.py` 是手動腳本，**不會被 pytest 收集**
 

@@ -40,3 +40,14 @@ repos:
         entry: exc_info=
         language: pygrep
         files: ^(core|tasks)/.*\.py$
+
+      # 分層相依閘門（反向 import、循環 import、市場語意洩漏、跨軸目錄污染）。
+      # 這支腳本原本永遠 exit 1（strategy_lab 的循環 import 把整個閘門鎖住），
+      # 2026-09-04 解掉之後才有資格當閘門（健檢 F-006）。約 0.5 秒，掃全專案，
+      # 故 `pass_filenames: false` ＋ `always_run: true`——它看的是「邊」不是單檔
+      - id: check-layer-deps
+        name: 分層相依檢查（scripts/check_layer_deps.py）
+        entry: python3 scripts/check_layer_deps.py
+        language: system
+        pass_filenames: false
+        always_run: true

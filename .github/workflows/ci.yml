@@ -31,6 +31,18 @@ jobs:
       - name: 格式檢查
         run: ruff format --check .
 
+      # 分層相依閘門：反向 import、循環 import、市場語意洩漏、跨軸目錄污染
+      # 這支腳本原本永遠 exit 1（strategy_lab 的循環 import 把整個閘門鎖住），
+      # 2026-09-04 解掉之後才有資格當閘門（健檢 F-006）。約 0.5 秒
+      - name: 分層相依檢查
+        run: python scripts/check_layer_deps.py
+
+      # SHORT 回歸線：純記憶體、不需要資料庫，約 0.7 秒（健檢 F-095）
+      # LONG 線需要 data/db/tw_stock.db，CI 沒有，故仍只能在本機跑
+      # （`scripts/run_regression.sh` 現在會在 skip 時以結束碼 3 明說沒跑）
+      - name: SHORT 回歸線
+        run: pytest tests/backtest/test_short_regression.py -q -rs
+
       # 只跑 -m "not slow"：CI 沒有 data/db/tw_stock.db（*.db 未進版控），
       # 也沒有 Shioaji／FinMind 金鑰。需要這些的測試一律標 @pytest.mark.slow。
       # 本指令已在本機以「移除資料庫與金鑰的副本」模擬驗證過為全綠
