@@ -10,19 +10,13 @@ from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 
+from strategy_lab.strategies.tsmc_overnight_signal.reports import docx_common as g
+
 Lang = str  # type alias; actual lang literals passed from caller
-
-
-def _g():
-    """Late import to avoid circular import with generate_docx."""
-    import strategy_lab.strategies.tsmc_overnight_signal.reports.generate_docx as g
-
-    return g
 
 
 def _baseline_numeric_rows(lang: Lang) -> Tuple[List[str], List[List[str]]]:
     """Headers and rows for baseline_comparison.csv (test set)."""
-    g = _g()
     p = g._OUTPUT / "baseline_comparison.csv"
     if not p.exists():
         return [], []
@@ -75,7 +69,6 @@ def _baseline_numeric_rows(lang: Lang) -> Tuple[List[str], List[List[str]]]:
 
 
 def _coef_rows() -> List[List[str]]:
-    g = _g()
     p = g._OUTPUT / "ridge_coefficients.csv"
     if not p.exists():
         return [["(run run_overnight_signal.py)", "—"]]
@@ -87,7 +80,6 @@ def _coef_rows() -> List[List[str]]:
 
 
 def _ic_test_rows(lang: Lang) -> List[List[str]]:
-    g = _g()
     p = g._OUTPUT / "signal_ic_test.csv"
     if not p.exists():
         return []
@@ -114,7 +106,6 @@ def _ic_consistency_footnote(lang: Lang) -> str:
     Explain small gap between diagnostic IC (exec_df merge, optional zero-filled preds)
     and placebo baseline IC (strict panel_test). Values are read from output CSVs when present.
     """
-    g = _g()
     p_ic = g._OUTPUT / "signal_ic_test.csv"
     p_pb = g._OUTPUT / "placebo_ic_alignment.csv"
     if not p_ic.exists() or not p_pb.exists():
@@ -150,7 +141,7 @@ def _ic_consistency_footnote(lang: Lang) -> str:
 
 def _yearly_rows(lang: Lang) -> Tuple[List[str], List[List[str]]]:
     """Returns (headers, rows). Position switches ≈ sum of 0.5 per day the discrete position flips."""
-    p = _g()._OUTPUT / "yearly_diagnostics.csv"
+    p = g._OUTPUT / "yearly_diagnostics.csv"
     if not p.exists():
         return [], []
 
@@ -204,7 +195,6 @@ def _yearly_rows(lang: Lang) -> Tuple[List[str], List[List[str]]]:
 
 
 def _gap_kv(metric: str) -> Optional[float]:
-    g = _g()
     p = g._OUTPUT / "ic_pnl_gap.csv"
     if not p.exists():
         return None
@@ -214,7 +204,6 @@ def _gap_kv(metric: str) -> Optional[float]:
 
 
 def _threshold_rows(lang: Lang) -> Tuple[List[str], List[List[str]]]:
-    g = _g()
     p = g._OUTPUT / "threshold_robustness_ridge.csv"
     if not p.exists():
         return [], []
@@ -259,7 +248,6 @@ def _threshold_rows(lang: Lang) -> Tuple[List[str], List[List[str]]]:
 
 def _placebo_ic_rows(lang: Lang) -> Tuple[List[str], List[List[str]]]:
     """placebo_ic_alignment.csv: baseline vs ±1-row feature shifts on TW panel."""
-    g = _g()
     p = g._OUTPUT / "placebo_ic_alignment.csv"
     if not p.exists():
         return [], []
@@ -289,7 +277,6 @@ def _placebo_ic_rows(lang: Lang) -> Tuple[List[str], List[List[str]]]:
 
 
 def _capital_sensitivity_rows(lang: Lang) -> Tuple[List[str], List[List[str]]]:
-    g = _g()
     p = g._OUTPUT / "capital_sensitivity.csv"
     if not p.exists():
         return [], []
@@ -333,7 +320,6 @@ def _capital_sensitivity_rows(lang: Lang) -> Tuple[List[str], List[List[str]]]:
 
 
 def _passive_benchmark_rows(lang: Lang) -> Tuple[List[str], List[List[str]]]:
-    g = _g()
     p = g._OUTPUT / "passive_benchmarks.csv"
     if not p.exists():
         return [], []
@@ -362,7 +348,6 @@ def _passive_benchmark_rows(lang: Lang) -> Tuple[List[str], List[List[str]]]:
 
 
 def _sanity_check_rows(lang: Lang) -> Tuple[List[str], List[List[str]]]:
-    g = _g()
     p = g._OUTPUT / "sanity_checks.csv"
     if not p.exists():
         return [], []
@@ -395,7 +380,6 @@ def _sanity_check_rows(lang: Lang) -> Tuple[List[str], List[List[str]]]:
 def _reconciliation_rows(
     m_vec: Dict[str, str], m_real: Dict[str, str], lang: Lang
 ) -> List[List[str]]:
-    g = _g()
     san = g.sanitize_for_word
 
     def fmt_cr(m: Dict[str, str]) -> str:
@@ -502,7 +486,6 @@ def _reconciliation_rows(
 def append_zh_report(
     document, meta: Dict[str, str], m_real: Dict[str, str], m_vec: Dict[str, str]
 ) -> None:
-    g = _g()
     _paragraph = g._paragraph
     _add_table_from_rows = g._add_table_from_rows
     _add_figure = g._add_figure
@@ -919,7 +902,6 @@ def append_zh_report(
 def append_en_report(
     document, meta: Dict[str, str], m_real: Dict[str, str], m_vec: Dict[str, str]
 ) -> None:
-    g = _g()
     _paragraph = g._paragraph
     _add_table_from_rows = g._add_table_from_rows
     _format_metrics_rows = g._format_metrics_rows

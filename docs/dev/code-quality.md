@@ -250,7 +250,7 @@ PYTHONPATH=. python scripts/some_script.py
 
 | 編號 | 位置 | 結論 |
 |---|---|---|
-| F-006 | `strategy_lab/strategies/tsmc_overnight_signal/reports/` | 全專案唯一的循環 import（`generate_docx` ↔ `docx_append`，以延遲 import 繞過）；`scripts/check_layer_deps.py` 現況因此結束碼 1，解掉後該腳本即可接進 CI |
+| F-006 | `strategy_lab/strategies/tsmc_overnight_signal/reports/` | 全專案唯一的循環 import（`generate_docx` ↔ `docx_append`，以延遲 import 繞過）；`scripts/check_layer_deps.py` 現況因此結束碼 1。**2026-09-04 已解**：共用零件抽成 `docx_common.py`，`generate_docx` 只留 `build_report()` 與 CLI，三檔單向相依、函式內延遲 import 一併移回模組層級；`check_layer_deps.py` 現在結束碼 **0**（違規總數 0），**可以接進 CI／pre-commit 當閘門了**（尚未接，屬 [測試護欄與本機CI容器一致性](../../backlog/測試護欄與本機CI容器一致性.md)） |
 | F-010 | `core/pipeline/tw/crawlers/stock_price_crawler.py` | `crawl()` 把 `crawl_twse_price()`／`crawl_tpex_price()` 的回傳值指派後未使用（F841 ×2）；確認是否為未完成的合併邏輯 |
 | F-011 | `core/utils/callback.py` | `OrderState` 先從 `shioaji.constant` import 再被 `.constant.OrderState` 覆蓋（F811） |
 | F-023 | `core/adapters/tw/stock_quote_adapter.py` | `filtered_stock_ids` 用 list 做 `in` 判斷，全市場 2,000 檔 × 每日；改 set |
