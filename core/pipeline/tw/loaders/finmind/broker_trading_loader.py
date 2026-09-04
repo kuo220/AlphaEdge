@@ -146,9 +146,8 @@ def load_from_dataframe(
         # **不再有 fallback 盲插、也不再回 0**：舊版失敗後回 0，
         # 呼叫端把 0 當成「本批皆為重複」而回報 SUCCESS，
         # 於是入庫失敗被算成成功（健檢 F-045）。
-        logger.error(
+        logger.opt(exception=True).error(
             f"Error loading broker trading daily report from DataFrame: {e}",
-            exc_info=True,
         )
         raise DataLoadError("broker_trading", ["<dataframe>"], succeeded=0) from e
 
@@ -311,9 +310,8 @@ def load_from_files(conn: sqlite3.Connection, finmind_dir: Path) -> None:
                 # 「今天有 300 檔沒入庫」與「今天有 300 檔本來就沒新資料」
                 # 在 log 裡長得一模一樣。單檔失敗仍不中止整批（其餘券商照跑），
                 # 但跑完會由 `finish_load()` 拋出。
-                logger.error(
+                logger.opt(exception=True).error(
                     f"Error loading {broker_id}/{stock_id}.csv: {e}",
-                    exc_info=True,
                 )
                 failed_files.append(f"{broker_id}/{stock_id}.csv")
                 continue

@@ -136,5 +136,5 @@ def load_reference_table(
             logger.info(f"Saved {csv_path.name} into database ({len(new_df)} rows)")
 
     except Exception as e:
-        logger.error(f"Error loading {csv_path.name}: {e}", exc_info=True)
+        logger.opt(exception=True).error(f"Error loading {csv_path.name}: {e}")
         raise DataLoadError(spec.label, [csv_path.name], succeeded=0) from e

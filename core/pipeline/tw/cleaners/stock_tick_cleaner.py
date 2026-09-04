@@ -166,9 +166,8 @@ class StockTickCleaner(BaseDataCleaner):
             return new_df
 
         except Exception as e:
-            logger.error(
+            logger.opt(exception=True).error(
                 f"Error processing or saving tick data for stock {stock_id} | {e}",
-                exc_info=True,
             )
             return None
 
@@ -258,5 +257,7 @@ class StockTickCleaner(BaseDataCleaner):
             return df
 
         except Exception as e:
-            logger.error(f"Error formatting time to microsecond: {e}", exc_info=True)
+            logger.opt(exception=True).error(
+                f"Error formatting time to microsecond: {e}"
+            )
             return df

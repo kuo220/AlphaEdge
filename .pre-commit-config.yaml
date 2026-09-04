@@ -28,3 +28,15 @@ repos:
       - id: check-toml
       - id: end-of-file-fixer
       - id: trailing-whitespace
+
+  - repo: local
+    hooks:
+      # loguru 不吃標準庫的 exc_info=，會把它當 str.format() 的參數默默丟掉，
+      # traceback 從來不會被印出來（健檢 F-080，全專案曾有 15 處）。
+      # CI 端的等價護欄是 tests/test_entrypoint_and_logging.py 的 AST 掃描，
+      # 這條只是讓錯誤寫法在 commit 當下就被擋掉，不必等跑完測試。
+      - id: no-stdlib-exc-info
+        name: 禁用 exc_info=（loguru 請用 logger.opt(exception=True)）
+        entry: exc_info=
+        language: pygrep
+        files: ^(core|tasks)/.*\.py$

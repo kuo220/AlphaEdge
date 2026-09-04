@@ -419,9 +419,8 @@ class BrokerTradingMetadataStore:
                     )
 
         except Exception as e:
-            logger.error(
+            logger.opt(exception=True).error(
                 f"Error updating broker trading metadata from database: {e}",
-                exc_info=True,
             )
 
         # 保存 metadata

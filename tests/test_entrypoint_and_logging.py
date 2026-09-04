@@ -289,3 +289,80 @@ def test_log_file_is_recreated_after_external_deletion(tmp_path: Path) -> None:
         for handler_id in new_handlers:
             logger.remove(handler_id)
         LogManager._configured_logs.discard(str(target))
+
+
+# === F-080：loguru 的 traceback 要真的印得出來 ===
+PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
+
+
+def iter_project_sources() -> List[Path]:
+    """列出 `core/` 與 `tasks/` 底下所有 .py（護欄的掃描範圍）"""
+
+    paths: List[Path] = []
+    for package in ("core", "tasks"):
+        paths.extend(sorted((PROJECT_ROOT / package).rglob("*.py")))
+    return paths
+
+
+def test_no_stdlib_exc_info_kwarg() -> None:
+    """
+    `exc_info=` 是標準庫 `logging` 的參數，loguru 會默默丟掉
+
+    loguru 的 `logger.error(message, *args, **kwargs)` 把多餘的 kwargs 當成
+    `str.format()` 的參數，訊息裡沒有 `{exc_info}` 佔位符時就整個忽略——
+    **traceback 從來沒有被印出來過**，而這 15 處全在 ETL 與 tick 的失敗路徑上，
+    半夜跑掛時只留下一行訊息字串。正確寫法是 `logger.opt(exception=True).error(...)`。
+
+    這條測試存在的理由是 `exc_info=True` 是標準庫肌肉記憶，ruff 沒有規則能抓它
+    （它不是語法錯誤），沒有護欄就會再長回來。
+    """
+
+    import ast
+
+    offenders: List[str] = []
+    for path in iter_project_sources():
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            for keyword in node.keywords:
+                if keyword.arg == "exc_info":
+                    rel: str = str(path.relative_to(PROJECT_ROOT))
+                    offenders.append(f"{rel}:{node.lineno}")
+
+    assert not offenders, (
+        "loguru 不吃 exc_info=，請改用 logger.opt(exception=True).error(...)："
+        + "、".join(offenders)
+    )
+
+
+def test_loguru_opt_exception_emits_traceback(tmp_path: Path) -> None:
+    """
+    實證正確寫法會帶出堆疊、錯誤寫法不會
+
+    只驗「有沒有護欄」不夠——要有一條測試釘住「為什麼要換寫法」，
+    否則下次有人把護欄改掉時，沒有東西說明代價是什麼。
+    """
+
+    from loguru import logger
+
+    sink: Path = tmp_path / "traceback_probe.log"
+    handler_id: int = logger.add(sink, level="ERROR", backtrace=True, diagnose=False)
+
+    try:
+        try:
+            raise ValueError("刻意拋錯")
+        except ValueError as e:
+            logger.error(f"A: 標準庫寫法 -> {e}", exc_info=True)
+            logger.opt(exception=True).error(f"B: loguru 正確寫法 -> {e}")
+        logger.complete()
+    finally:
+        logger.remove(handler_id)
+
+    content: str = sink.read_text(encoding="utf-8")
+    head, _, tail = content.partition("B: loguru 正確寫法")
+
+    assert "A: 標準庫寫法" in head
+    assert "Traceback" not in head, "exc_info= 竟然印出了堆疊，本護欄的前提要重新檢查"
+    assert "Traceback" in tail, "logger.opt(exception=True) 必須附上完整堆疊"
+    assert "刻意拋錯" in tail

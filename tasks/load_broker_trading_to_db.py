@@ -22,7 +22,7 @@ def main() -> None:
         logger.info("✅ broker_trading 資料載入完成")
 
     except Exception as e:
-        logger.error(f"❌ 載入 broker_trading 資料時發生錯誤: {e}", exc_info=True)
+        logger.opt(exception=True).error(f"❌ 載入 broker_trading 資料時發生錯誤: {e}")
         raise
 
     finally:

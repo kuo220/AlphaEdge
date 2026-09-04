@@ -227,7 +227,7 @@ class StockTickUpdater(BaseDataUpdater):
                 self.loader.add_to_db(remove_files=False)
                 logger.info("Database loading completed successfully")
             except Exception as e:
-                logger.error(f"Database loading failed: {e}", exc_info=True)
+                logger.opt(exception=True).error(f"Database loading failed: {e}")
                 raise
 
             # Step 3: 確定都存完後，掃描 tick 資料夾內所有的 .csv 以更新 tick_metadata.json
@@ -236,7 +236,7 @@ class StockTickUpdater(BaseDataUpdater):
                 StockTickUtils.update_tick_metadata_from_csv()
                 logger.info("Tick metadata updated successfully")
             except Exception as e:
-                logger.error(f"Failed to update tick metadata: {e}", exc_info=True)
+                logger.opt(exception=True).error(f"Failed to update tick metadata: {e}")
                 # 不中斷流程，因為 metadata 更新失敗不影響數據本身
 
             # 更新後從 tick_metadata.json 取得最新日期並記錄
@@ -267,7 +267,9 @@ class StockTickUpdater(BaseDataUpdater):
                     succeeded=self.global_stats["successful_stocks"],
                 )
         except Exception as e:
-            logger.error(f"Update process failed with exception: {e}", exc_info=True)
+            logger.opt(exception=True).error(
+                f"Update process failed with exception: {e}"
+            )
             self._print_update_summary(self.global_stats, start_date, end_date)
             raise
         finally:
@@ -427,8 +429,8 @@ class StockTickUpdater(BaseDataUpdater):
                     f"total rows: {len(merged_df)}"
                 )
             except Exception as e:
-                logger.error(
-                    f"Stock {stock_id}: Error merging dataframes: {e}", exc_info=True
+                logger.opt(exception=True).error(
+                    f"Stock {stock_id}: Error merging dataframes: {e}"
                 )
                 stats["failed_stocks"] += 1
                 continue
@@ -452,8 +454,8 @@ class StockTickUpdater(BaseDataUpdater):
                     )
 
             except Exception as e:
-                logger.error(
-                    f"Stock {stock_id}: Error cleaning tick data: {e}", exc_info=True
+                logger.opt(exception=True).error(
+                    f"Stock {stock_id}: Error cleaning tick data: {e}"
                 )
                 stats["failed_stocks"] += 1
 
@@ -505,8 +507,8 @@ class StockTickUpdater(BaseDataUpdater):
                     if thread_stats:
                         thread_results.append(thread_stats)
                 except Exception as e:
-                    logger.error(
-                        f"Thread {i + 1} task failed with exception: {e}", exc_info=True
+                    logger.opt(exception=True).error(
+                        f"Thread {i + 1} task failed with exception: {e}"
                     )
                     # 記錄失敗的線程統計
                     thread_results.append(

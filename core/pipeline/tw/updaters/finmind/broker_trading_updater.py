@@ -286,9 +286,8 @@ class BrokerTradingUpdater:
                         )
                     except Exception as e:
                         stats[UpdateStatus.ERROR.value] += 1
-                        logger.error(
+                        logger.opt(exception=True).error(
                             f"Error updating broker trading daily report for trader={securities_trader_id}, stock={stock_id}: {e}",
-                            exc_info=True,
                         )
                         break
 
@@ -437,8 +436,7 @@ class BrokerTradingUpdater:
             # 配額用盡：不在此處處理，向上拋出由批次迴圈統一等待／中斷
             raise
         except Exception as e:
-            logger.error(
+            logger.opt(exception=True).error(
                 f"Error updating broker trading daily report: {e}",
-                exc_info=True,
             )
             return UpdateStatus.ERROR
