@@ -50,8 +50,8 @@ class BaseBacktestAnalyzer(ABC):
         pass
 
     @abstractmethod
-    def compute_information_ratio(self) -> Optional[float]:
-        """計算 Information Ratio（策略超額報酬相對於基準的穩定性）"""
+    def compute_information_ratio(self, *args, **kwargs) -> Optional[float]:
+        """年化 Information Ratio（相對基準的超額報酬穩定性）；資料不足時為 None"""
         pass
 
     # ===== Trade Statistics =====

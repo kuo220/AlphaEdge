@@ -2,11 +2,15 @@ import datetime
 from typing import Dict, List, Optional
 
 import numpy as np
+import pandas as pd
 from loguru import logger
 
+from core.api.tw.stock_price_api import StockPriceAPI
+from core.api.tw.stock_split import apply_split_adjustment
 from core.backtest.analysis.base import BaseBacktestAnalyzer
 from core.backtest.analysis.risk_metrics import (
     TRADING_DAYS_PER_YEAR,
+    compute_annualized_information_ratio,
     compute_annualized_sharpe,
     compute_annualized_sortino,
     compute_period_returns,
@@ -32,15 +36,14 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
         # Statistics
         self.benchmark: Optional[str] = None  # Benchmark stock
         self.risk_free_rate: Optional[float] = None  # 無風險利率（暫定0.02）
-        self.benchmark_return: Optional[float] = (
-            None  # 基準報酬率（用於 Information Ratio）
-        )
+
+        # 取基準還原價用（Information Ratio），首次取用時才連資料庫
+        self.price: Optional[StockPriceAPI] = None
 
     def setup(self) -> None:
         """Set Up the Config of Analyzer"""
         self.benchmark: str = "0050"
         self.risk_free_rate: float = 0.02  # 無風險利率（暫定0.02）
-        self.benchmark_return: float = 0.0  # 基準報酬率（可依回測期間調整）
 
     # ===== Equity-based Metrics =====
     def compute_equity_curve(
@@ -203,22 +206,149 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
             returns, risk_free_rate=self.risk_free_rate or 0.0
         )
 
-    def compute_information_ratio(self) -> Optional[float]:
-        """Compute Information Ratio（策略超額報酬相對於基準的穩定性）
-
-        IR = mean(active_returns) / std(active_returns)
-        active_returns = strategy_roi - benchmark_return
+    def compute_daily_returns_by_date(
+        self, daily_equity: Optional[List[Dict]] = None
+    ) -> Optional[Dict[datetime.date, float]]:
         """
-        if not self.trade_records:
+        - Description:
+            與 `compute_daily_returns()` 同一組數字，但**保留每一期的日期**
+
+            `compute_period_returns()` 在前一期權益 ≤ 0 時會跳過該期，序列長度
+            因此不必然等於天數；要與基準逐日相減就不能靠位置索引對齊，
+            必須帶著日期。
+        - Parameters:
+            - daily_equity: Optional[List[Dict]]
+                Backtester.daily_equity
+        - Return:
+            - Optional[Dict[datetime.date, float]]
+                {日期: 當日報酬率}；沒有逐日權益時為 None
+        """
+
+        if not daily_equity:
             return None
-        benchmark: float = self.benchmark_return or 0.0
-        active_returns: np.ndarray = np.array(
-            [record.roi - benchmark for record in self.trade_records]
+
+        curve: List[float] = self.compute_equity_curve(daily_equity)
+        returns: Dict[datetime.date, float] = {}
+
+        # curve[0] 是初始資金，curve[i + 1] 對應 daily_equity[i]，
+        # 故第 i 期報酬掛在 daily_equity[i] 的日期上
+        for i, row in enumerate(daily_equity):
+            previous: float = curve[i]
+            if previous > 0:
+                returns[row["Date"]] = curve[i + 1] / previous - 1
+        return returns
+
+    def compute_benchmark_daily_returns(
+        self, start_date: datetime.date, end_date: datetime.date
+    ) -> Optional[Dict[datetime.date, float]]:
+        """
+        - Description:
+            取基準（`self.benchmark`，預設 0050）的**還原價**日報酬
+
+            除權息由 `StockPriceAPI.get_adjusted_close_series()` 的累積因子處理，
+            分割則**必須另外補**——`stock_dividend` 只記除權息，不含分割：
+            實測 0050 在 2025-06-17 與 2025-06-18 的累積因子完全相同（1.4545），
+            而原始收盤價由 188.65 掉到 47.57（一拆四）。少了這道調整，
+            任何跨過分割日的回測，IR 都會被一天 −74.8% 的假跌幅整段汙染。
+
+            分割表與 reporter 共用 `core/api/tw/stock_split.py` 同一份，
+            不各留一份（F-087 的教訓）。
+        - Parameters:
+            - start_date: datetime.date
+                起始日（含）
+            - end_date: datetime.date
+                結束日（含）
+        - Return:
+            - Optional[Dict[datetime.date, float]]
+                {日期: 當日報酬率}；查無資料或不足兩筆時為 None
+        """
+
+        if self.price is None:
+            self.price = StockPriceAPI()
+
+        series: pd.Series = apply_split_adjustment(
+            self.price.get_adjusted_close_series(self.benchmark, start_date, end_date),
+            self.benchmark,
         )
-        tracking_error: float = np.std(active_returns)
-        if tracking_error > 0:
-            return float(np.mean(active_returns) / tracking_error)
-        return None
+        if series.empty or len(series) < 2:
+            logger.warning(
+                f"[Analyzer] 基準 {self.benchmark} 在 {start_date}~{end_date} "
+                "取不到足夠的還原價，Information Ratio 回傳 None"
+            )
+            return None
+
+        dates: List[datetime.date] = [
+            StockPriceAPI.to_date(index_value) for index_value in series.index
+        ]
+        prices: List[float] = [float(value) for value in series.to_list()]
+
+        returns: Dict[datetime.date, float] = {}
+        for i in range(1, len(prices)):
+            if prices[i - 1] > 0:
+                returns[dates[i]] = prices[i] / prices[i - 1] - 1
+        return returns
+
+    def compute_information_ratio(
+        self,
+        daily_equity: Optional[List[Dict]] = None,
+        benchmark_returns: Optional[Dict[datetime.date, float]] = None,
+    ) -> Optional[float]:
+        """
+        - Description:
+            年化 Information ratio；公式見
+            `risk_metrics.compute_annualized_information_ratio()`
+
+            與 Sharpe／Sortino／Volatility 同一口徑（健檢 F-068 漏掉的第四個
+            指標）：樣本是**日報酬**、以 √252 年化、基準是**真的基準序列**。
+            舊版以每筆交易的 `record.roi` 為樣本，且從每個樣本減去寫死的
+            `benchmark_return = 0.0`——減去常數不改變分母，等於算出
+            `mean(每筆 ROI) / std(每筆 ROI)`，與相對基準的超額報酬無關。
+
+            策略與基準**依日期取交集**再相減。回測首日的基準報酬需要前一個
+            交易日的收盤價，區間內取不到，故該日自然落在交集之外——
+            策略首日（初始資金 → 首日權益）也一併被排除，兩邊仍然同期。
+        - Parameters:
+            - daily_equity: Optional[List[Dict]]
+                Backtester.daily_equity；沒有時回 None（理由同
+                `compute_daily_returns()`）
+            - benchmark_returns: Optional[Dict[datetime.date, float]]
+                自備的基準日報酬；不給就由 `self.benchmark` 查還原價
+        - Return:
+            - Optional[float]
+                年化 IR；缺逐日權益、缺基準序列或共同日期不足兩期時為 None
+        """
+
+        strategy_returns: Optional[Dict[datetime.date, float]] = (
+            self.compute_daily_returns_by_date(daily_equity)
+        )
+        if not strategy_returns:
+            logger.warning(
+                "[Analyzer] 沒有逐日權益（daily_equity），Information Ratio 無法年化，"
+                "本次回傳 None——逐筆交易的報酬不是日報酬"
+            )
+            return None
+
+        if benchmark_returns is None:
+            benchmark_returns = self.compute_benchmark_daily_returns(
+                min(strategy_returns), max(strategy_returns)
+            )
+        if not benchmark_returns:
+            return None
+
+        common_dates: List[datetime.date] = sorted(
+            set(strategy_returns) & set(benchmark_returns)
+        )
+        if len(common_dates) < 2:
+            logger.warning(
+                f"[Analyzer] 策略與基準 {self.benchmark} 的共同交易日只有 "
+                f"{len(common_dates)} 天，Information Ratio 回傳 None"
+            )
+            return None
+
+        return compute_annualized_information_ratio(
+            [strategy_returns[date] for date in common_dates],
+            [benchmark_returns[date] for date in common_dates],
+        )
 
     # ===== Trade Statistics =====
     def compute_win_rate(self) -> float:

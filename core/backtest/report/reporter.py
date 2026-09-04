@@ -7,6 +7,10 @@ import plotly.graph_objects as go
 from loguru import logger
 
 from core.api.tw.stock_price_api import StockPriceAPI
+from core.api.tw.stock_split import (
+    SPLIT_ADJUSTMENT_WARNING_PCT,
+    apply_split_adjustment,
+)
 from core.backtest.report.base import BaseBacktestReporter
 from core.models.stock.record import StockTradeRecord
 from core.strategies.stock import BaseStockStrategy
@@ -18,19 +22,11 @@ from core.utils import FileEncoding
 class StockBacktestReporter(BaseBacktestReporter):
     """Generates visual reports based on backtest results"""
 
-    SPLIT_ADJUSTMENT_WARNING_PCT: float = 5.0  # 分割調整差異超過此 % 發出警告
     CHART_FONT_SIZE: int = 15
 
     # 權益曲線的兩種口徑，標註在圖上避免不同期報表被混著看
     EQUITY_BASIS_MARK_TO_MARKET: str = "Mark-to-market"  # 逐日盯市（含未實現損益）
     EQUITY_BASIS_REALIZED_ONLY: str = "Realized only"  # 只認已實現損益（MDD 會被低估）
-
-    # 股票分割配置：{股票代號: [(分割日期, 分割比例), ...]}
-    # 分割比例格式：1:4 表示 1 拆 4（1 股變成 4 股，調整因子為 4）
-    # 範例：{"0050": [(datetime.date(2025, 6, 18), 4)]}
-    STOCK_SPLITS: Dict[str, List[Tuple[datetime.date, float]]] = {
-        "0050": [(datetime.date(2025, 6, 18), 4.0)],  # 2025/06/18 1 拆 4
-    }
 
     def __init__(self, strategy: BaseStockStrategy, output_dir: Optional[Path] = None):
         super().__init__(strategy, output_dir)
@@ -73,160 +69,14 @@ class StockBacktestReporter(BaseBacktestReporter):
         """
         計算調整後價格（處理股票分割，支援多次分割）
 
-        Args:
-            price_series: 原始價格序列（已排序）
-            stock_id: 股票代號
-
-        Returns:
-            調整後價格序列
-
-        Note:
-            對於股票分割（如 1 拆 4），分割日期及之後的價格需要乘以調整因子（4），
-            這樣可以確保價格序列的連續性
-
-            範例（單次分割）：
-            - 分割前 100 元（保持原樣）
-            - 分割後 25 元 → 調整後 100 元（25 × 4）
-            - 這樣可以確保價格序列連續：100 → 100，而不是 100 → 25
-
-            範例（多次分割）：
-            假設有兩次分割：
-            - 2025/06/18: 1 拆 4（調整因子 4）
-            - 2025/12/18: 1 拆 2（調整因子 2）
-
-            原始價格：
-            - 2025/06/17: 100 元（分割前）
-            - 2025/06/18: 25 元（第一次分割後）
-            - 2025/12/17: 25 元
-            - 2025/12/18: 12.5 元（第二次分割後）
-
-            調整後價格：
-            - 2025/06/17: 100 元（不變，累積調整因子 = 1.0）
-            - 2025/06/18: 25 × 4 = 100 元（累積調整因子 = 4.0）
-            - 2025/12/17: 25 × 4 = 100 元（累積調整因子 = 4.0）
-            - 2025/12/18: 12.5 × 4 × 2 = 100 元（累積調整因子 = 8.0）
-
-            實現邏輯：
-            1. 對於每個日期，計算其累積調整因子（所有在該日期之前或當天的分割的累積）
-            2. 將原始價格乘以對應的累積調整因子
-            3. 這樣可以確保不同分割後的日期使用正確的調整因子
+        實作在 `core/api/tw/stock_split.py`，**與 analyzer 的 Information Ratio
+        共用同一份分割表**：分割調整表寫在誰身上，另一邊就得再抄一次，
+        而抄漏一次分割的代價是整段序列從那天起錯 N 倍。
         """
-        if stock_id not in self.STOCK_SPLITS:
-            return price_series
 
-        adjusted_price: pd.Series = price_series.copy()
-        splits: List[Tuple[datetime.date, float]] = self.STOCK_SPLITS[stock_id]
-
-        # 確保索引是 date 類型，並排序
-        if len(adjusted_price) > 0:
-            # 轉換索引為 date 類型（如果還不是）
-            if not isinstance(adjusted_price.index[0], datetime.date):
-                adjusted_price.index = pd.to_datetime(adjusted_price.index).date  # type: ignore
-            # 確保索引是 date 類型的列表
-            index_dates: List[datetime.date] = [
-                d if isinstance(d, datetime.date) else pd.to_datetime(d).date()
-                for d in adjusted_price.index
-            ]
-            adjusted_price.index = pd.Index(index_dates)
-
-        adjusted_price: pd.Series = adjusted_price.sort_index()
-
-        # 按日期排序（從舊到新）
-        splits_sorted: List[Tuple[datetime.date, float]] = sorted(
-            splits, key=lambda x: x[0]
+        return apply_split_adjustment(
+            price_series, stock_id, warning_pct=SPLIT_ADJUSTMENT_WARNING_PCT
         )
-
-        # 標準化分割日期為 date 類型
-        splits_normalized: List[Tuple[datetime.date, float]] = []
-        for split_date, split_ratio in splits_sorted:
-            split_date_normalized: datetime.date
-            if isinstance(split_date, datetime.datetime):
-                split_date_normalized = split_date.date()
-            elif isinstance(split_date, str):
-                split_date_normalized = datetime.datetime.strptime(
-                    split_date, "%Y-%m-%d"
-                ).date()
-            else:
-                split_date_normalized = split_date  # type: ignore
-            splits_normalized.append((split_date_normalized, split_ratio))
-
-        # 方法：為每個日期計算其累積調整因子
-        # 這樣可以確保不同分割後的日期使用正確的調整因子
-        adjusted_result: pd.Series = adjusted_price.copy()
-
-        for date in adjusted_price.index:
-            # 計算該日期的累積調整因子
-            cumulative_ratio: float = 1.0
-            for split_date, split_ratio in splits_normalized:
-                # 如果該日期 >= 分割日期，則應用該分割的調整因子
-                if date >= split_date:
-                    cumulative_ratio *= split_ratio
-
-            # 應用累積調整因子
-            if cumulative_ratio != 1.0:
-                adjusted_result.loc[date] = adjusted_price.loc[date] * cumulative_ratio
-
-        # 記錄分割調整信息
-        for split_date, split_ratio in splits_normalized:
-            # 計算受影響的日期範圍
-            mask: pd.Series = adjusted_price.index >= split_date
-            num_adjusted: int = mask.sum()
-
-            if num_adjusted > 0:
-                # 計算該分割的累積調整因子（用於日誌）
-                cumulative_ratio_for_split: float = 1.0
-                for sd, sr in splits_normalized:
-                    if sd <= split_date:
-                        cumulative_ratio_for_split *= sr
-
-                # 記錄分割日期前一天的價格（如果存在），用於驗證調整是否正確
-                price_before_split: Optional[float] = None
-                dates_before: pd.Index = adjusted_price.index[
-                    adjusted_price.index < split_date
-                ]
-                if len(dates_before) > 0:
-                    price_before_split = adjusted_result.loc[dates_before[-1]]
-
-                # 記錄分割日期當天的調整後價格（如果存在）
-                price_on_split_date_after: Optional[float] = None
-                if split_date in adjusted_result.index:
-                    price_on_split_date_after = adjusted_result.loc[split_date]
-                else:
-                    dates_on_or_after: pd.Index = adjusted_price.index[
-                        adjusted_price.index >= split_date
-                    ]
-                    if len(dates_on_or_after) > 0:
-                        price_on_split_date_after = adjusted_result.loc[
-                            dates_on_or_after[0]
-                        ]
-
-                logger.info(
-                    f"股票分割調整: {stock_id} 在 {split_date} 進行 1:{int(split_ratio)} 分割，"
-                    f"調整了 {num_adjusted} 筆價格數據（累積調整因子: {cumulative_ratio_for_split:.2f}）"
-                )
-
-                # 驗證調整是否正確：分割當天的調整後價格應該接近分割前一天的價格
-                if (
-                    price_on_split_date_after is not None
-                    and price_before_split is not None
-                ):
-                    diff_pct: float = (
-                        abs(price_on_split_date_after - price_before_split)
-                        / price_before_split
-                        * 100
-                    )
-                    if diff_pct > self.SPLIT_ADJUSTMENT_WARNING_PCT:
-                        logger.warning(
-                            f"警告：分割當天調整後價格 ({price_on_split_date_after:.2f}) 與分割前一天價格 ({price_before_split:.2f}) 差異較大 ({diff_pct:.2f}%)，"
-                            f"可能表示分割比例配置不正確或數據有問題"
-                        )
-            else:
-                logger.warning(
-                    f"股票分割調整: {stock_id} 在 {split_date} 的分割事件沒有找到需要調整的價格數據。"
-                    f"可用日期範圍: {adjusted_price.index.min()} ~ {adjusted_price.index.max()}"
-                )
-
-        return adjusted_result
 
     def generate_trading_report(self) -> pd.DataFrame:
         """生成回測報告"""

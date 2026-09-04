@@ -127,3 +127,62 @@ def compute_annualized_sortino(
         return None
 
     return round(mean / downside_deviation * math.sqrt(periods_per_year), 4)
+
+
+def compute_annualized_information_ratio(
+    returns: Sequence[float],
+    benchmark_returns: Sequence[float],
+    periods_per_year: int = TRADING_DAYS_PER_YEAR,
+) -> Optional[float]:
+    """
+    - Description:
+        年化 Information ratio
+
+        `(平均主動報酬 / 追蹤誤差) × √periods_per_year`，其中主動報酬是
+        **逐期相減**的 `策略報酬 - 基準報酬`。
+
+        舊版（健檢 F-068 漏掉的第四個指標）有三個問題，第三個讓這個指標
+        完全失去意義：
+
+        1. 樣本是**每筆交易**的 `record.roi` 而非時間序列，無從年化；
+        2. 沒有年化；
+        3. 基準是**寫死的 0.0**。從每一個樣本減去同一個常數不會改變分母，
+           所以舊值恆等於 `mean(每筆 ROI) / std(每筆 ROI)`——
+           那是報酬的穩定性，與「相對基準的超額報酬」無關。
+
+        兩條序列必須**已由呼叫端對齊到同一組日期**：長度不同時直接
+        `ValueError`，不做截頭去尾。長度湊得起來不代表日期對得起來，
+        自作主張對齊只會讓錯位的比較看起來很正常。
+    - Parameters:
+        - returns: Sequence[float]
+            策略的逐期報酬率（小數）
+        - benchmark_returns: Sequence[float]
+            基準的逐期報酬率（小數），與 `returns` 同期同長度
+        - periods_per_year: int
+            一年幾期
+    - Return:
+        - Optional[float]
+            年化 IR；樣本不足兩期或追蹤誤差為 0 時為 None
+    """
+
+    if len(returns) != len(benchmark_returns):
+        raise ValueError(
+            f"策略與基準的報酬序列長度不同（{len(returns)} vs "
+            f"{len(benchmark_returns)}），請先由呼叫端依日期對齊"
+        )
+
+    if len(returns) < 2:
+        return None
+
+    active: List[float] = [
+        value - base for value, base in zip(returns, benchmark_returns)
+    ]
+
+    mean: float = sum(active) / len(active)
+    variance: float = sum((value - mean) ** 2 for value in active) / (len(active) - 1)
+    tracking_error: float = math.sqrt(variance)
+
+    if tracking_error == 0:
+        return None
+
+    return round(mean / tracking_error * math.sqrt(periods_per_year), 4)
