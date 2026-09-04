@@ -245,4 +245,9 @@ def build_cost_config(strategy: BaseStockStrategy) -> CostConfig:
     if strategy.short_constraint is not None:
         config.short_constraint = strategy.short_constraint
 
+    # 回測區間交給 CostModel 做稅制邊界的警示（當沖證交稅減半有實施日與落日日期）。
+    # 由 factory 注入是因為策略才知道自己要跑哪一段，而 CostModel 不該反向去問策略
+    config.backtest_start_date = strategy.start_date
+    config.backtest_end_date = strategy.end_date
+
     return config

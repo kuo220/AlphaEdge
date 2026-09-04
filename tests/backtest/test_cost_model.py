@@ -342,3 +342,142 @@ def test_non_day_trade_tax_ignores_the_date() -> None:
         )
         == 300
     )
+
+
+# === F-060 的另一半：落日警示要看回測區間，不看真實今天 ===
+def make_day_trade_config(start: datetime.date, end: datetime.date) -> CostConfig:
+    """建一份帶回測區間的當沖成本設定（factory 平常會這樣注入）"""
+
+    config: CostConfig = CostConfig.default(ShortMethod.DAY_TRADE, is_day_trade=True)
+    config.backtest_start_date = start
+    config.backtest_end_date = end
+    return config
+
+
+def test_no_warning_when_backtest_stays_inside_the_tax_window() -> None:
+    """回測區間完整落在 [2017-04-28, 2027-12-31] 內時不該有任何提示"""
+
+    from loguru import logger
+
+    messages: list = []
+    handler_id: int = logger.add(messages.append, level="WARNING")
+    try:
+        StockCostModel(
+            make_day_trade_config(
+                datetime.date(2020, 1, 2), datetime.date(2024, 12, 31)
+            )
+        )
+    finally:
+        logger.remove(handler_id)
+
+    assert not [m for m in messages if "當沖證交稅減半" in str(m)]
+
+
+def test_warns_when_backtest_runs_past_the_expiry_date() -> None:
+    """
+    回測跑過落日日期就要警示，且要指出是**哪一段**
+
+    舊版看的是 `datetime.date.today()`，而落日日期是 2027-12-31——
+    這條警告在 2028 年之前永遠不會觸發；反過來，拿當沖策略回測到 2028 年時
+    稅率假設早已失效卻沒有任何提示。
+    """
+
+    from loguru import logger
+
+    messages: list = []
+    handler_id: int = logger.add(messages.append, level="WARNING")
+    try:
+        StockCostModel(
+            make_day_trade_config(datetime.date(2026, 1, 5), datetime.date(2028, 6, 30))
+        )
+    finally:
+        logger.remove(handler_id)
+
+    warnings: list = [str(m) for m in messages if "當沖證交稅減半" in str(m)]
+    assert len(warnings) == 1
+    assert "2028-01-01 ~ 2028-06-30" in warnings[0]
+    assert "落日日期" in warnings[0]
+
+
+def test_warns_when_backtest_starts_before_the_halving_took_effect() -> None:
+    """區間跨到 2017-04-28 之前同樣要警示——那段一律課全額 0.3%"""
+
+    from loguru import logger
+
+    messages: list = []
+    handler_id: int = logger.add(messages.append, level="WARNING")
+    try:
+        StockCostModel(
+            make_day_trade_config(
+                datetime.date(2015, 1, 5), datetime.date(2020, 12, 31)
+            )
+        )
+    finally:
+        logger.remove(handler_id)
+
+    warnings: list = [str(m) for m in messages if "當沖證交稅減半" in str(m)]
+    assert len(warnings) == 1
+    assert "2015-01-05 ~ 2017-04-27" in warnings[0]
+    assert "減半實施日" in warnings[0]
+
+
+def test_stays_silent_when_the_backtest_range_is_unknown() -> None:
+    """
+    拿不到回測區間時維持靜默，不退回看 `today()`
+
+    寧可不說，也不要說錯：退回看真實今天就會回到 F-060 的錯誤方向。
+    """
+
+    from loguru import logger
+
+    messages: list = []
+    handler_id: int = logger.add(messages.append, level="WARNING")
+    try:
+        StockCostModel(CostConfig.default(ShortMethod.DAY_TRADE, is_day_trade=True))
+    finally:
+        logger.remove(handler_id)
+
+    assert not [m for m in messages if "當沖證交稅減半" in str(m)]
+
+
+def test_non_day_trade_never_warns_about_the_tax_window() -> None:
+    """非當沖策略與這條稅制邊界無關，跨多遠都不該提示"""
+
+    from loguru import logger
+
+    config: CostConfig = CostConfig.default(ShortMethod.MARGIN, is_day_trade=False)
+    config.backtest_start_date = datetime.date(2015, 1, 5)
+    config.backtest_end_date = datetime.date(2028, 6, 30)
+
+    messages: list = []
+    handler_id: int = logger.add(messages.append, level="WARNING")
+    try:
+        StockCostModel(config)
+    finally:
+        logger.remove(handler_id)
+
+    assert not [m for m in messages if "當沖證交稅減半" in str(m)]
+
+
+def test_factory_injects_the_backtest_range_into_the_cost_config() -> None:
+    """
+    警示要成立，前提是 factory 真的把回測區間交給 CostModel
+
+    `CostConfig` 多兩個欄位而沒有人填，等於這條警告換一種方式繼續不會觸發。
+    """
+
+    from core.backtest.factory import build_cost_config
+
+    class _Strategy:
+        position_type = PositionType.SHORT
+        enable_intraday = True
+        short_method = ShortMethod.DAY_TRADE
+        cost_config = None
+        short_constraint = None
+        start_date = datetime.date(2026, 1, 5)
+        end_date = datetime.date(2028, 6, 30)
+
+    config: CostConfig = build_cost_config(_Strategy())
+
+    assert config.backtest_start_date == datetime.date(2026, 1, 5)
+    assert config.backtest_end_date == datetime.date(2028, 6, 30)

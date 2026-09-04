@@ -192,6 +192,11 @@ class CostConfig:
     # 可成交限制
     short_constraint: ShortConstraint = field(default_factory=ShortConstraint)
 
+    # 回測區間（由 factory 依策略注入）。**只用於稅制邊界的警示**，不參與任何計算；
+    # 拿不到時一律靜默，見 `StockCostModel.check_day_trade_tax_expiry()`
+    backtest_start_date: Optional[datetime.date] = None
+    backtest_end_date: Optional[datetime.date] = None
+
     @classmethod
     def default(
         cls,
@@ -276,12 +281,48 @@ class StockCostModel(BaseCostModel):
                 )
 
     def check_day_trade_tax_expiry(self) -> None:
-        """當沖證交稅減半有落日期限，超過即提醒稅率假設可能失效"""
+        """
+        - Description:
+            回測區間落在當沖證交稅減半的適用區間之外時提醒稅率假設失效
 
-        if self.config.is_day_trade and datetime.date.today() > DAY_TRADE_TAX_EXPIRY:
+            **看的是回測區間，不是真實今天**（健檢 F-060 的另一半）。舊版寫
+            `datetime.date.today() > DAY_TRADE_TAX_EXPIRY`，而落日日期是
+            2027-12-31，所以這條警告在 2028 年之前**永遠不會觸發**；反過來，
+            拿當沖策略回測到 2028 年時稅率假設早已失效，卻沒有任何提示。
+            方向與 F-060 的另一半完全一致：**稅制邊界要看成交日，不看真實今天**。
+
+            拿不到區間時**維持靜默**而不是退回看 `today()`——寧可不說，
+            也不要說錯。實際課稅仍由 `tax()` 逐筆依成交日判斷
+            （見 `is_day_trade_tax_effective()`），本檢查只負責讓使用者知道
+            這次回測有多少比例落在區間外。
+        """
+
+        if not self.config.is_day_trade:
+            return
+
+        start: Optional[datetime.date] = self.config.backtest_start_date
+        end: Optional[datetime.date] = self.config.backtest_end_date
+        if start is None or end is None:
+            return
+
+        # 指出是「哪一段」落在區間外，只說「有落差」等於要使用者自己再查一次
+        out_of_range: List[str] = []
+        if start < DAY_TRADE_TAX_START:
+            out_of_range.append(
+                f"{start} ~ {min(end, DAY_TRADE_TAX_START - datetime.timedelta(days=1))} "
+                f"在減半實施日（{DAY_TRADE_TAX_START}）之前"
+            )
+        if end > DAY_TRADE_TAX_EXPIRY:
+            out_of_range.append(
+                f"{max(start, DAY_TRADE_TAX_EXPIRY + datetime.timedelta(days=1))} ~ {end} "
+                f"在落日日期（{DAY_TRADE_TAX_EXPIRY}）之後"
+            )
+
+        if out_of_range:
             logger.warning(
-                f"[CostModel] 現股當沖證交稅減半優惠已於 {DAY_TRADE_TAX_EXPIRY} 到期，"
-                f"目前仍以 {self.config.day_trade_tax_rate} 計算，請確認現行法規"
+                f"[CostModel] 回測區間 {start} ~ {end} 有部分落在現股當沖證交稅減半的"
+                f"適用區間之外（{'；'.join(out_of_range)}），該段將以一般稅率 "
+                f"{self.config.tax_rate} 計算，請確認當時的法規"
             )
 
     # === 單邊成本 ===
