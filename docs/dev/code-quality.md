@@ -255,9 +255,9 @@ PYTHONPATH=. python scripts/some_script.py
 | F-011 | `core/utils/callback.py` | `OrderState` 先從 `shioaji.constant` import 再被 `.constant.OrderState` 覆蓋（F811） |
 | F-023 | `core/adapters/tw/stock_quote_adapter.py` | `filtered_stock_ids` 用 list 做 `in` 判斷，全市場 2,000 檔 × 每日；改 set |
 | F-029 | `core/api/tw/finmind_api.py`、`stock_tick_api.py` | 不接受共用連線注入、各自開連線；前者覆蓋率 0% |
-| F-080 | `tasks/load_broker_trading_to_db.py` 等 12 處 | `logger.error(..., exc_info=True)`：loguru 沒有 `exc_info` 參數，traceback 不會印；全部改 `logger.exception()` |
+| F-080 | `core/pipeline/tw/` 與 `tasks/` 共 **15 處**（原列 12 處） | `logger.error(..., exc_info=True)`：loguru 把多餘的 kwargs 當 `str.format()` 參數而默默丟掉，traceback 從未印出。**2026-09-04 全數改為 `logger.opt(exception=True).error(...)`**（訊息字串不動；未用 `logger.exception()` 是為了保留原本的 `logger.error` 語意與訊息）。護欄兩道：`tests/test_entrypoint_and_logging.py` 的 AST 掃描（CI 跑得到，且抓得到 `exc_info=e` 等變體）與 `.pre-commit-config.yaml` 的 pygrep |
 | F-088 | `strategy_lab/` | 13 個 `output/*.html` 在 `.gitignore` 規則加入前被追蹤（`git rm --cached`）；`tech_new_high` 的 `END_DATE` 寫死、存活者偏差未列入限制、`load_price_panel()` 繞過 API 直接下 SQL |
-| F-098 | `core/config/schema.py` | `FUTURES_CONTRACT_TABLE_NAME` 有宣告無建表；刪除或註明 |
+| F-098 | `core/config/schema.py` | `FUTURES_CONTRACT_TABLE_NAME` 有宣告無建表；**2026-09-04 已刪除常數**，原處留註解說明未建表、股期乘數走 `futures_stock_universe.contract_size`、指數期貨乘數走 `FUTURES_MULTIPLIER` |
 | F-101 | `README.md`／`README_zh.md` | Docker 段落曾分岔；2026-09-03 已以中文版為準回填英文版，兩份檔頭互相標註「以中文版為準」 |
 
 工具鏈側可直接動手的三條已放進 `backlog/測試護欄與本機CI容器一致性.md`（`sys.path.insert` 清理 F-009、per-file-ignores 路徑 F-100、環境變數與相依檔 F-096）。

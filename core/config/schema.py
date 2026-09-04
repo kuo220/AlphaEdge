@@ -80,7 +80,11 @@ STOCK_INFO_TABLE_NAME: str = "taiwan_stock_info"
 STOCK_INFO_WITH_WARRANT_TABLE_NAME: str = "taiwan_stock_info_with_warrant"
 SECURITIES_TRADER_INFO_TABLE_NAME: str = "taiwan_securities_trader_info"
 # 台期貨（皆位於 tw_futures.db）
-FUTURES_CONTRACT_TABLE_NAME: str = "futures_contract"  # 合約／商品規格
+# **`futures_contract` 的表名常數已刪除**（健檢 F-098）：規劃時預留給股票期貨乘數，
+# 後來改走 `futures_stock_universe.contract_size`，於是這個常數變成有宣告、無建表、
+# 無 loader、無讀取端——留著只會讓人以為 DB 裡有這張表。
+# 指數期貨乘數見程式碼常數 `FUTURES_MULTIPLIER`，股票期貨乘數見
+# `futures_stock_universe.contract_size`
 FUTURES_PRICE_DAILY_TABLE_NAME: str = "futures_price_daily"  # 各月份合約日 K
 FUTURES_CONTINUOUS_TABLE_NAME: str = "futures_continuous"  # 連續合約（換月接續後）
 FUTURES_INSTITUTIONAL_CHIP_TABLE_NAME: str = (
