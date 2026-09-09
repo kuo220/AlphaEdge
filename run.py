@@ -1,4 +1,5 @@
 import argparse
+import sys
 from typing import Dict, Type
 
 from core.backtest.backtester import Backtester
@@ -18,6 +19,22 @@ from core.strategies.strategy_loader import StrategyLoader
 # Example: python run.py --strategy MeanReversion
 # Notes: Strategy Name 為 Class 名稱
 #
+# -----------------------------------------------------------------------
+# 退出碼（健檢 F-077）
+# -----------------------------------------------------------------------
+# 0  回測正常結束
+# 2  用法錯誤：策略名找不到（與 argparse 自己的用法錯誤同碼，缺 --strategy
+#    本來就回 2，兩者對呼叫端是同一類問題，不必再多記一個號碼）
+# 1  `--mode live` 尚未實作（NotImplementedError 的預設退出碼）
+#
+# **舊版兩者都回 0**：找不到策略只 `print` 後 `return`，`--mode live` 是 `pass`。
+# 目前 `run.py` 只有人手動跑所以還沒出事，但一旦接進批次（例如每晚重跑策略），
+# 「策略名打錯」與「回測跑完」在退出碼上長得一模一樣——那是最典型的假綠燈。
+#
+
+
+# 用法錯誤的退出碼；與 argparse 自己的用法錯誤同碼（缺必填參數時它就回 2）
+EXIT_STRATEGY_NOT_FOUND: int = 2
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -25,7 +42,14 @@ def parse_arguments() -> argparse.Namespace:
         description="Trading System"
     )
 
-    parser.add_argument("--mode", choices=["backtest", "live"], default="backtest")
+    # `live` 保留在 choices 裡（它是規劃中的模式，`--mode` 這個參數才有意義），
+    # 但 help 必須講明尚未實作——否則 `--help` 看起來像已經支援實盤（F-077）
+    parser.add_argument(
+        "--mode",
+        choices=["backtest", "live"],
+        default="backtest",
+        help="執行模式；`live`（實盤）尚未實作，指定它會以 NotImplementedError 結束",
+    )
     parser.add_argument(
         "--strategy", type=str, required=True, help="Name of the strategy class"
     )
@@ -57,11 +81,16 @@ def main() -> None:
     strategies: Dict[str, Type[BaseStrategy]] = StrategyLoader.load_strategies()
 
     if strategy_name not in strategies:
+        # 錯誤訊息走 stderr、退出碼非 0：這兩件事缺一不可——訊息印在 stdout
+        # 會混進正常輸出，退出碼 0 則讓呼叫端完全看不出失敗（F-077）
         print(
-            f"Strategy '{strategy_name}' not found. Please check the spelling or ensure it is registered."
+            f"Strategy '{strategy_name}' not found. "
+            "Please check the spelling or ensure it is registered.",
+            file=sys.stderr,
         )
-        print(f"Available strategies: {list(strategies.keys())}")
-        return
+        available: str = ", ".join(sorted(strategies)) or "(none)"
+        print(f"Available strategies: {available}", file=sys.stderr)
+        sys.exit(EXIT_STRATEGY_NOT_FOUND)
 
     # Initialize strategy
     strategy: BaseStrategy = strategies[strategy_name]()
@@ -75,7 +104,11 @@ def main() -> None:
         )
         backtester.run()
     elif args.mode == "live":
-        pass
+        raise NotImplementedError(
+            "實盤模式（--mode live）尚未實作。"
+            "目前 `core/utils/account.py` 只有 Shioaji 帳戶工具，沒有下單迴圈；"
+            "在那之前請用 --mode backtest。"
+        )
 
 
 if __name__ == "__main__":

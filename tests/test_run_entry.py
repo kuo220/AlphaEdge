@@ -1,0 +1,149 @@
+import subprocess
+import sys
+from pathlib import Path
+from typing import List
+
+import pytest
+
+_PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
+_RUN_PY: Path = _PROJECT_ROOT / "run.py"
+
+"""
+`run.py` 的退出碼契約（健檢 F-077）
+
+舊版**兩種失敗都回 0**：策略名找不到只 `print` 後 `return`，`--mode live` 是
+`pass`。目前 `run.py` 只有人手動跑所以還沒出事，但一旦接進批次（例如每晚
+重跑策略），「策略名打錯」與「回測跑完」在退出碼上長得一模一樣——
+那是最典型的假綠燈，與 F-090（回歸腳本把 skip 當通過）同一類問題。
+
+**一定要用 subprocess 驗**：退出碼是**行程**的性質，直接呼叫 `main()` 只驗得到
+有沒有拋例外，驗不到 `sys.exit()` 實際交給呼叫端的那個數字，也驗不到
+訊息去了 stdout 還是 stderr。
+
+本檔的每一條都**不會真的跑回測**——三種情況都在建 Backtester 之前就結束，
+所以不需要 `data/db/*.db`，也不標 `slow`。
+"""
+
+
+# 用法錯誤：與 argparse 自己的用法錯誤同碼（缺必填參數時它就回 2）
+EXIT_USAGE_ERROR: int = 2
+
+# 未實作：`raise NotImplementedError` 的預設退出碼
+EXIT_UNHANDLED_EXCEPTION: int = 1
+
+
+def run_entry(*args: str) -> subprocess.CompletedProcess:
+    """以子行程跑 `run.py`，回傳完整結果（退出碼、stdout、stderr）"""
+
+    return subprocess.run(
+        [sys.executable, str(_RUN_PY), *args],
+        capture_output=True,
+        text=True,
+        cwd=_PROJECT_ROOT,
+        timeout=180,
+    )
+
+
+def test_unknown_strategy_exits_with_usage_error() -> None:
+    """
+    策略名找不到 → 退出碼 2，**不是 0**
+
+    這是本步驟的主要目的：讓呼叫端看得出失敗。
+    """
+
+    result: subprocess.CompletedProcess = run_entry("--strategy", "NoSuchStrategy")
+
+    assert result.returncode == EXIT_USAGE_ERROR
+
+
+def test_unknown_strategy_writes_to_stderr_not_stdout() -> None:
+    """
+    錯誤訊息走 stderr
+
+    退出碼與輸出流向要一起改才有意義：訊息印在 stdout 會混進正常輸出，
+    批次作業把 stdout 收去當報表時就看不見這行了。
+    """
+
+    result: subprocess.CompletedProcess = run_entry("--strategy", "NoSuchStrategy")
+
+    assert "NoSuchStrategy" in result.stderr
+    assert "not found" in result.stderr
+    assert "NoSuchStrategy" not in result.stdout
+
+
+def test_unknown_strategy_lists_available_strategies() -> None:
+    """
+    要印出可用清單，否則使用者只知道打錯、不知道該打什麼
+
+    清單本身由 `StrategyLoader` 掃出來，不是寫死的——新增策略會自動出現。
+    """
+
+    result: subprocess.CompletedProcess = run_entry("--strategy", "NoSuchStrategy")
+
+    assert "Available strategies:" in result.stderr
+    # 專案內既有的策略至少要出現一個；寫死一個名字才驗得到「清單真的有內容」
+    assert "MomentumStrategy1" in result.stderr
+
+
+def test_missing_strategy_argument_is_still_a_usage_error() -> None:
+    """
+    缺 `--strategy` 維持 argparse 既有的退出碼 2
+
+    這條不是新行為，是釘住「策略找不到」刻意與它同碼——對呼叫端來說
+    兩者是同一類問題（用法錯誤），不必再多記一個號碼。
+    """
+
+    result: subprocess.CompletedProcess = run_entry()
+
+    assert result.returncode == EXIT_USAGE_ERROR
+
+
+def test_live_mode_fails_loudly() -> None:
+    """
+    `--mode live` 尚未實作 → 非 0 退出並說明原因
+
+    舊版是 `pass`：退出碼 0、零輸出，跑起來與「實盤已經正常結束」無法區分。
+    """
+
+    result: subprocess.CompletedProcess = run_entry(
+        "--mode", "live", "--strategy", "MomentumStrategy1"
+    )
+
+    assert result.returncode == EXIT_UNHANDLED_EXCEPTION
+    assert result.returncode != 0
+    assert "NotImplementedError" in result.stderr
+    assert "--mode backtest" in result.stderr
+
+
+def test_help_says_live_is_not_implemented() -> None:
+    """
+    `--help` 不可讓 `live` 看起來已經支援
+
+    F-077 的第二半：模式列在 `choices` 裡而沒有任何說明，讀 `--help` 的人
+    會以為實盤可用。保留選項但在說明裡講明，比從 `choices` 移除更誠實——
+    它確實是規劃中的模式。
+    """
+
+    result: subprocess.CompletedProcess = run_entry("--help")
+
+    assert result.returncode == 0
+    assert "live" in result.stdout
+    assert "尚未實作" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["--strategy", "NoSuchStrategy"],
+        ["--mode", "live", "--strategy", "MomentumStrategy1"],
+    ],
+    ids=["unknown-strategy", "live-mode"],
+)
+def test_failure_paths_never_exit_zero(args: List[str]) -> None:
+    """
+    所有失敗路徑都不得回 0
+
+    參數化是為了讓日後新增的失敗路徑直接加進這張表，而不是各寫一條。
+    """
+
+    assert run_entry(*args).returncode != 0
