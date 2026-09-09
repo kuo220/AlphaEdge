@@ -12,10 +12,10 @@
 | 編號 | 步驟名稱 | 產出檔案 | 驗證方式 | 狀態 | 備註／中斷點 |
 |------|----------|----------|----------|:----:|--------------|
 | S1 | 回歸腳本假綠燈與 CI 護欄 | `scripts/run_regression.sh`、`.github/workflows/ci.yml`、`.pre-commit-config.yaml`、`pyproject.toml`、`docs/dev/{code-quality,health-check-2026-09}.md` | 無 DB 時腳本非零結束並印「LONG 線未執行」；CI 新增 SHORT 線步驟 | ✅ | **2026-09-05 完成**。無 DB 實測結束碼 3；CI 另加分層閘門；ruff 釘死 `==0.16.3`。`test_long_regression.py` 未改（`skipif` 是對的，錯的是腳本把 skip 當通過） |
-| S2 | 容器可跑：前端相依、`core` 掛 `data/`、只裝 pyproject 相依 | `frontend/requirements.txt`（新增）、`frontend/Dockerfile`、`core/Dockerfile`、`docker-compose.yml`、`README*.md` | `docker compose config` OK；`compose up` 跑完示範策略；映像不含 Flask／ipython 等無關套件 | ⬜ | F-093、F-094、F-096(5) |
+| S2 | 容器可跑：前端相依、`core` 掛 `data/`、只裝 pyproject 相依 | `frontend/requirements.txt`（新增）、`frontend/Dockerfile`、`core/Dockerfile`、`docker-compose.yml`、`README*.md` | `docker compose config` OK；`compose up` 跑完示範策略；映像不含 Flask／ipython 等無關套件 | 🔄 | **2026-09-10 做掉 F-093 與 F-094 的掛載半邊**（`871f74c`）：前端補 plotly、core 掛 `data/`（唯讀）與 `logs/`、映像 COPY `tasks/`。⚠️ **本機 Docker daemon 未啟動，映像未建置**，`compose up` 那條驗收未執行；`pip install -e .` 那半邊亦未做（見 S2 進度紀錄）|
 | S3 | 入口退出碼與 `--mode live` | `run.py`、`tests/test_run_entry.py`（新增） | subprocess 測試：找不到策略 exit 2；`live` 明確 `NotImplementedError` | ✅ | **2026-09-10 完成**（`0138ca6`）：策略找不到 0 → 2 且訊息改走 stderr、`--mode live` 0 → 1；8 條 subprocess 測試，實測修正前 7 條會失敗 |
-| S4 | 一次性腳本清理與 `tests/manual_*` 搬家 | `scripts/dataframe_dot_to_bracket.py`（刪）、`generate_docs.py`（刪）、`clean_pycache.ps1`（修）、`tasks/migrate_db_naming.py`（搬 `scripts/migrations/`）、`tests/manual_*.py`（搬 `scripts/manual/`） | `git rm` 後 `pytest` 全綠；`grep return False tests/` 為 0 | ⬜ | F-089、F-091、F-081、F-092 |
-| S5 | 測試護欄補強：策略不自建連線、loguru 隔離、`sys.path.insert` 清理 | `tests/test_strategy_data_access.py`、`tests/conftest.py`、`strategy_lab/**/run.py`、`tests/*.py` | 在策略加 `StockPriceAPI()` 即紅；pytest 後 `logs/` mtime 不變；`python -m` 方式可跑研究腳本 | ⬜ | F-074、F-001（測試面）、F-009；`tests/conftest.py` 的 no-op 作法已在健檢期間驗證 |
+| S4 | 一次性腳本清理與 `tests/manual_*` 搬家 | `scripts/dataframe_dot_to_bracket.py`（刪）、`generate_docs.py`（刪）、`clean_pycache.ps1`（修）、`scripts/migrations/migrate_db_naming.py`（搬）、`scripts/manual/*`（搬 ＋ README） | `git rm` 後 `pytest` 全綠；`grep return False tests/` 為 0 | ✅ | **2026-09-10 完成**（`f9c95e8`）：`tests/` 的 `return False` 由 **19 降為 2**（一個測試替身的 stub、一個 docstring），`except Exception` 剩 1 處且在 docstring |
+| S5 | 測試護欄補強：策略不自建連線、loguru 隔離、`sys.path.insert` 清理 | `tests/test_strategy_data_access.py`、`scripts/check_layer_deps.py`、`strategy_lab/**/run.py`、四份 README | 在策略加 `StockPriceAPI()` 即紅；pytest 後 `logs/` mtime 不變；`python -m` 方式可跑研究腳本 | ✅ | **2026-09-10 完成**（`6c3be9b`）：`sys.path.insert` 由 **18 降為 0**；loguru 隔離**實查發現早就做掉了**，實測 pytest 前後 `logs/` mtime 未變 |
 | S6 | 環境變數、相依檔與設定檔一致 | `.env.example`、`core/config/{schema,settings}.py`、`core/utils/path.py`（刪）、`dev/env/*.yml`、`requirements.txt`、`pyproject.toml` | `.env.example` 與 `os.getenv` 對照無缺口；`requirements.txt` 由 `pyproject` 重新產生；per-file-ignores 路徑存在 | ⬜ | F-096、F-100、F-015、F-016、F-018 |
 
 ## 步驟詳述
@@ -58,13 +58,39 @@
 >   無 DB 模擬結束碼 3、`check_layer_deps.py` 結束碼 0、`ruff check` 與
 >   `ruff format --check` 全綠。
 
-### S2. 容器可跑 ⬜
+### S2. 容器可跑 🔄
 
 - **目的**：F-093／F-094。
 - **做法**：新增 `frontend/requirements.txt`（streamlit、pandas、plotly）或改 `pip install -e ".[frontend]"`；compose 為 `core` 掛 `./data:/app/data:ro` 與 `./logs:/app/logs`，映像 COPY `tasks/`；`core/Dockerfile` 改 `pip install -e .`；README 兩份的方式 3 註明「需先在本機準備 `data/db/*.db`」。
 - **產出**：見進度表。
 - **驗證方式**：見進度表。
 - **相依**：無。
+
+> **🔄 進度紀錄（2026-09-10，commit `871f74c`）**
+>
+> **已做（F-093）**：新增 `frontend/requirements.txt`（streamlit／pandas／plotly）。
+> 前端映像**不安裝本專案**，`pyproject.toml` 的相依完全不生效——沒有這一份時
+> Dockerfile 退回 `pip install streamlit pandas`，而 `app.py` 還 import 了 plotly，
+> **映像裝得起來、一開頁就 ModuleNotFoundError**。另補一條 AST 測試比對
+> requirements 與實際 import，已實測拿掉 plotly 即失敗。
+>
+> **已做（F-094 的掛載半邊）**：compose 為 core 掛 `./data:/app/data:ro` 與
+> `./logs:/app/logs`，`core/Dockerfile` 補 `COPY tasks /app/tasks`，兩份 README
+> 加上「必須先在本機備妥 `data/db/*.db`」。**唯讀是刻意的**：容器只跑回測，
+> 不該寫到本機資料庫——背景 ETL 可能正在寫同一個檔。
+>
+> ⚠️ **未做，因此本步驟維持 🔄**：
+>
+> 1. **`compose up` 跑完示範策略這條驗收沒有執行**——本機 Docker daemon 未啟動。
+>    已驗證的只有 `docker compose config` 解析正確（`/app/data` 為
+>    `read_only: true`、`/app/logs` 可寫）。
+> 2. **`core/Dockerfile` 改用 `pip install -e .`**（F-094 的「映像裝整份
+>    requirements.txt 含 85 個無關套件」）。它會重組安裝流程而目前無法建置驗證，
+>    改壞了是把「能建但缺資料」變成「建不起來」；且 `requirements.txt` 正被
+>    權益變動表那條線改動且未提交。
+>
+> **恢復下一步**：啟動 Docker daemon → `docker compose build` →
+> `docker compose up` 確認示範策略跑完 → 再處理 `pip install -e .` 那半邊。
 
 ### S3. 入口退出碼 ✅
 
@@ -97,7 +123,7 @@
 > 都在建 Backtester 之前就結束，不需要 `data/db/*.db`，故不標 `slow`。
 > 已實測有牙齒：對修正前的 `run.py` 重跑，8 條中 7 條失敗。
 
-### S4. 一次性腳本清理 ⬜
+### S4. 一次性腳本清理 ✅
 
 - **目的**：F-089（`parents[2]` 指向專案上一層的 codemod）、F-091、F-081、F-092。
 - **做法**：見進度表；`manual_*` 搬家後在 `scripts/manual/README.md` 註明「不是 pytest 對象、如何執行」。
@@ -105,13 +131,63 @@
 - **驗證方式**：見進度表。
 - **相依**：無。
 
-### S5. 測試護欄補強 ⬜
+> **✅ 完成紀錄（2026-09-10，commit `f9c95e8`）**
+>
+> | 項目 | 處置 |
+> |------|------|
+> | `scripts/dataframe_dot_to_bracket.py` | **刪除**。`parents[2]` 是專案的上一層，`main()` 就地改寫且無 dry-run／備份，誤跑會遞迴改寫同層所有專案 |
+> | `scripts/generate_docs.py` | **刪除**。死碼：只 print 不產檔，`api_dir` 還指著搬走前的 `core/api` |
+> | `scripts/clean_pycache.ps1` | **修**。往上兩層改一層，與同目錄的 `.sh` 版一致 |
+> | `tasks/migrate_db_naming.py` | **搬** `scripts/migrations/` |
+> | `tests/manual_*.py`（9 支） | **搬** `scripts/manual/` ＋ README |
+>
+> **搬 `manual_*` 的效果可以量化**：`tests/` 的 `return False` 由 **19 降為 2**
+> ——那 19 處全部出自這 9 支。剩下的 2 處逐一確認都不是反樣式（一個是測試
+> 替身的 stub `def always_missing(...) -> bool: return False`，一個是 docstring
+> 在描述舊反樣式）；`except Exception` 剩 1 處，也在 docstring 裡。
+> 它們不被 pytest 收集卻長期被算進 `tests/` 的品質統計，是「永遠不會失敗」
+> 型態的唯一來源。
+>
+> 順帶修掉 `manual_db_tables.py` 的失效退路 `core/database/tw_stock.db`
+> （2026-08 產物移出 `core/` 後就不存在），走到那條路只會回報「資料表不存在」。
+>
+> 也收斂了 `pyproject` 的 E402 豁免：`tests/*` 與 `strategy_lab/*` 兩條原本是為了
+> 遷就卡在 import 中間的 `sys.path.insert`，那些清掉後把殘留的 `_PROJECT_ROOT`
+> 賦值一併移到 import 之後，兩條豁免不再需要，只留 `scripts/manual/*`
+> （那幾支必須在部分 import **之前**載入 `.env`）。
+
+### S5. 測試護欄補強 ✅
 
 - **目的**：F-074、F-001 測試面、F-009。
 - **做法**：`test_strategy_data_access.py` 加 parametrize 掃 `sqlite3.connect(`／`API()`；`tests/conftest.py` 以 `pytest_sessionstart` 把 `LogManager.setup_logger`／`setup_backtest_logger` 換成 no-op（等期貨回補結束後再動 `log_manager.py` 本體）；`sys.path.insert` 全部移除、研究腳本改 `python -m strategy_lab.…`。
 - **產出**：見進度表。
 - **驗證方式**：見進度表。
 - **相依**：無。
+
+> **✅ 完成紀錄（2026-09-10，commit `6c3be9b`）**
+>
+> **F-074（做）**：`test_strategy_data_access.py` 新增 parametrize 擋三種樣式
+> （`sqlite3.connect(`、`<Xxx>API(` 實例化、`dolphindb`／`ddb`）。策略層目前
+> grep 無違規，所以這是**預防性**護欄。**只擋實例化不擋型別標註**——
+> `price: StockPriceAPI` 合法，`StockPriceAPI()` 才是自建，差別就是那個左括號。
+> 另補一條以合成違規碼驗證樣式真的抓得到：樣式寫錯而永遠不命中，護欄就是空殼。
+>
+> **F-009（做）**：`sys.path.insert` 由 **18 降為 0**。`tests/` 14 處直接移除
+> （`tests*` 本來就在 packages.find 裡）；`strategy_lab/` 4 支改為一律
+> `python -m strategy_lab.…`，四份 README 同步。**`strategy_lab` 不在
+> packages.find 裡**，直接跑檔案路徑會 ModuleNotFoundError——那是刻意的，
+> 比靠路徑硬塞而安靜地成功要好。注入真正的害處不是多餘，是**遮蔽
+> 「沒安裝就跑」的 import 錯誤**。
+>
+> `scripts/check_layer_deps.py` 的 G 節順手改用 AST 找呼叫節點：舊版逐行比對
+> 字串，清乾淨後唯一剩下的一筆正是**解釋這件事的 docstring**——護欄把自己的
+> 說明算成違規，就不能拿它當「應為 0」的判準。新增測試沿用該函式，
+> 已實測塞回一處即失敗。
+>
+> **F-001 測試面（實查已完成，未改動）**：`tests/conftest.py` 的
+> `pytest_sessionstart` no-op 早就在了。本次實測 `pytest -m "not slow"` 前後
+> `logs/` 的 mtime **完全未變**。這是本輪第三次遇到「處置欄寫了、其實早就做掉」，
+> 下次處理殘留項目一律先實查現況。
 
 ### S6. 環境變數、相依檔與設定檔一致 ⬜
 
