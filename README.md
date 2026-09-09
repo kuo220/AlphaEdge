@@ -273,6 +273,15 @@ docker run --rm -p 8501:8501 alphaedge-frontend
 
 ### Option 3: Docker Compose (Trader + Frontend)
 
+> ⚠️ **You must prepare `data/db/*.db` on the host first.** The images contain **no
+> database**; compose bind-mounts the host's `./data` **read-only** at `/app/data`.
+> Without it the core service fails at `sqlite3.connect` (health-check F-094).
+> See the "Update Database" section for how to build the database.
+>
+> Read-only is deliberate: the container only runs backtests and must not write to
+> the host database, which a background ETL job may be writing at the same time.
+> Backtest output goes to the `alphaedge_results` volume; logs go to the mounted `./logs`.
+
 #### Build and Start
 
 ```bash

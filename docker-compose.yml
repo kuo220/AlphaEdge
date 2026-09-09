@@ -16,6 +16,12 @@ services:
       ]
     volumes:
       - alphaedge_results:/app/results
+      # 回測要讀 `data/db/tw_stock.db`。映像裡沒有資料庫，不掛就會在
+      # `sqlite3.connect` 當場失敗——compose 承諾的「Trader＋Frontend」
+      # 一次都跑不起來（健檢 F-094）。**唯讀掛載**：容器只跑回測，
+      # 不該寫到本機的資料庫（背景 ETL 可能正在寫同一個檔）
+      - ./data:/app/data:ro
+      - ./logs:/app/logs
 
   frontend:
     build:

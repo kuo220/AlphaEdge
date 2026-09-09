@@ -95,3 +95,49 @@ def test_falls_back_to_default_without_env() -> None:
     """兩個都沒設就用預設值，不是回 None 讓呼叫端自己猜"""
 
     assert resolve_results_root({}) == DEFAULT_RESULTS_ROOT
+
+
+# === 前端映像的相依（健檢 F-093）===
+def test_frontend_requirements_cover_every_third_party_import() -> None:
+    """
+    `frontend/requirements.txt` 必須涵蓋 `frontend/` 實際 import 的每個第三方套件
+
+    前端映像**不安裝本專案**（只 COPY `frontend/` 與 risk_metrics 那條最小鏈），
+    所以 `pyproject.toml` 的相依完全不生效，那一份 requirements 是唯一來源。
+    漏一個的症狀是**映像裝得起來、一開頁就 ModuleNotFoundError**——
+    F-093 就是這樣來的（漏了 plotly）。
+    """
+
+    import ast
+    import sys
+
+    frontend_dir: Path = PROJECT_ROOT / "frontend"
+    requirements: Path = frontend_dir / "requirements.txt"
+    assert requirements.is_file(), (
+        "缺 frontend/requirements.txt，映像會退回只裝 streamlit pandas"
+    )
+
+    declared: set[str] = {
+        line.split("=")[0].split(">")[0].split("<")[0].strip().lower()
+        for line in requirements.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    }
+
+    # 本地模組（同層 import 與專案自己的套件）不算第三方
+    local: set[str] = {"config", "services", "frontend", "core"}
+    imported: set[str] = set()
+    for path in frontend_dir.rglob("*.py"):
+        if "__pycache__" in path.parts:
+            continue
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.Import):
+                imported.update(alias.name.split(".")[0] for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                imported.add(node.module.split(".")[0])
+
+    third_party: set[str] = {
+        name for name in imported if name not in sys.stdlib_module_names
+    } - local
+
+    missing: set[str] = {name for name in third_party if name.lower() not in declared}
+    assert not missing, f"frontend/requirements.txt 缺少：{sorted(missing)}"

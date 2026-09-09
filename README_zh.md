@@ -266,6 +266,13 @@ docker run --rm -p 8501:8501 alphaedge-frontend
 
 ### 方式 3：Docker Compose（同時啟動 Trader + Frontend）
 
+> ⚠️ **必須先在本機備妥 `data/db/*.db`**。映像裡**不含資料庫**，compose 是把本機的
+> `./data` 以**唯讀**掛進容器（`/app/data:ro`）。沒有資料庫時 core 服務會在
+> `sqlite3.connect` 當場失敗（健檢 F-094）。資料庫怎麼來見〈更新資料庫〉一節。
+>
+> 唯讀是刻意的：容器只跑回測，不該寫到本機的資料庫——背景 ETL 可能正在寫同一個檔。
+> 回測產出走 `alphaedge_results` volume，日誌走掛載的 `./logs`。
+
 #### 建立與啟動
 
 ```bash

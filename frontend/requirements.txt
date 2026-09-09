@@ -1,0 +1,16 @@
+# 前端映像的相依（健檢 F-093）
+#
+# `frontend/Dockerfile` **不安裝本專案**：它只 COPY `frontend/` 與
+# `core/backtest/analysis/risk_metrics.py` 那條最小鏈（見該 Dockerfile 的註解），
+# 所以 `pyproject.toml` 的 `dependencies` 與 `[frontend]` extra 都不會生效，
+# 這一份是那個映像唯一的相依來源。
+#
+# **沒有這一檔時 Dockerfile 會退回 `pip install streamlit pandas`，而 `app.py`
+# 還 import 了 plotly——映像裝得起來、一開頁就 ModuleNotFoundError。**
+#
+# 版本下限與 `pyproject.toml` 一致（pandas／plotly 在主 dependencies，
+# streamlit 在 `[project.optional-dependencies].frontend`）。這裡刻意用下限而不是
+# 釘死：本機沒有安裝 streamlit，釘一個沒有實測過的版本只是假的可重現性。
+streamlit>=1.40
+pandas>=3.0
+plotly>=6.7
