@@ -23,6 +23,9 @@ Usage:
 
     api = FinMindAPI()
 
+    # 由 DataFeed 傳入共用連線時，`close()` 不會關掉別人的連線
+    api = FinMindAPI(conn=shared_conn)
+
     # 台股總覽（不含權證）
     df = api.get_all_stock_info()
     row = api.get_stock_info("2330")
@@ -47,14 +50,18 @@ Usage:
 class FinMindAPI(BaseDataAPI):
     """FinMind 資料 API：台股總覽、證券商資訊、券商分點日報"""
 
-    def __init__(self) -> None:
-        self.conn: Optional[sqlite3.Connection] = None
+    def __init__(self, conn: Optional[sqlite3.Connection] = None) -> None:
+        # 由 DataFeed 傳入共用連線；未指定時自行建立（與其他 core/api/tw/ 一致）
+        self.conn: Optional[sqlite3.Connection] = conn
+        self.owns_conn: bool = conn is None
+
         self.setup()
 
     def setup(self) -> None:
         """設定連線與 log"""
 
-        self.conn = sqlite3.connect(TW_STOCK_DB_PATH)
+        if self.owns_conn:
+            self.conn = sqlite3.connect(TW_STOCK_DB_PATH)
         LogManager.setup_logger(
             "finmind_api.log",
             log_dir=API_LOGS_DIR_PATH,
