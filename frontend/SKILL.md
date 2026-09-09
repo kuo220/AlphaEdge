@@ -23,7 +23,7 @@ description: >-
   - `balance_mdd.png`
   - `everyday_profit.png`
 - CSV 編碼可能為 UTF-8-SIG（與 `FileEncoding.UTF8_SIG` 產出對齊）；讀取時需處理編碼。
-- 可透過環境變數覆寫結果根路徑（例如 `ALPHAEDGE_BACKTEST_RESULTS`），預設為專案內相對路徑。
+- 可透過環境變數 `ALPHAEDGE_RESULTS_DIR` 覆寫結果根路徑（與後端 `core/config` 同名），預設為 `PROJECT_ROOT/results`。
 
 ## 建議目錄結構
 

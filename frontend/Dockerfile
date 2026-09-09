@@ -21,6 +21,6 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 EXPOSE 8501
 
-ENV ALPHAEDGE_BACKTEST_RESULTS=/results
+ENV ALPHAEDGE_RESULTS_DIR=/results
 
 CMD ["streamlit", "run", "frontend/app.py", "--server.address=0.0.0.0", "--server.port=8501"]

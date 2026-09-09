@@ -25,7 +25,8 @@ services:
     ports:
       - "8501:8501"
     environment:
-      ALPHAEDGE_BACKTEST_RESULTS: /results
+      # 與後端 `core/config/paths.py` 同名；後端寫哪、前端就讀哪
+      ALPHAEDGE_RESULTS_DIR: /results
     volumes:
       - alphaedge_results:/results
     depends_on:

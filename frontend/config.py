@@ -1,13 +1,62 @@
 import os
+import warnings
 from pathlib import Path
 
+"""
+前端的路徑與檔名設定（F-083）
+
+**結果根目錄的預設值必須與後端一致**：`core/config/paths.py` 的
+`RESULTS_DIR_PATH` 早在 2026-08「執行期產物移出 `core/`」時就改成
+`PROJECT_ROOT / "results"`，前端卻還指著已經不存在的 `core/backtest/results`，
+於是本機直接 `streamlit run frontend/app.py` 整頁都是「找不到任何回測結果資料夾」。
+
+**這裡刻意不 `from core.config import RESULTS_DIR_PATH`**：前端映像只 COPY
+`frontend/`（見 `frontend/Dockerfile`），import `core` 會讓映像非帶整個後端不可。
+兩邊各自算出同一個路徑，由 `tests/test_frontend_config.py` 盯住不會漂開。
+"""
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_RESULTS_ROOT = PROJECT_ROOT / "core" / "backtest" / "results"
-_env_results_root = os.getenv("ALPHAEDGE_BACKTEST_RESULTS")
-if _env_results_root:
-    RESULTS_ROOT = Path(_env_results_root).expanduser()
-else:
-    RESULTS_ROOT = DEFAULT_RESULTS_ROOT
+DEFAULT_RESULTS_ROOT = PROJECT_ROOT / "results"
+
+# 與後端 `core/config/paths.py` 同名，後端寫哪、前端就讀哪，不必各設一次
+RESULTS_ENV_VAR = "ALPHAEDGE_RESULTS_DIR"
+
+# 舊名保留一版相容。**只在新名沒設時才生效**，並且會發出 DeprecationWarning
+LEGACY_RESULTS_ENV_VAR = "ALPHAEDGE_BACKTEST_RESULTS"
+
+
+def resolve_results_root(env: dict[str, str] | None = None) -> Path:
+    """
+    - Description:
+        決定結果根目錄：新環境變數 → 舊環境變數（警告）→ 預設值
+    - Parameters:
+        - env: Optional[dict]
+            環境變數來源；預設讀 `os.environ`（測試可傳入替身）
+    - Return:
+        - Path
+            結果根目錄
+    """
+
+    source = os.environ if env is None else env
+
+    configured = source.get(RESULTS_ENV_VAR)
+    if configured:
+        return Path(configured).expanduser()
+
+    legacy = source.get(LEGACY_RESULTS_ENV_VAR)
+    if legacy:
+        warnings.warn(
+            f"環境變數 `{LEGACY_RESULTS_ENV_VAR}` 已更名為 `{RESULTS_ENV_VAR}`"
+            "（與後端 `core/config` 統一），本版仍相容但下一版將移除。",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return Path(legacy).expanduser()
+
+    return DEFAULT_RESULTS_ROOT
+
+
+RESULTS_ROOT = resolve_results_root()
 
 # 允許舊檔名與新版輸出並存，避免前端因命名差異讀不到
 CHART_FILE_CANDIDATES = {

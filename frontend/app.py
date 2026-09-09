@@ -523,7 +523,7 @@ strategy_dirs = list_strategy_dirs(RESULTS_ROOT)
 if not strategy_dirs:
     st.error(
         f"找不到任何回測結果資料夾。請確認路徑 `{RESULTS_ROOT}` 是否存在，"
-        "或設定環境變數 `ALPHAEDGE_BACKTEST_RESULTS`。"
+        "或設定環境變數 `ALPHAEDGE_RESULTS_DIR`。"
     )
     st.stop()
 

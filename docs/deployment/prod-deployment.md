@@ -44,7 +44,7 @@ docker run --rm -d \
   --name alphaedge-frontend \
   -p 8501:8501 \
   -v "$(pwd)/results:/results:ro" \
-  -e ALPHAEDGE_BACKTEST_RESULTS=/results \
+  -e ALPHAEDGE_RESULTS_DIR=/results \
   alphaedge-frontend
 ```
 

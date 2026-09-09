@@ -36,6 +36,6 @@ streamlit run frontend/app.py
 可透過環境變數覆寫：
 
 ```bash
-export ALPHAEDGE_BACKTEST_RESULTS=/your/custom/path
+export ALPHAEDGE_RESULTS_DIR=/your/custom/path
 streamlit run frontend/app.py
 ```
