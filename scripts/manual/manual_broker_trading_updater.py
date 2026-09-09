@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 
-# 添加專案根目錄到 Python 路徑
+# 專案根目錄（供組合資料檔路徑用；原本還兼作 sys.path 注入，F-009 已移除）
 project_root: Path = Path(__file__).resolve().parent.parent
 
 # 載入 .env 檔案

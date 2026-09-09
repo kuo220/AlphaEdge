@@ -3,9 +3,9 @@ from pathlib import Path
 
 import pytest
 
-_PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
-
 from core import config
+
+_PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
 
 """
 防護測試：設定的路徑錨點與產物／原始碼分界

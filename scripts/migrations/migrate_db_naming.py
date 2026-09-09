@@ -5,8 +5,8 @@
 兩者必須同一批進行，否則程式會找不到資料庫。
 
 用法（比照其他 task，以 -m 執行）：
-    python -m tasks.migrate_db_naming --dry-run   # 只列出要做什麼
-    python -m tasks.migrate_db_naming             # 實際執行（會先備份）
+    python -m scripts.migrations.migrate_db_naming --dry-run   # 只列出要做什麼
+    python -m scripts.migrations.migrate_db_naming             # 實際執行（會先備份）
 """
 
 import argparse

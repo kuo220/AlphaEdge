@@ -1,11 +1,7 @@
 import sqlite3
-from pathlib import Path
 from typing import Optional
 
 import pandas as pd
-
-# 添加專案根目錄到 Python 路徑
-project_root: Path = Path(__file__).resolve().parent.parent
 
 from core.config import STOCK_TRADING_DAILY_REPORT_TABLE_NAME, TW_STOCK_DB_PATH
 

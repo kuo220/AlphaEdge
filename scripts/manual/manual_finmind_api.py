@@ -4,7 +4,7 @@
 直接使用 tw_stock.db 唯讀查詢，不更動資料庫
 
 使用方法（從專案根目錄執行）：
-    python -m tests.manual_finmind_api
+    python -m scripts.manual.manual_finmind_api
 
 測試內容（對應 core.api.tw.finmind_api）：
     1. get_stock_info(stock_id) - 單一股票台股總覽（不含權證）
@@ -25,10 +25,6 @@
 
 import datetime
 import sys
-from pathlib import Path
-
-# 添加專案根目錄到 Python 路徑
-project_root: Path = Path(__file__).resolve().parent.parent
 
 import pandas as pd
 import pytest

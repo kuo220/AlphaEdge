@@ -3,7 +3,7 @@ import sqlite3
 import sys
 from pathlib import Path
 
-# 添加專案根目錄到 Python 路徑
+# 專案根目錄（供組合資料檔路徑用；原本還兼作 sys.path 注入，F-009 已移除）
 project_root: Path = Path(__file__).resolve().parent.parent
 
 # 直接使用表名常數，避免導入 config 時的依賴問題
@@ -29,8 +29,10 @@ try:
 
     from core.config import TW_STOCK_DB_PATH
 except (ImportError, ModuleNotFoundError):
-    # 如果無法導入 config，使用預設路徑
-    TW_STOCK_DB_PATH = project_root / "core" / "database" / "tw_stock.db"
+    # 退路指向現行的產物根目錄。**舊值 `core/database/tw_stock.db` 早已不存在**
+    # （2026-08「執行期產物移出 core/」之後），走到這裡只會查一個空路徑然後
+    # 回報「資料表不存在」——那是最難查的一種錯（健檢 F-092）
+    TW_STOCK_DB_PATH = project_root / "data" / "db" / "tw_stock.db"
 
 
 """測試 tw_stock.db 中是否存在指定資料表"""
@@ -150,7 +152,7 @@ def test_broker_trading_data(limit: int = 5) -> None:
     測試 broker_trading 資料表並顯示幾筆資料
 
     使用方法（從專案根目錄執行）：
-        python -m tests.manual_db_tables --broker-trading --limit 10
+        python -m scripts.manual.manual_db_tables --broker-trading --limit 10
 
     Args:
         limit: 要顯示的資料筆數（預設為 5 筆）
@@ -248,9 +250,9 @@ def parse_args() -> argparse.Namespace:
     解析命令列參數
 
     範例：
-        python -m tests.manual_db_tables
-        python -m tests.manual_db_tables --broker-trading
-        python -m tests.manual_db_tables --broker-trading --limit 10
+        python -m scripts.manual.manual_db_tables
+        python -m scripts.manual.manual_db_tables --broker-trading
+        python -m scripts.manual.manual_db_tables --broker-trading --limit 10
     """
     parser = argparse.ArgumentParser(description="測試 tw_stock.db 資料表與抽樣查詢")
     parser.add_argument(

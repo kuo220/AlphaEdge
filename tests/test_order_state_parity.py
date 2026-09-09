@@ -1,9 +1,9 @@
 from pathlib import Path
 from typing import Dict
 
-_PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
-
 from core.utils.constant import OrderState
+
+_PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
 
 """
 專案自訂的 `OrderState` 必須與 Shioaji 那份一致（健檢 F-011）

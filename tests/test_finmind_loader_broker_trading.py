@@ -11,9 +11,9 @@ from unittest.mock import patch
 
 import pandas as pd
 
-project_root: Path = Path(__file__).resolve().parent.parent
-
 from core.config import STOCK_TRADING_DAILY_REPORT_TABLE_NAME
+
+project_root: Path = Path(__file__).resolve().parent.parent
 
 
 def _make_broker_trading_df(

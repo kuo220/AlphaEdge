@@ -6,11 +6,11 @@ from pathlib import Path
 from typing import Any, List, Optional, Tuple
 from unittest.mock import patch
 
-# 添加專案根目錄到 Python 路徑
-project_root: Path = Path(__file__).resolve().parent.parent
-
 import pandas as pd
 from loguru import logger
+
+# 專案根目錄（供組合資料檔路徑用；原本還兼作 sys.path 注入，F-009 已移除）
+project_root: Path = Path(__file__).resolve().parent.parent
 
 """測試 FinMind 完整流程（crawler -> cleaner -> loader），使用臨時資料庫"""
 

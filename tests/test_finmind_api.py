@@ -6,8 +6,6 @@ from typing import Iterator
 import pandas as pd
 import pytest
 
-_PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
-
 from core.api.tw.finmind_api import FinMindAPI
 from core.config import (
     SECURITIES_TRADER_INFO_TABLE_NAME,
@@ -15,6 +13,8 @@ from core.config import (
     STOCK_INFO_WITH_WARRANT_TABLE_NAME,
     STOCK_TRADING_DAILY_REPORT_TABLE_NAME,
 )
+
+_PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
 
 """
 `FinMindAPI` 的離線覆蓋（健檢 F-029）

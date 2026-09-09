@@ -5,8 +5,6 @@ from typing import Any, Dict, List, Optional
 
 import pytest
 
-_PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
-
 from core.backtest.backtester import Backtester
 from core.backtest.factory import build_cost_config
 from core.backtest.models.cost_model import CostConfig
@@ -23,6 +21,8 @@ from core.utils import (
     ShortMethod,
     Units,
 )
+
+_PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
 
 """外資大賣強勢股當沖放空策略的訊號測試：全部為純記憶體物件，不連資料庫"""
 

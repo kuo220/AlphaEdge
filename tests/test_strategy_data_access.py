@@ -4,9 +4,9 @@ from typing import Dict, List, Tuple
 
 import pytest
 
-_PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
-
 from core.pipeline.utils.constant import ChipColumn, PriceColumn
+
+_PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
 
 """防護測試：策略層不得出現資料庫欄位字面值
 

@@ -6,8 +6,6 @@ from typing import Any, Dict, Iterator, List, Optional
 import pandas as pd
 import pytest
 
-_PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
-
 from core.api.tw.futures_chip_api import FuturesChipAPI
 from core.api.tw.futures_margin_api import FuturesMarginAPI
 from core.api.tw.stock_chip_api import StockChipAPI
@@ -21,6 +19,8 @@ from core.config import (
     MARGIN_TABLE_NAME,
     STOCK_FUTURES_MARGIN_RATE_HISTORY_TABLE_NAME,
 )
+
+_PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
 
 """
 `core/api/` 公開介面的覆蓋（健檢第三輪 S2）
