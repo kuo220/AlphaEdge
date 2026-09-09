@@ -237,7 +237,7 @@ df = fs.get(table_name="<your_fs_table>", year=2024, season=1)
 ```
 
 > 不同財報（資產負債表、損益表、現金流量表）會落在不同的 SQLite 表，
-> 實際表名請以 `tasks/` 內的更新腳本或 `core/config.py` 為準。
+> 實際表名請以 `tasks/` 內的更新腳本或 `core/config/schema.py` 為準。
 
 ### MarketCalendar — 交易日工具
 
@@ -335,7 +335,7 @@ InstrumentType.STOCK, InstrumentType.FUTURE, InstrumentType.OPTION  # 商品類�
 
 | 資料種類       | 後端           | 提供 API                      | 來源 / 更新                                |
 | -------------- | -------------- | ----------------------------- | ------------------------------------------ |
-| 日線價量       | SQLite         | `StockPriceAPI`               | `tasks/` 內的爬蟲；表名見 `core/config.py` |
+| 日線價量       | SQLite         | `StockPriceAPI`               | `tasks/` 內的爬蟲；表名見 `core/config/schema.py` |
 | 逐筆 Tick      | DolphinDB      | `StockTickAPI`                | Shioaji / 第三方；需另起 DDB 服務          |
 | 三大法人籌碼   | SQLite         | `StockChipAPI`                | `tasks/` 內的爬蟲                          |
 | 月營收         | SQLite         | `MonthlyRevenueReportAPI`     | `tasks/` 內的爬蟲                          |

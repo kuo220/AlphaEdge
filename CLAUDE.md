@@ -150,7 +150,7 @@ from core.config import PRICE_TABLE_NAME, TW_STOCK_DB_PATH
 
 ### 2.8 區塊分隔註解
 
-1. 設定檔等長檔案用等寬分隔線標題（見 `core/config.py`）：
+1. 設定檔等長檔案用等寬分隔線標題（見 `core/config/paths.py`）：
 
    ```python
    # -----------------------------------------------------------------------

@@ -49,7 +49,7 @@ self.scale: str = Scale.DAY  # 或 Scale.TICK
 1. **初始化策略**: 載入策略類別並初始化
 2. **設定帳戶**: 建立虛擬帳戶，設定初始資金
 3. **載入資料 API**: 根據回測級別載入對應的資料 API
-4. **資料適配**: 透過 `StockQuoteAdapter`（`core/adapters/stock_quote_adapter.py`）將日線／Tick API 資料轉成統一的 `StockQuote`
+4. **資料適配**: 透過 `StockQuoteAdapter`（`core/adapters/tw/stock_quote_adapter.py`）將日線／Tick API 資料轉成統一的 `StockQuote`
 5. **執行回測**: 逐日（或逐筆）執行策略邏輯
    - 檢查停損訊號
    - 檢查平倉訊號

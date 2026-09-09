@@ -27,11 +27,11 @@
 
 | 編號 | 步驟名稱 | 產出檔案 | 驗證方式 | 狀態 | 備註／中斷點 |
 |------|----------|----------|----------|:----:|--------------|
-| S1 | 常數與兩張表的 schema 定案 | `core/config.py` | 兩個表名常數與中繼目錄可解析 | ✅ | **2026-09-01 完成**。比例欄定案為**小數**（見該步驟） |
+| S1 | 常數與兩張表的 schema 定案 | `core/config/schema.py` | 兩個表名常數與中繼目錄可解析 | ✅ | **2026-09-01 完成**。比例欄定案為**小數**（見該步驟） |
 | S2 | 現行保證金快照 ETL（指數類，四層） | `core/pipeline/tw/*/futures_margin_*.py`、`tasks/update_db.py` | 19 條測試 ＋ `--target futures_margin` 端對端驗過 | ✅ | **2026-09-01 完成**：7 個商品入庫、重跑 0 新增 |
 | S3 | 現行保證金快照 ETL（股票類） | `core/pipeline/tw/*/futures_margin_*.py`（與 S2 同檔） | 17 條測試 ＋ 端對端；320 檔對回標的池 320/320 | ✅ | **2026-09-01 完成**。**分表依據修正為「金額 vs 比例」**，見該步驟 |
 | S4 | 歷史回補：2020/03 起的公告 CSV | `core/pipeline/tw/*/futures_margin_*.py` | TX 鏈式驗證 0 斷點；60 商品中 50 個完全接得上 | ✅ | **2026-09-01 完成**：金額 1,101 列、比例 1,027 列，回補至 2020/03。實作中抓到兩類會靜默寫錯歷史的坑，見完成紀錄 |
-| S5 | `FuturesMarginAPI` ＋ 接進 `FuturesMarginConfig` | `core/api/futures_margin_api.py`、`core/managers/futures/position_manager.py` | 既有 23 條全綠 ＋ 新增 7 條；實資料比對固定比率的誤差 | ✅ | **2026-09-01 完成**：查表模式與比率模式並存，查不到即 raise |
+| S5 | `FuturesMarginAPI` ＋ 接進 `FuturesMarginConfig` | `core/api/tw/futures_margin_api.py`、`core/managers/futures/position_manager.py` | 既有 23 條全綠 ＋ 新增 7 條；實資料比對固定比率的誤差 | ✅ | **2026-09-01 完成**：查表模式與比率模式並存，查不到即 raise |
 | S6 | 2015~2019 補完（OCR） | — | OCR 值與下一次公告的「調整前」欄吻合 | ⏸ | **暫緩**：來源為掃描影像，需系統套件 ＋ 有靜默錯誤風險，解除條件見該步驟 |
 | S7 | 價差部位保證金（第三張費率表） | `core/pipeline/tw/*/futures_margin_*.py`、`core/api/tw/futures_margin_api.py` | 跨月份兩腿的保證金合計低於各繳全額，且與公告費率一致 | ⏸ | **暫緩**：2026-09-04 由回測端 F-058 反推出的缺口，**解除條件是出現價差／對沖策略需求**，見該步驟 |
 
@@ -72,7 +72,7 @@
 
 - **目的**：先把表名、欄位與中繼目錄定下來，S2 之後才不會邊做邊改 schema。
 - **做法**：
-  1. `core/config.py`：`FUTURES_MARGIN_HISTORY_TABLE_NAME`（**已存在**）沿用；
+  1. `core/config/schema.py`：`FUTURES_MARGIN_HISTORY_TABLE_NAME`（**已存在**）沿用；
      新增 `STOCK_FUTURES_MARGIN_RATE_HISTORY_TABLE_NAME: str = "stock_futures_margin_rate_history"`
      與 `FUTURES_MARGIN_DOWNLOADS_PATH`（掛在 `TW_FUTURES_DOWNLOADS_PATH` 之下，
      比照 `FUTURES_UNIVERSE_DOWNLOADS_PATH`）。
@@ -109,7 +109,7 @@
 - **待定案的一件事**：比例欄存**小數**（`0.1350`）還是**百分比數值**（`13.50`）。
   傾向**小數**——下游直接乘不需要再除以 100，而「忘記除 100」是會讓保證金差 100 倍
   卻不會報錯的那種錯。定案後必須寫進 loader 的建表註解。
-- **產出**：`core/config.py`。
+- **產出**：`core/config/schema.py`。
 - **驗證方式**：兩個表名常數與 `FUTURES_MARGIN_DOWNLOADS_PATH` 可正確解析。
 - **相依**：無。
 
@@ -318,7 +318,7 @@
 
 - **目的**：讓 `FuturesPositionManager` 改用真值，取代固定比率。
 - **做法**：
-  1. `core/api/futures_margin_api.py`：`get_initial_margin(product, date)`
+  1. `core/api/tw/futures_margin_api.py`：`get_initial_margin(product, date)`
      取「該日**生效中**的那一列」——即 `effective_date <= date` 的最大者，
      不是等於該日（保證金不是每天都變）。股期另有
      `get_initial_margin_rate(product_id, date)`。
@@ -327,7 +327,7 @@
      理由同 `FUTURES_MULTIPLIER` 的 `[]`：靜默用一個近似值比中斷難查得多。
      2015~2019 沒有資料，回測那段期間會當場中止並指向 S6，這是**刻意的**。
   3. 股期的每口保證金 = 標的股價 × `futures_stock_universe.contract_size` × 比例。
-- **產出**：`core/api/futures_margin_api.py`、`core/managers/futures/position_manager.py`。
+- **產出**：`core/api/tw/futures_margin_api.py`、`core/managers/futures/position_manager.py`。
 - **驗證方式**：既有 `tests/test_futures_position_manager.py` 23 條全綠
   （固定比率的測試改為注入假 API）；抽樣比對 TAIFEX 原站。
 - **相依**：S4。

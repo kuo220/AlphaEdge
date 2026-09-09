@@ -4,6 +4,12 @@
 > 23 個步驟全數完成後於 2026-09-03 依 [`manage-backlog` 規範 §5](../../.claude/skills/manage-backlog/SKILL.md#5-完成後的處理)
 > 移入 `docs/`。附錄 A 的 101 條發現已分流：A／B 級轉入 `backlog/` 的四份新文件，C 級寫進各 `docs/`，
 > 每一列的「處置」欄指向具體去處；其他文件以 `F-xxx` 編號連結回本檔附錄 A。
+>
+> ⚠️ **本檔記錄的是 2026-09-02 當下的狀態，內文路徑一律不隨後續重構更新**——
+> 改成現在的路徑會讓紀錄失真（當時看到的就是那些路徑）。其後至少有兩次搬遷：
+> `core/config.py` 已拆為 `core/config/{paths,schema,settings}.py`、
+> 資料層（`pipeline`／`api`／`adapters`／`backtest/datafeed`）已加一層 `tw/`。
+> `scripts/check_doc_paths.py` 因此把本檔列為歷史紀錄、不檢查其路徑引用。
 
 
 ## Abstract
