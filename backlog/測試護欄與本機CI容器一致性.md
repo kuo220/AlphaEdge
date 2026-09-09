@@ -13,7 +13,7 @@
 |------|----------|----------|----------|:----:|--------------|
 | S1 | 回歸腳本假綠燈與 CI 護欄 | `scripts/run_regression.sh`、`.github/workflows/ci.yml`、`.pre-commit-config.yaml`、`pyproject.toml`、`docs/dev/{code-quality,health-check-2026-09}.md` | 無 DB 時腳本非零結束並印「LONG 線未執行」；CI 新增 SHORT 線步驟 | ✅ | **2026-09-05 完成**。無 DB 實測結束碼 3；CI 另加分層閘門；ruff 釘死 `==0.16.3`。`test_long_regression.py` 未改（`skipif` 是對的，錯的是腳本把 skip 當通過） |
 | S2 | 容器可跑：前端相依、`core` 掛 `data/`、只裝 pyproject 相依 | `frontend/requirements.txt`（新增）、`frontend/Dockerfile`、`core/Dockerfile`、`docker-compose.yml`、`README*.md` | `docker compose config` OK；`compose up` 跑完示範策略；映像不含 Flask／ipython 等無關套件 | ⬜ | F-093、F-094、F-096(5) |
-| S3 | 入口退出碼與 `--mode live` | `run.py`、`tests/test_run_entry.py`（新增） | subprocess 測試：找不到策略 exit 2；`live` 明確 `NotImplementedError` | ⬜ | F-077 |
+| S3 | 入口退出碼與 `--mode live` | `run.py`、`tests/test_run_entry.py`（新增） | subprocess 測試：找不到策略 exit 2；`live` 明確 `NotImplementedError` | ✅ | **2026-09-10 完成**（`0138ca6`）：策略找不到 0 → 2 且訊息改走 stderr、`--mode live` 0 → 1；8 條 subprocess 測試，實測修正前 7 條會失敗 |
 | S4 | 一次性腳本清理與 `tests/manual_*` 搬家 | `scripts/dataframe_dot_to_bracket.py`（刪）、`generate_docs.py`（刪）、`clean_pycache.ps1`（修）、`tasks/migrate_db_naming.py`（搬 `scripts/migrations/`）、`tests/manual_*.py`（搬 `scripts/manual/`） | `git rm` 後 `pytest` 全綠；`grep return False tests/` 為 0 | ⬜ | F-089、F-091、F-081、F-092 |
 | S5 | 測試護欄補強：策略不自建連線、loguru 隔離、`sys.path.insert` 清理 | `tests/test_strategy_data_access.py`、`tests/conftest.py`、`strategy_lab/**/run.py`、`tests/*.py` | 在策略加 `StockPriceAPI()` 即紅；pytest 後 `logs/` mtime 不變；`python -m` 方式可跑研究腳本 | ⬜ | F-074、F-001（測試面）、F-009；`tests/conftest.py` 的 no-op 作法已在健檢期間驗證 |
 | S6 | 環境變數、相依檔與設定檔一致 | `.env.example`、`core/config/{schema,settings}.py`、`core/utils/path.py`（刪）、`dev/env/*.yml`、`requirements.txt`、`pyproject.toml` | `.env.example` 與 `os.getenv` 對照無缺口；`requirements.txt` 由 `pyproject` 重新產生；per-file-ignores 路徑存在 | ⬜ | F-096、F-100、F-015、F-016、F-018 |
@@ -66,13 +66,36 @@
 - **驗證方式**：見進度表。
 - **相依**：無。
 
-### S3. 入口退出碼 ⬜
+### S3. 入口退出碼 ✅
 
 - **目的**：F-077。
 - **做法**：找不到策略 → `sys.exit(2)`＋stderr 清單；`live` → `raise NotImplementedError`（或自 `choices` 移除）。
 - **產出**：`run.py`、新測試。
 - **驗證方式**：subprocess 斷言退出碼。
 - **相依**：無。
+
+> **✅ 完成紀錄（2026-09-10，commit `0138ca6`）**
+>
+> | 情況 | 修正前 | 修正後 |
+> |------|:---:|:---:|
+> | 策略名找不到 | **0** | **2** |
+> | `--mode live` | **0**（零輸出） | **1**（`NotImplementedError`）|
+> | 缺 `--strategy` | 2 | 2（argparse 既有行為，未動）|
+>
+> 退出碼選 **2** 是為了與 argparse 自己的用法錯誤同碼——缺 `--strategy` 本來
+> 就回 2，對呼叫端兩者是同一類問題，不必再多記一個號碼。
+>
+> **訊息一併改走 stderr**：退出碼與輸出流向要一起改才有意義，訊息印在 stdout
+> 會混進正常輸出，批次作業把 stdout 收去當報表時就看不見那一行。
+>
+> **`live` 保留在 `choices` 裡，但 help 講明尚未實作**——F-077 的第二半是
+> 「`--help` 看起來像已支援實盤」。保留選項並在說明裡講清楚，比從 `choices`
+> 移除更誠實：它確實是規劃中的模式，`--mode` 這個參數才有意義。
+>
+> **測試一律走 subprocess**：退出碼是**行程**的性質，直接呼叫 `main()` 驗不到
+> `sys.exit()` 實際交給呼叫端的數字，也驗不到訊息去了哪個輸出流。三種情況
+> 都在建 Backtester 之前就結束，不需要 `data/db/*.db`，故不標 `slow`。
+> 已實測有牙齒：對修正前的 `run.py` 重跑，8 條中 7 條失敗。
 
 ### S4. 一次性腳本清理 ⬜
 
