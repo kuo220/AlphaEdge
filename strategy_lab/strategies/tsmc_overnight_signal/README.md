@@ -7,6 +7,11 @@
 - `strategy_lab/strategies/tsmc_overnight_signal/reports/TSMC_OvernightSignal_Quant_Report.docx`（中文）
 - `strategy_lab/strategies/tsmc_overnight_signal/reports/TSMC_OvernightSignal_Quant_Report_EN.docx`（英文）
 
+> **報告是產出物，不進版控**（`.gitignore` 的 `strategy_lab/**/reports/*.docx`）。
+> `build_report()` 不傳 `output_path` 時預設就寫進上面兩個路徑，而 `main()` 正是這樣
+> 呼叫——兩個檔各約 1.6 MB，任何人跑一次產生器就是 3.3 MB 的二進位 diff，
+> 而內容的唯一差異只有封面的「報告產製日期」那一行。需要成品請自行執行產生器。
+
 本資料夾為 **AlphaEdge** 專案底下的獨立研究模組，對應期末報告中「隔夜訊號領先／跨市場資訊」主題之簡化實作，並產出與業界研究報告相近之圖表與數據。資料來源以 **yfinance** 為主（含 ADR `TSM`、台股 `2330.TW`、費半 `^SOX`、匯率 `TWD=X`）。
 
 > **聲明**：以下為學術／課程專題之方法展示與歷史回測，**不構成投資建議**。實務交易涉及流動性、稅費細節、融券與期貨保證金、法規與執行落差，與本簡化模型不同。
@@ -166,11 +171,11 @@ strategy_lab/strategies/tsmc_overnight_signal/
 ├── __init__.py
 ├── pipeline.py                     # 資料擷取 → Ridge 預測 → 回測 → 圖表
 ├── run.py                          # 執行入口（呼叫 pipeline.main）
-├── reports/                        # Word 報告產生器與已生成 .docx
+├── reports/                        # Word 報告產生器（產出的 .docx 不進版控）
 │   ├── generate_docx.py            # 彙整圖表與指標 → Word（中／英）
 │   ├── docx_append.py              # 報告各章節敘事內容
-│   ├── TSMC_OvernightSignal_Quant_Report.docx
-│   └── TSMC_OvernightSignal_Quant_Report_EN.docx
+│   ├── TSMC_OvernightSignal_Quant_Report.docx     # 產出物，git 不追蹤
+│   └── TSMC_OvernightSignal_Quant_Report_EN.docx  # 產出物，git 不追蹤
 └── output/                         # run.py 所產出之圖表與 CSV
 ```
 

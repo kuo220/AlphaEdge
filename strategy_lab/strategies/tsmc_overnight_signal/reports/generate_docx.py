@@ -12,6 +12,11 @@
 
 共用零件（樣式、表格、圖片、CSV 讀取）在 `docx_common.py`，敘事內容在
 `docx_append.py`；三者單向相依，不再互相 import（健檢 F-006）。
+
+產出的兩個 `.docx` 是**產出物、不進版控**（`.gitignore` 的
+`strategy_lab/**/reports/*.docx`）：`build_report()` 不傳 `output_path` 時
+預設就是 `_DOCX_ZH`／`_DOCX_EN`，而 `main()` 正是這樣呼叫——跑一次即產生
+約 3.3 MB 的二進位 diff。需要成品請自行執行本檔。
 """
 
 from __future__ import annotations

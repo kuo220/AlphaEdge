@@ -7,6 +7,10 @@
 
 若尚未有 CSV，請先執行：
     .venv/bin/python strategy_lab/data_analysis/tech_new_high_continuation/run.py
+
+產出的 `Tech_NewHigh_Continuation_Report.docx` 是**產出物、不進版控**
+（`.gitignore` 的 `strategy_lab/**/reports/*.docx`）：本檔預設就寫進自己那個
+`reports/` 目錄，跑一次即產生整份二進位 diff。需要成品請自行執行本檔。
 """
 
 from __future__ import annotations
