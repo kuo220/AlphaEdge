@@ -281,3 +281,103 @@ def test_next_equity_changes_batch_index_ignores_renamed_files(
     (tmp_path / "equity_change_2024Q1_backup.csv").write_text("x", encoding="utf-8")
 
     assert cleaner.next_equity_changes_batch_index(2024, 1) == 0
+
+
+# === 期別標籤：只有 Q1 是「第N季」 ===
+def build_seasonal_html(period_label: str, opening: int) -> str:
+    """組出指定期別標籤的權益變動表 HTML（版面與本期表相同，只有標籤與金額不同）"""
+
+    return f"""
+    <table>
+      <thead>
+        <tr><th colspan="3">{period_label}</th></tr>
+        <tr><th>單位：新台幣仟元</th><th>單位：新台幣仟元</th>
+            <th>單位：新台幣仟元</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>會計項目</td><td>普通股股本</td><td></td></tr>
+        <tr><td>期初餘額</td><td>{opening}</td><td></td></tr>
+      </tbody>
+    </table>
+    """
+
+
+@pytest.mark.parametrize(
+    "season, period_label",
+    [
+        (1, "民國109年第1季"),
+        (2, "民國109年上半年度"),
+        (3, "民國109年前3季"),
+        (4, "民國109年度"),
+    ],
+)
+def test_clean_equity_changes_matches_every_season_label(
+    cleaner: FinancialStatementCleaner, season: int, period_label: str
+) -> None:
+    """
+    四季的期別標籤都要對得上
+
+    原本寫死成 `f"民國{roc_year}年第{season}季"`，只有 Q1 對得上——
+    2026-09-03 的 2020Q2 全市場回補因此打了 2,087 次請求、跑 1.5 小時、
+    入庫 0 列，而統計行三個數字全都正常、結束碼 0。
+    照那個版本跑完整段回補，54 個年季裡只有 14 個 Q1 會有資料。
+    """
+
+    df_list: List[pd.DataFrame] = pd.read_html(
+        StringIO(build_seasonal_html(period_label, 259303805))
+    )
+
+    df: pd.DataFrame = cleaner.clean_equity_changes(
+        df_list=df_list, year=2020, season=season, stock_id="2330"
+    )
+
+    assert not df.empty
+    assert df["金額"].iloc[0] == 259303805
+
+
+@pytest.mark.parametrize(
+    "season, current_label, prior_label",
+    [
+        (2, "民國109年上半年度", "民國108年上半年度"),
+        (3, "民國109年前3季", "民國108年前3季"),
+        (4, "民國109年度", "民國108年度"),
+    ],
+)
+def test_clean_equity_changes_picks_current_period_in_every_season(
+    cleaner: FinancialStatementCleaner,
+    season: int,
+    current_label: str,
+    prior_label: str,
+) -> None:
+    """
+    非 Q1 的頁面同樣附去年同期表，一樣不能抓錯
+
+    去年同期的標籤是同一組措辭、只有民國年不同，故補齊標籤的同時
+    仍要靠「民國{roc_year}年」前綴區分本期與去年
+    """
+
+    df_list: List[pd.DataFrame] = pd.read_html(
+        StringIO(build_seasonal_html(current_label, 259303805))
+    ) + pd.read_html(StringIO(build_seasonal_html(prior_label, 111111111)))
+
+    df: pd.DataFrame = cleaner.clean_equity_changes(
+        df_list=df_list, year=2020, season=season, stock_id="2330"
+    )
+
+    assert df["金額"].iloc[0] == 259303805
+
+
+def test_clean_equity_changes_still_rejects_wrong_year(
+    cleaner: FinancialStatementCleaner,
+) -> None:
+    """補齊標籤不得放寬年份：只有去年同期表的頁面必須回空表，不能將就"""
+
+    df_list: List[pd.DataFrame] = pd.read_html(
+        StringIO(build_seasonal_html("民國108年上半年度", 111111111))
+    )
+
+    df: pd.DataFrame = cleaner.clean_equity_changes(
+        df_list=df_list, year=2020, season=2, stock_id="2330"
+    )
+
+    assert df.empty

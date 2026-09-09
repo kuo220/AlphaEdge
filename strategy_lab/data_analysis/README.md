@@ -38,5 +38,5 @@ data_analysis/
 執行範例：
 
 ```bash
-.venv/bin/python strategy_lab/data_analysis/tech_new_high_continuation/run.py
+.venv/bin/python -m strategy_lab.data_analysis.tech_new_high_continuation.run
 ```

@@ -1,5 +1,6 @@
 import hashlib
 import sqlite3
+import statistics
 from pathlib import Path
 from typing import Dict, List, Set, Tuple
 
@@ -9,32 +10,35 @@ from core.config import (
     CHIP_TABLE_NAME,
     MARGIN_TABLE_NAME,
     PRICE_TABLE_NAME,
+    STOCK_INFO_TABLE_NAME,
     TW_FUTURES_DB_PATH,
     TW_STOCK_DB_PATH,
 )
 
-"""日頻表的非交易日批次與停滯重播護欄（爬蟲缺口回補 S1）
+"""日頻表的批次污染護欄（爬蟲缺口回補 S1、S10）
 
 三支 cleaner 都是 `df.insert(0, "date", date)`——蓋上去的是**請求參數的日期**，
 不是來源頁面內的日期。爬蟲端已由 `f278160` 補上休市判斷，但那道判斷靠的是站方
 回覆的內容，站方行為一變就可能再破一次，而**壞掉的樣子不會讓任何既有測試變紅**：
 缺資料會讓缺口統計出聲，多資料不會。
 
-本檔用兩個互補的判準把「多出來的資料」釘住：
+本檔用三個互補的判準把「壞掉但看起來正常」的批次釘住：
 
 1. `test_no_non_trading_day_batches`：日期軸。某張表有、其他三張全無的日期。
 2. `test_no_stale_replayed_batches`：內容軸。同一批內容被蓋上不同日期。
+3. `test_no_single_market_batches`：市場軸。某一天只入庫了 TWSE 或只入庫了 TPEX。
 
-以 2026-09-04 清理前的資料實測（見
-`backlog/爬蟲缺口回補與非交易日批次清理.md` S1）：測試 1 抓到全部 21 個非交易日批次，
-測試 2 抓到 2 個重播群組共 7 個日期。
+以清理前的資料實測（見 `backlog/爬蟲缺口回補與非交易日批次清理.md`）：
+測試 1 抓到全部 21 個非交易日批次，測試 2 抓到 2 個重播群組共 7 個日期，
+測試 3 抓到 11 天只有半個市場的批次（`chip` 9 天、`price` 2 天）。
 
-**已知盲區：部分受污染的真實交易日兩條都抓不到。** 那 5 天（`2023-05-12`、
-`2024-02-16`、`2025-01-22`、`2025-03-24`、`2025-04-23`）是真實交易日，日期軸沒有異常；
-而停滯的只是 TWSE 那半邊（908 列 / 全日約 1,750 列），前 50 大來自正常的 TPEX 部分，
-指紋因此不碰撞。它們當時是靠「列數低於前後各 5 個交易日中位數的 85%」掃出來的，
-但那個判準會同時掃到 22 個列數本來就偏低的日期（早年補行交易的週六、只入庫單一市場的日子），
-當成斷言只會變成紅燈噪音，故列為人工複查而非護欄。
+**第 3 條是後來補上的，補的正是前兩條的盲區。** S1 當時有 5 天
+（`2023-05-12`、`2024-02-16`、`2025-01-22`、`2025-03-24`、`2025-04-23`）
+兩條都抓不到：它們是真實交易日，日期軸沒有異常，而壞掉的只是 TWSE 那半邊，
+指紋取自正常的 TPEX 部分故不碰撞。當時的結論是「只能靠列數異常人工複查」，
+但列數判準（低於鄰日中位數 85%）會連帶掃到本來就量少的日期而變成紅燈噪音。
+**改看市場別分布就沒有這個問題**——量少的日子兩個市場會一起少，
+而壞掉的日子是其中一個直接歸零，兩者差兩個數量級。
 """
 
 # 四張表都還有資料的最後一天。**必須夾上界**——各表尾端落後不同
@@ -45,6 +49,18 @@ COMMON_RANGE_END: str = "2026-06-18"
 # 內容指紋取「絕對值最大的 N 筆」。取極端值是因為它們最不可能巧合相同：
 # 買賣超為 0 或個位數張的個股每天都有一大票，拿來當指紋會誤報
 FINGERPRINT_SIZE: int = 50
+
+# 市場軸判準（測試 3）。`taiwan_stock_info.type` 的其餘值（`emerging`）與查不到的
+# 代號都不列入，它們在日頻表裡佔比不到 1%，納入只會讓分母抖動
+MARKETS: Tuple[str, str] = ("twse", "tpex")
+
+# 「整個市場不見了」的門檻：實測壞掉的日子該市場只剩 0~15 檔而鄰日 1,020~1,339 檔，
+# 10% 這條線落在兩個數量級的空隙裡，量少的正常日與壞掉的日子都不會擦到
+MISSING_RATIO: float = 0.1
+NEIGHBOUR_RADIUS: int = 5
+
+# 鄰日中位數低於此值時不判定：市場剛開辦或資料稀疏的早年，分母本來就小
+MIN_NEIGHBOUR_MEDIAN: int = 100
 
 pytestmark = pytest.mark.slow
 
@@ -139,3 +155,70 @@ def test_no_stale_replayed_batches() -> None:
     ]
 
     assert not collisions, f"以下日期共用同一份籌碼內容（過期頁被重播）：{collisions}"
+
+
+@pytest.mark.skipif(
+    not Path(TW_STOCK_DB_PATH).exists(),
+    reason="需要 tw_stock.db 才能比對逐日的市場別分布",
+)
+def test_no_single_market_batches() -> None:
+    """沒有任何一天只入庫了半個市場
+
+    台股的日頻表都是**兩個來源拼成一天**：TWSE 一份、TPEX 一份，清洗後寫進
+    同一張表。若其中一個來源當天沒問到，另一個仍會照常入庫——那一天在庫裡
+    看起來是有資料的，只是少了半個市場。
+
+    **這一條補的正是上面兩條的盲區。** 日期軸正常（四張表都有那天），
+    內容也是真的（指紋不碰撞），缺口統計更不會出聲（它看的是「哪幾天完全沒有」）。
+    2026-09-05 掃描抓到 11 天：`chip` 9 天、`price` 2 天，全部缺 TWSE 那半邊。
+
+    判準刻意用「低於鄰日中位數的 10%」而不是 S1 當時的 85%：後者會連帶掃到
+    列數本來就偏低的日期（早年補行交易的週六、跌停鎖死的股災日），變成紅燈噪音。
+    實測命中的 11 天該市場只剩 0~15 檔而鄰日 1,020~1,339 檔，兩者之間有兩個
+    數量級的空隙，10% 這條線落在空隙裡，兩邊都不會擦到。
+
+    清理工具見 `scripts/fix_single_market_batches.py`。
+    """
+
+    conn: sqlite3.Connection = sqlite3.connect(TW_STOCK_DB_PATH)
+    try:
+        market_map: Dict[str, str] = {}
+        for stock_id, market in conn.execute(
+            f"SELECT stock_id, type FROM {STOCK_INFO_TABLE_NAME}"
+        ):
+            market_map.setdefault(stock_id, market)
+
+        offenders: List[str] = []
+        for table in (PRICE_TABLE_NAME, CHIP_TABLE_NAME, MARGIN_TABLE_NAME):
+            per_date: Dict[str, Dict[str, int]] = {}
+            for date, stock_id in conn.execute(f"SELECT date, stock_id FROM {table}"):
+                counts: Dict[str, int] = per_date.setdefault(
+                    date, {name: 0 for name in MARKETS}
+                )
+                market_of_stock: str = market_map.get(stock_id, "")
+                if market_of_stock in counts:
+                    counts[market_of_stock] += 1
+
+            dates: List[str] = sorted(per_date)
+            for i, date in enumerate(dates):
+                lo: int = max(0, i - NEIGHBOUR_RADIUS)
+                hi: int = min(len(dates), i + NEIGHBOUR_RADIUS + 1)
+                neighbours: List[str] = [dates[j] for j in range(lo, hi) if j != i]
+                if not neighbours:
+                    continue
+
+                for market in MARKETS:
+                    median: float = statistics.median(
+                        [per_date[d][market] for d in neighbours]
+                    )
+                    if median < MIN_NEIGHBOUR_MEDIAN:
+                        continue
+                    if per_date[date][market] < MISSING_RATIO * median:
+                        offenders.append(
+                            f"{table} {date} {market} 僅 {per_date[date][market]} 檔"
+                            f"（鄰日中位數 {int(median)}）"
+                        )
+    finally:
+        conn.close()
+
+    assert not offenders, f"以下日期只入庫了半個市場：{offenders}"

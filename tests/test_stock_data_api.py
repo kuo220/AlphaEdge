@@ -1,6 +1,5 @@
 import datetime
 import sqlite3
-import sys
 from pathlib import Path
 from typing import Any, Dict, Iterator
 
@@ -8,7 +7,6 @@ import pandas as pd
 import pytest
 
 _PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(_PROJECT_ROOT))
 
 from core.api.tw.stock_chip_api import StockChipAPI
 from core.api.tw.stock_price_api import StockPriceAPI

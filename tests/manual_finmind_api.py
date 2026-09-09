@@ -29,7 +29,6 @@ from pathlib import Path
 
 # 添加專案根目錄到 Python 路徑
 project_root: Path = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(project_root))
 
 import pandas as pd
 import pytest

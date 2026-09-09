@@ -1,11 +1,10 @@
-import sys
+import re
 from pathlib import Path
-from typing import List
+from typing import Dict, List, Tuple
 
 import pytest
 
 _PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(_PROJECT_ROOT))
 
 from core.pipeline.utils.constant import ChipColumn, PriceColumn
 
@@ -63,6 +62,97 @@ def test_no_db_column_literal_in_strategies(column: str) -> None:
     assert not offenders, (
         f"策略層不得直接引用資料庫欄位 {column!r}，請改用 core/api/ 的具名查詢方法："
         f"{offenders}"
+    )
+
+
+# === 策略不得自建資料連線（健檢 F-074）===
+# 樣式與說明成對，測試失敗時直接把「該怎麼做」印出來，不必再去翻 README
+FORBIDDEN_DATA_ACCESS: List[Tuple[str, str, str]] = [
+    (
+        "sqlite3-connect",
+        r"sqlite3\s*\.\s*connect\s*\(",
+        "策略不得自行連資料庫；資料一律由 DataFeed 經 quotes 傳入",
+    ),
+    (
+        "api-instantiation",
+        r"\b[A-Z]\w*API\s*\(",
+        "策略不得自行建立 core/api/ 的物件（一次回測會多開好幾條連線）；"
+        "需要額外資料請在 DataFeed 取好後放進 quotes",
+    ),
+    (
+        "dolphindb",
+        r"\b(?:dolphindb|ddb)\b",
+        "策略不得直接連 tick 資料庫；tick 由 DataFeed 以 Scale.TICK 供應",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    ("pattern_id", "pattern", "reason"),
+    FORBIDDEN_DATA_ACCESS,
+    ids=[item[0] for item in FORBIDDEN_DATA_ACCESS],
+)
+def test_no_self_built_data_access_in_strategies(
+    pattern_id: str, pattern: str, reason: str
+) -> None:
+    """
+    - Description:
+        策略層不得自建資料連線或 API 物件
+
+        「策略不得自行建立 API／連線」原本**只寫在 `core/strategies/README.md`**，
+        沒有任何測試釘住它。目前 grep 無違規，所以這條是**預防性**護欄——
+        下一支策略寫 `StockPriceAPI()` 時不會有任何東西變紅，而症狀是
+        一次回測多開好幾條互不相干的連線，不會報錯、只會慢慢累積。
+
+        **只擋實例化，不擋型別標註**：`price: StockPriceAPI` 是合法的
+        （策略可以持有 DataFeed 給的物件），`StockPriceAPI()` 才是自建。
+        兩者的差別就是那個左括號。
+    - Parameters:
+        - pattern_id: str
+            樣式代號（供 pytest 的 test id 顯示）
+        - pattern: str
+            要擋的正規表達式
+        - reason: str
+            違規時要告訴作者的替代做法
+    """
+
+    offenders: List[str] = []
+    compiled: re.Pattern = re.compile(pattern)
+
+    for path in strategy_source_files():
+        for line_no, line in enumerate(
+            path.read_text(encoding="utf-8").splitlines(), start=1
+        ):
+            # 註解與 docstring 裡提到這些名字是說明，不是呼叫
+            code: str = line.split("#", 1)[0]
+            if compiled.search(code):
+                offenders.append(f"{path.relative_to(_PROJECT_ROOT)}:{line_no}")
+
+    assert not offenders, f"{reason}。違規處：{offenders}"
+
+
+def test_forbidden_pattern_actually_matches() -> None:
+    """
+    護欄本身要抓得到東西
+
+    三個樣式若因為寫錯而永遠不命中，上面那條會永遠通過而毫無作用——
+    這正是本專案已經踩過的坑（F-090 的假綠燈、`test_broker_trading_updater.py`
+    整段包在 try/except）。這裡以**合成的違規程式碼**驗證樣式真的有效。
+    """
+
+    samples: Dict[str, str] = {
+        "sqlite3-connect": "conn = sqlite3.connect(TW_STOCK_DB_PATH)",
+        "api-instantiation": "self.price = StockPriceAPI()",
+        "dolphindb": "import dolphindb as ddb",
+    }
+
+    for pattern_id, pattern, _ in FORBIDDEN_DATA_ACCESS:
+        assert re.search(pattern, samples[pattern_id]), pattern_id
+
+    # 型別標註不得被誤判為自建
+    assert not re.search(FORBIDDEN_DATA_ACCESS[1][1], "price: StockPriceAPI")
+    assert not re.search(
+        FORBIDDEN_DATA_ACCESS[1][1], "def f(api: StockChipAPI) -> None:"
     )
 
 
@@ -255,3 +345,33 @@ def test_momentum_skips_stocks_without_a_valid_previous_close() -> None:
 
     assert pd.isna(float("nan"))
     assert strategy.check_open_signal([quote]) == [], "昨收為 NaN 的股票不可產生開倉單"
+
+
+# === sys.path 注入不得再出現（健檢 F-009）===
+def test_no_sys_path_injection_anywhere() -> None:
+    """
+    `sys.path.insert` 全專案應為 0 處
+
+    專案已 `pip install -e .`（CI 亦然），注入全部多餘——更麻煩的是它會
+    **遮蔽「沒安裝就跑」的 import 錯誤**：測試在沒裝套件的環境照樣綠，
+    直到有人在別的目錄執行才發現。
+
+    `strategy_lab` 不在 `pyproject` 的 `packages.find` 裡，所以那幾支研究腳本
+    改成一律用 `python -m strategy_lab.…` 執行（直接跑檔案路徑會
+    ModuleNotFoundError，那是**刻意的**——它比靠路徑硬塞而安靜地成功要好）。
+
+    判定沿用 `scripts/check_layer_deps.py` 的 AST 掃描，不另寫一份；
+    它只認真的呼叫節點，不會把說明這件事的 docstring 算成一處。
+    """
+
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "check_layer_deps", _PROJECT_ROOT / "scripts" / "check_layer_deps.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    hits: List[str] = module.check_sys_path(module.collect_files())
+
+    assert hits == [], f"sys.path 注入應為 0 處，實際：{hits}"

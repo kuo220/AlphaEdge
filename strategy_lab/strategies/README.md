@@ -73,7 +73,7 @@ print(f"IC(TSM_t, 2330_t) = {ic:.4f}")
 執行：
 
 ```bash
-.venv/bin/python strategy_lab/strategies/my_idea/explore.py
+.venv/bin/python -m strategy_lab.strategies.my_idea.explore
 ```
 
 ---

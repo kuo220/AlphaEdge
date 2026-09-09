@@ -5,7 +5,6 @@ from pathlib import Path
 
 # 添加專案根目錄到 Python 路徑
 project_root: Path = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(project_root))
 
 # 直接使用表名常數，避免導入 config 時的依賴問題
 STOCK_INFO_TABLE_NAME = "taiwan_stock_info"

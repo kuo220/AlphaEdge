@@ -2,7 +2,7 @@
 
 **副標**：ADR、費半與匯率之領先資訊，Ridge 預測與歷史回測  
 
-完整 Word 報告請執行 `strategy_lab/strategies/tsmc_overnight_signal/reports/generate_docx.py`（預設同時產出中／英）：
+完整 Word 報告請執行 `python -m strategy_lab.strategies.tsmc_overnight_signal.reports.generate_docx`（預設同時產出中／英）：
 
 - `strategy_lab/strategies/tsmc_overnight_signal/reports/TSMC_OvernightSignal_Quant_Report.docx`（中文）
 - `strategy_lab/strategies/tsmc_overnight_signal/reports/TSMC_OvernightSignal_Quant_Report_EN.docx`（英文）
@@ -142,13 +142,14 @@
 於專案根目錄（與 `requirements.txt` 同層）：
 
 ```bash
-# 建議使用專案虛擬環境
-.venv/bin/python strategy_lab/strategies/tsmc_overnight_signal/run.py
+# 建議使用專案虛擬環境。**一律用 `-m`**：`strategy_lab` 不在 pyproject 的
+# packages.find 裡，直接跑檔案路徑會 ModuleNotFoundError（健檢 F-009）
+.venv/bin/python -m strategy_lab.strategies.tsmc_overnight_signal.run
 # 產生 Word 報告（需 python-docx）
-.venv/bin/python strategy_lab/strategies/tsmc_overnight_signal/reports/generate_docx.py
+.venv/bin/python -m strategy_lab.strategies.tsmc_overnight_signal.reports.generate_docx
 # 僅中文或僅英文：
-# .venv/bin/python strategy_lab/strategies/tsmc_overnight_signal/reports/generate_docx.py --lang zh
-# .venv/bin/python strategy_lab/strategies/tsmc_overnight_signal/reports/generate_docx.py --lang en
+# .venv/bin/python -m strategy_lab.strategies.tsmc_overnight_signal.reports.generate_docx --lang zh
+# .venv/bin/python -m strategy_lab.strategies.tsmc_overnight_signal.reports.generate_docx --lang en
 ```
 
 依賴與主專案相同（**numpy、pandas、yfinance、plotly、kaleido、python-docx** 等，見倉庫根目錄 `requirements.txt`）。若 `write_image` 失敗，仍會保留 `.html` 互動圖。

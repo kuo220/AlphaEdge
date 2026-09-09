@@ -361,7 +361,14 @@ InstrumentType.STOCK, InstrumentType.FUTURE, InstrumentType.OPTION  # 商品類�
 
 ### 最小可運行的研究腳本
 
-先建立主題資料夾 `strategy_lab/data_analysis/<your_topic>/`，把腳本存成 `run.py` 或 `analysis.py`，就能在專案根目錄跑：
+先建立主題資料夾 `strategy_lab/data_analysis/<your_topic>/`，把腳本存成 `run.py` 或 `analysis.py`，就能在專案根目錄跑。
+
+> **執行一律用 `-m`**（例如 `.venv/bin/python -m strategy_lab.data_analysis.<your_topic>.run`）。
+> `strategy_lab` 不在 `pyproject` 的 `packages.find` 裡（只裝 `core*`／`tasks*`／`tests*`），
+> 直接跑檔案路徑時 `sys.path[0]` 是腳本自己的目錄，`import strategy_lab.…` 會失敗。
+> 舊版靠每支腳本開頭的 `sys.path.insert` 硬塞，那會遮蔽「沒安裝就跑」的 import
+> 錯誤（健檢 F-009，已於 2026-09-10 清除）。
+
 
 ```python
 import datetime as dt
@@ -387,7 +394,7 @@ print(monthly_vol.tail())
 執行：
 
 ```bash
-.venv/bin/python strategy_lab/data_analysis/<your_topic>/run.py
+.venv/bin/python -m strategy_lab.data_analysis.<your_topic>.run
 ```
 
 ### 常見模式：IC（Information Coefficient）分析

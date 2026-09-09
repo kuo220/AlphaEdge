@@ -1,6 +1,5 @@
 import datetime
 import sqlite3
-import sys
 from pathlib import Path
 from typing import Iterator
 
@@ -8,7 +7,6 @@ import pandas as pd
 import pytest
 
 _PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(_PROJECT_ROOT))
 
 from core.api.tw.finmind_api import FinMindAPI
 from core.config import (

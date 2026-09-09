@@ -2,11 +2,11 @@
 """
 將 tech_new_high_continuation 分析 output/ CSV 彙整為精簡 Word 報告（.docx）。
 
-使用方式（專案根目錄）：
-    .venv/bin/python strategy_lab/data_analysis/tech_new_high_continuation/reports/generate_docx.py
+使用方式（專案根目錄，**必須用 `-m`**，理由見 run.py）：
+    .venv/bin/python -m strategy_lab.data_analysis.tech_new_high_continuation.reports.generate_docx
 
 若尚未有 CSV，請先執行：
-    .venv/bin/python strategy_lab/data_analysis/tech_new_high_continuation/run.py
+    .venv/bin/python -m strategy_lab.data_analysis.tech_new_high_continuation.run
 
 產出的 `Tech_NewHigh_Continuation_Report.docx` 是**產出物、不進版控**
 （`.gitignore` 的 `strategy_lab/**/reports/*.docx`）：本檔預設就寫進自己那個
@@ -16,13 +16,8 @@
 from __future__ import annotations
 
 import datetime as dt
-import sys
 from pathlib import Path
 from typing import List, Optional
-
-_PROJECT_ROOT = Path(__file__).resolve().parents[4]
-if str(_PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(_PROJECT_ROOT))
 
 try:
     from docx import Document
@@ -36,7 +31,7 @@ except ImportError as e:
 
 import pandas as pd
 
-from strategy_lab.data_analysis.tech_new_high_continuation.analysis import (  # noqa: E402
+from strategy_lab.data_analysis.tech_new_high_continuation.analysis import (
     END_DATE,
     MIN_EVENT_COUNT,
     START_DATE,

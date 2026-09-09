@@ -11,7 +11,6 @@ import pandas as pd
 
 # 添加專案根目錄到 Python 路徑
 project_root: Path = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(project_root))
 
 # 載入 .env 檔案
 from dotenv import load_dotenv

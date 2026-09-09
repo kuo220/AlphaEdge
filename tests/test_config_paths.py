@@ -4,7 +4,6 @@ from pathlib import Path
 import pytest
 
 _PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(_PROJECT_ROOT))
 
 from core import config
 

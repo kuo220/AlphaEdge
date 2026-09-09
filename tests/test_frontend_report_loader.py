@@ -185,9 +185,7 @@ def test_equity_series_starts_at_initial_capital(
 ) -> None:
     """序列第一個節點是初始資金，不是第一個交易日結束後的權益"""
 
-    equity: pd.Series = build_equity_series(
-        daily_equity_df, EXPECTED_STARTING_CAPITAL
-    )
+    equity: pd.Series = build_equity_series(daily_equity_df, EXPECTED_STARTING_CAPITAL)
 
     assert not equity.empty
     assert float(equity.iloc[0]) == pytest.approx(EXPECTED_STARTING_CAPITAL)
@@ -199,9 +197,7 @@ def test_equity_series_starts_at_initial_capital(
 def test_max_drawdown_from_daily_equity(daily_equity_df: pd.DataFrame) -> None:
     """MDD 走盯市權益；已實現口徑會把持倉期間的逆勢整段抹平"""
 
-    equity: pd.Series = build_equity_series(
-        daily_equity_df, EXPECTED_STARTING_CAPITAL
-    )
+    equity: pd.Series = build_equity_series(daily_equity_df, EXPECTED_STARTING_CAPITAL)
 
     assert compute_max_drawdown(equity) == pytest.approx(EXPECTED_MDD)
 
@@ -216,9 +212,7 @@ def test_max_drawdown_is_none_without_equity() -> None:
 def test_daily_pnl_sums_to_total_gain(daily_equity_df: pd.DataFrame) -> None:
     """逐日損益加總 ＝ 期末權益 − 初始資金"""
 
-    equity: pd.Series = build_equity_series(
-        daily_equity_df, EXPECTED_STARTING_CAPITAL
-    )
+    equity: pd.Series = build_equity_series(daily_equity_df, EXPECTED_STARTING_CAPITAL)
     daily_pnl: pd.Series = compute_daily_pnl(equity)
 
     assert float(daily_pnl.sum()) == pytest.approx(
@@ -236,9 +230,7 @@ def test_daily_returns_are_per_day_not_per_trade(
     等於宣稱「一年有 252 筆交易」。
     """
 
-    equity: pd.Series = build_equity_series(
-        daily_equity_df, EXPECTED_STARTING_CAPITAL
-    )
+    equity: pd.Series = build_equity_series(daily_equity_df, EXPECTED_STARTING_CAPITAL)
     returns: pd.Series = compute_daily_returns(equity)
 
     exit_days: int = trading_df["Exit Date"].nunique()

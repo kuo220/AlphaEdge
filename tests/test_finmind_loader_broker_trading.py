@@ -6,14 +6,12 @@
 
 import datetime
 import sqlite3
-import sys
 from pathlib import Path
 from unittest.mock import patch
 
 import pandas as pd
 
 project_root: Path = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(project_root))
 
 from core.config import STOCK_TRADING_DAILY_REPORT_TABLE_NAME
 

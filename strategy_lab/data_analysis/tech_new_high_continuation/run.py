@@ -2,22 +2,22 @@
 """
 台股科技業「創高後續上行機率」分析入口。
 
-請於 AlphaEdge 專案根目錄執行：
-    .venv/bin/python strategy_lab/data_analysis/tech_new_high_continuation/run.py
+請於 AlphaEdge 專案根目錄以 `-m` 執行：
+    .venv/bin/python -m strategy_lab.data_analysis.tech_new_high_continuation.run
+
+**必須用 `-m`**：`strategy_lab` 不在 `pyproject` 的 `packages.find` 裡（只裝
+`core*`／`tasks*`／`tests*`），直接跑檔案路徑時 `sys.path[0]` 是腳本自己的目錄，
+`import strategy_lab.…` 會失敗。`-m` 會把工作目錄放進 `sys.path`，
+專案根目錄底下就找得到（健檢 F-009：原本靠 `sys.path.insert` 硬塞）。
 
 輸出目錄：strategy_lab/data_analysis/tech_new_high_continuation/output/
 """
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
-_PROJECT_ROOT = Path(__file__).resolve().parents[3]
-if str(_PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(_PROJECT_ROOT))
-
-from strategy_lab.data_analysis.tech_new_high_continuation.analysis import (  # noqa: E402
+from strategy_lab.data_analysis.tech_new_high_continuation.analysis import (
     run_analysis,
     write_outputs,
 )

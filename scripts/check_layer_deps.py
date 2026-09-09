@@ -382,16 +382,48 @@ def check_strategy_facades(graph: Dict[str, Set[str]]) -> List[str]:
 
 
 def check_sys_path(files: List[Path]) -> List[str]:
-    """列出所有 sys.path 注入"""
+    """
+    - Description:
+        列出所有 sys.path 注入（**只認真的呼叫，不認文字**）
+
+        以 AST 找 `sys.path.insert(...)`／`sys.path.append(...)` 的呼叫節點。
+        舊版用 `"sys.path.insert" in line` 逐行比對字串，於是**說明這件事的
+        docstring 也會被算成一處**——F-009 全數清乾淨後，唯一剩下的那一筆
+        正是解釋「原本靠 sys.path.insert 硬塞」的那行註解。
+        護欄把自己的說明文字算成違規，就沒辦法拿它當「應為 0」的判準。
+    - Parameters:
+        - files: List[Path]
+            要掃的檔案
+    - Return:
+        - List[str]
+            `檔案:行號` 清單
+    """
 
     hits: List[str] = []
     self_path: Path = Path(__file__).resolve()
+
     for path in files:
         if path.resolve() == self_path:
             continue
-        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-            if "sys.path.insert" in line or "sys.path.append" in line:
-                hits.append(f"{path.relative_to(_PROJECT_ROOT)}:{lineno}")
+        try:
+            tree: ast.Module = ast.parse(path.read_text(encoding="utf-8"))
+        except SyntaxError:
+            continue
+
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            func: ast.expr = node.func
+            # 比對 `sys.path.insert` / `sys.path.append` 這個屬性鏈
+            if (
+                isinstance(func, ast.Attribute)
+                and func.attr in {"insert", "append"}
+                and isinstance(func.value, ast.Attribute)
+                and func.value.attr == "path"
+                and isinstance(func.value.value, ast.Name)
+                and func.value.value.id == "sys"
+            ):
+                hits.append(f"{path.relative_to(_PROJECT_ROOT)}:{func.lineno}")
     return hits
 
 

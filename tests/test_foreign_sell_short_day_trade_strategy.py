@@ -1,5 +1,4 @@
 import datetime
-import sys
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional
@@ -7,7 +6,6 @@ from typing import Any, Dict, List, Optional
 import pytest
 
 _PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(_PROJECT_ROOT))
 
 from core.backtest.backtester import Backtester
 from core.backtest.factory import build_cost_config

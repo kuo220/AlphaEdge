@@ -351,12 +351,16 @@ def test_no_retry_when_the_window_has_no_trading_day() -> None:
     assert len(attempts) == 1
 
 
-def test_institutional_start_date_is_clamped_to_two_years() -> None:
+def test_institutional_start_date_is_clamped_to_source_earliest() -> None:
     """
-    **三大法人只有約兩年的歷史**（實測切點 2024-08-17~19）
+    **三大法人的歷史只回溯到 2023-09-04**（2026-09-05 實測）
 
     不夾的話會白打上千次請求，而且每一次都被記成「查無資料」，
     看起來像是那幾年真的沒有籌碼。其餘兩個資料集有完整歷史，不受此限。
+
+    **斷言刻意鎖死在那個常數上，而不是寫成「距今 N 年以內」。** 舊版斷言是
+    `(today - clamped).days <= 365 * 2`——它對「今天往回推兩年」與「固定在
+    2024-08-17」都成立，所以夾擠點整整晚了一年多也不會變紅。
     """
 
     from core.pipeline.tw.updaters.futures_chip_updater import FuturesChipUpdater
@@ -370,10 +374,18 @@ def test_institutional_start_date_is_clamped_to_two_years() -> None:
     untouched: datetime.date = updater.clamp_start_date(
         FUTURES_LARGE_TRADER_TABLE_NAME, "large_trader", old_start
     )
+    after_earliest: datetime.date = updater.clamp_start_date(
+        FUTURES_INSTITUTIONAL_CHIP_TABLE_NAME,
+        "institutional",
+        FuturesChipUpdater.INSTITUTIONAL_EARLIEST_DATE + datetime.timedelta(days=1),
+    )
 
-    assert clamped > old_start
-    assert (datetime.date.today() - clamped).days <= 365 * 2
+    assert clamped == FuturesChipUpdater.INSTITUTIONAL_EARLIEST_DATE
     assert untouched == old_start
+    # 已經晚於下限的起點不可以被往後推
+    assert after_earliest == FuturesChipUpdater.INSTITUTIONAL_EARLIEST_DATE + (
+        datetime.timedelta(days=1)
+    )
 
 
 def test_update_resolves_start_dates_for_every_dataset(monkeypatch) -> None:
@@ -421,9 +433,51 @@ def test_update_resolves_start_dates_for_every_dataset(monkeypatch) -> None:
         FUTURES_LARGE_TRADER_TABLE_NAME,
         FUTURES_PUT_CALL_RATIO_TABLE_NAME,
     ]
-    # 三大法人被夾到兩年內，其餘兩個維持 2015
+    # 三大法人被夾到來源下限，其餘兩個維持 2015
     assert called[0][1] > datetime.date(2015, 1, 1)
     assert called[1][1] == datetime.date(2015, 1, 1)
+
+
+def test_update_only_touches_requested_tables(monkeypatch) -> None:
+    """
+    `tables` 指定時只跑那幾個資料集
+
+    **這條測試守的是歷史回補的成本。** 要補 `futures_institutional_chip` 就得
+    `resume=False` ＋ 指定 `start_date`，而那個組合套在三張表上會讓另外兩張
+    已經完整到 2015 的表整段重抓。少了這個開關，一次回補就是上百次多餘請求。
+    """
+
+    from core.pipeline.tw.updaters.futures_chip_updater import FuturesChipUpdater
+
+    updater: FuturesChipUpdater = FuturesChipUpdater.__new__(FuturesChipUpdater)
+    updater.get_datasets = lambda: [
+        (FUTURES_INSTITUTIONAL_CHIP_TABLE_NAME, "institutional", None, None),
+        (FUTURES_LARGE_TRADER_TABLE_NAME, "large_trader", None, None),
+        (FUTURES_PUT_CALL_RATIO_TABLE_NAME, "pcr", None, None),
+    ]
+
+    called: List[tuple] = []
+
+    def record_dataset(table, label, crawl, clean, start, end):
+        called.append((table, start, end))
+        return 0, []
+
+    updater.update_dataset = record_dataset
+
+    updater.update(
+        start_date=datetime.date(2023, 9, 4),
+        end_date=datetime.date(2024, 10, 3),
+        resume=False,
+        tables=[FUTURES_INSTITUTIONAL_CHIP_TABLE_NAME],
+    )
+
+    assert [row[0] for row in called] == [FUTURES_INSTITUTIONAL_CHIP_TABLE_NAME]
+    assert called[0][1] == FuturesChipUpdater.INSTITUTIONAL_EARLIEST_DATE
+
+    # `tables` 對不到任何資料集時安靜收工，不要當成「三張全做」
+    called.clear()
+    updater.update(tables=["no_such_table"])
+    assert called == []
 
 
 @pytest.mark.parametrize(

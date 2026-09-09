@@ -2,13 +2,13 @@
 """
 將 TSMC 隔夜訊號策略 output/ 之圖表與 CSV 彙整為 Word 量化報告（.docx），支援中文／英文。
 
-使用方式（專案根目錄）：
-    .venv/bin/python strategy_lab/strategies/tsmc_overnight_signal/reports/generate_docx.py
-    .venv/bin/python strategy_lab/strategies/tsmc_overnight_signal/reports/generate_docx.py --lang en
-    .venv/bin/python strategy_lab/strategies/tsmc_overnight_signal/reports/generate_docx.py --lang both
+使用方式（專案根目錄，**必須用 `-m`**，理由見 run.py）：
+    .venv/bin/python -m strategy_lab.strategies.tsmc_overnight_signal.reports.generate_docx
+    .venv/bin/python -m strategy_lab.strategies.tsmc_overnight_signal.reports.generate_docx --lang en
+    .venv/bin/python -m strategy_lab.strategies.tsmc_overnight_signal.reports.generate_docx --lang both
 
 若尚未有圖表／CSV，請先執行：
-    .venv/bin/python strategy_lab/strategies/tsmc_overnight_signal/run.py
+    .venv/bin/python -m strategy_lab.strategies.tsmc_overnight_signal.run
 
 共用零件（樣式、表格、圖片、CSV 讀取）在 `docx_common.py`，敘事內容在
 `docx_append.py`；三者單向相依，不再互相 import（健檢 F-006）。
@@ -22,23 +22,16 @@
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 from typing import List, Optional
 
-# 此檔位於 strategy_lab/strategies/tsmc_overnight_signal/reports/generate_docx.py
-# parents[4] = AlphaEdge 專案根目錄
-_REPO_ROOT = Path(__file__).resolve().parents[4]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
-
 # 循環解掉之後，這兩個 import 才能放回模組層級——函式內 import 只是把問題藏起來，
 # 讓 `scripts/check_layer_deps.py` 看不見，實際的相依環還在（健檢 F-006）
-from strategy_lab.strategies.tsmc_overnight_signal.reports.docx_append import (  # noqa: E402
+from strategy_lab.strategies.tsmc_overnight_signal.reports.docx_append import (
     append_en_report,
     append_zh_report,
 )
-from strategy_lab.strategies.tsmc_overnight_signal.reports.docx_common import (  # noqa: E402
+from strategy_lab.strategies.tsmc_overnight_signal.reports.docx_common import (
     _DOCX_EN,
     _DOCX_ZH,
     _OUTPUT,
