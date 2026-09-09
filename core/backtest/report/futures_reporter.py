@@ -38,6 +38,8 @@ class FuturesBacktestReporter(StockBacktestReporter):
         self,
         strategy: BaseFuturesStrategy,
         output_dir: Optional[Path] = None,
+        price: Optional[Any] = None,
+        show: Optional[bool] = None,
     ):
         # 對標商品：策略交易的第一個商品（多商品策略以第一個為代表）
         self.benchmark_product: str = (
@@ -50,7 +52,9 @@ class FuturesBacktestReporter(StockBacktestReporter):
             FuturesSession.DAY if session == FuturesSession.COMBINED else session
         )
 
-        super().__init__(strategy, output_dir)
+        # `price` 由 Backtester 統一傳入；期貨報表不查台股資料庫，
+        # 收下只是為了讓兩個 reporter 的建構簽章一致
+        super().__init__(strategy, output_dir, price=price, show=show)
 
     def setup(self) -> None:
         """建立對標序列（近月拼接的收盤價）；本 reporter 不碰台股資料庫"""

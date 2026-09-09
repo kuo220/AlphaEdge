@@ -12,6 +12,7 @@ from core.api.tw.stock_split import (
     apply_split_adjustment,
 )
 from core.backtest.report.base import BaseBacktestReporter
+from core.config import resolve_show_figures
 from core.models.stock.record import StockTradeRecord
 from core.strategies.stock import BaseStockStrategy
 from core.utils import FileEncoding
@@ -28,8 +29,22 @@ class StockBacktestReporter(BaseBacktestReporter):
     EQUITY_BASIS_MARK_TO_MARKET: str = "Mark-to-market"  # 逐日盯市（含未實現損益）
     EQUITY_BASIS_REALIZED_ONLY: str = "Realized only"  # 只認已實現損益（MDD 會被低估）
 
-    def __init__(self, strategy: BaseStockStrategy, output_dir: Optional[Path] = None):
+    def __init__(
+        self,
+        strategy: BaseStockStrategy,
+        output_dir: Optional[Path] = None,
+        price: Optional[StockPriceAPI] = None,
+        show: Optional[bool] = None,
+    ):
         super().__init__(strategy, output_dir)
+
+        # 由 Backtester 傳入 DataFeed 已經開好的連線；未指定時自行建立並由
+        # `close()` 負責關掉（F-067：舊版每跑一次回測就多一條不再使用的連線）
+        self.price: Optional[StockPriceAPI] = price
+
+        # 畫完是否在瀏覽器開圖。舊版寫死 True，於是每跑一次回測就彈出 5 個分頁，
+        # 批次跑參數掃描時等於一次開幾十個（F-067）
+        self.show: bool = resolve_show_figures() if show is None else show
 
         # Backtest date
         self.start_date: datetime.date = self.strategy.start_date  # Backtest start date
@@ -41,9 +56,8 @@ class StockBacktestReporter(BaseBacktestReporter):
         # Benchmark
         self.benchmark: str = "0050"  # Benchmark stock
 
-        # Price data
-        self.price: Optional[StockPriceAPI] = None  # Price data
-        self.benchmark_price: Optional[pd.Series] = None  # Benchmark price
+        # Benchmark price
+        self.benchmark_price: Optional[pd.Series] = None
 
         # Trading report
         self.trading_report: Optional[pd.DataFrame] = None  # Trading report
@@ -51,19 +65,43 @@ class StockBacktestReporter(BaseBacktestReporter):
         self.setup()
 
     def setup(self) -> None:
-        """Set Up the Config of Reporter"""
+        """
+        - Description:
+            建立資料連線並取 benchmark 的**還原**收盤價
 
-        # Price data
-        self.price: StockPriceAPI = StockPriceAPI()
+            **benchmark 必須用還原價**（F-067）：原始收盤價在除權息日有跳空，
+            0050 這種年年配息的標的，用原始價當基準等於讓基準每年少賺一次配息，
+            策略看起來永遠贏得比實際多。`analyzer.compute_benchmark_daily_returns()`
+            早就改用還原價了，reporter 這邊一直沒跟上，於是同一份回測的
+            「資產與基準比較圖」與 Information Ratio 用的是兩條不同的基準線。
 
-        # Benchmark price
-        self.price_df: pd.DataFrame = self.price.get_stock_price(
+            分割仍要另外補：`stock_dividend` 只記除權息、不含分割
+            （見 `core/api/tw/stock_split.py`），兩者都套上才是完整的還原序列。
+        """
+
+        # Price data；`conn` 由呼叫端注入時共用同一條連線，close() 不會關掉別人的
+        if self.price is None:
+            self.price = StockPriceAPI()
+
+        # Benchmark price（還原價）
+        self.benchmark_price: pd.Series = self.price.get_adjusted_close_series(
             stock_id=self.benchmark,
             start_date=self.start_date,
             end_date=self.end_date,
         )
-        self.benchmark_price: pd.Series = self.price_df["收盤價"]
-        self.benchmark_price.index = pd.to_datetime(self.price_df["date"]).dt.date
+        if not self.benchmark_price.empty:
+            self.benchmark_price.index = pd.to_datetime(self.benchmark_price.index).date
+
+    def close(self) -> None:
+        """
+        關閉 reporter 自己開的資料連線（F-067）
+
+        不關的話，每跑一次回測就多一條不再使用的 SQLite 連線；
+        由呼叫端注入的連線不歸 reporter 關（`StockPriceAPI` 的 `owns_conn` 語意）。
+        """
+
+        if self.price is not None:
+            self.price.close()
 
     def _get_adjusted_price(self, price_series: pd.Series, stock_id: str) -> pd.Series:
         """
@@ -630,9 +668,14 @@ class StockBacktestReporter(BaseBacktestReporter):
         xaxis_title: str = "",
         yaxis_title: str = "",
         fig_text: str = "",
-        show: bool = True,
+        show: Optional[bool] = None,
     ) -> None:
-        """設置繪圖配置"""
+        """
+        設置繪圖配置
+
+        `show` 不指定時跟隨 reporter 的設定（見 `resolve_show_figures()`）——
+        舊版寫死 `True`，每跑一次回測就在瀏覽器彈出 5 個分頁。
+        """
 
         # Layout setting
         fig.update_layout(
@@ -674,7 +717,7 @@ class StockBacktestReporter(BaseBacktestReporter):
             )
 
         # Show figure
-        if show:
+        if self.show if show is None else show:
             fig.show(renderer="browser")
 
     def save_report(self, df: pd.DataFrame, file_name: str = "") -> None:

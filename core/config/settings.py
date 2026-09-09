@@ -170,3 +170,40 @@ API_SECRET_KEYS: List[Optional[str]] = [
 # 回測一跑就是數十萬次查詢，`logs/api/` 每天長約 100 MB（健檢 F-097）。
 # console 不受影響，開發時照樣看得到 INFO
 API_LOG_FILE_LEVEL: str = "WARNING"
+
+
+# -----------------------------------------------------------------------
+# === Backtest report ===
+# -----------------------------------------------------------------------
+#
+# 回測畫完圖要不要在瀏覽器開起來（健檢 F-067）
+#
+# **預設不開**：`reporter` 有五張圖，舊版寫死 `show=True`，於是每跑一次回測
+# 就彈出 5 個分頁；批次跑參數掃描時一次開幾十個，在無頭環境（CI、容器、
+# nohup 背景作業）更是直接失敗或卡住。圖本來就會存成 PNG，要看打開檔案即可。
+#
+# 需要互動式檢視時以 `python run.py --strategy X --show` 或
+# `ALPHAEDGE_SHOW_FIGURES=1` 開啟。
+SHOW_FIGURES_ENV_VAR: str = "ALPHAEDGE_SHOW_FIGURES"
+_TRUTHY_VALUES: frozenset = frozenset({"1", "true", "yes", "on"})
+
+
+def resolve_show_figures(default: bool = False) -> bool:
+    """
+    - Description:
+        決定回測報表是否在瀏覽器開圖
+
+        只認明確的真值字串，`ALPHAEDGE_SHOW_FIGURES=0`／`false`／空字串一律為否——
+        「設了變數就當成開」會讓習慣寫 `VAR=0` 關功能的人踩到反效果。
+    - Parameters:
+        - default: bool
+            環境變數未設定時的預設值
+    - Return:
+        - bool
+            是否開圖
+    """
+
+    raw: Optional[str] = os.getenv(SHOW_FIGURES_ENV_VAR)
+    if raw is None:
+        return default
+    return raw.strip().lower() in _TRUTHY_VALUES

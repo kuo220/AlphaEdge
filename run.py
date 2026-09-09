@@ -3,6 +3,7 @@ from typing import Dict, Type
 
 from core.backtest.backtester import Backtester
 from core.backtest.factory import build_backtester
+from core.config import SHOW_FIGURES_ENV_VAR, resolve_show_figures
 from core.strategies.base import BaseStrategy
 from core.strategies.strategy_loader import StrategyLoader
 
@@ -28,6 +29,23 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--strategy", type=str, required=True, help="Name of the strategy class"
     )
+    # 回測畫完的五張圖要不要在瀏覽器開起來（健檢 F-067）。**預設不開**：
+    # 舊版寫死開啟，每跑一次回測就彈出 5 個分頁，批次掃參數時一次開幾十個，
+    # 在無頭環境（CI、容器、nohup）更是直接失敗。圖本來就會存成 PNG。
+    show_group = parser.add_mutually_exclusive_group()
+    show_group.add_argument(
+        "--show",
+        dest="show",
+        action="store_true",
+        default=None,
+        help="回測結束後在瀏覽器開啟圖表",
+    )
+    show_group.add_argument(
+        "--no-show",
+        dest="show",
+        action="store_false",
+        help=f"不開啟圖表（未指定時依環境變數 {SHOW_FIGURES_ENV_VAR}，預設不開）",
+    )
 
     return parser.parse_args()
 
@@ -51,6 +69,10 @@ def main() -> None:
     # Backtest or Live Trading
     if args.mode == "backtest":
         backtester: Backtester = build_backtester(strategy)
+        # 命令列旗標優先於環境變數；兩者都沒給就是不開圖
+        backtester.show_figures = (
+            resolve_show_figures() if args.show is None else args.show
+        )
         backtester.run()
     elif args.mode == "live":
         pass

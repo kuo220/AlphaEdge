@@ -98,6 +98,10 @@ class Backtester:
         self.data_feed: BaseDataFeed = data_feed  # 資料載入與交易日判定
         self.reporter_cls: Type[BaseBacktestReporter] = reporter_cls  # 報表產生器
 
+        # 回測結束是否在瀏覽器開圖；`None` 代表交給 reporter 依環境變數決定。
+        # 由 `run.py --show/--no-show` 覆寫（健檢 F-067）
+        self.show_figures: Optional[bool] = None
+
         # 回測參數
         self.scale: str = self.strategy.scale  # 回測 KBar 級別
         self.max_holdings: Optional[int] = self.strategy.max_holdings  # 最大持倉檔數
@@ -380,33 +384,38 @@ class Backtester:
             start_date=self.start_date, end_date=self.end_date
         )
 
-        for date in dates:
-            logger.info(f"--- {date.strftime('%Y/%m/%d')} ---")
+        # `try/finally`：中途拋例外時連線一樣要關（F-067）。舊版把 `close()`
+        # 放在最後一行，於是任何一天的資料異常都會讓那條 SQLite 連線留下來，
+        # 而回測是常常在中途炸的——這正是連線會累積的路徑
+        try:
+            for date in dates:
+                logger.info(f"--- {date.strftime('%Y/%m/%d')} ---")
 
-            if not self.data_feed.is_market_open(date):
-                logger.info("* Market Close\n")
-                continue
+                if not self.data_feed.is_market_open(date):
+                    logger.info("* Market Close\n")
+                    continue
 
-            if self.scale == Scale.TICK:
-                self.run_tick_backtest(date)
+                if self.scale == Scale.TICK:
+                    self.run_tick_backtest(date)
 
-            elif self.scale == Scale.DAY:
-                self.run_day_backtest(date)
+                elif self.scale == Scale.DAY:
+                    self.run_day_backtest(date)
 
-        self.account.update_account_status()
+            self.account.update_account_status()
 
-        logger.info(f"""
+            logger.info(f"""
             1. Initial Capital: {int(self.account.init_capital)}
             2. Balance: {int(self.account.balance)}
             3. Total realized pnl: {int(self.account.realized_pnl)}
             4. ROI: {round(self.account.roi, 2)}%
             """)
 
-        # Generate Backtest Report
-        self.generate_backtest_report()
+            # Generate Backtest Report
+            self.generate_backtest_report()
 
-        # 關閉資料連線：不關的話，每次回測都會累積不再使用的連線
-        self.data_feed.close()
+        finally:
+            # 關閉資料連線：不關的話，每次回測都會累積不再使用的連線
+            self.data_feed.close()
 
     def run_tick_backtest(self, date: datetime.date) -> None:
         """Tick 級別的回測架構"""
@@ -680,8 +689,13 @@ class Backtester:
         """Generate backtest report"""
 
         # Generate Backtest Report (Chart)
+        # `price` 共用 DataFeed 已經開好的連線：reporter 自己再開一條，
+        # 一次回測就是兩條連往同一個檔案的 SQLite 連線（F-067）
         reporter: BaseBacktestReporter = self.reporter_cls(
-            self.strategy, self.strategy_result_dir
+            self.strategy,
+            self.strategy_result_dir,
+            price=getattr(self.data_feed, "price", None),
+            show=self.show_figures,
         )
         reporter.trading_report = reporter.generate_trading_report()
 
@@ -698,8 +712,12 @@ class Backtester:
                 f"{self.strategy.strategy_name}_daily_equity.csv",
             )
 
-        reporter.plot_balance_curve()
-        reporter.plot_balance_and_benchmark_curve()
-        reporter.plot_balance_mdd()
-        reporter.plot_everyday_profit()
-        reporter.plot_everyday_equity_change()
+        try:
+            reporter.plot_balance_curve()
+            reporter.plot_balance_and_benchmark_curve()
+            reporter.plot_balance_mdd()
+            reporter.plot_everyday_profit()
+            reporter.plot_everyday_equity_change()
+        finally:
+            # reporter 自己開的連線由它自己關；共用連線不歸它關（F-067）
+            reporter.close()

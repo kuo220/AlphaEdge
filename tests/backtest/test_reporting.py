@@ -1,6 +1,6 @@
 import datetime
 from pathlib import Path
-from typing import Callable, Dict
+from typing import Callable, Dict, List
 
 import pandas as pd
 import pytest
@@ -314,3 +314,131 @@ def test_reporter_delegates_split_adjustment_to_the_shared_table() -> None:
     assert reporter._get_adjusted_price(raw, "0050").equals(
         stock_split.apply_split_adjustment(raw, "0050")
     )
+
+
+# === reporter 可維護性（健檢 F-067）===
+def test_benchmark_uses_adjusted_close() -> None:
+    """
+    benchmark 取的是**還原**收盤價，不是原始收盤價
+
+    0050 年年配息，用原始價當基準等於讓基準每年少賺一次配息，策略看起來
+    永遠贏得比實際多。`analyzer.compute_benchmark_daily_returns()` 早就改用
+    還原價，reporter 一直沒跟上——同一份回測的「資產與基準比較圖」與
+    Information Ratio 因此用著兩條不同的基準線。
+    """
+
+    import datetime as dt
+
+    calls: List[str] = []
+
+    class _Price:
+        def get_adjusted_close_series(self, stock_id, start_date, end_date):
+            calls.append("adjusted")
+            return pd.Series(
+                [100.0, 110.0],
+                index=[dt.date(2024, 1, 2), dt.date(2024, 1, 3)],
+            )
+
+        def get_stock_price(self, *args, **kwargs):  # pragma: no cover - 不該被呼叫
+            calls.append("raw")
+            return pd.DataFrame()
+
+        def close(self) -> None:
+            calls.append("closed")
+
+    reporter: StockBacktestReporter = StockBacktestReporter.__new__(
+        StockBacktestReporter
+    )
+    reporter.price = _Price()
+    reporter.benchmark = "0050"
+    reporter.start_date = dt.date(2024, 1, 1)
+    reporter.end_date = dt.date(2024, 1, 31)
+    reporter.setup()
+
+    assert calls == ["adjusted"]
+    assert list(reporter.benchmark_price) == [100.0, 110.0]
+
+
+def test_reporter_close_releases_only_its_own_connection() -> None:
+    """
+    共用連線不歸 reporter 關
+
+    `StockPriceAPI` 以 `owns_conn` 區分；reporter 只是把 `close()` 轉發過去，
+    自己不判斷。判斷寫兩份就會有一份漏掉。
+    """
+
+    closed: List[str] = []
+
+    class _Price:
+        def close(self) -> None:
+            closed.append("price")
+
+    reporter: StockBacktestReporter = StockBacktestReporter.__new__(
+        StockBacktestReporter
+    )
+    reporter.price = _Price()
+    reporter.close()
+
+    assert closed == ["price"]
+
+    # 期貨報表不建 StockPriceAPI（`setup()` 把 price 設成 None），不得炸
+    reporter.price = None
+    reporter.close()
+
+
+def test_show_figures_defaults_to_off(monkeypatch) -> None:
+    """
+    預設不開瀏覽器
+
+    reporter 有五張圖，舊版 `set_figure_config(show=True)` 寫死，每跑一次回測
+    就彈出 5 個分頁；批次掃參數時一次開幾十個，無頭環境更是直接失敗。
+    """
+
+    from core.config import SHOW_FIGURES_ENV_VAR, resolve_show_figures
+
+    monkeypatch.delenv(SHOW_FIGURES_ENV_VAR, raising=False)
+    assert resolve_show_figures() is False
+
+    monkeypatch.setenv(SHOW_FIGURES_ENV_VAR, "1")
+    assert resolve_show_figures() is True
+
+
+def test_show_figures_only_accepts_explicit_truthy(monkeypatch) -> None:
+    """
+    `ALPHAEDGE_SHOW_FIGURES=0` 是關，不是「有設就開」
+
+    習慣寫 `VAR=0` 關功能的人踩到反效果，會是最難查的那種問題。
+    """
+
+    from core.config import SHOW_FIGURES_ENV_VAR, resolve_show_figures
+
+    for value in ("0", "false", "no", "off", ""):
+        monkeypatch.setenv(SHOW_FIGURES_ENV_VAR, value)
+        assert resolve_show_figures() is False, value
+
+    for value in ("1", "true", "TRUE", "yes", "on"):
+        monkeypatch.setenv(SHOW_FIGURES_ENV_VAR, value)
+        assert resolve_show_figures() is True, value
+
+
+def test_set_figure_config_does_not_open_browser_by_default() -> None:
+    """`show` 不指定時跟隨 reporter 的設定，不是寫死 True"""
+
+    import plotly.graph_objects as go
+
+    opened: List[str] = []
+
+    class _Figure(go.Figure):
+        def show(self, *args, **kwargs):
+            opened.append("shown")
+
+    reporter: StockBacktestReporter = StockBacktestReporter.__new__(
+        StockBacktestReporter
+    )
+    reporter.show = False
+    reporter.set_figure_config(_Figure(), title="t")
+    assert opened == []
+
+    reporter.show = True
+    reporter.set_figure_config(_Figure(), title="t")
+    assert opened == ["shown"]
