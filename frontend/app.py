@@ -19,9 +19,20 @@ try:
     )
     from services.report_loader import (
         BacktestReport,
+        build_equity_series,
+        compute_daily_pnl,
+        compute_daily_returns,
+        compute_max_drawdown,
+        extract_starting_capital,
         list_strategy_dirs,
         load_backtest_report,
+        read_daily_equity,
+        read_direction_summary,
+        read_event_report,
         read_trading_report,
+        sort_by_exit_date,
+        summarise_overview,
+        to_numeric,
     )
 except ModuleNotFoundError:
     from frontend.config import RESULTS_ROOT
@@ -35,9 +46,20 @@ except ModuleNotFoundError:
     )
     from frontend.services.report_loader import (
         BacktestReport,
+        build_equity_series,
+        compute_daily_pnl,
+        compute_daily_returns,
+        compute_max_drawdown,
+        extract_starting_capital,
         list_strategy_dirs,
         load_backtest_report,
+        read_daily_equity,
+        read_direction_summary,
+        read_event_report,
         read_trading_report,
+        sort_by_exit_date,
+        summarise_overview,
+        to_numeric,
     )
 
 
@@ -188,37 +210,6 @@ st.markdown(
 st.title("Backtest Report")
 
 
-def _to_numeric(df: pd.DataFrame, column: str) -> pd.Series:
-    if column not in df.columns:
-        return pd.Series(dtype=float)
-    return pd.to_numeric(df[column], errors="coerce")
-
-
-def _extract_daily_returns(df: pd.DataFrame) -> pd.Series:
-    if "Sell Date" not in df.columns or "Cumulative Balance" not in df.columns:
-        return pd.Series(dtype=float)
-
-    work_df = df[["Sell Date", "Cumulative Balance"]].copy()
-    work_df["Sell Date"] = pd.to_datetime(work_df["Sell Date"], errors="coerce")
-    work_df["Cumulative Balance"] = pd.to_numeric(
-        work_df["Cumulative Balance"], errors="coerce"
-    )
-    work_df = work_df.dropna(subset=["Sell Date", "Cumulative Balance"])
-    if work_df.empty:
-        return pd.Series(dtype=float)
-
-    daily_balance = (
-        work_df.groupby(work_df["Sell Date"].dt.date)["Cumulative Balance"]
-        .last()
-        .astype(float)
-    )
-    if daily_balance.empty:
-        return pd.Series(dtype=float)
-
-    daily_returns = daily_balance.pct_change().dropna()
-    return daily_returns.replace([float("inf"), float("-inf")], pd.NA).dropna()
-
-
 def _calc_sharpe_ratio(daily_returns: pd.Series, annualization: int = 252) -> float:
     if daily_returns.empty:
         return float("nan")
@@ -240,70 +231,12 @@ def _calc_sortino_ratio(daily_returns: pd.Series, annualization: int = 252) -> f
     return float((daily_returns.mean() / downside_std) * (annualization**0.5))
 
 
-def _extract_benchmark_returns(df: pd.DataFrame) -> pd.Series:
-    benchmark_candidates = [
-        "Benchmark Return",
-        "Benchmark Daily Return",
-        "Benchmark ROI",
-    ]
-    for column in benchmark_candidates:
-        if column in df.columns:
-            return pd.to_numeric(df[column], errors="coerce").dropna()
-    return pd.Series(dtype=float)
-
-
-def _calc_information_ratio(
-    daily_returns: pd.Series, benchmark_returns: pd.Series, annualization: int = 252
-) -> float:
-    if daily_returns.empty or benchmark_returns.empty:
-        return float("nan")
-
-    min_len = min(len(daily_returns), len(benchmark_returns))
-    if min_len == 0:
-        return float("nan")
-
-    strategy = daily_returns.tail(min_len).reset_index(drop=True)
-    benchmark = benchmark_returns.tail(min_len).reset_index(drop=True)
-    active_returns = strategy - benchmark
-    tracking_error = active_returns.std(ddof=0)
-    if tracking_error == 0 or pd.isna(tracking_error):
-        return float("nan")
-    return float((active_returns.mean() / tracking_error) * (annualization**0.5))
-
-
-def _extract_starting_capital(df: pd.DataFrame) -> tuple[float | None, bool]:
-    explicit_columns = [
-        "Starting Capital",
-        "Initial Capital",
-        "Initial Balance",
-        "起始資金",
-        "本金",
-    ]
-    for column in explicit_columns:
-        if column in df.columns:
-            values = pd.to_numeric(df[column], errors="coerce").dropna()
-            if not values.empty:
-                return float(values.iloc[0]), False
-
-    if "Cumulative Balance" in df.columns:
-        values = pd.to_numeric(df["Cumulative Balance"], errors="coerce").dropna()
-        if not values.empty:
-            return float(values.iloc[0]), True
-    return None, False
-
-
 def _extract_backtest_date_range(
     df: pd.DataFrame,
 ) -> tuple[pd.Timestamp | None, pd.Timestamp | None]:
-    date_columns = [
-        "Buy Date",
-        "Sell Date",
-        "Date",
-        "Trade Date",
-        "交易日期",
-        "買進日期",
-        "賣出日期",
-    ]
+    """回測區間取自**進出場日**；`Sell Date` 對 SHORT 是開倉日，不足以定義區間"""
+
+    date_columns = ["Entry Date", "Exit Date", "Buy Date", "Sell Date", "Date"]
     parsed_dates: list[pd.Series] = []
     for column in date_columns:
         if column in df.columns:
@@ -333,7 +266,7 @@ def _render_info_card(label: str, value: str) -> None:
 
 
 def _render_strategy_overview(report: BacktestReport, df: pd.DataFrame) -> None:
-    starting_capital, is_estimated = _extract_starting_capital(df)
+    starting_capital = extract_starting_capital(df)
     start_date, end_date = _extract_backtest_date_range(df)
 
     if start_date is not None and end_date is not None:
@@ -345,8 +278,6 @@ def _render_strategy_overview(report: BacktestReport, df: pd.DataFrame) -> None:
         starting_capital_text = "N/A"
     else:
         starting_capital_text = f"{starting_capital:,.2f}"
-        if is_estimated:
-            starting_capital_text += "（估算）"
 
     c1, c2, c3 = st.columns(3)
     with c1:
@@ -357,50 +288,107 @@ def _render_strategy_overview(report: BacktestReport, df: pd.DataFrame) -> None:
         _render_info_card("回測日期區間", date_range)
 
 
-def _render_metrics(df: pd.DataFrame) -> None:
-    realized_pnl = _to_numeric(df, "Realized PnL")
-    roi = _to_numeric(df, "ROI")
-    cumulative_balance = _to_numeric(df, "Cumulative Balance")
-    daily_returns = _extract_daily_returns(df)
-    benchmark_returns = _extract_benchmark_returns(df)
+def _render_metrics(
+    df: pd.DataFrame,
+    direction_summary: pd.DataFrame,
+    equity: pd.Series,
+) -> None:
+    """
+    關鍵指標**一律取自 reporter 落地的 CSV**（F-082）
 
-    trade_count = int(len(df))
-    win_count = int((realized_pnl > 0).sum())
-    loss_count = int((realized_pnl < 0).sum())
-    win_rate = (win_count / trade_count * 100) if trade_count > 0 else 0.0
-    total_pnl = float(realized_pnl.sum()) if not realized_pnl.empty else 0.0
-    avg_roi = float(roi.mean() * 100) if not roi.empty else 0.0
-    last_balance = (
-        float(cumulative_balance.iloc[-1]) if not cumulative_balance.empty else 0.0
-    )
+    總覽四個數字來自 `direction_summary.csv`；權益相關（MDD、Sharpe、Sortino）
+    來自 `daily_equity.csv`。前端不再自行重算任何一條公式。
+    """
+
+    overview = summarise_overview(df, direction_summary)
+    cumulative_balance = to_numeric(df, "Cumulative Balance")
+
+    daily_returns = compute_daily_returns(equity)
     sharpe_ratio = _calc_sharpe_ratio(daily_returns)
     sortino_ratio = _calc_sortino_ratio(daily_returns)
-    information_ratio = _calc_information_ratio(daily_returns, benchmark_returns)
+    max_drawdown = compute_max_drawdown(equity)
 
     def _fmt_ratio(value: float) -> str:
         return f"{value:.3f}" if pd.notna(value) else "N/A"
 
+    def _fmt_number(value: float | None, suffix: str = "") -> str:
+        return "N/A" if value is None else f"{value:,.2f}{suffix}"
+
     st.markdown("##### 交易概況")
     r1c1, r1c2, r1c3 = st.columns(3)
-    r1c1.metric("總交易數", trade_count)
-    r1c2.metric("勝率", f"{win_rate:.2f}%")
-    r1c3.metric("獲利筆數 / 虧損筆數", f"{win_count} / {loss_count}")
+    r1c1.metric("總交易數", overview["trade_count"])
+    r1c2.metric("勝率", _fmt_number(overview["win_rate"], "%"))
+    r1c3.metric(
+        "獲利筆數 / 虧損筆數",
+        f"{overview['win_count']} / {overview['loss_count']}",
+    )
 
     st.divider()
 
     st.markdown("##### 損益與資產")
     r2c1, r2c2, r2c3 = st.columns(3)
-    r2c1.metric("總已實現損益", f"{total_pnl:,.2f}")
-    r2c2.metric("平均 ROI", f"{avg_roi:.2f}%")
-    r2c3.metric("最後累積資產", f"{last_balance:,.2f}")
+    r2c1.metric("總已實現損益", _fmt_number(overview["total_pnl"]))
+    # `ROI` 欄本來就是百分比，**不再乘 100**（F-082）
+    r2c2.metric("平均 ROI", _fmt_number(overview["avg_roi"], "%"))
+    r2c3.metric(
+        "最後累積資產",
+        (
+            f"{float(cumulative_balance.iloc[-1]):,.2f}"
+            if not cumulative_balance.empty
+            else "N/A"
+        ),
+    )
 
     st.divider()
 
     st.markdown("##### 風險調整報酬")
-    r3c1, r3c2, r3c3 = st.columns(3)
-    r3c1.metric("Sharpe Ratio", _fmt_ratio(sharpe_ratio))
-    r3c2.metric("Sortino Ratio", _fmt_ratio(sortino_ratio))
-    r3c3.metric("Information Ratio", _fmt_ratio(information_ratio))
+    if equity.empty:
+        st.info(
+            "找不到 `daily_equity.csv`，本區塊無法計算。"
+            "風險指標的樣本必須是**日報酬**——用每筆交易的報酬代替並乘 √252，"
+            "等於宣稱「一年有 252 筆交易」，會得到一個看起來合理的錯數字。"
+        )
+    else:
+        r3c1, r3c2, r3c3 = st.columns(3)
+        r3c1.metric("Sharpe Ratio", _fmt_ratio(sharpe_ratio))
+        r3c2.metric("Sortino Ratio", _fmt_ratio(sortino_ratio))
+        r3c3.metric("最大回撤", _fmt_number(max_drawdown, "%"))
+        st.caption(
+            "以 `daily_equity.csv` 的**盯市權益**為樣本（含未實現損益）。"
+            "Information Ratio 需要基準的日報酬序列，報表目前沒有輸出這一欄，故不顯示。"
+        )
+
+
+def _render_direction_summary(direction_summary: pd.DataFrame) -> None:
+    """多空分開的績效統計——混在一起會看不出策略靠哪一邊賺錢"""
+
+    st.markdown("##### 多空分開統計")
+    if direction_summary.empty:
+        st.info("找不到 `direction_summary.csv`。")
+        return
+    st.dataframe(direction_summary, use_container_width=True, hide_index=True)
+
+
+def _render_event_report(event_report: pd.DataFrame) -> None:
+    """
+    尾部事件計數（F-084）
+
+    強制回補、斷頭、拒單這些是放空策略的尾部風險，**被平均進總績效就看不見了**，
+    必須單獨列出。
+    """
+
+    st.markdown("##### 事件計數")
+    if event_report.empty:
+        st.info("找不到 `event_report.csv`。")
+        return
+
+    counts = event_report[to_numeric(event_report, "Count") > 0]
+    if counts.empty:
+        st.success("回測期間沒有任何強制回補、斷頭或拒單事件。")
+        st.caption(f"（已檢視 {len(event_report)} 種事件，全部為 0）")
+        return
+    st.dataframe(counts, use_container_width=True, hide_index=True)
+    st.caption(f"僅列出計數不為 0 者；報表共記錄 {len(event_report)} 種事件。")
 
 
 def _render_futures_metrics(df: pd.DataFrame) -> None:
@@ -411,7 +399,7 @@ def _render_futures_metrics(df: pd.DataFrame) -> None:
     契約價值本身不佔用資金，用股票那組指標看期貨只會看到一堆與風險無關的數字。
     """
 
-    starting_capital, _ = _extract_starting_capital(df)
+    starting_capital = extract_starting_capital(df)
     summary = summarise_margin(df, starting_capital)
 
     def _fmt(value, suffix: str = "", digits: int = 2) -> str:
@@ -477,30 +465,20 @@ def _get_chart_theme() -> dict[str, str]:
     }
 
 
-def _render_interactive_charts(df: pd.DataFrame) -> None:
-    if df.empty:
-        st.info("目前沒有交易資料可畫圖。")
-        return
+def _render_interactive_charts(df: pd.DataFrame, equity: pd.Series) -> None:
+    """
+    資產曲線與每日損益一律走 `daily_equity.csv`（F-082）
 
-    chart_df = df.copy()
-    if "Sell Date" in chart_df.columns:
-        chart_df["Sell Date"] = pd.to_datetime(chart_df["Sell Date"], errors="coerce")
-        chart_df = chart_df.sort_values("Sell Date")
+    舊版拿「依 `Sell Date` 排序的 `Cumulative Balance`」畫這兩張圖，有兩個問題：
+    `Sell Date` 對 SHORT 是**開倉日**，曲線不是依平倉順序長出來的；而已實現
+    損益的累積餘額只在平倉那天才有節點，持倉期間的逆勢被整段抹平——
+    那正是留倉放空最大的風險來源。
+    """
 
     chart_theme = _get_chart_theme()
 
-    if "Cumulative Balance" in chart_df.columns and "Sell Date" in chart_df.columns:
-        chart_df["Cumulative Balance"] = pd.to_numeric(
-            chart_df["Cumulative Balance"], errors="coerce"
-        )
-        line_fig = px.line(
-            chart_df,
-            x="Sell Date",
-            y="Cumulative Balance",
-            markers=True,
-            title="資產曲線",
-        )
-        line_fig.update_layout(
+    def _style(fig) -> None:
+        fig.update_layout(
             paper_bgcolor=chart_theme["paper_bg"],
             plot_bgcolor=chart_theme["plot_bg"],
             font=dict(color=chart_theme["text"]),
@@ -508,33 +486,27 @@ def _render_interactive_charts(df: pd.DataFrame) -> None:
             xaxis=dict(showgrid=True, gridcolor=chart_theme["grid"], gridwidth=1),
             yaxis=dict(showgrid=True, gridcolor=chart_theme["grid"], gridwidth=1),
         )
-        st.plotly_chart(line_fig, use_container_width=True)
 
-    if "Realized PnL" in chart_df.columns and "Sell Date" in chart_df.columns:
-        chart_df["Realized PnL"] = pd.to_numeric(
-            chart_df["Realized PnL"], errors="coerce"
+    if equity.empty:
+        st.info(
+            "找不到 `daily_equity.csv`，無法畫盯市口徑的資產曲線與每日損益。"
+            "改以交易明細的累積餘額作圖會**低估最大回撤**——"
+            "已實現損益只在平倉那天才有節點，持倉期間的逆勢看不見。"
         )
-        daily = (
-            chart_df.dropna(subset=["Sell Date"])
-            .groupby(chart_df["Sell Date"].dt.date)["Realized PnL"]
-            .sum()
-            .reset_index()
-            .rename(columns={"Sell Date": "Date", "Realized PnL": "Daily PnL"})
+        return
+
+    equity_df = pd.DataFrame({"Date": list(equity.index), "Equity": equity.to_numpy()})
+    line_fig = px.line(equity_df, x="Date", y="Equity", title="資產曲線（盯市）")
+    _style(line_fig)
+    st.plotly_chart(line_fig, use_container_width=True)
+
+    daily_pnl = compute_daily_pnl(equity)
+    if not daily_pnl.empty:
+        pnl_df = pd.DataFrame(
+            {"Date": list(daily_pnl.index), "Daily PnL": daily_pnl.to_numpy()}
         )
-        bar_fig = px.bar(
-            daily,
-            x="Date",
-            y="Daily PnL",
-            title="每日損益",
-        )
-        bar_fig.update_layout(
-            paper_bgcolor=chart_theme["paper_bg"],
-            plot_bgcolor=chart_theme["plot_bg"],
-            font=dict(color=chart_theme["text"]),
-            margin=dict(l=20, r=20, t=56, b=20),
-            xaxis=dict(showgrid=True, gridcolor=chart_theme["grid"], gridwidth=1),
-            yaxis=dict(showgrid=True, gridcolor=chart_theme["grid"], gridwidth=1),
-        )
+        bar_fig = px.bar(pnl_df, x="Date", y="Daily PnL", title="每日損益（盯市）")
+        _style(bar_fig)
         st.plotly_chart(bar_fig, use_container_width=True)
 
 
@@ -573,6 +545,12 @@ if report.csv_path is None:
 
 df = read_trading_report(report.csv_path)
 
+# reporter 另外落地的三份 CSV：前端只讀不算，指標一律以這些為準（F-084）
+direction_summary = read_direction_summary(report.direction_summary_path)
+event_report = read_event_report(report.event_report_path)
+daily_equity = read_daily_equity(report.daily_equity_path)
+equity = build_equity_series(daily_equity, extract_starting_capital(df))
+
 overview_tab, detail_tab, chart_tab, image_tab, download_tab = st.tabs(
     ["總覽", "交易明細", "圖表", "圖片", "下載"]
 )
@@ -582,7 +560,11 @@ with overview_tab:
     _render_strategy_overview(report, df)
     st.divider()
     st.subheader("關鍵指標")
-    _render_metrics(df)
+    _render_metrics(df, direction_summary, equity)
+    st.divider()
+    _render_direction_summary(direction_summary)
+    st.divider()
+    _render_event_report(event_report)
     # 期貨報表才有保證金與口數欄位；以**欄位**判斷而不是策略名稱
     if is_futures_report(df):
         st.divider()
@@ -591,23 +573,32 @@ with overview_tab:
 
 with detail_tab:
     st.subheader("交易報表")
+    # 一律依**平倉日**排序：`Sell Date` 對 SHORT 是開倉日（F-082）
+    detail_df = sort_by_exit_date(df)
     # 期貨的識別欄是 Contract ID（`{商品}{到期月}`），股票是 Stock ID
     stock_col = next(
-        (column for column in ("Stock ID", "Contract ID") if column in df.columns), None
+        (
+            column
+            for column in ("Stock ID", "Contract ID")
+            if column in detail_df.columns
+        ),
+        None,
     )
     if stock_col:
-        stock_ids = sorted(df[stock_col].dropna().astype(str).unique().tolist())
+        stock_ids = sorted(detail_df[stock_col].dropna().astype(str).unique().tolist())
         selected_stock = st.multiselect("依股票代號／契約篩選", options=stock_ids)
         filtered_df = (
-            df[df[stock_col].astype(str).isin(selected_stock)] if selected_stock else df
+            detail_df[detail_df[stock_col].astype(str).isin(selected_stock)]
+            if selected_stock
+            else detail_df
         )
     else:
-        filtered_df = df
+        filtered_df = detail_df
     st.dataframe(filtered_df, use_container_width=True, height=480)
 
 with chart_tab:
     st.subheader("圖表")
-    _render_interactive_charts(df)
+    _render_interactive_charts(df, equity)
     if is_futures_report(df):
         st.divider()
         st.subheader("保證金與曝險")
