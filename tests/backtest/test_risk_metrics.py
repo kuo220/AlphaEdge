@@ -337,3 +337,89 @@ def test_analyzer_information_ratio_is_none_without_daily_equity() -> None:
 
     assert analyzer.compute_daily_returns_by_date(None) is None
     assert analyzer.compute_information_ratio() is None
+
+
+# === 交易統計的除零防護（健檢第三輪 S1）===
+def _make_analyzer(trade_records: List) -> "object":
+    """建一個只帶交易紀錄的 analyzer（不連資料庫、不建策略）"""
+
+    from core.backtest.analysis.analyzer import StockBacktestAnalyzer
+
+    analyzer: StockBacktestAnalyzer = StockBacktestAnalyzer.__new__(
+        StockBacktestAnalyzer
+    )
+
+    class _Account:
+        init_capital = 1000000.0
+
+    analyzer.account = _Account()
+    analyzer.trade_records = trade_records
+    analyzer.risk_free_rate = 0.02
+    return analyzer
+
+
+class _TradeRecord:
+    """交易統計只讀這三個欄位，不必造完整的 StockTradeRecord"""
+
+    def __init__(self, realized_pnl: float, roi: float, holding_days: int):
+        self.realized_pnl: float = realized_pnl
+        self.roi: float = roi
+        self.holding_days: int = holding_days
+        self.exit_date = None
+
+
+def test_trade_statistics_are_none_without_trades() -> None:
+    """
+    零筆交易時六個交易統計都回 None，不得拋 ZeroDivisionError
+
+    回 None 而不是 0.0 的理由與 `risk_metrics` 相同：「沒有資料」與
+    「數值為零」是兩件不同的事——勝率 0% 與「沒有交易可算勝率」必須分得開。
+    """
+
+    analyzer = _make_analyzer([])
+
+    assert analyzer.compute_win_rate() is None
+    assert analyzer.compute_win_lose_rate() is None
+    assert analyzer.compute_profit_factor() is None
+    assert analyzer.compute_average_return() is None
+    assert analyzer.compute_average_holding_days() is None
+    assert analyzer.compute_num_trades() == 0
+
+
+def test_trade_statistics_without_losing_trades() -> None:
+    """
+    零虧損筆數時只有勝敗比與利潤因子沒有定義，其餘四個照常算得出來
+
+    `profit_factor = 0` 與「從來沒虧過」是相反的意思，故不可退回 0.0。
+    高勝率策略或短區間回測相當容易踩到這個情境。
+    """
+
+    analyzer = _make_analyzer(
+        [
+            _TradeRecord(realized_pnl=2000.0, roi=2.0, holding_days=2),
+            _TradeRecord(realized_pnl=1700.0, roi=1.7, holding_days=4),
+        ]
+    )
+
+    assert analyzer.compute_win_rate() == 1.0
+    assert analyzer.compute_win_lose_rate() is None
+    assert analyzer.compute_profit_factor() is None
+    assert analyzer.compute_average_return() == pytest.approx(1.85)
+    assert analyzer.compute_average_holding_days() == 3.0
+
+
+def test_trade_statistics_with_both_sides() -> None:
+    """有輸有贏時四個統計都算得出來（防護不得改變既有算式）"""
+
+    analyzer = _make_analyzer(
+        [
+            _TradeRecord(realized_pnl=3000.0, roi=3.0, holding_days=5),
+            _TradeRecord(realized_pnl=-1000.0, roi=-1.0, holding_days=1),
+        ]
+    )
+
+    assert analyzer.compute_win_rate() == 0.5
+    assert analyzer.compute_win_lose_rate() == 1.0
+    assert analyzer.compute_profit_factor() == pytest.approx(3.0)
+    assert analyzer.compute_average_return() == pytest.approx(1.0)
+    assert analyzer.compute_average_holding_days() == 3.0

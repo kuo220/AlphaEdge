@@ -55,24 +55,26 @@ class BaseBacktestAnalyzer(ABC):
         pass
 
     # ===== Trade Statistics =====
+    # 分母可能為零的統計一律回 Optional[float]，無資料時為 None 而不是 0.0
+    # （口徑與 Risk-Adjusted Metrics 相同）
     @abstractmethod
-    def compute_win_rate(self) -> float:
-        """計算勝率（獲利交易次數/總交易次數）"""
+    def compute_win_rate(self) -> Optional[float]:
+        """計算勝率（獲利交易次數/總交易次數）；零筆交易時為 None"""
         pass
 
     @abstractmethod
-    def compute_win_lose_rate(self) -> float:
-        """計算勝敗比（獲利交易次數/虧損交易次數）"""
+    def compute_win_lose_rate(self) -> Optional[float]:
+        """計算勝敗比（獲利交易次數/虧損交易次數）；零虧損筆數時為 None"""
         pass
 
     @abstractmethod
-    def compute_profit_factor(self) -> float:
-        """計算利潤因子（總獲利/總虧損）"""
+    def compute_profit_factor(self) -> Optional[float]:
+        """計算利潤因子（總獲利/總虧損）；總虧損為零時為 None"""
         pass
 
     @abstractmethod
-    def compute_average_return(self) -> float:
-        """計算每筆交易平均報酬"""
+    def compute_average_return(self) -> Optional[float]:
+        """計算每筆交易平均報酬；零筆交易時為 None"""
         pass
 
     @abstractmethod

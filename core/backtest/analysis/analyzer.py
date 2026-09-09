@@ -351,19 +351,31 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
         )
 
     # ===== Trade Statistics =====
-    def compute_win_rate(self) -> float:
-        """計算勝率（獲利交易次數/總交易次數）"""
-        return self.compute_num_winning_trades() / self.compute_num_trades()
+    # 以下四個統計的分母都可能為零，一律回 None 而不是 0.0——口徑與
+    # `risk_metrics` 一致：「沒有資料」與「數值為零」是兩件不同的事。
+    # 勝率 0% 與「沒有交易可算勝率」必須分得開，`profit_factor = 0`
+    # 與「從來沒虧過」更是相反的意思。
+    def compute_win_rate(self) -> Optional[float]:
+        """計算勝率（獲利交易次數/總交易次數）；零筆交易時為 None"""
 
-    def compute_win_lose_rate(self) -> float:
-        """計算勝敗比（獲利交易次數/虧損交易次數）"""
+        num_trades: int = self.compute_num_trades()
+        if num_trades == 0:
+            return None
+
+        return self.compute_num_winning_trades() / num_trades
+
+    def compute_win_lose_rate(self) -> Optional[float]:
+        """計算勝敗比（獲利交易次數/虧損交易次數）；零虧損筆數時為 None"""
 
         win_cnt: int = self.compute_num_winning_trades()
         lose_cnt: int = self.compute_num_losing_trades()
+        if lose_cnt == 0:
+            return None
+
         return win_cnt / lose_cnt
 
-    def compute_profit_factor(self) -> float:
-        """計算利潤因子（總獲利/總虧損）"""
+    def compute_profit_factor(self) -> Optional[float]:
+        """計算利潤因子（總獲利/總虧損）；總虧損為零時為 None"""
 
         profit: float = sum(
             record.realized_pnl
@@ -375,14 +387,20 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
             for record in self.trade_records
             if record.realized_pnl < 0
         )
+        if loss == 0:
+            return None
 
         return profit / loss
 
-    def compute_average_return(self) -> float:
-        """計算每筆交易平均報酬"""
+    def compute_average_return(self) -> Optional[float]:
+        """計算每筆交易平均報酬；零筆交易時為 None"""
+
+        num_trades: int = self.compute_num_trades()
+        if num_trades == 0:
+            return None
 
         total_roi: float = sum(record.roi for record in self.trade_records)
-        return total_roi / self.compute_num_trades()
+        return total_roi / num_trades
 
     def compute_num_trades(self) -> int:
         """計算總交易次數（開倉+平倉 = 1次交易）"""
@@ -427,11 +445,11 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
             ),
         }
 
-    def compute_average_holding_days(self) -> float:
-        """計算平均持有曆日數（留倉放空的成本與持有天數直接相關）"""
+    def compute_average_holding_days(self) -> Optional[float]:
+        """計算平均持有曆日數（留倉放空的成本與持有天數直接相關）；零筆交易時為 None"""
 
         if not self.trade_records:
-            return 0.0
+            return None
 
         total_days: int = sum(record.holding_days for record in self.trade_records)
         return round(total_days / len(self.trade_records), 2)
