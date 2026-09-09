@@ -17,6 +17,11 @@ try:
         is_futures_report,
         summarise_margin,
     )
+    from services.metrics import (
+        calc_sharpe_ratio,
+        calc_sortino_ratio,
+        extract_backtest_date_range,
+    )
     from services.report_loader import (
         BacktestReport,
         build_equity_series,
@@ -44,6 +49,11 @@ except ModuleNotFoundError:
         is_futures_report,
         summarise_margin,
     )
+    from frontend.services.metrics import (
+        calc_sharpe_ratio,
+        calc_sortino_ratio,
+        extract_backtest_date_range,
+    )
     from frontend.services.report_loader import (
         BacktestReport,
         build_equity_series,
@@ -64,193 +74,13 @@ except ModuleNotFoundError:
 
 
 st.set_page_config(page_title="AlphaEdge Backtest Viewer", layout="wide")
-st.markdown(
-    """
-    <style>
-        :root {
-            --ae-bg: var(--background-color);
-            --ae-surface: var(--secondary-background-color);
-            --ae-surface-2: color-mix(in srgb, var(--secondary-background-color) 80%, var(--text-color) 20%);
-            --ae-sidebar: var(--secondary-background-color);
-            --ae-border: color-mix(in srgb, var(--text-color) 20%, transparent 80%);
-            --ae-text: var(--text-color);
-            --ae-muted: color-mix(in srgb, var(--text-color) 60%, transparent 40%);
-            --ae-accent: var(--primary-color);
-            --ae-accent-hover: color-mix(in srgb, var(--primary-color) 85%, #000000 15%);
-        }
-
-        [data-testid="stAppViewContainer"] {
-            background: var(--ae-bg);
-            color: var(--ae-text);
-        }
-
-        [data-testid="stSidebar"] {
-            background: var(--ae-sidebar);
-            border-right: 1px solid var(--ae-border);
-        }
-
-        [data-testid="stSidebar"] * {
-            color: var(--ae-text);
-        }
-
-        [data-testid="stHeader"] {
-            background: transparent;
-        }
-
-        .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4,
-        .stMarkdown h5, .stMarkdown h6, p, label, span {
-            color: var(--ae-text) !important;
-        }
-
-        [data-baseweb="select"] > div,
-        [data-baseweb="input"] > div,
-        .stTextInput > div > div,
-        .stNumberInput > div > div {
-            background: var(--ae-surface);
-            border-color: var(--ae-border);
-            color: var(--ae-text);
-        }
-
-        [data-baseweb="tab-list"] {
-            gap: 0.4rem;
-        }
-
-        button[kind="secondary"] {
-            background: var(--ae-surface);
-            border: 1px solid var(--ae-border);
-            border-radius: 10px;
-            color: var(--ae-text);
-        }
-
-        button[data-baseweb="tab"] {
-            background: transparent;
-            border: none;
-            border-radius: 0;
-            color: var(--ae-muted);
-            box-shadow: none;
-        }
-
-        button[data-baseweb="tab"][aria-selected="true"] {
-            background: transparent;
-            border: none;
-            color: var(--ae-text);
-        }
-
-        .stButton button,
-        .stDownloadButton button {
-            background: var(--ae-accent);
-            color: #ffffff;
-            border: none;
-            border-radius: 10px;
-        }
-
-        .stButton button:hover,
-        .stDownloadButton button:hover {
-            background: var(--ae-accent-hover);
-        }
-
-        [data-testid="stMetric"] {
-            background: var(--ae-surface);
-            border: 1px solid var(--ae-border);
-            border-radius: 12px;
-            padding: 0.8rem;
-        }
-
-        [data-testid="stDataFrame"] {
-            border: 1px solid var(--ae-border);
-            border-radius: 12px;
-            overflow: hidden;
-        }
-
-        [data-testid="stPlotlyChart"] {
-            border: 1px solid var(--ae-border);
-            border-radius: 16px;
-            overflow: hidden;
-            background: var(--ae-surface);
-            padding: 0.25rem;
-        }
-
-        [data-testid="stImage"] img {
-            border-radius: 16px;
-            border: 1px solid var(--ae-border);
-        }
-
-        .stCaption {
-            color: var(--ae-muted) !important;
-        }
-
-        .ae-info-card {
-            background: var(--ae-surface);
-            border: 1px solid var(--ae-border);
-            border-radius: 14px;
-            padding: 0.9rem 1rem;
-            min-height: 96px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            gap: 0.35rem;
-        }
-
-        .ae-info-label {
-            font-size: 0.82rem;
-            color: var(--ae-muted);
-            letter-spacing: 0.02em;
-        }
-
-        .ae-info-value {
-            font-size: 1.05rem;
-            font-weight: 600;
-            color: var(--ae-text);
-            word-break: break-word;
-        }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+_THEME_CSS_PATH = Path(__file__).resolve().parent / "static" / "theme.css"
+if _THEME_CSS_PATH.exists():
+    st.markdown(
+        f"<style>{_THEME_CSS_PATH.read_text(encoding='utf-8')}</style>",
+        unsafe_allow_html=True,
+    )
 st.title("Backtest Report")
-
-
-def _calc_sharpe_ratio(daily_returns: pd.Series, annualization: int = 252) -> float:
-    if daily_returns.empty:
-        return float("nan")
-    std = daily_returns.std(ddof=0)
-    if std == 0 or pd.isna(std):
-        return float("nan")
-    return float((daily_returns.mean() / std) * (annualization**0.5))
-
-
-def _calc_sortino_ratio(daily_returns: pd.Series, annualization: int = 252) -> float:
-    if daily_returns.empty:
-        return float("nan")
-    downside = daily_returns[daily_returns < 0]
-    if downside.empty:
-        return float("nan")
-    downside_std = downside.std(ddof=0)
-    if downside_std == 0 or pd.isna(downside_std):
-        return float("nan")
-    return float((daily_returns.mean() / downside_std) * (annualization**0.5))
-
-
-def _extract_backtest_date_range(
-    df: pd.DataFrame,
-) -> tuple[pd.Timestamp | None, pd.Timestamp | None]:
-    """回測區間取自**進出場日**；`Sell Date` 對 SHORT 是開倉日，不足以定義區間"""
-
-    date_columns = ["Entry Date", "Exit Date", "Buy Date", "Sell Date", "Date"]
-    parsed_dates: list[pd.Series] = []
-    for column in date_columns:
-        if column in df.columns:
-            dates = pd.to_datetime(df[column], errors="coerce").dropna()
-            if not dates.empty:
-                parsed_dates.append(dates)
-
-    if not parsed_dates:
-        return None, None
-
-    merged = pd.concat(parsed_dates, ignore_index=True)
-    if merged.empty:
-        return None, None
-    return pd.Timestamp(merged.min()), pd.Timestamp(merged.max())
 
 
 def _render_info_card(label: str, value: str) -> None:
@@ -267,7 +97,7 @@ def _render_info_card(label: str, value: str) -> None:
 
 def _render_strategy_overview(report: BacktestReport, df: pd.DataFrame) -> None:
     starting_capital = extract_starting_capital(df)
-    start_date, end_date = _extract_backtest_date_range(df)
+    start_date, end_date = extract_backtest_date_range(df)
 
     if start_date is not None and end_date is not None:
         date_range = f"{start_date.date()} ~ {end_date.date()}"
@@ -304,8 +134,8 @@ def _render_metrics(
     cumulative_balance = to_numeric(df, "Cumulative Balance")
 
     daily_returns = compute_daily_returns(equity)
-    sharpe_ratio = _calc_sharpe_ratio(daily_returns)
-    sortino_ratio = _calc_sortino_ratio(daily_returns)
+    sharpe_ratio = calc_sharpe_ratio(daily_returns)
+    sortino_ratio = calc_sortino_ratio(daily_returns)
     max_drawdown = compute_max_drawdown(equity)
 
     def _fmt_ratio(value: float) -> str:
