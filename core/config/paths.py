@@ -138,6 +138,9 @@ MARGIN_DOWNLOADS_PATH: Path = get_static_resolved_path(
 DIVIDEND_DOWNLOADS_PATH: Path = get_static_resolved_path(
     base_dir=TW_STOCK_DOWNLOADS_PATH, dir_name="dividend"
 )
+CORPORATE_ACTION_DOWNLOADS_PATH: Path = get_static_resolved_path(
+    base_dir=TW_STOCK_DOWNLOADS_PATH, dir_name="corporate_action"
+)
 TICK_DOWNLOADS_PATH: Path = get_static_resolved_path(
     base_dir=TW_STOCK_DOWNLOADS_PATH, dir_name="tick"
 )

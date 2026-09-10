@@ -56,6 +56,15 @@ class URLManager:
         # 日期**必須**用斜線格式：傳 20240101 不會報錯，會靜默退回「近三日」的預設區間
         "TPEX_EX_RIGHT_URL": "https://www.tpex.org.tw/www/zh-tw/bulletin/exDailyQ?startDate={start_date}&endDate={end_date}&response=json",
 
+        # 上市減資（含面額變更）恢復買賣參考價（支援日期區間，一次可取整年）
+        # 直接給「停止買賣前收盤價格」與「恢復買賣參考價」，相除即調整倍率，不需推算
+        "TWSE_CAPITAL_REDUCTION_URL": "https://www.twse.com.tw/rwd/zh/reducation/TWTAUU?startDate={start_date}&endDate={end_date}&response=json",
+
+        # 上櫃減資恢復買賣參考價（Ex: 2024/01/01 ~ 2024/12/31）
+        # 日期格式與 TPEX_EX_RIGHT_URL 同樣**必須**用斜線；`詳細資料` 欄是一段 HTML，
+        # 內含「每壹仟股換發新股票」，是調整倍率的獨立佐證
+        "TPEX_CAPITAL_REDUCTION_URL": "https://www.tpex.org.tw/www/zh-tw/bulletin/revivt?startDate={start_date}&endDate={end_date}&response=json",
+
         # 上市收盤行情（Ex: date = 20250801）
         "TWSE_CLOSING_QUOTE_URL": "https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?date={date}&type=ALLBUT0999&response=html",
 

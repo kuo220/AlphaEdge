@@ -8,6 +8,7 @@ from loguru import logger
 
 from core.config import (
     DEFAULT_CHIP_START_DATE,
+    DEFAULT_CORPORATE_ACTION_START_DATE,
     DEFAULT_DIVIDEND_START_DATE,
     DEFAULT_END_MONTH,
     DEFAULT_FUTURES_START_DATE,
@@ -17,6 +18,9 @@ from core.config import (
     FINMIND_BROKER_TRADING_START_DATE,
     STOCK_FUTURES_TOP_N,
     TICK_UPDATE_START_DATE,
+)
+from core.pipeline.tw.updaters.corporate_action_updater import (
+    CorporateActionUpdater,
 )
 from core.pipeline.tw.updaters.financial_statement_updater import (
     FinancialStatementUpdater,
@@ -84,6 +88,7 @@ Target 對照表
   chip                        三大法人籌碼
   margin                      信用交易（融資融券餘額）
   dividend                    除權除息計算結果表（含還原係數、現金股利）
+  corporate_action            非除權息的公司行動（減資、面額變更；含調整倍率）
   price                       收盤價
   futures_price               台期貨每日行情（寫入 tw_futures.db）
   futures_stock_universe      股票期貨標的池（寫入 tw_futures.db）
@@ -117,6 +122,7 @@ Target 對照表
 
   # 除權除息計算結果表（上市走證交所、上櫃走櫃買中心，皆為全歷史）
   python -m tasks.update_db --target dividend
+  python -m tasks.update_db --target corporate_action
 
   # 收盤價
   python -m tasks.update_db --target price
@@ -263,6 +269,11 @@ def _build_time_config(
     elif data_type == DataType.DIVIDEND:
         return {
             "start_date": DEFAULT_DIVIDEND_START_DATE,
+            "end_date": datetime.date.today(),
+        }
+    elif data_type == DataType.CORPORATE_ACTION:
+        return {
+            "start_date": DEFAULT_CORPORATE_ACTION_START_DATE,
             "end_date": datetime.date.today(),
         }
     elif data_type == DataType.PRICE:
@@ -435,6 +446,17 @@ def main() -> None:
             )
             stock_dividend_updater: StockDividendUpdater = StockDividendUpdater()
             stock_dividend_updater.update(
+                start_date=time_config["start_date"], end_date=time_config["end_date"]
+            )
+
+    if DataType.CORPORATE_ACTION.name.lower() in targets:
+        with target_guard("corporate_action", failed_targets):
+            time_config: Dict[str, datetime.date | int] = get_update_time_config(
+                data_type=DataType.CORPORATE_ACTION,
+                from_date=from_date,
+            )
+            corporate_action_updater: CorporateActionUpdater = CorporateActionUpdater()
+            corporate_action_updater.update(
                 start_date=time_config["start_date"], end_date=time_config["end_date"]
             )
 

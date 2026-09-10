@@ -66,6 +66,11 @@ PRICE_TABLE_NAME: str = "price"
 CHIP_TABLE_NAME: str = "chip"
 MARGIN_TABLE_NAME: str = "margin"
 DIVIDEND_TABLE_NAME: str = "dividend"
+# 非除權息的公司行動（減資／面額變更／分割／反向分割）。
+# **刻意與 `dividend` 分表**：`dividend.還原係數` 的語意是「除權息參考價 ÷ 除權息前
+# 收盤價」（恆 < 1），而減資的倍率是**大於 1** 的（價格上調），塞進同一欄會讓所有
+# 既有讀取端的假設反向。表名不叫 `stock_split`：分割只有 6 筆、減資有 600 多筆
+CORPORATE_ACTION_TABLE_NAME: str = "corporate_action"
 TICK_TABLE_NAME: str = "tick"
 # 期貨 tick **與股票分表**（Phase5-1）：主鍵不同（期貨要 product ＋ expiry ＋
 # session 才能定位一筆成交，股票只要 stock_id），且期貨有夜盤。

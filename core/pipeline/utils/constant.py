@@ -8,6 +8,8 @@ class DataType(str, Enum):
     CHIP = "Chip"
     MARGIN = "Margin"  # 信用交易（融資融券餘額）
     DIVIDEND = "Dividend"  # 除權除息計算結果表
+    # 非除權息的公司行動（減資／面額變更／分割）；與 DIVIDEND 分表，理由見 schema.py
+    CORPORATE_ACTION = "CORPORATE_ACTION"
     TICK = "Tick"
     MRR = "MONTHLY_REVENUE_REPORT"
     FS = "FINANCIAL_STATEMENT"

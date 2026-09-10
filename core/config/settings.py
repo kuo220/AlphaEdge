@@ -60,6 +60,9 @@ FUTURES_TARGET_PRODUCTS: List[str] = [
 DEFAULT_CHIP_START_DATE: datetime.date = datetime.date(2013, 1, 1)
 DEFAULT_MARGIN_START_DATE: datetime.date = datetime.date(2013, 1, 1)
 DEFAULT_DIVIDEND_START_DATE: datetime.date = datetime.date(2013, 1, 1)
+# 公司行動（減資／面額變更）：與除權息同起點。S1 實測 2013 年起兩個端點的
+# 欄位結構未再改制，更早的年份未驗證
+DEFAULT_CORPORATE_ACTION_START_DATE: datetime.date = DEFAULT_DIVIDEND_START_DATE
 DEFAULT_PRICE_START_DATE: datetime.date = datetime.date(2013, 1, 1)
 
 # 台期貨回補起點（2026-08-29 由使用者決定）。
