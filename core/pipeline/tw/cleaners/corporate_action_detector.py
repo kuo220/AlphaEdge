@@ -1,7 +1,8 @@
 import datetime
 import sqlite3
-from typing import List, Optional
+from typing import Dict, List, Optional, Set
 
+import numpy as np
 import pandas as pd
 from loguru import logger
 
@@ -40,6 +41,18 @@ from core.pipeline.utils.sqlite_utils import SQLiteUtils
 
 # 台股單日漲跌幅上限 ±10%，超過這個門檻必然不是正常交易
 DETECTION_THRESHOLD: float = 0.15
+
+# **已確認為錯誤資料的日期**，一律排除，否則它們會淹掉真訊號。
+#
+# `2020-04-14` 整批是 `2020-12-18` 的內容：台積電當天顯示開 508／高 512／低 507／
+# 收 510、成交股數 40,625,502，與 2020-12-18 **位元級相同**，而前後兩日分別是
+# 278.5 與 287.5。這是[爬蟲缺口回補](../../../../backlog/爬蟲缺口回補與非交易日批次清理.md)
+# S1 記載過的樣式（清洗端蓋的是請求參數的日期，而不是來源頁面內的日期）。
+# 該日 715 檔、次日 630 檔被判為跳空——**次日是被前一日的壞收盤拖累的**，
+# 本身資料正確，故一併排除。
+#
+# ⚠️ 這是**資料本身要修**，不是護欄該長期容忍的事；修好後請把日期從這裡刪掉。
+KNOWN_BAD_PRICE_DATES: Set[str] = {"2020-04-14", "2020-04-15"}
 
 
 def detect_unexplained_moves(
@@ -101,6 +114,11 @@ def detect_unexplained_moves(
         if candidates.empty:
             return _empty_result()
 
+        bad: pd.Series = candidates["date"].astype(str).isin(KNOWN_BAD_PRICE_DATES)
+        if bad.any():
+            logger.info(f"[detector] 排除已知錯誤日期的 {int(bad.sum())} 筆候選")
+            candidates = candidates[~bad]
+
         # 停牌日數：公司行動多半伴隨停止買賣，這是與「資料錯誤」的區別線索之一
         candidates["停牌日數"] = (
             pd.to_datetime(candidates["date"])
@@ -118,6 +136,7 @@ def detect_unexplained_moves(
             [
                 "date",
                 "stock_id",
+                "前一交易日",
                 "前一日收盤",
                 "收盤價",
                 "推估倍率",
@@ -137,6 +156,7 @@ def _empty_result() -> pd.DataFrame:
         columns=[
             "date",
             "stock_id",
+            "前一交易日",
             "前一日收盤",
             "收盤價",
             "推估倍率",
@@ -179,19 +199,54 @@ def _drop_explained(conn: sqlite3.Connection, candidates: pd.DataFrame) -> pd.Da
             continue
 
         before: int = len(candidates)
-        keys = set(zip(known["date"].astype(str), known["stock_id"].astype(str)))
-        # 以向量化比對取代 `apply(lambda ...)`：後者會把 `keys` 綁進閉包（B023），
-        # 而且逐列呼叫在 630 萬列的行情表上慢得沒有必要
-        pairs = pd.Series(
-            list(
-                zip(
-                    candidates["date"].astype(str),
-                    candidates["stock_id"].astype(str),
-                )
-            ),
-            index=candidates.index,
-        )
-        candidates = candidates[~pairs.isin(keys)]
+        candidates = _drop_events_within_gap(candidates, known)
         logger.info(f"[detector] 以{label}解釋掉 {before - len(candidates)} 筆候選")
 
     return candidates
+
+
+def _drop_events_within_gap(
+    candidates: pd.DataFrame, known: pd.DataFrame
+) -> pd.DataFrame:
+    """
+    - Description:
+        濾掉「停牌區間內有事件」的候選，而不是只比對同一天
+
+        ⚠️ **不可用 `(date, stock_id)` 完全相等比對**：端點給的是官方
+        `恢復買賣日期`，而該檔**實際有成交的第一天**可能更晚——遇到假日、
+        或復牌當天無成交都會差開。實測 1529 樂事綠能的事件日是 2018-12-22
+        （週六），價格跳空落在 2018-12-24；5455 的事件日 2014-12-30、
+        跳空在 2015-01-07，差了 8 天。改成區間比對後，解釋不掉的由 361 筆
+        降為 337 筆。
+
+        判定式：事件日落在 **(前一個有成交日, 本次跳空日]** 之間，
+        也就是「這段沒有交易的期間內發生了事件」。
+    - Parameters:
+        - candidates: pd.DataFrame
+            含 `date`／`stock_id`／`前一交易日` 的候選
+        - known: pd.DataFrame
+            含 `date`／`stock_id` 的已知事件
+    - Return:
+        - pd.DataFrame
+            仍解釋不掉的候選
+    """
+
+    events_by_id: Dict[str, np.ndarray] = {
+        stock_id: pd.to_datetime(group["date"]).to_numpy()
+        for stock_id, group in known.groupby(known["stock_id"].astype(str))
+    }
+
+    jump_dates: np.ndarray = pd.to_datetime(candidates["date"]).to_numpy()
+    previous_dates: np.ndarray = pd.to_datetime(candidates["前一交易日"]).to_numpy()
+    stock_ids: List[str] = candidates["stock_id"].astype(str).tolist()
+
+    explained: List[bool] = []
+    for stock_id, previous, jump in zip(stock_ids, previous_dates, jump_dates):
+        events = events_by_id.get(stock_id)
+        explained.append(
+            False
+            if events is None
+            else bool(((events > previous) & (events <= jump)).any())
+        )
+
+    return candidates[~pd.Series(explained, index=candidates.index)]
