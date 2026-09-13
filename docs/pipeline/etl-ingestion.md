@@ -91,6 +91,24 @@ Resume 尤其不能用「表最大年季 +1」：一個年季爬到一半中斷�
 與逐日來源「當天（含未來）不寫入」同源：財報逐家公司申報，申報期間的「查無資料」
 多半只代表那家還沒送件，這時寫進永久名單，它送件之後再也不會被抓。
 
+### 券商分點（`broker_trading`）：不寫 CSV、不並行
+
+券商分點是 FinMind 四個資料集裡唯一逐 **(券商 × 股票)** 組合請求的，組合數以百萬計。
+
+**批量更新清洗後直接入庫，不寫 `broker_trading/{broker_id}/{stock_id}.csv`**：
+resume 依據是 DB ＋ metadata，用不到 CSV；而寫 CSV 要把同組合的舊檔整份讀進來合併再寫回，
+每個組合都付一次檔案 I/O。**已知限制**：`tasks/load_broker_trading_to_db.py`（從 CSV
+重建 DB）因此只涵蓋當初仍寫 CSV 時期的資料，DB 才是券商分點的唯一來源。
+`FinMindCleaner.clean_broker_trading_daily_report()` 預設仍寫 CSV，單獨呼叫時行為不變。
+
+**刻意不做並行爬取與跨組合批次寫入**：瓶頸是 FinMind 每小時的 API quota，
+不是網路延遲——循序執行時就已經會把 quota 用完（`wait_for_quota_reset()` 被觸發），
+並行只會更早撞到上限再一起等，總耗時幾乎不變；SQLite 寫入也不是瓶頸。
+並行還要付出的代價：SQLite 連線不能跨 thread 寫入、FinMind 的
+`api_usage`／`api_usage_limit` 每讀一次就是一個 HTTP 請求（不適合當每次請求前的閘門）、
+quota 耗盡瞬間多個在途組合要重試。**真正能縮短回補時間的是減少請求數**——
+例如已確認無資料的區間不再重打、或只回補主力券商。
+
 ### 期貨線
 
 **期貨的 updater 寫的是 `tw_futures.db` 不是 `tw_stock.db`**（主鍵語意不同，見

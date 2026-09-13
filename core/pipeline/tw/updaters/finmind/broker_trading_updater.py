@@ -404,8 +404,12 @@ class BrokerTradingUpdater:
                 return UpdateStatus.NO_DATA
 
             # Step 2: Clean
+            # 不寫 CSV：清洗結果下一步就直接入庫，resume 依據是 DB ＋ metadata 而非 CSV；
+            # 代價是 `broker_trading/` 下的 CSV 不再反映本流程新抓的資料
             cleaned_df: Optional[pd.DataFrame] = (
-                self.context.cleaner.clean_broker_trading_daily_report(df)
+                self.context.cleaner.clean_broker_trading_daily_report(
+                    df, write_csv=False
+                )
             )
             if cleaned_df is None or cleaned_df.empty:
                 logger.warning("Cleaned broker trading daily report data is empty")

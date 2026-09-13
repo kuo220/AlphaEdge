@@ -144,13 +144,15 @@ class FinMindCleaner(BaseDataCleaner):
         return df
 
     def clean_broker_trading_daily_report(
-        self, df: pd.DataFrame
+        self, df: pd.DataFrame, write_csv: bool = True
     ) -> Optional[pd.DataFrame]:
         """
         清洗當日券商分點統計表資料 (TaiwanStockTradingDailyReportSecIdAgg)
 
         參數:
             df: pd.DataFrame - 從 crawler 取得的原始資料
+            write_csv: bool - 是否寫出 `broker_trading/{broker_id}/{stock_id}.csv`；
+                呼叫端會立刻把回傳的 DataFrame 入庫時傳 False，只做欄位檢查與去重
 
         回傳值:
             pd.DataFrame 或 None（如果資料為空或驗證失敗）
@@ -180,6 +182,11 @@ class FinMindCleaner(BaseDataCleaner):
         df = df.drop_duplicates(
             subset=["stock_id", "date", "securities_trader_id"], keep="first"
         )
+
+        # 寫 CSV 要先把同組合的舊檔整份讀進來合併再寫回，每個組合都付一次檔案 I/O；
+        # 直接入庫的路徑用不到這份檔案（resume 看的是 DB ＋ metadata），故可略過
+        if not write_csv:
+            return df
 
         # 存入 CSV 檔案到各自的資料夾
         # 結構：broker_trading/{broker_id}/{stock_id}.csv

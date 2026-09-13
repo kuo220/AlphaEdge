@@ -1,4 +1,9 @@
-"""將 broker_trading CSV 寫入 tw_stock.db 之 taiwan_stock_trading_daily_report_secid_agg 表"""
+"""
+將 broker_trading CSV 寫入 tw_stock.db 之 taiwan_stock_trading_daily_report_secid_agg 表
+
+注意：`update_db --target broker_trading` 清洗後直接入庫、不寫 CSV，
+故本腳本只能重建「仍會寫 CSV 的時期」抓到的資料，不能拿來還原完整的券商分點表。
+"""
 
 from loguru import logger
 
