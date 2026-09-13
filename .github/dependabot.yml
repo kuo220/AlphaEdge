@@ -19,9 +19,10 @@ updates:
     schedule:
       interval: weekly
       day: monday
-    # 一次最多 5 個 PR：Shioaji／FinMind 這類套件的升級需要實跑驗證，
-    # 開太多只會讓每一個都沒被認真看
-    open-pull-requests-limit: 5
+    # **版本更新暫停中（2026-09-13）**：上限設 0 即不再開新 PR。
+    # 恢復時改回 5——Shioaji／FinMind 這類套件的升級需要實跑驗證，
+    # 一次開太多只會讓每一個都沒被認真看
+    open-pull-requests-limit: 0
     commit-message:
       prefix: "chore(deps)"
     labels:
@@ -31,6 +32,8 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    # **版本更新暫停中（2026-09-13）**：恢復時刪掉這一行（預設上限為 5）
+    open-pull-requests-limit: 0
     commit-message:
       prefix: "chore(ci)"
     labels:
