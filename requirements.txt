@@ -16,7 +16,7 @@ choreographer==1.2.1
 ciso8601==2.3.3
 click==8.3.2
 curl_cffi==0.15.0
-decorator==5.2.1
+decorator==5.3.1
 executing==2.2.1
 fake-useragent==2.2.0
 filelock==3.28.0
