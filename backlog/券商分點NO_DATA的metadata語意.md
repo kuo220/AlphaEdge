@@ -8,7 +8,7 @@
   兩個概念被混在同一個欄位。
 - **目標**：已確認沒有資料的 `(broker_id, stock_id)` 區間不再重複請求；資料延遲上架的情況仍有機會被補回。
 - **範圍界線**：只改券商分點（`broker_trading`）的 metadata 讀寫，**不動**其他 FinMind 資料集、
-  不改 DB schema、不做爬取並行化或批次寫入（屬 [FinMind爬蟲清洗儲存流程優化.md](FinMind爬蟲清洗儲存流程優化.md) S5／S6）。
+  不改 DB schema、不做爬取並行化或批次寫入（已評估為不做，理由見 [ETL 入庫約定](../docs/pipeline/etl-ingestion.md)）。
 - **驗收標準**：對一組已知無資料的組合連跑兩次，第二次不發出 API 請求；metadata 從 DB 重新整理或清理後，
   NO_DATA 的進度仍保留；`pytest -m "not slow"` 全綠。
 - **解除條件（何時值得動工）**：確認要省下 FinMind API 額度，或 NO_DATA 的重複請求開始影響日更時間。

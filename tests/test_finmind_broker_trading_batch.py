@@ -24,8 +24,8 @@ from core.pipeline.tw.crawlers.finmind_crawler import FinMindCrawler
 本檔完全離線（crawler 的 `setup()` 與 API 呼叫皆被替換），釘住三件事：
 1. 批量更新會逐 (券商 × 股票) 組合送出請求，且資料確實入庫。
 2. metadata 記錄每個組合的 `earliest_date`／`latest_date`。
-3. **中斷後重跑不會重複爬取已存在的組合**——這是 `backlog/FinMind爬蟲清洗儲存流程優化.md`
-   全份工作的共通驗收標準。
+3. **中斷後重跑不會重複爬取已存在的組合**——任何效能優化都不得改變這個 resume 語意。
+4. 批量更新不寫 CSV，且寫不寫 CSV 不影響入庫內容。
 """
 
 START_DATE: datetime.date = datetime.date(2024, 1, 2)
@@ -237,3 +237,62 @@ def test_extending_end_date_only_crawls_the_new_days(
         for _, _, request_start, _ in calls
     )
     assert row_count(updater.loader.conn) == 12
+
+
+def test_batch_update_does_not_write_csv(
+    updater, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """批量更新清洗後直接入庫，不在 downloads 留下 `{broker_id}/{stock_id}.csv`"""
+
+    monkeypatch.setattr(
+        updater.crawler, "crawl_broker_trading_daily_report", make_crawler_stub([])
+    )
+
+    updater.update_broker_trading_daily_report(start_date=START_DATE, end_date=END_DATE)
+
+    broker_trading_dir: Path = updater.cleaner.finmind_dir / "broker_trading"
+    assert row_count(updater.loader.conn) == 12
+    assert list(broker_trading_dir.rglob("*.csv")) == []
+
+
+def test_write_csv_flag_does_not_change_loaded_rows(updater) -> None:
+    """
+    `write_csv=True`／`False` 對同一批原始資料，入庫內容逐筆相同
+
+    原始資料刻意重複一份，確認兩種模式都有做檔內去重——略過寫檔時若連去重
+    一起略過，loader 雖然也會去重，但 cleaner 回傳的列數就會對不上。
+    """
+
+    from core.pipeline.tw.loaders.finmind import broker_trading_loader, schema
+
+    stub = make_crawler_stub([])
+    raw_df: pd.DataFrame = pd.concat(
+        [
+            stub(stock_id, trader_id, START_DATE, END_DATE)
+            for trader_id in TRADER_IDS
+            for stock_id in STOCK_IDS
+        ]
+        * 2,
+        ignore_index=True,
+    )
+
+    loaded: Dict[bool, pd.DataFrame] = {}
+    for write_csv in (True, False):
+        cleaned_df: pd.DataFrame = updater.cleaner.clean_broker_trading_daily_report(
+            raw_df.copy(), write_csv=write_csv
+        )
+        conn: sqlite3.Connection = sqlite3.connect(":memory:")
+        schema.create_broker_trading_daily_report_table(conn)
+        broker_trading_loader.load_from_dataframe(conn, cleaned_df.copy())
+        loaded[write_csv] = pd.read_sql_query(
+            f"SELECT * FROM {STOCK_TRADING_DAILY_REPORT_TABLE_NAME} "
+            f"ORDER BY securities_trader_id, stock_id, date",
+            conn,
+        )
+        conn.close()
+
+    broker_trading_dir: Path = updater.cleaner.finmind_dir / "broker_trading"
+    assert len(loaded[False]) == 12
+    pd.testing.assert_frame_equal(loaded[True], loaded[False])
+    # 只有 True 那一輪會寫檔：2 券商 × 2 股票
+    assert len(list(broker_trading_dir.rglob("*.csv"))) == 4

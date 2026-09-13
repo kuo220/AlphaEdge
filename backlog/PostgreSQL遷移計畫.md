@@ -242,7 +242,6 @@
 
 - **優先級**：P3（影響面廣，建議在其他重構收斂後再動）
 - **相關程式**：`core/pipeline/utils/sqlite_utils.py`、`core/pipeline/tw/loaders/*`、`core/pipeline/tw/updaters/*`、`core/api/tw/*`、`core/config/`、`tasks/*`、`tests/`
-- **相關 backlog**：[FinMind爬蟲清洗儲存流程優化.md](FinMind爬蟲清洗儲存流程優化.md)（S2、S6 的批次寫入與查詢優化會被本計畫的抽象層影響，建議先後不要交錯）
 - **命名軸線收斂（2026-09-01 完成）交接過來的兩項**，皆刻意留到本計畫的遷移批次一起做，
   軸線定案與理由見 [命名軸線](../docs/dev/naming-axes.md)：
   1. **台股表名補上 `stock_` 前綴**：`price`／`chip`／`margin` 等 13 張表不帶前綴，

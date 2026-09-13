@@ -150,7 +150,8 @@ class FinMindLoader(BaseDataLoader):
                 - securities_trader_id
                 - buy_volume, sell_volume, buy_price, sell_price (可選)
                 - securities_trader (可選)
-                如果為 None，則從 CSV 檔案載入（檔案結構：broker_trading/{broker_id}/{stock_id}.csv）
+                如果為 None，則從 CSV 檔案載入（檔案結構：broker_trading/{broker_id}/{stock_id}.csv）；
+                批量更新不寫這些 CSV，故此路徑不含批量更新抓進 DB 的資料
             commit: 是否在寫入後立即 commit；若為 False（例如批次更新時由 updater 定期 commit），則不呼叫 conn.commit()
 
         Returns:
