@@ -43,7 +43,8 @@ ETF 股期 08/12），故三條路徑各自帶自己的 `effective_date`，不�
 而是靠**主鍵 `(effective_date, product)` ＋ `INSERT OR IGNORE`**——
 保證金沒變就沒有新的 `effective_date`，整批被忽略，表內列數不變。
 
-歷史（2020/03 起的調整公告）屬 `backlog/台期貨保證金ETL.md` S4，不在本檔。
+歷史（2020/03 起的調整公告）走 `update_history()`，不在 `update()` 內——
+全量回補要逐則開公告明細頁，約數百次請求，不適合放進日常更新。
 """
 
 
@@ -53,7 +54,7 @@ class FuturesMarginUpdater(BaseDataUpdater):
     # 歷史回補的節流：每則公告要開明細頁 ＋ 下載附件（2 次請求）
     ANNOUNCEMENT_DELAY_SECONDS: float = 1.5
 
-    # 2020/03 起的公告才附 CSV；更早的只有掃描 PDF（見 backlog S6）
+    # 2020/03 起的公告才附 CSV；更早的只有掃描 PDF（無文字層），取不到數值
     ANNOUNCEMENT_START_DATE: datetime.date = datetime.date(2020, 1, 1)
 
     def __init__(self) -> None:
@@ -211,8 +212,8 @@ class FuturesMarginUpdater(BaseDataUpdater):
         - Description:
             以調整公告回補歷史保證金
 
-            **只補得到 2020/03 起**：更早的公告附件是掃描影像，取不到數值
-            （見 `backlog/台期貨保證金ETL.md` S6）。沒有 CSV 附件的公告會被跳過
+            **只補得到 2020/03 起**：更早的公告附件是掃描影像（無文字層），
+            取不到數值。沒有 CSV 附件的公告會被跳過
             並在收尾統計，**不可當成「那天沒有調整」**。
         - Parameters:
             - start_date / end_date: Optional[datetime.date]

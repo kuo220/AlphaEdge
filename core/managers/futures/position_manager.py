@@ -50,8 +50,8 @@ class FuturesMarginConfig:
 
     **查不到為什麼要 raise 而不是退回比率**：理由同 `FUTURES_MULTIPLIER` 用 `[]`
     而非 `.get()`——靜默套一個近似值會讓資金效率與可開口數整段偏掉卻毫無徵兆，
-    中斷比靜默錯誤好查。資料涵蓋 2020-03 起，更早的區間會當場中止並指向
-    `backlog/台期貨保證金ETL.md` S6。
+    中斷比靜默錯誤好查。資料涵蓋 2020-03 起（更早的公告附件是掃描影像，
+    取不到數值），更早的區間會當場中止。
 
     比率模式的近似**跨年份會系統性偏掉**（實測 2020 年 +143% 到 2026 年 −38%，
     而且會變號），故它只適合「跑通流程」而非產出可信績效。
@@ -202,8 +202,8 @@ class FuturesPositionManager(BasePositionManager):
                 f"查無 {product} 在 {date} 生效的保證金"
                 f"（表內涵蓋 {covered}）。"
                 f"**刻意不退回近似值**：靜默套一個比率會讓資金效率與可開口數"
-                f"整段偏掉卻毫無徵兆。2020-03 以前的缺口見 "
-                f"backlog/台期貨保證金ETL.md S6"
+                f"整段偏掉卻毫無徵兆。保證金資料只回溯到 2020-03，"
+                f"要回測更早的期間請明確改用 `FuturesMarginConfig.ratio()`"
             )
 
         return float(per_lot * volume)
@@ -362,7 +362,7 @@ class FuturesPositionManager(BasePositionManager):
         # 但 `margin_used` 卻各佔一份原始保證金——帳上「沒有曝險卻押著兩份保證金」，
         # 而交易所對沖部位只收單邊，可開口數因此被系統性低估。
         # 擋在開倉端而不是去模擬保證金減收：TAIFEX 的**價差部位保證金**是另一套
-        # 費率表，本專案沒有該資料源（見 backlog/台期貨保證金ETL.md），
+        # 費率表，本專案沒有該資料源，
         # 硬寫一個比率只是用一個猜測換掉另一個猜測。
         opposite_type: PositionType = (
             PositionType.SHORT

@@ -23,7 +23,8 @@ from core.utils import FileEncoding
 
 2. **來源只給「現在這一組」，沒有歷史**
     與 `futures_stock_universe_crawler` 同一個處境：靠快照序列累積變動歷史。
-    2020/03 之後的歷史另有調整公告可補（本文件 S4），本層不負責。
+    2020/03 之後的歷史另有調整公告可補（`FuturesMarginUpdater.update_history()`），
+    一覽表這條路徑不負責。
 
 3. **第一行不是表頭**
     指數類的第一行是 `更新日期:YYYY/MM/DD`（＝這組保證金的生效日），
@@ -31,14 +32,14 @@ from core.utils import FileEncoding
 
 4. **兩支端點的格式語意不同**
     指數類給「每口固定金額」、股票類給「適用比例 ＋ 級距」，
-    因此下游是兩條清洗與入庫路徑（見 `backlog/台期貨保證金ETL.md` §一）。
+    因此下游是兩條清洗與入庫路徑。
 
 5. **歷史調整走公告，不是一覽表**
     一覽表只有現值。歷史要先用 `crawl_announcements()` 查公告清單，
     再逐筆 `resolve_announcement_csv()` 取附件——**附件檔名每則都不同**
     （`保證金調整情形列表.csv`／`0312保證金調整.csv`／`保證金調整20260310.csv`…），
     組不出通則，一定要從明細頁上抓。
-    2015~2019 的公告只有掃描 PDF，取不到數值（見 backlog S6）。
+    2015~2019 的公告只有掃描 PDF（無文字層），取不到數值。
 """
 
 
@@ -198,7 +199,7 @@ class FuturesMarginCrawler(BaseDataCrawler):
         """
 
         if link.lower().endswith(".pdf"):
-            # 2015~2019 的公告只有掃描 PDF，取不到數值（backlog S6）
+            # 2015~2019 的公告只有掃描 PDF（無文字層），取不到數值
             return None
 
         url: str = urljoin(self.NEWS_DETAIL_BASE, link)

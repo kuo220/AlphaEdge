@@ -36,7 +36,7 @@ crawler 到 loader 之間的暫存，不是資料真相來源。理由：唯一�
 | `futures_price_daily` | 各月份契約日 K（日盤、夜盤各一列） | `(date, product, expiry, session)` |
 | `futures_continuous` | 連續合約，衍生自 `futures_price_daily` | `(date, product, session, method, roll_rule)` |
 | `futures_margin_history` | 指數類與 ETF 股期的**每口金額**（原始／維持），變動序列 | `(effective_date, product)` |
-| `stock_futures_margin_rate_history` | 股票類的**適用比例**，變動序列 | — |
+| `stock_futures_margin_rate_history` | 股票類的**適用比例**，變動序列 | `(effective_date, product_id)` |
 | `futures_institutional_chip` | 三大法人期貨買賣超與未平倉 | `(date, 商品名稱, 身份別)` |
 | `futures_large_trader` | 大額交易人未平倉 | 另含到期月份與交易人類別 |
 | `futures_put_call_ratio` | 台指選擇權 PCR | 一天一列 |
@@ -118,7 +118,10 @@ python -m tasks.update_db --target futures_tick            # 逐筆成交（需 
 | 籌碼 CSV | 非交易日回 HTTP 200 ＋ 一整頁 HTML | 檢查第一行是不是真的 CSV 表頭 |
 | 籌碼 CSV | PCR 每列結尾多一個逗號，整列往左位移 | `index_col=False` |
 | 籌碼 CSV | 檔尾三行說明文字被解析成資料列 | 清洗層濾掉 |
-| 保證金公告 | 附件用固定檔名，下載舊公告會拿到新內容；公告標題措辭不固定 | 見 [台期貨保證金ETL](../../backlog/台期貨保證金ETL.md) |
+| 保證金公告 | 附件用固定檔名（`保證金調整情形列表.csv`），站方覆寫後下載舊公告會拿到新內容 | 同一附件網址被多則公告引用時只信最新那則（`resolve_csv_urls()`），不依賴數值大小判斷 |
+| 保證金公告 | 標題措辭不固定（「調整」「回調」「調高」、換行造成的空白），用標題篩選必漏 | 取回所有提到「保證金」的公告，由附件結構收斂：須為 CSV 且表頭相符、`契約ABC值` 非空（選擇權）剔除 |
+| 保證金公告 | 金額欄順序與一覽表相反；同一個表頭底下，股票期貨給的是適用比例而非金額 | 依欄名取值；以值有沒有小數點區分比例與金額 |
+| 保證金一覽表（股票類） | 一份檔案四段（股期比例／ETF 股期金額／兩段選擇權），每段各有更新日期；公司名含逗號、代碼帶尾端空白 | 先切掉選擇權段、逐段解析生效日；以 `csv` 模組解析並 strip 代碼 |
 | Shioaji | 契約代碼與 TAIFEX 沒有規律（MTX→MXF、TE→EXF、TF→FXF；TMF／ZEF／ZFF 兩邊同名） | `SHIOAJI_FUTURES_CATEGORY` 是實際登入逐一核對的對照表 |
 | Shioaji | `code` 是「月份字母 ＋ 年末碼」，每 10 年重複 | 一律用 `symbol`（`TXF202609`） |
 | Shioaji | 回傳整個交易日的逐筆，**含前一日 15:00 開始的夜盤** | 時段一律由時間戳判定 |
@@ -126,6 +129,24 @@ python -m tasks.update_db --target futures_tick            # 逐筆成交（需 
 籌碼代碼的正式定義（取自來源檔尾）：到期月份 `999999` ＝ 所有契約合計、`666666` ＝ 所有週到期契約合計；
 交易人類別 `0` ＝ 前五／十大交易人、`1` ＝ 其中的**特定法人**（`1` 是 `0` 的子集，兩者相加沒有意義）。
 三大法人的商品以**中文名稱**入庫不轉代碼，要接回行情表時以 `futures_margin_history` 的 `product`／`product_name` 對照。
+
+### 2.6 保證金序列
+
+- **分表依據是「金額 vs 比例」，不是「指數 vs 股票」**：指數期貨與 ETF 股期給每口固定金額（`futures_margin_history`）；
+  股票股期給適用比例 ＋ 級距（`stock_futures_margin_rate_history`），比例存**小數**（`0.1350`）——
+  存百分比時忘記除 100 會讓保證金差 100 倍而不報錯。股期的每口保證金 ＝ 標的股價 × 契約單位 × 比例，
+  由 `FuturesMarginAPI.calculate_stock_futures_margin()` 計算。
+- **表是變動序列，不是每日快照**：`effective_date` 是這組保證金開始適用的日子，查詢一律取
+  `effective_date <= 該日` 的最大者。TAIFEX 的調整**溯及既往**（未沖銷部位一併適用新標準），
+  所以回測不能把開倉當天的保證金鎖死。
+- **兩條寫入路徑**：`--target futures_margin` 抓現行一覽表（`source='snapshot'`，保證金沒變就新增 0 列）；
+  歷史走調整公告，須直接呼叫 `FuturesMarginUpdater.update_history(start_date=..., end_date=...)`
+  （`source='announcement'`）。同主鍵時**公告覆蓋 snapshot**——公告明載生效日與調整前後值，比一覽表權威。
+- **「查不到」有兩種成因**：查詢日早於 2020-03（來源限制），或該商品從未被調整過——公告只列有調整的商品，
+  級距穩定的股期整段只有一覽表那一列。兩者無法區分，故 `fallback_to_earliest=True`（取最早一列當近似）預設關閉。
+- **鏈式比對只記缺口、不拒收**：同一商品第 N 則公告的「調整前」應等於第 N−1 則的「調整後」（`check_margin_chain()`）。
+  對不上代表我們的歷史有缺口，不代表這一則有錯——拒收會讓一個缺口連鎖到後面所有公告。
+  少數商品（NYF、SRF、OAF 等）各有一處斷點，全部對應附件已被站方覆寫的公告，是來源本身的損失。
 
 ---
 
@@ -271,8 +292,8 @@ python -m tasks.update_db --target futures_tick            # 逐筆成交（需 
 |------|------|----------|
 | **DolphinDB 的期貨 tick 寫入路徑未實測** | `--target futures_tick` 的爬取與清洗已驗證，入庫未驗證；無連線時保留中繼檔並記 warning | 啟動 DolphinDB server ＋ `pip install -e ".[tick]"`，跑一天確認 |
 | 期貨 Tick 級別回測未實作 | `TwFuturesDataFeed.get_quotes()` 對 Tick 回空 list 並記 warning | 出現日內期貨策略需求 |
-| 保證金 2020-03 之前沒有資料 | 更早的期間只能用 `ratio()` 近似 | 來源是掃描影像需 OCR，見 [台期貨保證金ETL](../../backlog/台期貨保證金ETL.md) S6 |
-| 價差部位保證金未模擬 | 同商品跨月份部位兩腿各繳全額，高估保證金、低估可開口數（保守） | 價差保證金納入 ETL（同上 S7），或出現價差／對沖策略需求 |
+| 保證金 2020-03 之前沒有資料 | 行情自 2015 起，但更早的期間只能用 `ratio()` 近似（TX 實測跨年份誤差 +143% ~ −38%），可開口數與追繳門檻失真 | 真的要回測 2015~2019 時，人工登錄 TX 家族該期間的 16 則調整公告（掃描影像；MTX 依乘數等比例推得），並以下一則公告的「調整前」逐筆鏈式驗證、2020-03 首則的「調整前」當終點錨點。**不採 OCR**：`477000` 讀成 `47700` 不會報錯 |
+| 價差部位保證金未模擬 | 同商品跨月份部位兩腿各繳全額，高估保證金、低估可開口數（保守；同契約雙向持倉已直接拒單） | 出現價差／對沖策略需求時，先確認 TAIFEX 價差保證金的收取語意（單邊全額／專屬金額／比例），再決定併入 `futures_margin_history` 或另立一張表 |
 | 三大法人籌碼只有近三年 | 來源只保留約三年，更早無法回補 | 另找歷史來源 |
 | 股期的調整型契約（`EE1` 等數字尾碼）與官方掛牌／下市日未入庫 | 契約單位與日期只能由快照差分近似；標的池建立之前的調整一律看不到 | 另抓 TAIFEX 契約調整與商品異動公告 |
 | 跳動點只登錄已查證的台指期系列 | 其他商品需在建構時明確指定 `tick_size` | 逐商品查證後改為查表 |

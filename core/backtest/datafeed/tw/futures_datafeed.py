@@ -142,7 +142,7 @@ class TwFuturesDataFeed(BaseDataFeed):
             查表模式查不到保證金會直接 raise（那是刻意的，見 `FuturesMarginConfig`），
             但那會發生在迴圈跑到第一筆開倉訊號的時候——使用者看到的是跑了一半
             才中斷。保證金資料只回溯到 2020-03（更早的公告附件是掃描影像，
-            見 `backlog/台期貨保證金ETL.md` S6），本檢查在 `setup()` 就把
+            取不到數值），本檢查在 `setup()` 就把
             「這段期間查不到」說明白，並指出可用的替代做法。
         """
 
@@ -165,7 +165,7 @@ class TwFuturesDataFeed(BaseDataFeed):
                     f"[Futures DataFeed] 回測起始日 {self.start_date} 早於 {product} "
                     f"的保證金涵蓋範圍（{covered['earliest']} 起），該段一開倉就會中止。"
                     f"要回測更早的期間請明確改用 `FuturesMarginConfig.ratio()`"
-                    f"（比率近似，誤差見 backlog/台期貨保證金ETL.md S5）"
+                    f"（比率近似，TX 實測跨年份誤差 +143% ~ −38%）"
                 )
 
     def is_market_open(self, date: datetime.date) -> bool:

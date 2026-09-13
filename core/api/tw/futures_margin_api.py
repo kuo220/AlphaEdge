@@ -16,8 +16,8 @@ from core.utils.log_manager import LogManager
 """
 Futures Margin API: query the two margin tables in tw_futures.db
 
-**兩張表、兩種取值方式**（分表依據是「金額 vs 比例」，見
-`backlog/台期貨保證金ETL.md` §一）：
+**兩張表、兩種取值方式**（分表依據是「金額 vs 比例」，不是「指數 vs 股票」——
+ETF 股期給的也是每口金額，語意與指數期貨相同）：
 
 | 表 | 涵蓋 | 每口保證金 |
 |----|------|-----------|
@@ -36,7 +36,6 @@ Futures Margin API: query the two margin tables in tw_futures.db
 **兩種「查不到」，成因完全不同，但本層一律回傳 None 讓呼叫端決定：**
 
 1. **查詢日早於 2020-03**（來源限制）：更早的調整公告附件是掃描影像，取不到數值。
-   詳見 `backlog/台期貨保證金ETL.md` S6。
 2. **該商品在查詢日之前從未被調整過**——這是資料的語意，不是缺漏：
    **調整公告只列「有調整的商品」**，級距穩定的商品（Ex: 台積電期 CDF 一直是
    級距 1／13.5%）在整個 2020~2026 都不會出現在任何一則公告裡，
