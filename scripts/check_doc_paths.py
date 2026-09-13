@@ -38,7 +38,9 @@ _SCAN_FILES: Tuple[str, ...] = ("CLAUDE.md", "README.md")
 # 排除的目錄
 _EXCLUDE_PARTS: Set[str] = {".venv", "__pycache__", "node_modules", ".git"}
 
-# 只認這些副檔名；`.md` 的相對連結另有 Markdown 自己的解析規則，不在本檢查範圍
+# 路徑引用（行內程式碼）只認這些副檔名。`.md` 之間的相對連結由
+# `check_markdown_links()` 另外處理——兩者的失效方式不同：前者是重構搬檔，
+# 後者多半是文件結案搬出 `backlog/` 時忘了改指向
 _EXTENSIONS: Tuple[str, ...] = (".py", ".sh", ".yaml", ".yml", ".toml", ".cfg", ".json")
 
 # 行內程式碼與 Markdown 連結目標
@@ -189,6 +191,36 @@ def _extract_paths(text: str) -> Set[str]:
     return found
 
 
+def check_markdown_links() -> List[str]:
+    """
+    - Description:
+        檢查 `.md` 之間的相對連結指得到檔案
+
+        **與路徑漂移是兩回事**：漂移是「行內程式碼寫的原始碼路徑」搬過家，
+        這裡是「Markdown 連結」指向的檔案不存在。後者最常見的成因是
+        **文件結案後搬出 `backlog/`，而引用它的人沒改指向**——實測 2026-09-04
+        `健檢殘留項目收斂.md` 結案刪除後，`health-check-2026-09.md` 的連結就斷了
+        九天沒人發現。
+
+        錨點（`#section`）只取檔案部分比對，外部網址略過。
+    - Return:
+        - List[str]
+            `檔案: 連結` 清單；全部指得到時為空
+    """
+
+    link_pattern: re.Pattern = re.compile(r"\]\((?!https?://|#)([^)#]+)(?:#[^)]*)?\)")
+    broken: List[str] = []
+
+    for doc in _iter_markdown_files():
+        rel_doc: str = str(doc.relative_to(_PROJECT_ROOT))
+        for match in link_pattern.finditer(doc.read_text(encoding="utf-8")):
+            target: Path = (doc.parent / match.group(1)).resolve()
+            if not target.exists():
+                broken.append(f"{rel_doc}: {match.group(1)}")
+
+    return broken
+
+
 def main() -> int:
     """列出搬過家卻沒更新的路徑引用；有漂移時回非零狀態碼"""
 
@@ -258,6 +290,16 @@ def main() -> int:
         return 1
 
     print("搬過家卻沒更新的引用：0 處")
+
+    broken_links: List[str] = check_markdown_links()
+    if broken_links:
+        print(f"\n指不到檔案的 Markdown 連結（{len(broken_links)} 條）：")
+        for item in broken_links:
+            print(f"  {item}")
+        print("\n最常見的成因是文件結案搬出 `backlog/` 後，引用它的人沒改指向。")
+        return 1
+
+    print("指不到檔案的 Markdown 連結：0 條")
     return 0
 
 
