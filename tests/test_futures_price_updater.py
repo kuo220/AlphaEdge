@@ -8,6 +8,7 @@ import pytest
 
 from core.config import FUTURES_PRICE_DAILY_TABLE_NAME
 from core.pipeline.tw.updaters.futures_price_updater import FuturesPriceUpdater
+from core.pipeline.utils.exceptions import ProductUpdateError
 from core.utils import FuturesSession
 
 """
@@ -42,6 +43,34 @@ def updater(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> FuturesPriceUpda
     # 空產出重試的等待在測試中一律歸零，否則每個空日都要真的睡 60 秒
     futures_price_updater.EMPTY_RETRY_DELAY_SECONDS = 0
     return futures_price_updater
+
+
+def day_session_raw() -> pd.DataFrame:
+    """TX 日盤一列原始行情（欄位順序同 TAIFEX 頁面）"""
+
+    return pd.DataFrame(
+        [
+            [
+                "TX",
+                "202609",
+                46175,
+                46517,
+                46006,
+                46078,
+                "▲75",
+                "▲0.16%",
+                26057,
+                50701,
+                76758,
+                46064,
+                104881,
+                46077,
+                46088,
+                49651,
+                24962,
+            ]
+        ]
+    )
 
 
 def insert_row(conn: sqlite3.Connection, date: str, product: str) -> None:
@@ -215,7 +244,8 @@ def test_aborts_when_product_yields_nothing(
     updater.BATCH_RANDOM_DELAY_MAX = 0
     updater.EMPTY_PRODUCT_ABORT_THRESHOLD = 3
 
-    with pytest.raises(ValueError, match="連續 3 個候選日皆無資料"):
+    # 保險絲的原始訊息要原封不動帶到 `update()` 最後拋出的例外裡
+    with pytest.raises(ProductUpdateError, match="連續 3 個候選日皆無資料"):
         updater.update(
             start_date=datetime.date(2026, 8, 3),
             end_date=datetime.date(2026, 8, 14),
@@ -232,29 +262,6 @@ def test_does_not_abort_when_data_resumes(
     保險絲算的是**連續**空產出，有資料就歸零；否則連假會被誤判成代碼錯誤。
     """
 
-    day_raw = pd.DataFrame(
-        [
-            [
-                "TX",
-                "202609",
-                46175,
-                46517,
-                46006,
-                46078,
-                "▲75",
-                "▲0.16%",
-                26057,
-                50701,
-                76758,
-                46064,
-                104881,
-                46077,
-                46088,
-                49651,
-                24962,
-            ]
-        ]
-    )
     calls: List[int] = []
 
     def fake_crawl(date, product, session):
@@ -262,7 +269,7 @@ def test_does_not_abort_when_data_resumes(
         # 前兩個交易日放假，之後恢復
         if date <= datetime.date(2026, 8, 4):
             return None
-        return day_raw.copy() if session == FuturesSession.DAY else None
+        return day_session_raw() if session == FuturesSession.DAY else None
 
     monkeypatch.setattr(updater.crawler, "crawl_futures_price", fake_crawl)
     monkeypatch.setattr(updater, "get_traded_weekend_dates", lambda *_: set())
@@ -280,6 +287,45 @@ def test_does_not_abort_when_data_resumes(
     assert (
         conn.execute(
             f"SELECT COUNT(*) FROM {FUTURES_PRICE_DAILY_TABLE_NAME}"
+        ).fetchone()[0]
+        > 0
+    )
+
+
+def test_one_failing_product_does_not_block_the_rest(
+    updater: FuturesPriceUpdater, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    一個商品觸發保險絲，排在後面的商品仍要更新；但跑完之後整體要以失敗結束
+
+    股期一次更新流動性前 N 檔，上市晚於回補起點的那檔會觸發保險絲——不隔離的話
+    一檔中止整批，排在後面的商品全部不更新。
+    """
+
+    def fake_crawl(date, product, session):
+        if product == "TXX":
+            return None
+        return day_session_raw() if session == FuturesSession.DAY else None
+
+    monkeypatch.setattr(updater.crawler, "crawl_futures_price", fake_crawl)
+    monkeypatch.setattr(updater, "get_traded_weekend_dates", lambda *_: set())
+    updater.BATCH_RANDOM_DELAY_MIN = 0
+    updater.BATCH_RANDOM_DELAY_MAX = 0
+    updater.EMPTY_PRODUCT_ABORT_THRESHOLD = 3
+
+    with pytest.raises(ProductUpdateError) as exc_info:
+        updater.update(
+            start_date=datetime.date(2026, 8, 3),
+            end_date=datetime.date(2026, 8, 7),
+            products=["TXX", "TX"],
+        )
+
+    assert list(exc_info.value.failures) == ["TXX"]
+    assert exc_info.value.succeeded == 1
+    conn = sqlite3.connect(updater.loader.futures_price_dir.parent / "tw_futures.db")
+    assert (
+        conn.execute(
+            f"SELECT COUNT(*) FROM {FUTURES_PRICE_DAILY_TABLE_NAME} WHERE product = 'TX'"
         ).fetchone()[0]
         > 0
     )

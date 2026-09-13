@@ -2,7 +2,7 @@ import datetime
 import random
 import sqlite3
 import time
-from typing import List, Optional, Set
+from typing import Dict, List, Optional, Set
 
 import pandas as pd
 from loguru import logger
@@ -21,6 +21,7 @@ from core.pipeline.shared.base_updater import BaseDataUpdater
 from core.pipeline.tw.cleaners.futures_price_cleaner import FuturesPriceCleaner
 from core.pipeline.tw.crawlers.futures_price_crawler import FuturesPriceCrawler
 from core.pipeline.tw.loaders.futures_price_loader import FuturesPriceLoader
+from core.pipeline.utils.exceptions import ProductUpdateError
 from core.utils import FuturesSession, TimeUtils
 from core.utils.log_manager import LogManager
 
@@ -246,6 +247,9 @@ class FuturesPriceUpdater(BaseDataUpdater):
                 必須用這個**——日常路徑會被表內既有資料擋住而整段補不到，
                 且不會有任何錯誤訊息，只會顯示「已是最新」。
                 重複的日期由 loader 的 `INSERT OR IGNORE` 吸收，不會產生重複列。
+        - Raise:
+            - ProductUpdateError
+                任一商品更新失敗；其餘商品仍會跑完才拋出
         """
 
         # 預設值不可寫成 `datetime.date.today()`——那是在 import 時求值的，
@@ -261,10 +265,25 @@ class FuturesPriceUpdater(BaseDataUpdater):
 
         logger.info(f"* Start Updating TAIFEX Futures Price: {target_products}")
 
+        # 逐商品隔離：一個商品觸發保險絲（或任何例外）不擋排在後面的商品——
+        # 股期一次更新前 N 檔，上市晚於起點的那檔就會觸發保險絲。
+        # 但跑完之後統一拋出，讓 target 仍以失敗結束，不會安靜地少一檔
+        failures: Dict[str, str] = {}
         for product in target_products:
-            self.update_product(product, start_date, end_date, resume=resume)
+            try:
+                self.update_product(product, start_date, end_date, resume=resume)
+            except Exception as error:
+                logger.opt(exception=True).error(
+                    f"* {product} 更新失敗，繼續下一個商品：{type(error).__name__}"
+                )
+                failures[product] = f"{type(error).__name__}: {error}"
 
         self.log_summary(target_products)
+
+        if failures:
+            raise ProductUpdateError(
+                failures, succeeded=len(target_products) - len(failures)
+            )
 
     def update_stock_futures(
         self,

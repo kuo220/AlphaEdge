@@ -21,7 +21,7 @@ Usage:
         ...
 """
 
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 # -----------------------------------------------------------------------------
 # Pipeline 通用（未來可擴充 CrawlerError, LoaderError 等）
@@ -206,4 +206,28 @@ class DataLoadError(PipelineError):
         self.succeeded: int = succeeded
         super().__init__(
             f"{source} 入庫未完全成功：成功 {succeeded} 檔、失敗 {len(failed_files)} 檔"
+        )
+
+
+# -----------------------------------------------------------------------------
+# Updater 例外
+# -----------------------------------------------------------------------------
+
+
+class ProductUpdateError(PipelineError):
+    """部分商品更新失敗。
+
+    **存在的理由與 `DataLoadError` 相同**：逐商品更新時，一個商品失敗（例如上市日
+    晚於回補起點而觸發空產出保險絲）不應擋住其餘商品；但全部跑完後若有任何失敗，
+    就必須讓呼叫端知道，否則 target 會以成功狀態結束。
+
+    `failures` 保留「商品代碼 → 失敗原因」，供呼叫端記錄或重試。
+    """
+
+    def __init__(self, failures: Dict[str, str], succeeded: int = 0) -> None:
+        self.failures: Dict[str, str] = failures
+        self.succeeded: int = succeeded
+        super().__init__(
+            f"商品更新未完全成功：成功 {succeeded} 個、失敗 {len(failures)} 個；"
+            + "；".join(f"{product}: {reason}" for product, reason in failures.items())
         )

@@ -164,7 +164,6 @@ class FinancialStatementUpdater(BaseDataUpdater):
     BATCH_SLEEP_DURATION_SECONDS: int = 30
     BATCH_RANDOM_DELAY_MIN: int = 1
     BATCH_RANDOM_DELAY_MAX: int = 5
-    LAST_SEASON: int = 4  # 第4季，用於季別進位判斷
 
     # 權益變動表專用（逐檔查詢，量級與其他三張報表差了三個數量級）
     EQUITY_CHANGE_LOAD_BATCH_SIZE: int = 100  # 每 100 檔入庫一次
@@ -282,21 +281,13 @@ class FinancialStatementUpdater(BaseDataUpdater):
         logger.info("* Start Updating Balance Sheet Data...")
 
         # Step 1: Crawl
-        # 取得要開始更新的年度、季度
-        start_year: int
-        start_season: int
-        start_year, start_season = self.get_actual_update_start_year_season(
+        # 候選年季是差集而不是 `MAX + 1`（理由見 `plan_pending_year_seasons()`）
+        year_seasons: List[Tuple[int, int]] = self.plan_pending_year_seasons(
             table_name=BALANCE_SHEET_TABLE_NAME,
-            default_year=start_year,
-            default_season=start_season,
-        )
-        logger.info(f"Latest data date in database: {start_year}Q{start_season}")
-        # Set Up Update Period
-        # **不可用 years × seasons 的笛卡兒積**：起點 2024Q3、終點 2026Q4 時
-        # `seasons` 只會是 [3, 4]，2025Q1／Q2 與 2026Q1／Q2 整整四季不會被爬，
-        # 且不會有任何錯誤——它們只是從來沒出現在迴圈裡
-        year_seasons: List[Tuple[int, int]] = TimeUtils.generate_year_period_range(
-            start_year, start_season, end_year, end_season, periods_per_year=4
+            start_year=start_year,
+            start_season=start_season,
+            end_year=end_year,
+            end_season=end_season,
         )
         file_cnt: int = 0
 
@@ -365,21 +356,13 @@ class FinancialStatementUpdater(BaseDataUpdater):
         logger.info("* Start Updating Comprehensive Income Data...")
 
         # Step 1: Crawl
-        # 取得要開始更新的年度、季度
-        start_year: int
-        start_season: int
-        start_year, start_season = self.get_actual_update_start_year_season(
+        # 候選年季是差集而不是 `MAX + 1`（理由見 `plan_pending_year_seasons()`）
+        year_seasons: List[Tuple[int, int]] = self.plan_pending_year_seasons(
             table_name=COMPREHENSIVE_INCOME_TABLE_NAME,
-            default_year=start_year,
-            default_season=start_season,
-        )
-        logger.info(f"Latest data date in database: {start_year}Q{start_season}")
-        # Set Up Update Period
-        # **不可用 years × seasons 的笛卡兒積**：起點 2024Q3、終點 2026Q4 時
-        # `seasons` 只會是 [3, 4]，2025Q1／Q2 與 2026Q1／Q2 整整四季不會被爬，
-        # 且不會有任何錯誤——它們只是從來沒出現在迴圈裡
-        year_seasons: List[Tuple[int, int]] = TimeUtils.generate_year_period_range(
-            start_year, start_season, end_year, end_season, periods_per_year=4
+            start_year=start_year,
+            start_season=start_season,
+            end_year=end_year,
+            end_season=end_season,
         )
         file_cnt: int = 0
 
@@ -448,21 +431,13 @@ class FinancialStatementUpdater(BaseDataUpdater):
         logger.info("* Start Updating Cash Flow Data...")
 
         # Step 1: Crawl
-        # 取得要開始更新的年度、季度
-        start_year: int
-        start_season: int
-        start_year, start_season = self.get_actual_update_start_year_season(
+        # 候選年季是差集而不是 `MAX + 1`（理由見 `plan_pending_year_seasons()`）
+        year_seasons: List[Tuple[int, int]] = self.plan_pending_year_seasons(
             table_name=CASH_FLOW_TABLE_NAME,
-            default_year=start_year,
-            default_season=start_season,
-        )
-        logger.info(f"Latest data date in database: {start_year}Q{start_season}")
-        # Set Up Update Period
-        # **不可用 years × seasons 的笛卡兒積**：起點 2024Q3、終點 2026Q4 時
-        # `seasons` 只會是 [3, 4]，2025Q1／Q2 與 2026Q1／Q2 整整四季不會被爬，
-        # 且不會有任何錯誤——它們只是從來沒出現在迴圈裡
-        year_seasons: List[Tuple[int, int]] = TimeUtils.generate_year_period_range(
-            start_year, start_season, end_year, end_season, periods_per_year=4
+            start_year=start_year,
+            start_season=start_season,
+            end_year=end_year,
+            end_season=end_season,
         )
         file_cnt: int = 0
 
@@ -1178,32 +1153,73 @@ class FinancialStatementUpdater(BaseDataUpdater):
 
         return set(df["stock_id"].astype(str))
 
-    def get_actual_update_start_year_season(
+    def plan_pending_year_seasons(
         self,
         table_name: str,
-        default_year: int = 2025,
-        default_season: int = 1,
-    ) -> Tuple[int, int]:
-        """回傳下一筆應更新的 (year, season)，若無資料則回傳預設值"""
+        start_year: int,
+        start_season: int,
+        end_year: int,
+        end_season: int,
+    ) -> List[Tuple[int, int]]:
+        """
+        - Description:
+            算出該報表這次要請求的年季：區間內所有年季 − 表內已有的年季
 
-        # Step 1: 先取得最新 year
-        try:
-            latest_year: Optional[int]
-            latest_season: Optional[int]
-            latest_year, latest_season = SQLiteUtils.get_max_secondary_value_by_primary(
-                conn=self.conn,
-                table_name=table_name,
-                primary_col="year",
-                secondary_col="season",
-                default_primary_value=default_year,
-                default_secondary_value=default_season,
-            )
-        except Exception as e:
-            logger.error(f"Failed to get latest (year, season): {e}")
-            return default_year, default_season
+            **不可用 `MAX(year, season) + 1` 起跑**：某一季失敗被跳過之後，只要下一季
+            成功入庫，`MAX` 就越過它，那一季從此不會再被請求——資產負債表 2021Q1
+            整季缺就是這樣來的。逐日來源的 `DatePlanner.plan()` 改用差集是同一個理由。
 
-        # Step 2: 處理進位（第4季 → 第1季 + 年份進位）
-        if latest_season == self.LAST_SEASON:
-            return latest_year + 1, 1
-        else:
-            return latest_year, latest_season + 1
+            代價是來源本就沒有的年季（2013Q1）與尚未公布的年季每輪都會再問一次，
+            每張報表每季只是上市、上櫃各一次請求。
+        - Parameters:
+            - table_name: str
+                目標資料表
+            - start_year / start_season: int
+                區間起點
+            - end_year / end_season: int
+                區間終點
+        - Return:
+            - List[Tuple[int, int]]
+                由早到晚排序的 (year, season)
+        """
+
+        # **不可用 years × seasons 的笛卡兒積**：起點 2024Q3、終點 2026Q4 時
+        # `seasons` 只會是 [3, 4]，2025Q1／Q2 與 2026Q1／Q2 整整四季不會被爬，
+        # 且不會有任何錯誤——它們只是從來沒出現在迴圈裡
+        year_seasons: List[Tuple[int, int]] = TimeUtils.generate_year_period_range(
+            start_year, start_season, end_year, end_season, periods_per_year=4
+        )
+        existing: Set[Tuple[int, int]] = self.get_existing_year_seasons(table_name)
+        pending: List[Tuple[int, int]] = [
+            year_season for year_season in year_seasons if year_season not in existing
+        ]
+
+        # 只有夾在表內最早與最新之間的才算缺口：早於最早的是來源本就沒有的年季
+        # （2013Q1），晚於最新的是新年季，兩者每輪都會出現，報出來只是噪音
+        if existing:
+            earliest: Tuple[int, int] = min(existing)
+            latest: Tuple[int, int] = max(existing)
+            gaps: List[str] = [
+                f"{year}Q{season}"
+                for year, season in pending
+                if earliest < (year, season) < latest
+            ]
+            if gaps:
+                logger.warning(
+                    f"[{table_name}] 偵測到 {len(gaps)} 個年季缺口"
+                    f"（表內最新為 {latest[0]}Q{latest[1]}），本次一併回補：{gaps[:10]}"
+                )
+
+        logger.info(f"[{table_name}] 本次待更新年季：{len(pending)} 季")
+        return pending
+
+    def get_existing_year_seasons(self, table_name: str) -> Set[Tuple[int, int]]:
+        """表內已有的 (year, season)；表不存在時為空集合（初次更新的正常狀態）"""
+
+        if not SQLiteUtils.check_table_exist(conn=self.conn, table_name=table_name):
+            return set()
+
+        rows: List[Tuple[int, int]] = self.conn.execute(
+            f"SELECT DISTINCT year, season FROM {table_name}"
+        ).fetchall()
+        return {(int(year), int(season)) for year, season in rows}

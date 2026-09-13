@@ -1,0 +1,364 @@
+import datetime
+import sqlite3
+from pathlib import Path
+from types import SimpleNamespace
+from typing import Any, Dict, List, Optional, Set, Tuple, Type
+
+import pandas as pd
+import pytest
+
+from core.pipeline.shared import date_planner as date_planner_module
+from core.pipeline.shared.base_crawler import CrawlResult
+from core.pipeline.shared.base_updater import BaseDataUpdater
+from core.pipeline.shared.date_planner import DateProgressStore
+from core.pipeline.tw.crawlers import financial_statement_crawler as fs_crawler_module
+from core.pipeline.tw.crawlers.financial_statement_crawler import (
+    FinancialStatementCrawler,
+)
+from core.pipeline.tw.updaters.financial_statement_updater import (
+    FinancialStatementUpdater,
+)
+from core.pipeline.tw.updaters.stock_chip_updater import StockChipUpdater
+from core.pipeline.tw.updaters.stock_margin_updater import StockMarginUpdater
+from core.pipeline.tw.updaters.stock_price_updater import StockPriceUpdater
+from core.pipeline.tw.utils.mops_payload import Payload
+from core.pipeline.utils import ListingBoard
+
+"""
+多來源拼成的一份資料：要嘛全部入庫、要嘛全部不入庫
+
+台股日頻表是上市＋上櫃兩份拼成一天，財報三表是上市＋上櫃兩份拼成一季。
+只入庫問到的那一邊時，資料**看起來是有的**——日期軸正常、年季齊全——
+只是少了半個市場，不會有任何錯誤：
+
+- 日頻表：`price` 2026-09-07~09 在 TPEX 封鎖本機 IP 時只入庫了 TWSE 的 1,350 檔。
+- 財報：資產負債表 2021Q1 整季缺、現金流量表 2024Q1 上市只剩 1 檔，而且年季續跑
+  是 `MAX + 1`，之後永遠不回頭。
+
+本檔不連網路、不碰正式 DB。
+"""
+
+
+DAY_OK: datetime.date = datetime.date(2024, 1, 2)
+DAY_PARTIAL: datetime.date = datetime.date(2024, 1, 3)
+
+# 三支日頻 updater 的差別只有方法名稱後綴與進度檔名稱
+DAILY_UPDATERS: List[Tuple[Type[BaseDataUpdater], str]] = [
+    (StockPriceUpdater, "price"),
+    (StockChipUpdater, "chip"),
+    (StockMarginUpdater, "margin"),
+]
+
+
+def raw_table() -> pd.DataFrame:
+    """crawler 的原始表格；內容不重要，列數要超過 price updater 的最小列數"""
+
+    return pd.DataFrame({"證券代號": ["2330", "2317", "1101"]})
+
+
+def make_daily_updater(
+    updater_cls: Type[BaseDataUpdater],
+    kind: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    results: Dict[datetime.date, Tuple[CrawlResult, CrawlResult]],
+) -> Tuple[Any, List[Set[str]], List[Tuple[str, datetime.date]]]:
+    """
+    - Description:
+        建一支不連網路、不碰正式 DB 的日頻 updater
+    - Parameters:
+        - updater_cls: Type[BaseDataUpdater]
+            待測的 updater 類別
+        - kind: str
+            `price`／`chip`／`margin`
+        - tmp_path: Path
+            暫存目錄
+        - monkeypatch: pytest.MonkeyPatch
+            用來把進度檔改寫到暫存目錄
+        - results: Dict[datetime.date, Tuple[CrawlResult, CrawlResult]]
+            各日期的（TWSE, TPEX）爬取結果
+    - Return:
+        - Tuple
+            （updater, 每次入庫的日期集合, 清洗呼叫紀錄）
+    """
+
+    monkeypatch.setattr(date_planner_module, "DOWNLOADS_METADATA_DIR_PATH", tmp_path)
+
+    conn: sqlite3.Connection = sqlite3.connect(tmp_path / "test.db")
+    # chip／margin 以 price 為交易日曆；price 自己則以平日為母集合，表內不可先有這兩天
+    conn.execute("CREATE TABLE price (date TEXT, stock_id TEXT)")
+    if kind != "price":
+        conn.executemany(
+            "INSERT INTO price VALUES (?, '2330')",
+            [(DAY_OK.isoformat(),), (DAY_PARTIAL.isoformat(),)],
+        )
+    conn.commit()
+
+    loaded: List[Set[str]] = []
+    cleaned: List[Tuple[str, datetime.date]] = []
+
+    def make_clean(market: str):
+        def clean(raw: pd.DataFrame, date: datetime.date) -> pd.DataFrame:
+            cleaned.append((market, date))
+            return raw
+
+        return clean
+
+    updater = updater_cls.__new__(updater_cls)  # 跳過 __init__ 的正式連線與 log 設定
+    updater.conn = conn
+    updater.crawler = SimpleNamespace(
+        **{
+            f"crawl_twse_{kind}": lambda date: results[date][0],
+            f"crawl_tpex_{kind}": lambda date: results[date][1],
+        }
+    )
+    updater.cleaner = SimpleNamespace(
+        **{
+            f"clean_twse_{kind}": make_clean("TWSE"),
+            f"clean_tpex_{kind}": make_clean("TPEX"),
+        }
+    )
+    updater.loader = SimpleNamespace(
+        add_to_db=lambda remove_files, only_dates: loaded.append(set(only_dates))
+    )
+    updater.BATCH_RANDOM_DELAY_MIN = 0
+    updater.BATCH_RANDOM_DELAY_MAX = 0
+
+    return updater, loaded, cleaned
+
+
+def loaded_dates(loaded: List[Set[str]]) -> Set[str]:
+    """所有入庫批次的日期聯集"""
+
+    return set().union(*loaded) if loaded else set()
+
+
+# === 日頻三表 ===
+@pytest.mark.parametrize(("updater_cls", "kind"), DAILY_UPDATERS)
+def test_day_with_a_failed_market_is_not_loaded(
+    updater_cls: Type[BaseDataUpdater],
+    kind: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    上櫃沒問到的那天，上市那半也不能入庫
+
+    舊行為是上市照常清洗入庫、只把該日記成待重試：最終補得齊，但重試成功之前
+    回測讀到的是半個市場。
+    """
+
+    results: Dict[datetime.date, Tuple[CrawlResult, CrawlResult]] = {
+        DAY_OK: (CrawlResult.ok(raw_table()), CrawlResult.ok(raw_table())),
+        DAY_PARTIAL: (
+            CrawlResult.ok(raw_table()),
+            CrawlResult.failed("blocked: IncompleteRead"),
+        ),
+    }
+    updater, loaded, cleaned = make_daily_updater(
+        updater_cls, kind, tmp_path, monkeypatch, results
+    )
+
+    updater.update(start_date=DAY_OK, end_date=DAY_PARTIAL)
+
+    assert loaded_dates(loaded) == {"20240102"}
+    # 反正不入庫，連清洗都不做，downloads 才不會留下半份 CSV
+    assert ("TWSE", DAY_PARTIAL) not in cleaned
+    progress: DateProgressStore = DateProgressStore(kind)
+    assert progress.incomplete == {DAY_PARTIAL}
+
+
+@pytest.mark.parametrize(("updater_cls", "kind"), DAILY_UPDATERS)
+def test_day_with_a_failed_cleaner_is_not_loaded(
+    updater_cls: Type[BaseDataUpdater],
+    kind: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    兩邊都爬到、但上櫃清洗失敗時同樣整天不入庫
+
+    上市那半在清洗時已經寫出 CSV，只擋「爬取失敗」不擋這條的話，它照樣會被入庫。
+    """
+
+    results: Dict[datetime.date, Tuple[CrawlResult, CrawlResult]] = {
+        DAY_OK: (CrawlResult.ok(raw_table()), CrawlResult.ok(raw_table())),
+        DAY_PARTIAL: (CrawlResult.ok(raw_table()), CrawlResult.ok(raw_table())),
+    }
+    updater, loaded, _ = make_daily_updater(
+        updater_cls, kind, tmp_path, monkeypatch, results
+    )
+    # 只讓第二天的上櫃清洗失敗
+    clean_tpex = getattr(updater.cleaner, f"clean_tpex_{kind}")
+
+    def flaky_clean(raw: pd.DataFrame, date: datetime.date) -> pd.DataFrame:
+        if date == DAY_PARTIAL:
+            raise ValueError("版面異常")
+        return clean_tpex(raw, date)
+
+    setattr(updater.cleaner, f"clean_tpex_{kind}", flaky_clean)
+
+    updater.update(start_date=DAY_OK, end_date=DAY_PARTIAL)
+
+    assert loaded_dates(loaded) == {"20240102"}
+    assert DateProgressStore(kind).incomplete == {DAY_PARTIAL}
+
+
+@pytest.mark.parametrize(("updater_cls", "kind"), DAILY_UPDATERS)
+def test_complete_days_are_still_loaded(
+    updater_cls: Type[BaseDataUpdater],
+    kind: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """防止改過頭：兩個市場都問到，或一邊明確回覆查無資料，照常入庫"""
+
+    results: Dict[datetime.date, Tuple[CrawlResult, CrawlResult]] = {
+        DAY_OK: (CrawlResult.ok(raw_table()), CrawlResult.ok(raw_table())),
+        DAY_PARTIAL: (
+            CrawlResult.ok(raw_table()),
+            CrawlResult.no_data("站方回覆查無資料"),
+        ),
+    }
+    updater, loaded, _ = make_daily_updater(
+        updater_cls, kind, tmp_path, monkeypatch, results
+    )
+
+    updater.update(start_date=DAY_OK, end_date=DAY_PARTIAL)
+
+    assert loaded_dates(loaded) == {"20240102", "20240103"}
+    assert DateProgressStore(kind).incomplete == set()
+
+
+# === 財報三表：crawler ===
+TABLE_HTML: str = "<table><tr><th>公司代號</th></tr><tr><td>2330</td></tr></table>"
+
+
+def make_fs_crawler(
+    monkeypatch: pytest.MonkeyPatch, otc_response: Any
+) -> FinancialStatementCrawler:
+    """
+    - Description:
+        建一支不連網路的財報 crawler：上市一律回表格，上櫃的回應由參數決定
+    - Parameters:
+        - monkeypatch: pytest.MonkeyPatch
+            用來替換 `RequestUtils.requests_post`
+        - otc_response: Any
+            上櫃的回應；為 Exception 實例時改為拋出
+    - Return:
+        - FinancialStatementCrawler
+    """
+
+    def fake_post(url: str, data: Dict[str, str]) -> Any:
+        if data.get("TYPEK") == ListingBoard.SII.value:
+            return SimpleNamespace(text=TABLE_HTML)
+        if isinstance(otc_response, Exception):
+            raise otc_response
+        return otc_response
+
+    monkeypatch.setattr(fs_crawler_module.RequestUtils, "requests_post", fake_post)
+
+    crawler = FinancialStatementCrawler.__new__(FinancialStatementCrawler)
+    crawler.payload = Payload(
+        firstin="1", step="1", TYPEK="sii", co_id=None, year="113", season="1"
+    )
+    crawler.listing_boards = [ListingBoard.SII, ListingBoard.OTC]
+    return crawler
+
+
+@pytest.mark.parametrize(
+    "crawl_name",
+    ["crawl_balance_sheet", "crawl_comprehensive_income", "crawl_cash_flow"],
+)
+@pytest.mark.parametrize(
+    "otc_response",
+    [
+        None,  # requests_post 對 HTTP 失敗、重試耗盡一律回 None
+        ConnectionError("RemoteDisconnected"),
+        SimpleNamespace(text="<html>查詢過於頻繁，請稍後再試</html>"),
+    ],
+    ids=["no_response", "raised", "no_table"],
+)
+def test_fs_crawler_fails_the_whole_season_when_one_market_fails(
+    monkeypatch: pytest.MonkeyPatch, crawl_name: str, otc_response: Any
+) -> None:
+    """
+    上櫃沒問到時整季回 None，不可回傳上市那半
+
+    舊行為是 `continue` 之後回傳上市的表格，updater 照常清洗入庫。
+    """
+
+    crawler: FinancialStatementCrawler = make_fs_crawler(monkeypatch, otc_response)
+
+    assert getattr(crawler, crawl_name)(2024, 1) is None
+
+
+def test_fs_crawler_returns_both_markets_on_success(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """防止改過頭：兩個市場都問到時兩份表格都要回傳"""
+
+    crawler: FinancialStatementCrawler = make_fs_crawler(
+        monkeypatch, SimpleNamespace(text=TABLE_HTML)
+    )
+
+    tables: Optional[List[pd.DataFrame]] = crawler.crawl_balance_sheet(2024, 1)
+
+    assert tables is not None
+    assert len(tables) == 2
+
+
+# === 財報三表：年季續跑 ===
+def make_fs_updater(
+    tmp_path: Path, year_seasons: List[Tuple[int, int]]
+) -> FinancialStatementUpdater:
+    """建一支只連暫存 DB 的財報 updater，資產負債表預先放入指定年季"""
+
+    conn: sqlite3.Connection = sqlite3.connect(tmp_path / "test.db")
+    conn.execute("CREATE TABLE balance_sheet (year INT, season INT, stock_id TEXT)")
+    conn.executemany("INSERT INTO balance_sheet VALUES (?, ?, '2330')", year_seasons)
+    conn.commit()
+
+    updater = FinancialStatementUpdater.__new__(FinancialStatementUpdater)
+    updater.conn = conn
+    return updater
+
+
+def test_fs_season_gap_is_planned_again(tmp_path: Path) -> None:
+    """
+    中間缺的年季要重新進入候選
+
+    舊做法以 `MAX + 1` 起跑：2024Q2 失敗被跳過、2024Q3 成功入庫之後，
+    下一輪從 2024Q4 開始，2024Q2 永遠不會再被請求。
+    """
+
+    updater: FinancialStatementUpdater = make_fs_updater(
+        tmp_path, [(2024, 1), (2024, 3)]
+    )
+
+    pending: List[Tuple[int, int]] = updater.plan_pending_year_seasons(
+        table_name="balance_sheet",
+        start_year=2024,
+        start_season=1,
+        end_year=2024,
+        end_season=4,
+    )
+
+    assert pending == [(2024, 2), (2024, 4)]
+
+
+def test_fs_missing_table_plans_every_season(tmp_path: Path) -> None:
+    """初次更新時表還不存在，應視為全部都要抓"""
+
+    updater = FinancialStatementUpdater.__new__(FinancialStatementUpdater)
+    updater.conn = sqlite3.connect(tmp_path / "test.db")
+
+    pending: List[Tuple[int, int]] = updater.plan_pending_year_seasons(
+        table_name="balance_sheet",
+        start_year=2024,
+        start_season=3,
+        end_year=2025,
+        end_season=1,
+    )
+
+    assert pending == [(2024, 3), (2024, 4), (2025, 1)]

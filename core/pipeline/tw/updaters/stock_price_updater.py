@@ -2,11 +2,16 @@ import datetime
 import random
 import sqlite3
 import time
-from typing import List, Optional
+from typing import List, Optional, Set
 
 from loguru import logger
 
-from core.config import PRICE_TABLE_NAME, TW_STOCK_DB_PATH
+from core.config import (
+    CHIP_TABLE_NAME,
+    MARGIN_TABLE_NAME,
+    PRICE_TABLE_NAME,
+    TW_STOCK_DB_PATH,
+)
 from core.pipeline.shared.base_crawler import CrawlResult, CrawlStatus
 from core.pipeline.shared.base_updater import BaseDataUpdater, UpdateStats
 from core.pipeline.shared.date_planner import DatePlanner, DateProgressStore
@@ -103,8 +108,13 @@ class StockPriceUpdater(BaseDataUpdater):
 
         # Step 1: Crawl
         # 候選日期＝平日 − 表內已有 − 已確認無資料（`price` 表自己就是日曆來源，
-        # 故沒有外部日曆可用，只能以平日為母集合）
+        # 故沒有外部日曆可用，只能以平日為母集合）。
+        # 補行交易日（開市的週六）不在平日裡，改由 chip／margin 手上已有的週末日期
+        # 補回——否則 `price` 被刪掉的補行交易日永遠不會再被請求
         progress: DateProgressStore = DateProgressStore("price")
+        traded_weekends: Set[datetime.date] = DatePlanner.get_weekend_dates(
+            self.conn, [CHIP_TABLE_NAME, MARGIN_TABLE_NAME], start_date, end_date
+        )
         dates: List[datetime.date] = DatePlanner.plan(
             conn=self.conn,
             table_name=PRICE_TABLE_NAME,
@@ -112,6 +122,7 @@ class StockPriceUpdater(BaseDataUpdater):
             end_date=end_date,
             no_data_dates=progress.no_data,
             incomplete_dates=progress.incomplete,
+            extra_dates=traded_weekends,
         )
         logger.info(f"本次待更新日期：{len(dates)} 天（{start_date} ~ {end_date}）")
 
@@ -127,16 +138,19 @@ class StockPriceUpdater(BaseDataUpdater):
             day_status: CrawlStatus = stats.record(twse, tpex)
 
             # Step 2: Clean
+            # 任一市場沒問到時兩邊都不清洗：這天反正不入庫，清洗只會在 downloads
+            # 留下半份 CSV
             cleaned: bool = True
-            if twse.is_ok and len(twse.data) > self.MIN_DF_ROWS_AFTER_CLEAN:
-                cleaned &= self.clean_one(
-                    self.cleaner.clean_twse_price, twse.data, date, "TWSE"
-                )
+            if day_status is not CrawlStatus.FAILED:
+                if twse.is_ok and len(twse.data) > self.MIN_DF_ROWS_AFTER_CLEAN:
+                    cleaned &= self.clean_one(
+                        self.cleaner.clean_twse_price, twse.data, date, "TWSE"
+                    )
 
-            if tpex.is_ok and len(tpex.data) > self.MIN_DF_ROWS_AFTER_CLEAN:
-                cleaned &= self.clean_one(
-                    self.cleaner.clean_tpex_price, tpex.data, date, "TPEX"
-                )
+                if tpex.is_ok and len(tpex.data) > self.MIN_DF_ROWS_AFTER_CLEAN:
+                    cleaned &= self.clean_one(
+                        self.cleaner.clean_tpex_price, tpex.data, date, "TPEX"
+                    )
 
             if not cleaned:
                 cleaner_failures.append(date)
@@ -146,7 +160,13 @@ class StockPriceUpdater(BaseDataUpdater):
             progress.record(date, day_status)
 
             file_cnt += 1
-            batch_dates.append(date.strftime("%Y%m%d"))
+            # **只有兩個市場都問到的日子才入庫**：只入庫一邊的話，重試成功之前
+            # 回測讀到的是半個市場，且不會有任何錯誤。清洗失敗同樣擋下——
+            # 另一邊的 CSV 可能已經寫出
+            if day_status is CrawlStatus.FAILED:
+                self.report_partial_day("price", date, twse, tpex)
+            else:
+                batch_dates.append(date.strftime("%Y%m%d"))
 
             # Step 3: Load（分批）
             if len(batch_dates) >= self.LOAD_BATCH_SIZE:

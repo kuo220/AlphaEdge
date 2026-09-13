@@ -1,12 +1,15 @@
 import datetime
 import sqlite3
 from pathlib import Path
+from types import SimpleNamespace
 from typing import List, Set, Tuple
 
 import pytest
 
-from core.pipeline.shared.base_crawler import CrawlStatus
+from core.pipeline.shared import date_planner as date_planner_module
+from core.pipeline.shared.base_crawler import CrawlResult, CrawlStatus
 from core.pipeline.shared.date_planner import DatePlanner, DateProgressStore
+from core.pipeline.tw.updaters.stock_price_updater import StockPriceUpdater
 from core.utils import TimeUtils
 
 """
@@ -134,6 +137,68 @@ def test_calendar_dates_cover_traded_weekends(tmp_path: Path) -> None:
     )
 
     assert candidates == [datetime.date(2024, 1, 6)]
+    conn.close()
+
+
+def test_price_requests_traded_weekends_known_to_other_tables(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    `chip` 有、`price` 沒有的補行交易日，`price` 要重新請求
+
+    `price` 自己就是交易日曆，母集合只能是平日；沒有這條，被刪掉的補行交易日
+    （例如 2017-06-03）永遠不會再被請求，只能手動重爬。
+    """
+
+    monkeypatch.setattr(date_planner_module, "DOWNLOADS_METADATA_DIR_PATH", tmp_path)
+
+    conn = sqlite3.connect(tmp_path / "test.db")
+    make_table(conn, ["2017-06-02"])  # 週五有、週六補行交易日缺
+    conn.execute("CREATE TABLE chip (date TEXT, stock_id TEXT)")
+    conn.executemany(
+        "INSERT INTO chip VALUES (?, '2330')", [("2017-06-02",), ("2017-06-03",)]
+    )
+    conn.commit()
+
+    requested: List[datetime.date] = []
+
+    def crawl(date: datetime.date) -> CrawlResult:
+        requested.append(date)
+        return CrawlResult.no_data("站方回覆查無資料")
+
+    updater = StockPriceUpdater.__new__(StockPriceUpdater)  # 跳過 __init__ 的連線
+    updater.conn = conn
+    updater.crawler = SimpleNamespace(crawl_twse_price=crawl, crawl_tpex_price=crawl)
+    updater.loader = SimpleNamespace(add_to_db=lambda **_: None)
+    updater.BATCH_RANDOM_DELAY_MIN = 0
+    updater.BATCH_RANDOM_DELAY_MAX = 0
+
+    updater.update(
+        start_date=datetime.date(2017, 6, 1), end_date=datetime.date(2017, 6, 4)
+    )
+
+    # 06-01（四）不在表內、06-03（六）由 chip 補回；06-04（日）沒有任何表有
+    assert sorted(set(requested)) == [
+        datetime.date(2017, 6, 1),
+        datetime.date(2017, 6, 3),
+    ]
+    conn.close()
+
+
+def test_weekend_dates_ignore_missing_tables(tmp_path: Path) -> None:
+    """來源表不存在時視為沒有週末日期，不可拋錯（margin 表可能還沒建）"""
+
+    conn = sqlite3.connect(tmp_path / "test.db")
+
+    assert (
+        DatePlanner.get_weekend_dates(
+            conn,
+            ["chip", "margin"],
+            datetime.date(2017, 6, 1),
+            datetime.date(2017, 6, 4),
+        )
+        == set()
+    )
     conn.close()
 
 

@@ -95,11 +95,12 @@ class FinancialStatementCrawler(BaseDataCrawler):
             "equity_changes": [],
         }
 
-        df_dict["balance_sheet"].extend(self.crawl_balance_sheet(year, season))
+        # 三張全市場報表在任一市場失敗時會回 None，不能直接 extend
+        df_dict["balance_sheet"].extend(self.crawl_balance_sheet(year, season) or [])
         df_dict["comprehensive_income"].extend(
-            self.crawl_comprehensive_income(year, season)
+            self.crawl_comprehensive_income(year, season) or []
         )
-        df_dict["cash_flow"].extend(self.crawl_cash_flow(year, season))
+        df_dict["cash_flow"].extend(self.crawl_cash_flow(year, season) or [])
         # 權益變動表查無資料或站方過載時會回 None，不能直接 extend
         equity_changes: Optional[List[pd.DataFrame]] = self.crawl_equity_changes(
             year, season, stock_id
@@ -122,33 +123,10 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
         logger.info(f"* Start crawling balance sheet: {year}/Q{season}")
 
-        roc_year: str = TimeUtils.convert_ad_to_roc_year(year)
-
-        self.payload.year = roc_year
-        self.payload.season = season
-
         balance_sheet_url: str = URLManager.get_url("BALANCE_SHEET_URL")
-        df_list: List[pd.DataFrame] = []
-
-        for listing_board in self.listing_boards:
-            self.payload.TYPEK = listing_board.value
-
-            try:
-                res: Optional[requests.Response] = RequestUtils.requests_post(
-                    balance_sheet_url, data=self.payload.convert_to_clean_dict()
-                )
-            except Exception:
-                logger.warning(f"Cannot get balance sheet at {year}Q{season}")
-                continue
-
-            try:
-                dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
-                df_list.extend(dfs)
-            except Exception:
-                logger.warning("No tables found")
-                continue
-
-        return df_list
+        return self._crawl_listing_boards(
+            balance_sheet_url, "balance sheet", year, season
+        )
 
     def crawl_comprehensive_income(
         self,
@@ -164,35 +142,10 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
         logger.info(f"* Start crawling comprehensive income: {year}/Q{season}")
 
-        roc_year: str = TimeUtils.convert_ad_to_roc_year(year)
-
-        self.payload.year = roc_year
-        self.payload.season = season
-
         income_url: str = URLManager.get_url("INCOME_STATEMENT_URL")
-        df_list: List[pd.DataFrame] = []
-
-        for listing_board in self.listing_boards:
-            self.payload.TYPEK = listing_board.value
-
-            try:
-                res: Optional[requests.Response] = RequestUtils.requests_post(
-                    income_url, data=self.payload.convert_to_clean_dict()
-                )
-            except Exception:
-                logger.warning(
-                    f"Cannot get statement of comprehensive income at {year}Q{season}"
-                )
-                continue
-
-            try:
-                dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
-                df_list.extend(dfs)
-            except Exception:
-                logger.warning("No tables found")
-                continue
-
-        return df_list
+        return self._crawl_listing_boards(
+            income_url, "comprehensive income", year, season
+        )
 
     def crawl_cash_flow(
         self,
@@ -208,31 +161,72 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
         logger.info(f"* Start crawling cash flow: {year}/Q{season}")
 
-        roc_year: str = TimeUtils.convert_ad_to_roc_year(year)
-
-        self.payload.year = roc_year
-        self.payload.season = season
-
         cash_flow_url: str = URLManager.get_url("CASH_FLOW_STATEMENT_URL")
+        return self._crawl_listing_boards(cash_flow_url, "cash flow", year, season)
+
+    def _crawl_listing_boards(
+        self,
+        url: str,
+        label: str,
+        year: int,
+        season: int,
+    ) -> Optional[List[pd.DataFrame]]:
+        """
+        - Description:
+            逐市場（上市、上櫃）查詢同一張全市場報表；**任一市場失敗即回 `None`**
+
+            只回傳問到的那個市場的話，updater 會把半份年季清洗入庫，看起來一切正常
+            ——資產負債表 2021Q1 整季缺、綜合損益表 2021Q1 上櫃只剩 3 檔、現金流量表
+            2024Q1 上市只剩 1 檔都是這樣來的。三張報表的逐市場迴圈原本各寫一份，
+            收斂在這裡以免判準再度漂移。
+
+            解析不出表格同樣算失敗而不是「沒資料」：兩個市場自 2013 年起都有申報，
+            拿不到表格代表拿到了非預期的頁面（尚未公布、站方異常），留待下次重試。
+        - Parameters:
+            - url: str
+                報表端點
+            - label: str
+                報表名稱，只用於訊息
+            - year: int
+                西元年
+            - season: int
+                季別
+        - Return:
+            - Optional[List[pd.DataFrame]]
+                兩個市場的所有表格；任一市場失敗時為 None
+        """
+
+        self.payload.year = TimeUtils.convert_ad_to_roc_year(year)
+        self.payload.season = season
         df_list: List[pd.DataFrame] = []
 
         for listing_board in self.listing_boards:
             self.payload.TYPEK = listing_board.value
+            market: str = f"{label} {year}Q{season} {listing_board.value}"
 
             try:
                 res: Optional[requests.Response] = RequestUtils.requests_post(
-                    cash_flow_url, data=self.payload.convert_to_clean_dict()
+                    url, data=self.payload.convert_to_clean_dict()
                 )
-            except Exception:
-                logger.warning(f"Cannot get cash flow statement at {year}Q{season}")
-                continue
+            except Exception as error:
+                logger.warning(
+                    f"Cannot get {market}（{type(error).__name__}: {error}）；"
+                    f"整季視為失敗"
+                )
+                return None
+
+            if res is None:
+                logger.warning(f"Cannot get {market}；整季視為失敗")
+                return None
 
             try:
-                dfs: List[pd.DataFrame] = pd.read_html(StringIO(res.text))
-                df_list.extend(dfs)
-            except Exception:
-                logger.warning("No tables found")
-                continue
+                df_list.extend(pd.read_html(StringIO(res.text)))
+            except Exception as error:
+                logger.warning(
+                    f"No tables found in {market}（{type(error).__name__}）；"
+                    f"整季視為失敗"
+                )
+                return None
 
         return df_list
 
