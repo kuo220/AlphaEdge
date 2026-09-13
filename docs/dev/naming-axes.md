@@ -112,10 +112,18 @@ F-007——**欄位 Enum 是資料表 schema 的一部分**，該下沉到 `core
 （歸 [PostgreSQL遷移計畫](../../backlog/PostgreSQL遷移計畫.md) Phase2-3）。
 先搬到 `tw/` 等於搬兩次，且會與那批改動撞在同一批檔案上。
 
-**同層還有一處未收的洩漏**：`core/pipeline/shared/payload.py` 的 `TYPEK` 欄位是公開
-資訊觀測站專屬參數。它只被 `financial_statement_crawler.py` 一支使用，**但整個 dataclass
-的其餘欄位是通用 HTTP payload**，拆或不拆要連同 `Payload` 的定位一起決定，
-故本次不動。
+**同層的 `shared/payload.py` 也已收斂（2026-09-13）**：原本以為只有 `TYPEK` 是公開資訊
+觀測站專屬、其餘欄位是通用 HTTP payload，故暫緩。**這個前提不成立**——`firstin`／`step`／
+`co_id`／民國年 `year`／`season` 全是公開資訊觀測站的表單參數，整個 dataclass 沒有通用欄位，
+且全專案只有 `financial_statement_crawler.py` 一支使用。已搬到
+`core/pipeline/tw/utils/mops_payload.py`，檔名直接承載來源。
+
+盤點 `shared/` 時看到、但**刻意不搬**的兩處台股痕跡：
+
+- `BaseDataCrawler.NO_DATA_MARKERS` 是 TWSE／TPEX 的「查無資料」措辭——它是 class 屬性，
+  未來 `us/` 的子類直接覆寫即可，不構成反向相依。
+- `BaseDataLoader.create_symbol_date_index()` 寫死 `stock_id` 欄——跟著下方遺留表的
+  `stock_id` → `symbol` 改名一起處理。
 
 ## 遺留與後續
 

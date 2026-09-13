@@ -4,7 +4,7 @@ from typing import Dict, Optional
 
 @dataclass
 class Payload:
-    """HTTP payload 結構"""
+    """公開資訊觀測站（MOPS）查詢表單的 HTTP payload 結構"""
 
     firstin: Optional[str] = "1"  # default: 1
     step: Optional[str] = "1"  # default: 1

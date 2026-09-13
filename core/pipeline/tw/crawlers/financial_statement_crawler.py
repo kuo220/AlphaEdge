@@ -14,8 +14,8 @@ from core.config import (
     FINANCIAL_STATEMENT_META_DIR_PATH,
 )
 from core.pipeline.shared.base_crawler import BaseDataCrawler
-from core.pipeline.shared.payload import Payload
 from core.pipeline.shared.request_utils import RequestUtils
+from core.pipeline.tw.utils.mops_payload import Payload
 from core.pipeline.tw.utils.url_manager import URLManager
 from core.pipeline.utils import FinancialStatementType, ListingBoard
 from core.pipeline.utils.data_utils import DataUtils

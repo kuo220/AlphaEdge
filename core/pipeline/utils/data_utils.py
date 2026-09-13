@@ -1,7 +1,7 @@
 import json
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from loguru import logger
@@ -55,7 +55,7 @@ class DataUtils:
         return df
 
     @staticmethod
-    def pad2(n: int | str) -> str:
+    def pad2(n: Union[int, str]) -> str:
         """將數字補足為兩位數字字串"""
         return str(n).zfill(2)
 
@@ -308,7 +308,7 @@ class DataUtils:
     def remove_duplicate_rows(
         df: pd.DataFrame,
         subset: List[str],
-        keep: str | bool = "first",
+        keep: Union[str, bool] = "first",
     ) -> Optional[pd.DataFrame]:
         """
         - Description:
@@ -319,7 +319,7 @@ class DataUtils:
                 要處理的資料表
             - subsets: List[str]
                 用來判斷重複的欄位名稱列表（例如 ["year", "month", "stock_id", "公司名稱"]）
-            - keep: str | bool
+            - keep: Union[str, bool]
                 要保留哪一筆重複資料：
                     - "first": 保留第一筆（預設）
                     - "last": 保留最後一筆
