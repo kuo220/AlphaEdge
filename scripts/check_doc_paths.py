@@ -54,11 +54,18 @@ _HISTORICAL_DOCS: Set[str] = {
 _NARRATIVE: Set[Tuple[str, str]] = {
     ("docs/dev/runtime-artifacts.md", "core/config.py"),
     ("backlog/PostgreSQL遷移計畫.md", "core/config.py"),
-    # 本檢查誕生的那份 backlog：表格裡列的就是「文件寫的舊路徑」
-    ("backlog/健檢第三輪收斂.md", "core/config.py"),
-    ("backlog/健檢第三輪收斂.md", "core/pipeline/loaders/stock_tick_loader.py"),
-    # S4 的完成紀錄要講「舊路徑改成了什麼」，舊路徑必然是主詞
-    ("backlog/健檢第三輪收斂.md", "core/pipeline/utils/url_manager.py"),
+    # 本檢查誕生的那份健檢紀錄：表格裡列的就是「文件寫的舊路徑」，
+    # S4 的完成紀錄也要講「舊路徑改成了什麼」，舊路徑必然是主詞。
+    # 2026-09-13 該文件由 `backlog/健檢第三輪收斂.md` 移入 `docs/dev/`
+    ("docs/dev/health-check-round3-2026-09.md", "core/config.py"),
+    (
+        "docs/dev/health-check-round3-2026-09.md",
+        "core/pipeline/loaders/stock_tick_loader.py",
+    ),
+    (
+        "docs/dev/health-check-round3-2026-09.md",
+        "core/pipeline/utils/url_manager.py",
+    ),
     ("backlog/index.md", "core/config.py"),
 }
 

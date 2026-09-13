@@ -1,8 +1,20 @@
-# 健檢第三輪收斂
+# 健檢第三輪收斂（2026-09 完成紀錄）
+
+> **本文件是第三輪健檢的完成紀錄**，原為 `backlog/健檢第三輪收斂.md`，
+> 五個步驟全數完成後於 2026-09-13 依
+> [`manage-backlog` 規範 §5](../../.claude/skills/manage-backlog/SKILL.md#5-完成後的處理)
+> 移入 `docs/`。前兩輪見 [全專案架構與邏輯健檢](health-check-2026-09.md)
+> 與 2026-09-04 的「健檢殘留項目收斂」（已結案移出）。
+>
+> **留著的原因是三個判斷，它們在程式碼裡看不到全貌**：
+> `check_doc_paths.py` 的誤報判準（第一版報 53 處、絕大多數是誤報）、
+> `core/config.py` 拆套件後 11 處引用的分派對照、以及
+> 「同一個檔案有別人的未提交變更時，怎麼只提交自己的修改」那個 git 作法。
+> 本輪留下的三支檢查腳本在 `scripts/`，它們才是可執行的護欄。
 
 ## Abstract
 
-- **背景／問題**：2026-09-05 對全 repo 做第三輪掃描（前兩輪為 [全專案架構與邏輯健檢（2026-09-02）](../docs/dev/health-check-2026-09.md) 與 2026-09-04 的「健檢殘留項目收斂」，後者六條已全數結案移出）。本輪抓到 5 條，其中**唯一的功能性 bug 是 `StockBacktestAnalyzer` 的四個交易統計沒有防零除**——零筆交易時四個全炸、零虧損筆數時兩個炸，而**同一個類別裡的 `compute_average_holding_days()` 卻有防護**，證明是疏漏而非設計。其餘四條是無主的死介面、殘留在版控裡的 3.3 MB 研究產物、文件路徑漂移，以及前兩輪列為 C 級但至今無人接手的四項。
+- **背景／問題**：2026-09-05 對全 repo 做第三輪掃描（前兩輪為 [全專案架構與邏輯健檢（2026-09-02）](health-check-2026-09.md) 與 2026-09-04 的「健檢殘留項目收斂」，後者六條已全數結案移出）。本輪抓到 5 條，其中**唯一的功能性 bug 是 `StockBacktestAnalyzer` 的四個交易統計沒有防零除**——零筆交易時四個全炸、零虧損筆數時兩個炸，而**同一個類別裡的 `compute_average_holding_days()` 卻有防護**，證明是疏漏而非設計。其餘四條是無主的死介面、殘留在版控裡的 3.3 MB 研究產物、文件路徑漂移，以及前兩輪列為 C 級但至今無人接手的四項。
 - **目標**：analyzer 六個統計在任何交易組合下都有定義良好的回傳值；`core/api/` 沒有零呼叫零測試的公開方法；`strategy_lab/` 不再有自動產生的二進位檔在版控；文件裡指得到的路徑都真的存在；四條 C 級各自結清或明確標為不做。
 - **範圍界線**：**不動 `core/pipeline/tw/{cleaners,crawlers,updaters}/financial_statement_*.py`、`core/pipeline/shared/`、`docs/pipeline/*.md`、`docs/futures/tw-futures-platform.md` 與 `requirements.txt`**——權益變動表的整段回補正在跑（2026-09-04 11:38 起），這些檔案有未提交的變更（**2026-09-13 更新：回補已於 09-11 06:16 完成、該條線已結案並提交，這半邊的封鎖解除**）；**不對 `data/db/tw_stock.db` 做任何寫入**（含 `CREATE INDEX`，見 S5）。不改 reporter 的統計邏輯（已驗證安全）、不動 `core/api/` 那 12 個「只有測試在呼叫」的方法（它們是策略作者的公開介面，本來就不該有 `core/` 內部呼叫端）。
 - **驗收標準**：`pytest -m "not slow"` 全綠；`./scripts/run_regression.sh` 通過（本份工作預期**零數值變動**，S1 只補防護不改既有算式）；`python scripts/check_layer_deps.py` 結束碼 0；`git ls-files strategy_lab | grep -E '\.(docx|html)$'` 為空；文件路徑檢查腳本回報 0 個「搬過家卻沒更新」的引用。
@@ -137,7 +149,7 @@
 >
 > 九個**全數選 (A) 補測試**，沒有刪任何一個。判準是形狀都合理（單檔取區間、
 > 單日取值），且其中兩個原本就被文件指名為正式路徑：
-> `calculate_stock_futures_margin()` 寫在 [台期貨保證金ETL](台期貨保證金ETL.md) S5、
+> `calculate_stock_futures_margin()` 寫在 [台期貨保證金ETL](../../backlog/台期貨保證金ETL.md) S5、
 > `get_last_tick()` 寫在 `strategy_lab/README.md` 的範例裡。
 >
 > `tests/test_api_public_interfaces.py` 15 條，一律以 in-memory SQLite 灌樣本、
@@ -219,7 +231,7 @@
 - **哪些不算問題（掃描時要排除）**：`backlog/美股ETL與回測架構規劃.md` 的 `core/api/us/*`、
   `backlog/PostgreSQL遷移計畫.md` 的 `core/db/connection.py`、
   `backlog/前端指標與報表同源化.md` 的 `frontend/services/metrics.py` 都是**規劃中的未來檔案**，
-  （後者已於 2026-09-09 實作完成，該文件移至 [`docs/frontend/report-metrics.md`](../docs/frontend/report-metrics.md)）
+  （後者已於 2026-09-09 實作完成，該文件移至 [`docs/frontend/report-metrics.md`](../frontend/report-metrics.md)）
   指不到是正常的。只寫檔名不寫目錄的簡稱（`` `factory.py` ``）也不算——那是行文，不是連結。
 - **注意**：**`docs/futures/tw-futures-platform.md` 佔了 11 種中的 9 種，但該檔正被另一個 session
   修改且尚未提交**（權益變動表那條線）。動它之前必須先確認那邊已提交，否則會衝突。
@@ -249,7 +261,7 @@
 > 四處引用**全部都是「當時那一檔如何如何」的完成紀錄**（FinMind S8 的驗收方式、
 > 健檢附錄的舉例），與 `health-check-2026-09.md` 同性質，改掉會讓紀錄失真。
 > 它們在 S8 時改名為 `manual_*`，檔案還在（**2026-09-10 已由
-> [測試護欄](測試護欄與本機CI容器一致性.md) S4 從 `tests/` 搬到 `scripts/manual/`**）。
+> [測試護欄](../../backlog/測試護欄與本機CI容器一致性.md) S4 從 `tests/` 搬到 `scripts/manual/`**）。
 >
 > **掃描腳本留成 `scripts/check_doc_paths.py`**。⚠️ **第一版報 53 處，絕大多數是誤報**——
 > 真訊號會被淹掉，所以判準比原先設想的複雜，三種情況都不算漂移：
@@ -339,7 +351,7 @@
   **但這條會自己好**：`BaseDataLoader.create_symbol_date_index()` 已經寫好，
   且四張表的 loader 都在 `create_missing_tables()` 裡呼叫它（`IF NOT EXISTS`），
   只是 `margin`／`dividend` 最近沒跑過更新所以還沒建。
-  下一次 `--target margin`（[爬蟲缺口回補](爬蟲缺口回補與非交易日批次清理.md) S3 已排定）就會補上。
+  下一次 `--target margin`（[爬蟲缺口回補](../../backlog/爬蟲缺口回補與非交易日批次清理.md) S3 已排定）就會補上。
   **本輪不主動建索引**——`CREATE INDEX` 會對 5.7 M 列的表取寫鎖數秒，
   而權益變動表的整段回補正在寫同一個 `tw_stock.db`。
   另：回測熱路徑用的是 `get_short_balance_map(date)`（單日全市場，實測 5.8 ms），**不受影響**。
@@ -397,7 +409,7 @@
 | `zip()` 未指定 `strict`（19 處） | **全部安全**。逐處判讀：多數是同一個 `DataFrame` 的兩個欄位（長度必然相同）；`stock_chip_cleaner.py` 三處已有 `check_column_count()` 護欄（F-038 的修正）；`risk_metrics.compute_period_returns()` 的 `zip(curve, curve[1:])` 是刻意錯位；`stock_tick_utils.py` 的 `zip(API_KEYS, API_SECRET_KEYS)` 兩者皆由 `range(NUM_API)` 產生，長度恆等 |
 | 「無斷言測試」9 個 | **全部合法**。`test_short_regression.py` 三條的斷言在共用的 `assert_matches_snapshot()` 裡（AST 掃描看不進被呼叫的 helper）；其餘六條是「不得拋出」型測試，docstring 都明講（例如「既有資料庫再跑一次不會出錯」「全部成功時不得拋出」）。**昨天掛進 CI 的 SHORT 回歸線是有牙齒的** |
 | 金鑰處理 | **乾淨**。版控中只有 `.env.example`；`.gitignore` 有 `.env`／`.env.*`／`!.env.example`；無硬寫憑證樣式；無任何 `logger.*` 會印出金鑰 |
-| 環境變數一致性 | 程式讀 10 個、`.env.example` 宣告 10 個，差異只有兩條且**都已被追蹤**：`ALPHAEDGE_BACKTEST_RESULTS`（前端）vs `ALPHAEDGE_RESULTS_DIR`（core）是 F-083，在 [前端指標與報表同源化](../docs/frontend/report-metrics.md) S2（**2026-09-09 已完成**）；`LINE_CHANNEL_ACCESS_TOKEN` 在 F-096，於 [測試護欄](測試護欄與本機CI容器一致性.md) S6 |
+| 環境變數一致性 | 程式讀 10 個、`.env.example` 宣告 10 個，差異只有兩條且**都已被追蹤**：`ALPHAEDGE_BACKTEST_RESULTS`（前端）vs `ALPHAEDGE_RESULTS_DIR`（core）是 F-083，在 [前端指標與報表同源化](../frontend/report-metrics.md) S2（**2026-09-09 已完成**）；`LINE_CHANNEL_ACCESS_TOKEN` 在 F-096，於 [測試護欄](../../backlog/測試護欄與本機CI容器一致性.md) S6 |
 | 回測引擎覆蓋率 | **良好**。`models/`：cost 91%、fill 88%、settlement 93%、sizing 96%、instrument_spec 93%；`managers/`：stock 96%、futures 95%、base 88%；`core/models/` 多為 93~100%。全專案 `core`＋`tasks` 總覆蓋率 **64%** |
 | reporter 的統計除零 | **安全**。`get_direction_summary()` 走 `groupby`（不產生空組）且函式開頭有空表早退。與 S1 的 analyzer 是兩條不同路徑 |
 | `print()` 擴散 | **沒有擴散**。全 `core/` 共 14 處，全部集中在 Shioaji／tick 舊叢集（`utils/account.py` 5、`utils/callback.py` 3、`api/tw/stock_tick_api.py` 3、`loaders/stock_tick_loader.py` 2、`utils/stock_tick_utils.py` 1），與 `CLAUDE.md` §2.9 記錄的既有例外一致。**2026-09-10 複查為 15 處**，多的那一處在同一個舊叢集內，未擴散到新程式碼 |
