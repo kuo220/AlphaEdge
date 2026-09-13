@@ -16,6 +16,7 @@ from core.config import (
     STOCK_FUTURES_MARGIN_RATE_HISTORY_TABLE_NAME,
 )
 from core.pipeline.tw.loaders.futures_chip_loader import FuturesChipLoader
+from core.pipeline.tw.updaters.futures_chip_updater import FuturesChipUpdater
 
 """
 「表還沒建」與「查詢失敗」必須分得開（健檢第四輪 S1，與 F-056 同型）
@@ -245,3 +246,34 @@ def test_margin_api_returns_none_when_table_missing(tmp_path: Path) -> None:
         product="臺股期貨", date=datetime.date(2026, 9, 1)
     )
     assert result is None
+
+
+# -----------------------------------------------------------------------
+# === 首次更新（表還沒建）必須走得完 ===
+# -----------------------------------------------------------------------
+
+
+def test_updater_falls_back_to_default_start_when_table_missing(
+    chip_loader: FuturesChipLoader,
+) -> None:
+    """
+    表還沒建時，續跑起點退回 `DEFAULT_START_DATE`——這是全新環境的正常路徑
+
+    修 S1 時最容易連帶改壞的就是這條：把「表不存在」也改成拋例外，
+    剛 clone 的機器第一次跑 `--target futures_chip` 就會當場失敗。
+
+    **只組出 `loader` 而不走 `__init__`**：`FuturesChipUpdater.setup()` 會一併建
+    crawler、cleaner 與 `FuturesPriceAPI`（連正式的 `tw_futures.db`），
+    而本測試要驗的只有 `resolve_start_date()` 這一個純決策。
+    """
+
+    updater: FuturesChipUpdater = FuturesChipUpdater.__new__(FuturesChipUpdater)
+    updater.loader = chip_loader
+
+    start: datetime.date = updater.resolve_start_date(
+        table=FUTURES_INSTITUTIONAL_CHIP_TABLE_NAME,
+        start_date=None,
+        resume=True,
+    )
+
+    assert start == FuturesChipUpdater.DEFAULT_START_DATE
