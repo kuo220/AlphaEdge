@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 from loguru import logger
@@ -28,6 +28,27 @@ class FinancialStatementCleaner(BaseDataCleaner):
     ]
     # 來源表左上角的固定字樣，用來認出「這張是報表」而非頁面上的公告文字表格
     EQUITY_CHANGE_HEADER_CELL: str = "會計項目"
+    # 各季在 MOPS 版面上的期別標籤。**只有 Q1 是「第N季」**，其餘三季用的是
+    # 累計期間的說法（2026-09-03 以 2330 逐季實查）：
+    #
+    # | 季別 | 實際標籤 |
+    # |:----:|----------|
+    # | Q1 | 民國109年第1季 |
+    # | Q2 | 民國109年上半年度 |
+    # | Q3 | 民國109年前3季 |
+    # | Q4 | 民國109年度 |
+    #
+    # 原本寫死成 `f"民國{roc_year}年第{season}季"`，於是 Q2~Q4 一律比對不到而回空表——
+    # 2026-09-03 的 2020Q2 全市場回補因此打了 2,087 次請求、跑 1.5 小時、
+    # 入庫 0 列，且統計行三個數字都正常、結束碼 0。
+    # 每季留一組候選（把「第N季」也列為可接受）是為了措辭調整時不再整季空轉；
+    # 本期與去年同期仍由「民國{roc_year}年」前綴區分，故多列幾個候選不會抓錯期別
+    EQUITY_CHANGE_PERIOD_LABELS: Dict[int, Tuple[str, ...]] = {
+        1: ("民國{roc_year}年第1季",),
+        2: ("民國{roc_year}年上半年度", "民國{roc_year}年第2季"),
+        3: ("民國{roc_year}年前3季", "民國{roc_year}年第3季"),
+        4: ("民國{roc_year}年度", "民國{roc_year}年第4季"),
+    }
 
     def __init__(self):
         super().__init__()
@@ -409,10 +430,30 @@ class FinancialStatementCleaner(BaseDataCleaner):
     def select_equity_changes_period_table(
         self, df_list: List[pd.DataFrame], year: int, season: int
     ) -> Optional[pd.DataFrame]:
-        """從權益變動表頁面的表格中挑出「本期」那一張，找不到則回傳 None"""
+        """
+        - Description:
+            從權益變動表頁面的表格中挑出「本期」那一張，找不到則回傳 None
+
+            同一頁還附了去年同季的比較表，版面與本期表一模一樣，只有 column
+            第一層的期別標籤能區分（見 `EQUITY_CHANGE_PERIOD_LABELS`）。
+
+            **比對不到一律回 None，不做退而求其次的 fallback**：抓錯會把去年的
+            數字記成今年，而長表的主鍵相同，錯的那份會安靜地佔住正確資料的位置。
+        - Parameters:
+            - df_list: List[pd.DataFrame]
+                該頁的所有表格
+            - year / season: int
+                要取的年季
+        - Return:
+            - Optional[pd.DataFrame]
+                本期那張表；比對不到為 None
+        """
 
         roc_year: str = TimeUtils.convert_ad_to_roc_year(year)
-        period_label: str = f"民國{roc_year}年第{season}季"
+        period_labels: Tuple[str, ...] = tuple(
+            template.format(roc_year=roc_year)
+            for template in self.EQUITY_CHANGE_PERIOD_LABELS[season]
+        )
 
         for df in df_list:
             if df.empty or df.shape[1] < 2:
@@ -423,7 +464,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
                 continue
 
             label: str = str(df.columns[0][0]).replace(" ", "")
-            if label == period_label:
+            if label in period_labels:
                 return df
 
         return None

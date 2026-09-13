@@ -310,11 +310,17 @@ class FinancialStatementCrawler(BaseDataCrawler):
                     try:
                         return pd.read_html(StringIO(res.text))
                     except ValueError:
-                        # 既非「查無資料」也非過載，卻解不出表格：版面可能已改制
+                        # 既非「查無資料」也非過載，卻解不出表格：版面可能已改制。
+                        # **回 None（待重試）而不是 []（確定沒有資料）**——站方真的
+                        # 沒資料時會回明確訊息，上面已經攔下了；解析不出來代表拿到
+                        # 非預期的頁面，那是要人看的狀況。回 [] 會讓這檔被寫進
+                        # 「查無資料」永久名單，從此不再被嘗試（判準見
+                        # `BaseDataCrawler` 的三態說明）
                         logger.warning(
-                            f"No tables found on equity changes {stock_id} {year}Q{season}"
+                            f"No tables found on equity changes {stock_id} "
+                            f"{year}Q{season}；計為待重試，不當成查無資料"
                         )
-                        return []
+                        return None
 
             # 走到這裡代表站方過載或連線失敗，等一下再試同一檔
             if attempt < self.EQUITY_CHANGE_MAX_RETRIES - 1:

@@ -37,7 +37,7 @@ CSV，程序中斷後資料庫仍是 0 列。
 | `StockDividendUpdater` | 全部跑完 | **每次都掃整個區間**（一年一次請求，13 年僅 26 次） | `INSERT OR REPLACE` | `DataLoadError` |
 | `MonthlyRevenueReportUpdater` | 全部跑完 | DB 最大年月 +1 | 先查既有鍵再過濾 | `DataLoadError` |
 | `FinancialStatementUpdater`（前三張報表） | 每種報表一次 | 各表最大年季 +1 | `INSERT OR IGNORE` | `DataLoadError` |
-| `FinancialStatementUpdater`（equity_change） | **每 100 檔** | 逐年季查已入庫的 `stock_id` | `INSERT OR IGNORE` | `DataLoadError` |
+| `FinancialStatementUpdater`（equity_change） | **每 100 檔** ＋ 收到中止訊號時 | **差集**（表內已有 ＋ `SeasonProgressStore`） | `INSERT OR IGNORE` | `DataLoadError`（整段跑完才拋） |
 | `FinMindUpdater`（broker_trading） | 逐組合、每 50 組 commit | metadata ＋ DB | 先查既有鍵再過濾 | `DataLoadError` |
 | `StockTickUpdater` | 全部跑完 | 固定起日 ＋ `tick_metadata.json` | **無**（`keepDuplicates=ALL`） | `DataLoadError` |
 | `FuturesPriceUpdater` | **每 100 天** | 逐**商品**查該商品在表內的最新 `date` +1 | `INSERT OR IGNORE` | `DataLoadError` |
@@ -95,6 +95,20 @@ CSV，程序中斷後資料庫仍是 0 列。
 同一等級，所以入庫時機與 resume 依據都得比照它們，而不是比照同一支 updater 裡的另外三張報表。
 Resume 尤其不能沿用「表最大年季 +1」：一個年季爬到一半中斷時，該年季已經有資料，
 會被判定為已完成而整季跳過，沒爬到的公司永遠補不回來。
+
+**它也是唯一「中斷是常態」的來源**（整段回補十萬次請求、數十小時），故另外有三件
+逐日來源不需要的機制，實作見 `core/pipeline/shared/graceful_stop.py` 與
+`season_planner.py` 的模組說明：
+
+| 機制 | 沒有它會發生什麼 |
+|------|------------------|
+| `GracefulStop`：訊號只立旗標，本檔跑完才收工 | `KeyboardInterrupt` 從當下那行炸出去，記憶體裡等湊滿一批的最多 100 檔全部作廢 |
+| `SeasonProgressStore`：「年季 × 個股」的 `no_data`／`incomplete` | 查無資料的公司在表裡不留列，與「還沒爬」無法區分，每次重跑重打（2020Q1 是 343 檔、16%） |
+| 磁碟 CSV 對帳 | 「CSV 已落地、尚未入庫」時被中止，那批的請求成本白付 |
+
+`no_data` 的寫入條件是**該年季的申報期已關閉**（各行業最晚期限 ＋ 30 天寬限），
+與逐日來源「當天（含未來）不寫入」同源：財報逐家公司申報，申報期間的「查無資料」
+多半只代表那家還沒送件，這時寫進永久名單，它送件之後再也不會被抓。
 
 **期貨的 updater 寫的是 `tw_futures.db` 不是 `tw_stock.db`**（主鍵語意不同，見
 `futures_price_loader` 的說明）。`FuturesPriceUpdater` 的 resume **以商品為單位而非
@@ -162,7 +176,7 @@ loader **每次都掃整個 `downloads/` 目錄**，已入庫的檔案必然會�
 
 ---
 
-## 四、五次事故與其教訓
+## 四、六次事故與其教訓
 
 這一節記錄**實際發生過**的問題。它們的價值不在歷史，而在於後續實作者若不知道會重蹈覆轍。
 
@@ -223,6 +237,26 @@ log 也沒有任何錯誤——只有一行 `first 30 stocks have no data` 語�
 補上 `N requested, N no data, N unreachable` 之後，同樣的異常在當下就看得出來。
 
 ---
+
+### 4.6 兩千次請求、零列入庫，統計行三個數字全都正常
+
+2026-09-03 的 `equity_change` 2020Q2 全市場回補打了 2,087 次請求、跑 1 小時 28 分，
+收尾印的是 `2087 requested, 244 no data, 0 unreachable`、結束碼 0、沒有任何 ERROR——
+而**資料庫實際入庫 0 列**。1,843 檔有資料的公司全部在清洗階段變成空表。
+
+根因是 cleaner 把本期表的標籤寫死成 `f"民國{roc_year}年第{season}季"`，
+但 MOPS 只有 Q1 用「第N季」，Q2／Q3／Q4 分別是**上半年度／前3季／年度**。
+照那個版本跑完整段回補，54 個年季裡只有 14 個 Q1 會有資料，其餘 40 季全部空轉。
+
+**教訓一：統計行要數到最後一層，不能只數請求層。** 那三個數字全部來自「送出請求
+之後拿到什麼」，而失敗發生在下一層。修法是補上 `cleaned empty`
+（現在是 `N requested / N ok / N no data / N unreachable / N cleaned empty`），
+並讓它非 0 時就升為 warning。§4.5 的延伸教訓「每批結束要留一行統計」在這裡進了一步：
+**那一行要涵蓋到「真的產出資料了嗎」，不是「請求成功了嗎」**。
+
+**教訓二：跨期間的來源要逐期間實查，不能只驗一個期間就推廣。** 2020Q1 之所以成功，
+純粹因為它是 Q1；當時的單元測試 fixture 也全是 Q1，於是測試與實跑同時漏掉同一件事。
+現行測試改為四季各一條標籤比對，外加「不得誤取去年同期」與「補齊標籤不得放寬年份」。
 
 ## 五、健檢 C 級結論（2026-09-02）
 
