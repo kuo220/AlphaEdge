@@ -57,6 +57,9 @@ _NARRATIVE: Set[Tuple[str, str]] = {
     # 本檢查誕生的那份 backlog：表格裡列的就是「文件寫的舊路徑」
     ("backlog/健檢第三輪收斂.md", "core/config.py"),
     ("backlog/健檢第三輪收斂.md", "core/pipeline/loaders/stock_tick_loader.py"),
+    # S4 的完成紀錄要講「舊路徑改成了什麼」，舊路徑必然是主詞
+    ("backlog/健檢第三輪收斂.md", "core/pipeline/utils/url_manager.py"),
+    ("backlog/index.md", "core/config.py"),
 }
 
 # 已知待修但暫時擋住的檔案。**解除封鎖後要連同條目一起刪掉**——
