@@ -138,7 +138,7 @@
 > | `scripts/dataframe_dot_to_bracket.py` | **刪除**。`parents[2]` 是專案的上一層，`main()` 就地改寫且無 dry-run／備份，誤跑會遞迴改寫同層所有專案 |
 > | `scripts/generate_docs.py` | **刪除**。死碼：只 print 不產檔，`api_dir` 還指著搬走前的 `core/api` |
 > | `scripts/clean_pycache.ps1` | **修**。往上兩層改一層，與同目錄的 `.sh` 版一致 |
-> | `tasks/migrate_db_naming.py` | **搬** `scripts/migrations/` |
+> | `tasks/migrate_db_naming.py` | **搬** `scripts/migrations/`（**2026-09-13 已整支刪除**，一次性遷移執行完畢，git 歷史仍在） |
 > | `tests/manual_*.py`（9 支） | **搬** `scripts/manual/` ＋ README |
 >
 > **搬 `manual_*` 的效果可以量化**：`tests/` 的 `return False` 由 **19 降為 2**
