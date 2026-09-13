@@ -16,7 +16,7 @@
 | S3 | 入口退出碼與 `--mode live` | `run.py`、`tests/test_run_entry.py`（新增） | subprocess 測試：找不到策略 exit 2；`live` 明確 `NotImplementedError` | ✅ | **2026-09-10 完成**（`0138ca6`）：策略找不到 0 → 2 且訊息改走 stderr、`--mode live` 0 → 1；8 條 subprocess 測試，實測修正前 7 條會失敗 |
 | S4 | 一次性腳本清理與 `tests/manual_*` 搬家 | `scripts/dataframe_dot_to_bracket.py`（刪）、`generate_docs.py`（刪）、`clean_pycache.ps1`（修）、`scripts/migrations/migrate_db_naming.py`（搬）、`scripts/manual/*`（搬 ＋ README） | `git rm` 後 `pytest` 全綠；`grep return False tests/` 為 0 | ✅ | **2026-09-10 完成**（`f9c95e8`）：`tests/` 的 `return False` 由 **19 降為 2**（一個測試替身的 stub、一個 docstring），`except Exception` 剩 1 處且在 docstring |
 | S5 | 測試護欄補強：策略不自建連線、loguru 隔離、`sys.path.insert` 清理 | `tests/test_strategy_data_access.py`、`scripts/check_layer_deps.py`、`strategy_lab/**/run.py`、四份 README | 在策略加 `StockPriceAPI()` 即紅；pytest 後 `logs/` mtime 不變；`python -m` 方式可跑研究腳本 | ✅ | **2026-09-10 完成**（`6c3be9b`）：`sys.path.insert` 由 **18 降為 0**；loguru 隔離**實查發現早就做掉了**，實測 pytest 前後 `logs/` mtime 未變 |
-| S6 | 環境變數、相依檔與設定檔一致 | `.env.example`、`core/config/{schema,settings}.py`、`dev/env/*.yml`、`requirements.txt`、`pyproject.toml` | `.env.example` 與 `os.getenv` 對照無缺口；`requirements.txt` 由 `pyproject` 重新產生；per-file-ignores 路徑存在 | ⬜ | F-096、F-100、F-015、F-016、F-018。**2026-09-13：`core/utils/path.py` 那個子項已由 [健檢第四輪收斂](../docs/dev/health-check-round4-2026-09.md) S3 做掉**（整支刪除；「併入 `config/paths.py`」不需要做，該檔早有自己的同名函式），本步驟剩其餘五項 |
+| S6 | 環境變數、相依檔與設定檔一致 | `.env.example`、`core/config/{schema,settings}.py`、`dev/env/*.yml`、`requirements.txt`、`pyproject.toml` | `.env.example` 與 `os.getenv` 對照無缺口；`requirements.txt` 由 `pyproject` 重新產生；per-file-ignores 路徑存在 | ✅ | **2026-09-14 完成**（見該節完成紀錄）：`.env.example` 補齊並加雙向核對測試、pyproject 補漏宣告的 `kaleido`／`html5lib`、`requirements.txt` 重產、刪 conda yml。F-096、F-100、F-015、F-016、F-018。**2026-09-13：`core/utils/path.py` 那個子項已由 [健檢第四輪收斂](../docs/dev/health-check-round4-2026-09.md) S3 做掉**（整支刪除；「併入 `config/paths.py`」不需要做，該檔早有自己的同名函式），本步驟剩其餘五項 |
 
 ## 步驟詳述
 
@@ -189,10 +189,43 @@
 > `logs/` 的 mtime **完全未變**。這是本輪第三次遇到「處置欄寫了、其實早就做掉」，
 > 下次處理殘留項目一律先實查現況。
 
-### S6. 環境變數、相依檔與設定檔一致 ⬜
+### S6. 環境變數、相依檔與設定檔一致 ✅
 
 - **目的**：F-096、F-100、F-015、F-016、F-018。
 - **做法**：`.env.example` 補齊並標選填；`schema.py` 改讀 `settings.DDB_PATH` 且缺值即 raise；刪 `core/utils/path.py`（**2026-09-13 已由健檢第四輪 S3 完成**，且不需要併入——`config/paths.py` 早有逐行相同的同名函式）；conda yml 標註停用或刪除；`requirements.txt` 以 `pip-compile` 重產；pyproject per-file-ignores 路徑修正。
 - **產出**：見進度表。
 - **驗證方式**：`pytest -m "not slow"`、`ruff check .`、健檢 S20 的 AST 對照腳本重跑無缺口。
 - **相依**：無。
+
+> **✅ 完成紀錄（2026-09-14）**
+>
+> | 子項 | 處置 |
+> |------|------|
+> | `.env.example` 缺鍵（F-018、F-096 第 1 點） | 補 12 個鍵（`API_KEY_1`~`4`、`API_SECRET_KEY_1`~`4`、`ALPHAEDGE_DATA_DIR`／`RESULTS_DIR`／`LOGS_DIR`、`ALPHAEDGE_BACKTEST_RESULTS`），外加健檢時還不存在的 `ALPHAEDGE_SHOW_FIGURES`；選填鍵以註解列出，註解改繁中 |
+> | `DDB_PATH` 讀兩次（F-096 第 2 點、F-015） | `schema.py` 改讀 `settings.DDB_PATH`。「缺值即 raise」**早已做掉**（`require_tick_db_path()`，`NonetickDB` 已不會出現），本輪只收斂讀取點 |
+> | `core/utils/path.py`（F-016） | 2026-09-13 已由健檢第四輪刪除 |
+> | conda yml 漂移（F-096 第 4 點） | **刪除** `dev/env/` 兩份，雙語 README 移除對應列。缺 shioaji／FinMind／yfinance 等主相依、還列著 black，照著建出來的環境跑不動專案，標註停用不如刪掉 |
+> | `requirements.txt`（F-096 第 5 點） | 以 `pyproject.toml` 重產，做法見下 |
+> | per-file-ignores 失效路徑（F-100） | 改為 `core/pipeline/tw/loaders/stock_tick_loader.py`；另兩條核對存在 |
+>
+> **`requirements.txt` 重產，偏離原判斷**：本機沒有 `pip-compile`／`uv`，改以乾淨 venv、現有鎖定版本當
+> constraints 安裝 `-e .` 後 `pip freeze`（步驟寫進 `docs/setup/dev-setup.md`）。健檢說有「85 個無關套件」，
+> 實查 **Flask、ipython、ta、pytest（及其帶進的 Werkzeug、matplotlib-inline 等）全是 FinMind 自己宣告的相依，移不掉**。
+> 實際只移除 `based58`、`ciso8601`（無人依賴的殘留）與 `python-docx`（屬 `[lab]` extra），
+> 新增 `webencodings`（html5lib 的相依，舊清單漏列）。
+>
+> **意外發現：pyproject 漏宣告兩個執行期相依**，兩者只裝在本機 `.venv`，乾淨的 `pip install -e .`（CI、Docker）拿不到：
+> - `kaleido`：`reporter.py` 的 `save_figure()` 以 `write_image()` 輸出 PNG，每份回測報表都會走到，外層沒有 try/except。
+> - `html5lib`：`pd.read_html` 在 lxml 解不動時退到 bs4 flavor 需要它；2026-09-04 權益變動表回補就是炸在這裡，當時只補進本機 venv。
+> 已補進主相依並在 pyproject 註明理由。
+>
+> **護欄**：新增 `tests/test_config_consistency.py` 5 條——掃描規則自檢（五種讀法都抓得到）、`.env.example` 雙向核對、
+> per-file-ignores 路徑存在、主相依在 `requirements.txt` 皆有鎖定且最後一行為 `-e .`。
+> **以舊 `.env.example` 與舊 pyproject 實測 2 條失敗**（缺鍵、失效路徑）；鎖定那條修正前後皆通過，屬預防性。
+>
+> **範本保留 `LINE_CHANNEL_ACCESS_TOKEN`，但程式沒有任何地方讀它**：token 由呼叫端傳入 `Notification.post_line_notify()`，
+> 而實盤模式尚未實作、目前沒有呼叫端。列入測試的 `ENV_EXAMPLE_ONLY_KEYS` 並註明理由；**接上實盤時要記得從環境變數讀取**。
+>
+> 驗證：`pytest -m "not slow"` 1041 passed、`ruff check .`／`ruff format --check .` 全綠、三支護欄腳本 exit 0、
+> SHORT 回歸線 6 passed、`import core.config` 無循環 import。
+> 附帶：S2 進度紀錄提到的「`requirements.txt` 在權益變動表那條線手上」已不成立（該線 2026-09-13 結案）。

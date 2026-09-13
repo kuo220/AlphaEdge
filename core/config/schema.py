@@ -1,8 +1,8 @@
-import os
 from pathlib import Path
 from typing import Optional
 
 from .paths import DATABASE_DIR_PATH, get_static_resolved_path
+from .settings import DDB_PATH
 
 """資料庫結構：分庫檔名、完整路徑與資料表名稱"""
 
@@ -25,8 +25,10 @@ TW_STOCK_DB_PATH: Path = get_static_resolved_path(
 # 但也**不能在 import 時就 raise**——`core.config` 是全專案的共用入口，
 # 沒有 DolphinDB 的機器（CI、容器、只跑回測的開發機）連 import 都會失敗。
 # 故缺值時為 `None`，真正要用的地方呼叫 `require_tick_db_path()`。
-_DDB_PATH: Optional[str] = os.getenv("DDB_PATH")
-TICK_DB_PATH: Optional[str] = f"{_DDB_PATH}{TICK_DB_NAME}" if _DDB_PATH else None
+#
+# `DDB_PATH` 取自 `settings`，不在這裡再讀一次環境變數：兩處各讀一次時，
+# 「路徑到底從哪來」要查兩個地方，日後改其中一處（例如加預設值）就會分岔
+TICK_DB_PATH: Optional[str] = f"{DDB_PATH}{TICK_DB_NAME}" if DDB_PATH else None
 
 
 def require_tick_db_path() -> str:
