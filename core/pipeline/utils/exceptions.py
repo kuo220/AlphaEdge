@@ -129,7 +129,9 @@ class IPBlockedError(PipelineError):
     這是需要人介入（換 IP、重開數據機）才能解除的狀態，故用例外表達。
     """
 
-    def __init__(self, url: str, attempts: int, last_error: Optional[str] = None):
+    def __init__(
+        self, url: str, attempts: int, last_error: Optional[str] = None
+    ) -> None:
         self.url: str = url
         self.attempts: int = attempts
         self.last_error: Optional[str] = last_error
@@ -169,7 +171,7 @@ class ColumnLayoutError(PipelineError):
         expected: int,
         actual: int,
         columns: Optional[List[Any]] = None,
-    ):
+    ) -> None:
         self.label: str = label
         self.expected: int = expected
         self.actual: int = actual
@@ -196,7 +198,9 @@ class DataLoadError(PipelineError):
     `failed_files` 保留失敗清單，供呼叫端記錄或重試。
     """
 
-    def __init__(self, source: str, failed_files: List[str], succeeded: int = 0):
+    def __init__(
+        self, source: str, failed_files: List[str], succeeded: int = 0
+    ) -> None:
         self.source: str = source
         self.failed_files: List[str] = failed_files
         self.succeeded: int = succeeded

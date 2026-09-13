@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from io import StringIO
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 import pandas as pd
 from loguru import logger
@@ -119,7 +119,7 @@ class BaseDataCrawler(ABC):
     # TAIFEX／TPEX 被擋時回的是一整頁 HTML，長度上就與訊息頁不同。
     NO_DATA_TEXT_MAX_LENGTH: int = 4096
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     @abstractmethod
@@ -128,7 +128,9 @@ class BaseDataCrawler(ABC):
         pass
 
     @abstractmethod
-    def crawl(self, *args, **kwargs) -> None:
+    # 回傳型別由各 crawler 自行決定（`CrawlResult`、`DataFrame`、`None`……），
+    # 故此處標 `Any`：來源的形狀差異太大，硬統一只會讓每個子類都得回傳包裝物件
+    def crawl(self, *args, **kwargs) -> Any:
         """Crawl Data"""
         pass
 

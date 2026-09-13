@@ -56,7 +56,7 @@ class FuturesMarginUpdater(BaseDataUpdater):
     # 2020/03 起的公告才附 CSV；更早的只有掃描 PDF（見 backlog S6）
     ANNOUNCEMENT_START_DATE: datetime.date = datetime.date(2020, 1, 1)
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         # SQLite Connection（tw_futures.db；供 log_summary 查詢用）

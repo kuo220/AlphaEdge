@@ -47,7 +47,7 @@ class FuturesTickCleaner(BaseDataCleaner):
         "tick_type",
     ]
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         self.tick_dir: Path = FUTURES_TICK_DOWNLOADS_PATH

@@ -35,7 +35,7 @@ class StockTickLoader(BaseDataLoader):
     CONNECT_MAX_RETRIES: int = 3
     CONNECT_RETRY_DELAY: float = 1.0
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         # DolphinDB Session

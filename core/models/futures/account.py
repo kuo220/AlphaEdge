@@ -21,7 +21,7 @@ class FuturesAccount(BaseAccount):
     不等到平倉才實現——這是期貨與股票在記帳上最根本的不同。
     """
 
-    def __init__(self, init_capital: float = 0.0):
+    def __init__(self, init_capital: float = 0.0) -> None:
         super().__init__(init_capital=init_capital)
 
         # Margin

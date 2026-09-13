@@ -43,7 +43,7 @@ ETF 股期給的是每口固定金額，語意與臺股期貨相同，故與指�
 class FuturesMarginLoader(BaseDataLoader):
     """Futures Margin Loader（金額表 ＋ 比例表）"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         # SQLite Connection（指向 tw_futures.db）

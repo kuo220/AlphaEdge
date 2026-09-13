@@ -39,7 +39,7 @@ class FuturesPosition(BasePosition):
         margin: float = 0.0,
         settled_pnl: float = 0.0,
         holding_days: int = 0,
-    ):
+    ) -> None:
         super().__init__(
             id=id,
             symbol=f"{product}{expiry}",

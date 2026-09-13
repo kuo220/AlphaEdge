@@ -166,14 +166,14 @@ def test_near_month_filter_keeps_the_earliest_expiry() -> None:
 class StubUsage:
     """假的配額回應"""
 
-    def __init__(self, remaining_mb: float):
+    def __init__(self, remaining_mb: float) -> None:
         self.remaining_bytes = int(remaining_mb * 1024**2)
 
 
 class StubShioaji:
     """只實作 `usage()` 的假 API"""
 
-    def __init__(self, remaining_mb: Optional[float]):
+    def __init__(self, remaining_mb: Optional[float]) -> None:
         self.remaining_mb = remaining_mb
 
     def usage(self):

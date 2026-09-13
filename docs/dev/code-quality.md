@@ -89,8 +89,16 @@ ruff check . --select B008,B006,B904        # 看逐處位置
 | 對象 | 規則 | 理由 |
 |------|------|------|
 | `__init__.py` | `F401` | 套件的 re-export 門面，import 就是對外介面 |
-| `tests/*`、`strategy_lab/*` | `E402` | 獨立執行的腳本，import 前有條件式 mock |
+| `scripts/manual/*` | `E402` | 獨立執行的腳本，`.env` 必須在部分 import 之前載入 |
 | `stock_tick_utils.py`、`stock_tick_loader.py` 等 tick 模組 | `F401` | `dolphindb` 是選用相依，該處 import 是「可用性探測」 |
+| `tests/*`、`scripts/manual/*` | `ANN201` | 測試 helper／fixture／替身方法（24 處）的回傳型別多半是「被 monkeypatch 過的 loader」或 `(物件, 路徑)`，標註要嘛得把類別從函式內部的 import 搬到檔頭（會讓 monkeypatch 失效），要嘛只能寫 `Any`。**`ANN204` 仍然生效**，`__init__` 一律要 `-> None` |
+
+**`ANN201`／`ANN204` 於 2026-09-13 納入 `select`**（健檢第四輪 S4）。在那之前
+`CLAUDE.md` §2.4 的「所有函式回傳值都要標註，含 `-> None`」**完全沒有機器護欄**，
+全專案累積 181 處缺漏。補齊後才開啟，`core/`／`tasks/`／`frontend/`／`run.py` 兩條都生效。
+
+只開這兩條、不開整組 `ANN`：`ANN001`（參數）另有 400 多處未標，
+而 `ANN002`／`ANN003`（`*args`／`**kwargs`）與 `ANN101`（`self`）跟本專案既有寫法衝突。
 
 `*.md` 已加入 `extend-exclude`：ruff 會連 Markdown 內的 Python 程式碼區塊一起格式化，
 而文件裡的範例常刻意對齊註解以利閱讀。`CLAUDE.md` §2.5／§2.10 規範的對象是程式碼，不是文件。

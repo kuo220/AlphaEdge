@@ -34,7 +34,7 @@ class StockTickUpdater(BaseDataUpdater):
     # API 剩餘用量低於此值（MB）即停止爬取
     TICK_API_MIN_REMAINING_MB: float = 20.0
 
-    def __init__(self):
+    def __init__(self) -> None:
 
         super().__init__()
 
@@ -73,7 +73,7 @@ class StockTickUpdater(BaseDataUpdater):
 
         self.setup()
 
-    def setup(self):
+    def setup(self) -> None:
         """Set Up the Config of Updater"""
 
         # Setup Shioaji APIs
@@ -98,7 +98,7 @@ class StockTickUpdater(BaseDataUpdater):
         self,
         start_date: datetime.date,
         end_date: Optional[datetime.date] = None,
-    ):
+    ) -> None:
         """
         - Description:
             更新 tick 資料

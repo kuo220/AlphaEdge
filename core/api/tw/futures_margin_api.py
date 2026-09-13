@@ -51,7 +51,7 @@ Futures Margin API: query the two margin tables in tw_futures.db
 class FuturesMarginAPI(BaseDataAPI):
     """Futures Margin API"""
 
-    def __init__(self, conn: Optional[sqlite3.Connection] = None):
+    def __init__(self, conn: Optional[sqlite3.Connection] = None) -> None:
         # 由 DataFeed 傳入共用連線；未指定時自行建立
         self.conn: Optional[sqlite3.Connection] = conn
         self.owns_conn: bool = conn is None

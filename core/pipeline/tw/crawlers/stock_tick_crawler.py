@@ -23,7 +23,7 @@ From 2020/04/01 ~ 2024/05/10
 class StockTickCrawler(BaseDataCrawler):
     """爬取上市櫃股票 ticks"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """初始化爬蟲設定"""
 
         super().__init__()

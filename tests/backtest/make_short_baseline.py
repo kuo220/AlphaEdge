@@ -64,7 +64,7 @@ class ShortScenario:
         bars: List[Tuple[datetime.date, List[StockQuote]]],
         force_cover_script: Optional[Dict[datetime.date, Set[str]]] = None,
         cash_dividend_script: Optional[Dict[datetime.date, Dict[str, float]]] = None,
-    ):
+    ) -> None:
         self.name: str = name  # 情境名稱（快照的分組鍵）
         self.verifies: str = verifies  # 這個情境驗的是什麼
         self.strategy: ScriptedStrategy = strategy

@@ -28,7 +28,7 @@ from core.utils import (
 class BaseStockStrategy(BaseStrategy):
     """Stock Strategy Framework (Base Template)"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         """ === Strategy Setting === """
@@ -80,7 +80,7 @@ class BaseStockStrategy(BaseStrategy):
         )
 
     @abstractmethod
-    def setup_account(self, account: StockAccount):
+    def setup_account(self, account: StockAccount) -> None:
         """
         - Description:
             載入虛擬帳戶資訊

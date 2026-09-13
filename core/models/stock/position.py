@@ -41,7 +41,7 @@ class StockPosition(BasePosition):
         dividend_compensation: float = 0.0,
         holding_days: int = 0,
         last_accrual_date: Optional[datetime.date] = None,
-    ):
+    ) -> None:
         super().__init__(
             id=id,
             symbol=stock_id,

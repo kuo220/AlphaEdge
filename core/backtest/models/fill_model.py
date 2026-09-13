@@ -179,7 +179,7 @@ class TwStockFillModel(BaseFillModel):
         event_counts: Optional[Dict[str, int]] = None,
         config: Optional[FillConfig] = None,
         check_borrowable: bool = False,
-    ):
+    ) -> None:
         self.instrument: InstrumentSpec = instrument or TwStockSpec()
 
         # 成交假設（滑價、成交量上限）；預設全關
@@ -584,7 +584,7 @@ class TwFuturesFillModel(BaseFillModel):
         instrument: Optional[InstrumentSpec] = None,
         event_counts: Optional[Dict[str, int]] = None,
         config: Optional[FuturesFillConfig] = None,
-    ):
+    ) -> None:
         self.instrument: InstrumentSpec = instrument or TwFuturesSpec()
 
         # 成交假設（滑價、成交量上限）；預設全關

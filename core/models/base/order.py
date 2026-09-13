@@ -21,7 +21,7 @@ class BaseOrder:
         position_type: PositionType = PositionType.LONG,  # 持倉方向（Long / Short）
         price: float = 0.0,  # 交易價位
         volume: int = 0,  # 交易數量（台股為張、期貨為口）
-    ):
+    ) -> None:
         # Basic Info
         self.symbol: str = symbol
         self.date: datetime.datetime = date

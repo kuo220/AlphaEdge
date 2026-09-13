@@ -36,7 +36,7 @@ class OvernightLeadEventStrategy(BaseStockStrategy):
     MODEL_DATA_START: datetime.date = datetime.date(2020, 1, 1)
     MODEL_DATA_END: datetime.date = datetime.date(2026, 4, 25)
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         # Strategy meta

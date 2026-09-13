@@ -51,7 +51,7 @@ BaseFuturesStrategy: 台期貨策略基底
 class BaseFuturesStrategy(BaseStrategy):
     """Futures Strategy Framework (Base Template)"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         """ === Strategy Setting === """

@@ -83,7 +83,7 @@ class FuturesPriceUpdater(BaseDataUpdater):
     # 這裡是從區間**開頭**起算、且一律 **raise 中止**，不會安靜地少資料。
     EMPTY_PRODUCT_ABORT_THRESHOLD: int = 20
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         # SQLite Connection（tw_futures.db）

@@ -71,7 +71,7 @@ class FuturesStockUniverseCleaner(BaseDataCleaner):
     # 來源以 `-` 表示「沒有這個交易時段」
     NULL_TOKENS: List[str] = ["-", "－", ""]
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         # Futures Stock Universe DataFrame Cleaned Columns

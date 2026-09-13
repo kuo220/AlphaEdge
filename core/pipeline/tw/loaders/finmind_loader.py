@@ -33,7 +33,7 @@ FinMind Loader
 class FinMindLoader(BaseDataLoader):
     """FinMind Loader - 將 FinMind 資料存入 Sqlite3"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         # SQLite Connection

@@ -54,7 +54,7 @@ class FuturesTickLoader(BaseDataLoader):
     CONNECT_MAX_RETRIES: int = 3
     CONNECT_RETRY_DELAY: float = 1.0
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         # 型別標註刻意用 Any：`ddb` 在未安裝 dolphindb 時根本不存在，

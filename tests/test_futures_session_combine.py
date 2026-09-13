@@ -160,7 +160,7 @@ class StubPriceAPI:
         FuturesPriceColumn.OPEN_INTEREST.value,
     ]
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.rows: List[list] = [
             [
                 str(FRIDAY),

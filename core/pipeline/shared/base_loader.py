@@ -2,7 +2,7 @@ import shutil
 import sqlite3
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import List, Optional, Set, Tuple
+from typing import Any, List, Optional, Set, Tuple
 
 import pandas as pd
 from loguru import logger
@@ -15,7 +15,7 @@ from core.pipeline.utils.exceptions import DataLoadError
 class BaseDataLoader(ABC):
     """Base Class of Data Loader"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     @abstractmethod
@@ -44,7 +44,8 @@ class BaseDataLoader(ABC):
         pass
 
     @abstractmethod
-    def add_to_db(self, *args, **kwargs) -> None:
+    # 有些 loader 回傳新增列數（期貨線），有些不回傳（台股線），故標 `Any`
+    def add_to_db(self, *args, **kwargs) -> Any:
         """Add Data into Database"""
         pass
 

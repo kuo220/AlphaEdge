@@ -39,7 +39,7 @@ class StockMarginUpdater(BaseDataUpdater):
     BATCH_RANDOM_DELAY_MIN: int = 1
     BATCH_RANDOM_DELAY_MAX: int = 5
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         # SQLite Connection

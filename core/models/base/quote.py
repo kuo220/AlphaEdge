@@ -26,7 +26,7 @@ class BaseQuote:
         low: float = 0.0,
         close: float = 0.0,
         adj_close: Optional[float] = None,
-    ):
+    ) -> None:
         # Basic Info
         self.symbol: str = symbol  # 商品代號（台股為股票代號、期貨為契約代號）
         self.scale: Scale = scale  # Quote scale (DAY or TICK or ALL)

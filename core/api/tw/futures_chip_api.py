@@ -39,7 +39,7 @@ Futures Chip API: 三大法人、大額交易人與選擇權 PCR
 class FuturesChipAPI(BaseDataAPI):
     """Futures Chip API（三張籌碼表）"""
 
-    def __init__(self, conn: Optional[sqlite3.Connection] = None):
+    def __init__(self, conn: Optional[sqlite3.Connection] = None) -> None:
         # 由 DataFeed 傳入共用連線；未指定時自行建立
         self.conn: Optional[sqlite3.Connection] = conn
         self.owns_conn: bool = conn is None

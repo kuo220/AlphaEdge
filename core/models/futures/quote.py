@@ -37,7 +37,7 @@ class FuturesQuote(BaseQuote):
         settlement_price: Optional[float] = None,
         open_interest: Optional[int] = None,
         multiplier: int = 0,
-    ):
+    ) -> None:
         super().__init__(
             symbol=f"{product}{expiry}",
             scale=scale,

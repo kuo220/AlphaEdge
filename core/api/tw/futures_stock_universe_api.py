@@ -43,7 +43,7 @@ class FuturesStockUniverseAPI(BaseDataAPI):
     # 標準型契約單位（股）；`futures_stock_universe.contract_size` 的預設值
     STANDARD_CONTRACT_SIZE: int = 2000
 
-    def __init__(self, conn: Optional[sqlite3.Connection] = None):
+    def __init__(self, conn: Optional[sqlite3.Connection] = None) -> None:
         # 由 DataFeed 傳入共用連線；未指定時自行建立
         self.conn: Optional[sqlite3.Connection] = conn
         self.owns_conn: bool = conn is None

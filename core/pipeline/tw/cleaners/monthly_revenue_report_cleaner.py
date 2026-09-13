@@ -17,7 +17,7 @@ from core.utils import FileEncoding
 class MonthlyRevenueReportCleaner(BaseDataCleaner):
     """TWSE & TPEX Monthly Revenue Report Crawler"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         # Raw and cleaned column names for monthly revenue report

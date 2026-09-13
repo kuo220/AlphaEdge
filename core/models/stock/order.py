@@ -20,7 +20,7 @@ class StockOrder(BaseOrder):
         volume: int = 0,  # 交易張數（Unit: Lot）
         short_method: Optional[ShortMethod] = None,  # 放空管道（由引擎補值）
         is_day_trade: bool = False,  # 是否為現股當沖（由引擎補值）
-    ):
+    ) -> None:
         super().__init__(
             symbol=stock_id,
             date=date,

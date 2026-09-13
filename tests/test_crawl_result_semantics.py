@@ -21,7 +21,7 @@ from core.pipeline.tw.crawlers.stock_price_crawler import StockPriceCrawler
 class _FakeResponse:
     """最小 Response 替身"""
 
-    def __init__(self, status_code: int, text: str = ""):
+    def __init__(self, status_code: int, text: str = "") -> None:
         self.status_code: int = status_code
         self.text: str = text
 

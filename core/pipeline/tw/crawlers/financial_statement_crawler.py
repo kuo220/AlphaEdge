@@ -42,7 +42,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
     EQUITY_CHANGE_MAX_RETRIES: int = 3
     EQUITY_CHANGE_RETRY_DELAY_SECONDS: int = 30
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         # Financial Statement Directories Set Up
@@ -54,7 +54,7 @@ class FinancialStatementCrawler(BaseDataCrawler):
 
         self.setup()
 
-    def setup(self, *args, **kwargs):
+    def setup(self, *args, **kwargs) -> None:
         """Set Up the Config of Crawler"""
 
         # Create Downloads Directory For Financial Reports

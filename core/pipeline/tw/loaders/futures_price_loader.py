@@ -25,7 +25,7 @@ Futures Price Loader
 class FuturesPriceLoader(BaseDataLoader):
     """Futures Price Loader"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         # SQLite Connection（指向 tw_futures.db）

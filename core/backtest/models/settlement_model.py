@@ -215,7 +215,7 @@ class TwStockSettlementModel(BaseSettlementModel):
         margin_call_policy: MarginCallPolicy = MarginCallPolicy.FORCE_COVER,
         max_holding_days: Optional[int] = None,
         max_no_quote_days: Optional[int] = None,
-    ):
+    ) -> None:
         self.position_manager: StockPositionManager = position_manager
         self.cost_model: StockCostModel = cost_model
         self.instrument: InstrumentSpec = instrument or TwStockSpec()
@@ -801,7 +801,7 @@ class TwFuturesSettlementModel(BaseSettlementModel):
         position_manager: FuturesPositionManager,
         instrument: Optional[InstrumentSpec] = None,
         roll_config: Optional[FuturesRollConfig] = None,
-    ):
+    ) -> None:
         self.position_manager: FuturesPositionManager = position_manager
         self.instrument: InstrumentSpec = instrument or TwFuturesSpec()
 

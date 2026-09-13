@@ -15,7 +15,7 @@ class BaseAccount:
     保證金佔用與空頭曝險屬台股信用交易，由 StockAccount 補上。
     """
 
-    def __init__(self, init_capital: float = 0.0):
+    def __init__(self, init_capital: float = 0.0) -> None:
         # Initial Setup
         self.init_capital: float = init_capital  # 初始本金
 

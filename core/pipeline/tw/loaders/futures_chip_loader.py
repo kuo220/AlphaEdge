@@ -44,7 +44,7 @@ class FuturesChipLoader(BaseDataLoader):
         FUTURES_PUT_CALL_RATIO_TABLE_NAME: ("date",),
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         self.conn: Optional[sqlite3.Connection] = None

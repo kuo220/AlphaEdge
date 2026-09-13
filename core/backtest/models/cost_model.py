@@ -242,7 +242,7 @@ class StockCostModel(BaseCostModel):
         "day_trade_whitelist": (None, "每日可當沖清單需要證交所每日公告，尚無資料源"),
     }
 
-    def __init__(self, config: Optional[CostConfig] = None):
+    def __init__(self, config: Optional[CostConfig] = None) -> None:
         self.config: CostConfig = config or CostConfig.default()
 
         self.check_day_trade_tax_expiry()
@@ -768,7 +768,7 @@ class TwFuturesCostModel(BaseCostModel):
        在期貨是同一個數字。
     """
 
-    def __init__(self, config: Optional[FuturesCostConfig] = None):
+    def __init__(self, config: Optional[FuturesCostConfig] = None) -> None:
         self.config: FuturesCostConfig = config or FuturesCostConfig.default()
 
     def commission(

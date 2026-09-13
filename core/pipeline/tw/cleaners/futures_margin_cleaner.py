@@ -198,7 +198,7 @@ class FuturesMarginCleaner(BaseDataCleaner):
     # 生效日與公告日的最大合理落差（天）；超過視為標題解析錯誤
     MAX_EFFECTIVE_DATE_LAG: int = 30
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         # Downloads directory Path

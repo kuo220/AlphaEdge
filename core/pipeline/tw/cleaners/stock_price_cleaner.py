@@ -42,7 +42,7 @@ class StockPriceCleaner(BaseDataCleaner):
     TPEX_COLUMN_COUNT_AFTER_CHANGE: int = 15
     TPEX_COLUMN_COUNT_BEFORE_CHANGE: int = 13
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         self.tpex_table_change_date: datetime.date = self.TPEX_TABLE_CHANGE_DATE

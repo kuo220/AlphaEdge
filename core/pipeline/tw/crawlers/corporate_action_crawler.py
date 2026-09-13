@@ -46,7 +46,7 @@ TPEX_COLUMN_COUNT: int = 11
 class CorporateActionCrawler(BaseDataCrawler):
     """爬取上市、上櫃的減資（含面額變更）恢復買賣參考價"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         self.setup()

@@ -62,7 +62,7 @@ class FuturesStockUniverseCrawler(BaseDataCrawler):
     # 清單頁的 2 碼代碼 → 行情頁 `commodity_id` 的尾碼
     PRODUCT_ID_SUFFIX: str = "F"
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
     def setup(self) -> None:

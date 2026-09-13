@@ -27,7 +27,7 @@ class BasePosition:
         transaction_cost: float = 0.0,
         unrealized_pnl: float = 0.0,
         unrealized_roi: float = 0.0,
-    ):
+    ) -> None:
         # Basic Info
         self.id: int = id  # 倉位編號（每筆倉位唯一編號）
         self.symbol: str = symbol  # 商品代號

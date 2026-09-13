@@ -17,7 +17,7 @@ class BasePositionManager(ABC):
     故收在此；單筆部位的記帳（成本攤提、損益公式）由各市場自行實作。
     """
 
-    def __init__(self, account: BaseAccount):
+    def __init__(self, account: BaseAccount) -> None:
         self.account: BaseAccount = account
 
     @abstractmethod

@@ -43,7 +43,7 @@ class StubMarginAPI:
         self,
         initial: Dict[datetime.date, int],
         maintenance: Optional[Dict[datetime.date, int]] = None,
-    ):
+    ) -> None:
         self.initial: Dict[datetime.date, int] = initial
         self.maintenance: Dict[datetime.date, int] = maintenance or {}
 

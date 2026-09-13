@@ -56,7 +56,7 @@ class SeasonProgressStore:
         「問過了沒有」安全得多。
     """
 
-    def __init__(self, source: str, path: Optional[Path] = None):
+    def __init__(self, source: str, path: Optional[Path] = None) -> None:
         self.source: str = source
         self.path: Path = path or (
             DOWNLOADS_METADATA_DIR_PATH / "no_data" / f"{source}_season_progress.json"

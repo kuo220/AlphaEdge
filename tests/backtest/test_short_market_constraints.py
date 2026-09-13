@@ -79,7 +79,7 @@ class StubPriceAPI:
 class StubDividendAPI:
     """只提供除權息日的假 dividend API"""
 
-    def __init__(self, rows: List[Dict[str, object]]):
+    def __init__(self, rows: List[Dict[str, object]]) -> None:
         self.rows: List[Dict[str, object]] = rows
 
     def get_range(

@@ -36,7 +36,7 @@ from core.utils.log_manager import LogManager
 class FuturesTickCrawler(BaseDataCrawler):
     """透過 Shioaji 爬取期貨契約的逐筆成交"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         self.tick_dir: Path = FUTURES_TICK_DOWNLOADS_PATH

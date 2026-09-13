@@ -257,7 +257,7 @@ def test_target_guard_isolates_failure() -> None:
 class _FakeArgs:
     """取代 argparse.Namespace 的最小替身"""
 
-    def __init__(self, target: List[str], from_date=None):
+    def __init__(self, target: List[str], from_date=None) -> None:
         self.target: List[str] = target
         self.from_date = from_date
 
@@ -365,7 +365,7 @@ def test_price_loader_does_not_read_whole_table_into_memory(
     )
     loader.add_to_db()
 
-    def explode(*args, **kwargs):
+    def explode(*args, **kwargs) -> None:
         raise AssertionError("不應再整表讀取主鍵")
 
     monkeypatch.setattr(loader_module.pd, "read_sql_query", explode)

@@ -11,7 +11,9 @@ from core.strategies.base import BaseStrategy
 class BaseBacktestReporter(ABC):
     """Backtest Performance Reporter Framework (Base Template)"""
 
-    def __init__(self, strategy: BaseStrategy, output_dir: Optional[Path] = None):
+    def __init__(
+        self, strategy: BaseStrategy, output_dir: Optional[Path] = None
+    ) -> None:
         self.strategy: BaseStrategy = strategy  # Backtest strategy
         self.account: BaseAccount = self.strategy.account  # Account
         self.output_dir: Optional[Path] = output_dir  # Output directory

@@ -20,7 +20,7 @@ TPEX 網站提供資料日期：
 class StockPriceCrawler(BaseDataCrawler):
     """爬取上市、上櫃公司的股票收盤行情（OHLC、成交量）"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         self.setup()

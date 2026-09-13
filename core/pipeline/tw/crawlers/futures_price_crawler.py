@@ -70,7 +70,7 @@ class FuturesPriceCrawler(BaseDataCrawler):
     # 商品代碼格式：2~10 碼大寫英數（TX、MTX、TMF、CDF、NYF…）
     PRODUCT_CODE_PATTERN: str = r"[A-Z0-9]{2,10}"
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
     def setup(self) -> None:

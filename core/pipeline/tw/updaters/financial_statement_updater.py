@@ -205,7 +205,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
     # 而「把還沒送件的公司寫進永久無資料名單」的代價是它送件後再也不會被抓
     EQUITY_CHANGE_FILING_GRACE_DAYS: int = 30
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         # SQLite Connection

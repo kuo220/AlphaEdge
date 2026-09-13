@@ -83,7 +83,7 @@ class CorporateActionCleaner(BaseDataCleaner):
         "減資原因": "原因",
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         self.corporate_action_dir: Path = CORPORATE_ACTION_DOWNLOADS_PATH

@@ -94,7 +94,7 @@ class FuturesPriceCleaner(BaseDataCleaner):
     # 合法商品代碼樣式（用於濾掉小計、說明列）
     PRODUCT_PATTERN: str = r"[0-9A-Z]{2,10}"
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         # Futures Price DataFrame Cleaned Columns

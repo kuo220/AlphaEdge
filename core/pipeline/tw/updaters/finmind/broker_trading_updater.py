@@ -136,7 +136,7 @@ class BrokerTradingUpdater:
         }
 
         # 輔助函數：記錄進度並定期更新 metadata
-        def log_progress_and_update_metadata():
+        def log_progress_and_update_metadata() -> None:
             """記錄處理進度並在需要時更新 metadata（避免程式意外中斷時遺失進度）"""
             if processed_count % self.BATCH_LOG_PROGRESS_INTERVAL == 0:
                 logger.info(

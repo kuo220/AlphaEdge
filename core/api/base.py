@@ -11,11 +11,11 @@ import pandas as pd
 class BaseDataAPI(ABC):
     """Base Class of Data API"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     @abstractmethod
-    def setup(self):
+    def setup(self) -> None:
         """Set Up the Config of Data API"""
         pass
 

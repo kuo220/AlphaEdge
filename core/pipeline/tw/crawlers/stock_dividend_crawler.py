@@ -34,7 +34,7 @@ from core.utils import TimeUtils
 class StockDividendCrawler(BaseDataCrawler):
     """爬取上市、上櫃股票除權除息計算結果表"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         self.setup()

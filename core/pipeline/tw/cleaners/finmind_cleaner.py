@@ -13,7 +13,7 @@ from core.utils import FileEncoding
 class FinMindCleaner(BaseDataCleaner):
     """FinMind Cleaner (Transform): validate data, write CSV, return DataFrame"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         # Downloads directory Path
         self.finmind_dir: Path = FINMIND_DOWNLOADS_PATH

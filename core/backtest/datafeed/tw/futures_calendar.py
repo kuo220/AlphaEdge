@@ -53,7 +53,7 @@ class FuturesCalendar:
     # 到期月代碼：`YYYYMM` 或 `YYYYMMWn`（週契約，n 為第幾週）
     EXPIRY_PATTERN: re.Pattern = re.compile(r"^(\d{4})(\d{2})(?:W(\d))?$")
 
-    def __init__(self, trading_days: Optional[Iterable[datetime.date]] = None):
+    def __init__(self, trading_days: Optional[Iterable[datetime.date]] = None) -> None:
         # 已排序的交易日清單 ＋ 供 O(1) 查詢的集合
         self.trading_days: List[datetime.date] = sorted(set(trading_days or []))
         self.trading_day_set: Set[datetime.date] = set(self.trading_days)

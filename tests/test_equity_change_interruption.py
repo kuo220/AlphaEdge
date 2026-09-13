@@ -101,7 +101,7 @@ class FakeCrawler:
         self,
         responses: Optional[Dict[str, Optional[List[pd.DataFrame]]]] = None,
         on_request: Optional[object] = None,
-    ):
+    ) -> None:
         self.responses: Dict[str, Optional[List[pd.DataFrame]]] = responses or {}
         self.on_request = on_request
         self.requested: List[str] = []
@@ -127,7 +127,7 @@ class RecordingLoader:
 
     def __init__(
         self, conn: sqlite3.Connection, fail_file_names: Set[str] = frozenset()
-    ):
+    ) -> None:
         self.conn: sqlite3.Connection = conn
         self.fail_file_names: Set[str] = set(fail_file_names)
         self.loaded: List[Path] = []

@@ -50,7 +50,7 @@ class FinancialStatementCleaner(BaseDataCleaner):
         4: ("民國{roc_year}年度", "民國{roc_year}年第4季"),
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         # Raw and cleaned column names for each report type (Load from .json)

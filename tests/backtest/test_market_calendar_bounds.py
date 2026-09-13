@@ -20,7 +20,7 @@ from core.backtest.datafeed.tw.market_calendar import MarketCalendar
 class _FakePriceAPI:
     """只回答「這天有沒有資料」的最小 StockPriceAPI 替身"""
 
-    def __init__(self, trading_days: List[datetime.date]):
+    def __init__(self, trading_days: List[datetime.date]) -> None:
         self.trading_days: List[datetime.date] = trading_days
         self.calls: List[datetime.date] = []
 
@@ -49,7 +49,7 @@ def test_lookback_raises_after_max_days() -> None:
         from core.api.tw.stock_price_api import StockPriceAPI
 
         class _Typed(StockPriceAPI):
-            def __init__(self):  # noqa: D401 - 不呼叫父類 __init__，避免連 DB
+            def __init__(self) -> None:  # noqa: D401 - 不呼叫父類 __init__，避免連 DB
                 pass
 
         with pytest.raises(LookupError, match="找不到交易日"):
@@ -73,7 +73,7 @@ def test_lookback_returns_the_previous_trading_day() -> None:
         from core.api.tw.stock_price_api import StockPriceAPI
 
         class _Typed(StockPriceAPI):
-            def __init__(self):
+            def __init__(self) -> None:
                 pass
 
         assert MarketCalendar.get_last_trading_date(_Typed(), monday) == friday

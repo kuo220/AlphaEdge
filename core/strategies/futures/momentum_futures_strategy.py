@@ -39,7 +39,7 @@ class MomentumFuturesStrategy(BaseFuturesStrategy):
     # 取前一交易日收盤時往回看幾個曆日；連假最長 9 天，取 15 留餘裕
     LOOKBACK_DAYS: int = 15
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.strategy_name: str = "Momentum-Futures"
         self.init_capital: float = 3000000.0

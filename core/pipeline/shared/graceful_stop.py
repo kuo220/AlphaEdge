@@ -62,7 +62,7 @@ class GracefulStop:
         self,
         label: str = "crawl",
         signals: Optional[Tuple[int, ...]] = None,
-    ):
+    ) -> None:
         self.label: str = label
         self.signals: Tuple[int, ...] = (
             tuple(signals) if signals is not None else self.HANDLED_SIGNALS
