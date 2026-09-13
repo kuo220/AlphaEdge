@@ -144,8 +144,7 @@ def build_tw_futures_backtester(strategy: BaseFuturesStrategy) -> Backtester:
         3. **保證金設定預設查表**（`FuturesMarginConfig.default()`），API 由
            DataFeed 注入同一個設定物件，策略層與部位管理層因此共用同一個來源。
            要改用比率近似必須明確宣告 `FuturesMarginConfig.ratio()`——
-           近似的誤差跨年份實測為 +143% ~ −38%（見
-           `backlog/台期貨保證金ETL.md` S5）。
+           近似的誤差跨年份實測為 +143% ~ −38%（TX，而且會變號）。
         4. **`SettlementModel` 不需要 `cost_model`**：期貨在收盤後只做逐日盯市，
            不像台股要在此計提借券費與稅差。
     - Parameters:

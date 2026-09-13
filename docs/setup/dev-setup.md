@@ -40,6 +40,21 @@ python -m pip install -e ".[dev]"   # pytest、pytest-timeout、pytest-cov、ruf
 套件 metadata（相依名稱、optional extras、Python 版本下限）定義在 `pyproject.toml`；
 `requirements.txt` 則負責鎖定實際版本，Docker build 也用同一份。
 
+`requirements.txt` 只含 `pyproject.toml` 主相依與它們的傳遞相依，不含 `[dev]`／`[frontend]`／
+`[tick]`／`[lab]`。清單裡的 Flask、ipython、ta、pytest 看似無關，其實是 FinMind 自己宣告的相依，
+移不掉。修改 `pyproject.toml` 的相依後，以乾淨 venv 重產（沿用現有鎖定版本當 constraints，
+只有新增的套件會解析新版本）：
+
+```bash
+python3 -m venv /tmp/lockenv
+grep -v -E '^\s*(-e|#|$)' requirements.txt > /tmp/constraints.txt
+/tmp/lockenv/bin/pip install -c /tmp/constraints.txt -e .
+/tmp/lockenv/bin/pip check
+/tmp/lockenv/bin/pip freeze --exclude-editable   # 貼回 requirements.txt，最後一行保留 `-e .`
+```
+
+`tests/test_config_consistency.py` 會檢查 `pyproject.toml` 的每個主相依在 `requirements.txt` 都有鎖定版本。
+
 ## 3) 設定環境變數
 
 ```bash
@@ -53,6 +68,10 @@ cp .env.example .env
 - FinMind：`FINMIND_API_TOKEN`
 - （選填）多組 Shioaji 帳號輪替：`API_KEY_1`~`API_KEY_4`、`API_SECRET_KEY_1`~`API_SECRET_KEY_4`（`core/config/settings.py` 的 `NUM_API`）
 - （選填）執行期產物根目錄覆寫：`ALPHAEDGE_DATA_DIR`／`ALPHAEDGE_RESULTS_DIR`／`ALPHAEDGE_LOGS_DIR`（見 [執行期產物](../dev/runtime-artifacts.md)）。**前端讀的是同一個 `ALPHAEDGE_RESULTS_DIR`**，不設也能跑（預設 `PROJECT_ROOT/results`）；舊名 `ALPHAEDGE_BACKTEST_RESULTS` 仍相容一版並會發出警告
+- （選填）回測畫完圖在瀏覽器開啟：`ALPHAEDGE_SHOW_FIGURES=1`（等同 `run.py --show`；預設不開）
+
+`.env.example` 與程式實際讀取的環境變數由 `tests/test_config_consistency.py` 雙向核對：
+程式新增一個 `os.getenv("X")` 卻沒補進範本，或範本留著程式已不再讀的鍵，測試都會失敗。
 
 ## 4) 初始化資料目錄（選用）
 

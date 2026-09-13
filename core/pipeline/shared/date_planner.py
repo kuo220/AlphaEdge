@@ -249,6 +249,46 @@ class DatePlanner:
         return DatePlanner.get_existing_dates(conn, table_name, start_date, end_date)
 
     @staticmethod
+    def get_weekend_dates(
+        conn: sqlite3.Connection,
+        table_names: Iterable[str],
+        start_date: datetime.date,
+        end_date: datetime.date,
+    ) -> Set[datetime.date]:
+        """
+        - Description:
+            取得幾張表在區間內有資料的週末日期（實務上就是補行交易日）
+
+            給 `price` 當 `plan()` 的 `extra_dates`：它自己就是交易日曆，候選母集合
+            只能是平日，被刪掉的補行交易日永遠不會再被請求。`chip`／`margin` 的日曆
+            雖然也取自 `price`，但它們手上已有的補行交易日可以反過來補給 `price`。
+
+            **已知限制**：尚未出現在任何一張表的新補行交易日仍然補不到（日曆尾端只補
+            平日）。台股自 2019 年起已無補行交易日，實務影響低。
+        - Parameters:
+            - conn: sqlite3.Connection
+                資料庫連線
+            - table_names: Iterable[str]
+                作為來源的資料表；不存在的表視為沒有日期
+            - start_date / end_date: datetime.date
+                查詢區間
+        - Return:
+            - Set[datetime.date]
+                區間內有資料的週六、週日
+        """
+
+        weekends: Set[datetime.date] = set()
+        for table_name in table_names:
+            weekends |= {
+                date
+                for date in DatePlanner.get_existing_dates(
+                    conn, table_name, start_date, end_date
+                )
+                if date.weekday() >= SATURDAY
+            }
+        return weekends
+
+    @staticmethod
     def generate_weekdays(
         start_date: datetime.date, end_date: datetime.date
     ) -> Set[datetime.date]:

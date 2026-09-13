@@ -82,7 +82,7 @@ class BaseFuturesStrategy(BaseStrategy):
 
         兩者皆為 None 時走各自的預設：成本帶市場常見費率、保證金查表（API 由 DataFeed 注入）。
         要改用比率近似須明確宣告 `FuturesMarginConfig.ratio()`，
-        固定比率跨年份的誤差實測為 +143% ~ −38%（見 `backlog/台期貨保證金ETL.md` S5）。
+        固定比率跨年份的誤差實測為 +143% ~ −38%（TX：2020 年高估、2026 年低估，會變號）。
         """
         self.cost_config: Optional[FuturesCostConfig] = None
         self.margin_config: Optional[FuturesMarginConfig] = None

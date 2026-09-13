@@ -150,6 +150,35 @@ class BaseDataUpdater(ABC):
         return True
 
     @staticmethod
+    def report_partial_day(
+        source: str,
+        date: datetime.date,
+        twse: CrawlResult,
+        tpex: CrawlResult,
+    ) -> None:
+        """
+        - Description:
+            記下「沒有完整取得」而整天不入庫的日期
+
+            同一天由上市、上櫃兩份拼成，只入庫問到的那一邊的話，重試成功之前
+            回測讀到的就是半個市場，而且不會有任何錯誤。故整天不入庫，並列出
+            兩個市場各自的狀態，讓 log 看得出是哪一邊沒問到。
+        - Parameters:
+            - source: str
+                資料來源名稱（例如 `"price"`）
+            - date: datetime.date
+                該日
+            - twse / tpex: CrawlResult
+                兩個市場的爬取結果；兩者皆 `OK` 代表是清洗失敗
+        """
+
+        logger.warning(
+            f"[{source}] {date} 未完整取得（TWSE: {twse.status.value}、"
+            f"TPEX: {tpex.status.value}；兩者皆 ok 代表清洗失敗），"
+            f"整天不入庫、下次執行會重試"
+        )
+
+    @staticmethod
     def report_cleaner_failures(dates: List[datetime.date]) -> None:
         """清洗失敗的日期列一次，讓「哪幾天要重跑」不必翻整份 log"""
 

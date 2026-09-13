@@ -97,7 +97,6 @@ graph TB
 | `scripts/`      | 護欄檢查（分層相依、文件路徑、API 孤兒方法）、回歸腳本與人工執行腳本   |
 | `docs/`         | 使用與架構說明文件（安裝、指令、部署、資料、回測與 ETL 設計）          |
 | `strategy_lab/` | 策略研究工作區，依概念分為 `strategies/`、`data_analysis/`、`notebooks/`、`ideas/`；見 `strategy_lab/README.md` |
-| `dev/`          | 選用的 conda 環境定義（`dev/env/quant_mac.yml`、`quant_win.yml`）      |
 | `backlog/`      | 內部規劃與待辦筆記                                                    |
 
 ---
@@ -366,7 +365,6 @@ AlphaEdge/
 ├── strategy_lab/              # 策略研究工作區（strategies/ / data_analysis/ / notebooks/ / ideas/）
 ├── tasks/                     # 資料更新與維運入口（update_db、delete_price_data、clean_logs）
 ├── tests/                     # 測試套件（`backtest/` 為引擎與回歸線；`temp/`、`database/`、`downloads/` 為執行期產物）
-├── dev/env/                   # 選用的 conda 環境定義（mac／win）
 ├── backlog/                   # 內部規劃筆記
 ├── docs/                      # 專案文件
 │   ├── backtest/              # 引擎架構、模組使用關係、放空框架規格

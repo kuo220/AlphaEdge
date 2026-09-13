@@ -100,7 +100,6 @@ graph TB
 | `scripts/`      | Guardrail checks (layer deps, doc paths, orphan API methods), regression script and manual scripts                              |
 | `docs/`         | Usage and architecture docs (setup, commands, deployment, data, backtest and ETL design)                                       |
 | `strategy_lab/` | Research workspace organized by concept (`strategies/`, `data_analysis/`, `notebooks/`, `ideas/`); see `strategy_lab/README.md` |
-| `dev/`          | Optional conda environment definitions (`dev/env/quant_mac.yml`, `quant_win.yml`)                                                |
 | `backlog/`      | Internal notes and future work items                                                                                            |
 
 
@@ -375,7 +374,6 @@ AlphaEdge/
 ├── strategy_lab/              # research workspace (strategies/ / data_analysis/ / notebooks/ / ideas/)
 ├── tasks/                     # data update and maintenance entrypoints (update_db, delete_price_data, clean_logs)
 ├── tests/                     # test suites (`backtest/` holds engine and regression lines; `temp/`, `database/`, `downloads/` are runtime artifacts)
-├── dev/env/                   # optional conda environment definitions (mac/win)
 ├── backlog/                   # internal planning notes
 ├── docs/                      # project docs
 │   ├── backtest/              # engine architecture, module map, short-selling spec

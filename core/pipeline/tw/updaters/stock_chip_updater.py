@@ -127,16 +127,19 @@ class StockChipUpdater(BaseDataUpdater):
             day_status: CrawlStatus = stats.record(twse, tpex)
 
             # Step 2: Clean
+            # 任一市場沒問到時兩邊都不清洗：這天反正不入庫，清洗只會在 downloads
+            # 留下半份 CSV
             cleaned: bool = True
-            if twse.is_ok:
-                cleaned &= self.clean_one(
-                    self.cleaner.clean_twse_chip, twse.data, date, "TWSE"
-                )
+            if day_status is not CrawlStatus.FAILED:
+                if twse.is_ok:
+                    cleaned &= self.clean_one(
+                        self.cleaner.clean_twse_chip, twse.data, date, "TWSE"
+                    )
 
-            if tpex.is_ok:
-                cleaned &= self.clean_one(
-                    self.cleaner.clean_tpex_chip, tpex.data, date, "TPEX"
-                )
+                if tpex.is_ok:
+                    cleaned &= self.clean_one(
+                        self.cleaner.clean_tpex_chip, tpex.data, date, "TPEX"
+                    )
 
             if not cleaned:
                 cleaner_failures.append(date)
@@ -146,7 +149,13 @@ class StockChipUpdater(BaseDataUpdater):
             progress.record(date, day_status)
 
             file_cnt += 1
-            batch_dates.append(date.strftime("%Y%m%d"))
+            # **只有兩個市場都問到的日子才入庫**：只入庫一邊的話，重試成功之前
+            # 回測讀到的是半個市場，且不會有任何錯誤。清洗失敗同樣擋下——
+            # 另一邊的 CSV 可能已經寫出
+            if day_status is CrawlStatus.FAILED:
+                self.report_partial_day("chip", date, twse, tpex)
+            else:
+                batch_dates.append(date.strftime("%Y%m%d"))
 
             # Step 3: Load（分批）
             if len(batch_dates) >= self.LOAD_BATCH_SIZE:
