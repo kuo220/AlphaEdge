@@ -39,9 +39,15 @@ from core.utils.log_manager import LogManager
 
 ---
 
-**三大法人只有約兩年的歷史**（2026-09-02 實測，切點 2024-08-17~19）：更早的日期
-無論換哪個端點都拿不到，查詢頁甚至會**靜靜回傳最新一天**而不是報錯。故本 updater
-會把該資料集的起始日**夾到兩年內**並說明原因，不浪費請求去撈拿不到的東西。
+**三大法人的歷史只回溯到 2023-09-04**（2026-09-05 實測）：更早的日期無論換哪個
+端點都拿不到，查詢頁甚至會**靜靜回傳最新一天**而不是報錯。故本 updater 會把該
+資料集的起始日**夾到那一天之後**並說明原因，不浪費請求去撈拿不到的東西。
+
+⚠️ **這個下限不要憑印象改。** 2026-09-02 曾實測出「切點 2024-08-17~19」而把夾擠
+寫成兩年，2026-09-05 以「每次最多重試 8 回」重測才發現那是**網路不穩被誤讀成查無
+資料**——TAIFEX 被擋與非交易日的回應都是 HTTP 200 ＋ 一頁 HTML，單次請求分不出
+「站方沒有」與「這次沒問到」。實測結果：2023-08-28~09-01 無資料、2023-09-04 起
+每一週都拿得到，切點落在這兩者之間。
 
 ⚠️ **籌碼是盤後公布**：當天盤中跑只會拿到「無資料」，那是正常狀態。
 回測要用的本來就是前一交易日的籌碼（見 `FuturesChipAPI` 的前視偏差說明）。
@@ -63,9 +69,15 @@ class FuturesChipUpdater(BaseDataUpdater):
     # 沒有指定起點時的預設回補起點：與行情一致（2015-01-01 起）
     DEFAULT_START_DATE: datetime.date = datetime.date(2015, 1, 1)
 
-    # **三大法人只有約兩年的歷史**（2026-09-02 實測，切點 2024-08-17~19）：
-    # 更早的日期無論換哪個端點都拿不到，硬撈只是白花請求。留 30 天餘裕
-    INSTITUTIONAL_HISTORY_DAYS: int = 365 * 2 - 30
+    # **三大法人拿得到的最早一天**（2026-09-05 實測，見模組說明）。
+    #
+    # 寫成固定日期而不是「今天往回推 N 天」：來源保留的長度看起來接近三年
+    # （2023-09-04 距實測日 2026-09-05 正好三年多一天），但**單靠一次觀測分不出
+    # 「固定起點」還是「滾動視窗」**。兩種寫法猜錯的代價不對稱——
+    # 猜成滾動而實際是固定，夾擠點會逐年往後跑、把真的拿得到的資料擋在外面且無聲；
+    # 猜成固定而實際是滾動，最多只是每次回補多問幾個已經滑出視窗的月份，
+    # 而月批次一個月只有一次請求，且日常續跑本來就從表內最新日接續、根本走不到這裡。
+    INSTITUTIONAL_EARLIEST_DATE: datetime.date = datetime.date(2023, 9, 4)
 
     def __init__(self):
         super().__init__()
@@ -124,6 +136,7 @@ class FuturesChipUpdater(BaseDataUpdater):
         start_date: Optional[datetime.date] = None,
         end_date: Optional[datetime.date] = None,
         resume: bool = True,
+        tables: Optional[List[str]] = None,
     ) -> None:
         """
         - Description:
@@ -136,12 +149,33 @@ class FuturesChipUpdater(BaseDataUpdater):
                 回補區間；None 分別取 `DEFAULT_START_DATE` 與今天
             - resume: bool
                 是否從各表的最新日接續
+            - tables: Optional[List[str]]
+                只更新這幾張表；None 表示三張全做。
+
+                **這個開關是給歷史回補用的。** 三張表的涵蓋範圍差很多——
+                `futures_large_trader` 與 `futures_put_call_ratio` 從 2015 就完整，
+                `futures_institutional_chip` 因為來源只留三年而起點晚得多。
+                要補後者就得 `resume=False` ＋ 指定 `start_date`，但那個組合會讓
+                另外兩張已完整的表**整段重抓**（上百次請求、上百萬列 INSERT OR IGNORE）。
+                指定 `tables` 才能只動要補的那一張。
+        - Raise:
+            - DataLoadError
+                有月份「該有交易日卻沒拿到資料」時拋出，見下方說明
         """
 
         end: datetime.date = end_date or datetime.date.today()
         blocked: List[str] = []
 
-        for table, label, crawl, clean in self.get_datasets():
+        datasets: List[Tuple[str, str, Callable, Callable]] = [
+            dataset
+            for dataset in self.get_datasets()
+            if tables is None or dataset[0] in tables
+        ]
+        if not datasets:
+            logger.warning(f"[Futures Chip] `tables` 沒有對應到任何資料集：{tables}")
+            return
+
+        for table, label, crawl, clean in datasets:
             start: datetime.date = self.resolve_start_date(
                 table, start_date, resume=resume
             )
@@ -190,17 +224,15 @@ class FuturesChipUpdater(BaseDataUpdater):
         if table != FUTURES_INSTITUTIONAL_CHIP_TABLE_NAME:
             return start_date
 
-        earliest: datetime.date = datetime.date.today() - datetime.timedelta(
-            days=self.INSTITUTIONAL_HISTORY_DAYS
-        )
-        if start_date >= earliest:
+        if start_date >= self.INSTITUTIONAL_EARLIEST_DATE:
             return start_date
 
         logger.warning(
-            f"[Futures Chip] {label} 的來源只提供約兩年的歷史，"
-            f"起始日由 {start_date} 調整為 {earliest}（更早的資料換哪個端點都拿不到）"
+            f"[Futures Chip] {label} 的來源最早只到 "
+            f"{self.INSTITUTIONAL_EARLIEST_DATE}，起始日由 {start_date} 調整為該日"
+            f"（更早的資料換哪個端點都拿不到）"
         )
-        return earliest
+        return self.INSTITUTIONAL_EARLIEST_DATE
 
     def update_dataset(
         self,

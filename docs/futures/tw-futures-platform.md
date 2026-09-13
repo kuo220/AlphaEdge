@@ -28,7 +28,7 @@
 
 - **DolphinDB 的期貨 tick 寫入路徑尚未實測**（Phase5-1）：本機 server 未啟動、
   `dolphindb` 屬選用相依。解除條件見該步驟的完成紀錄。
-- **歷史回補仍在進行**：六檔新增商品的日行情與三個籌碼資料集的歷史（背景作業）。
+- **日行情歷史回補已完成**（2026-09-04，七檔）；三個籌碼資料集的歷史回補仍在進行（背景作業）。
   進度查 `SELECT product, MIN(date), MAX(date), COUNT(*) FROM futures_price_daily GROUP BY product`。
 - **保證金 2015~2019 的歷史**：來源是掃描影像，需 OCR，見
   [台期貨保證金ETL](../../backlog/台期貨保證金ETL.md) S6（⏸）。
@@ -61,7 +61,7 @@
 | Phase2-3 | 期貨交易日曆（日盤 ＋ 夜盤、結算日） | `core/backtest/datafeed/tw/futures_calendar.py` | 不沿用股票 calendar | ✅ | **2026-09-02 完成**：交易日取自行情表（臨時休市／補行交易日自動涵蓋）、結算日為第三個星期三且**遇休市順延到期貨自己的下一個開盤日**、週契約另有規則、夜盤跨日與 2017-05-15 上線日皆已處理。14 條測試，含一條以真實表比對 **140 個已到期 TX 月契約的最後交易日，140/140 完全相同** |
 | Phase2-4 | 換月規則參數化 | `core/backtest/datafeed/tw/futures_roll.py`、`settlement_model.py`、`core/strategies/futures/base.py` | 三種換月規則可切換 | ✅ | **2026-09-02 完成**：`FuturesRollConfig` 由 factory 建立並由**策略、結算模型、DataFeed 三方共用**；結算模型在換月時自動轉倉（平舊倉 ＋ 同口數同方向開新倉，展期價差如實入帳）。13 條測試，含以真實資料驗「回測換月接點 ＝ `futures_continuous` 的 `roll_flag`」完全一致 |
 | Phase3-1 | 籌碼訊號 ETL（三大法人、大額交易人、PCR） | `core/pipeline/tw/*/futures_chip_*.py`、`core/api/tw/futures_chip_api.py` | 前視偏差對齊（T+1 可用） | ✅ | **2026-09-02 完成**：`--target futures_chip` 上線，三個資料集三張表，**一天三次請求即涵蓋全市場**（不逐商品打）。`FuturesChipAPI.get_available()` 只回傳「查詢日**之前**」已公布的籌碼——那一個等號就是前視偏差。13 條測試。⏳ 歷史回補背景進行中 |
-| Phase4-1 | 多商品擴充（MTX、TMF、TE、TF） | `core/config/settings.py`、`tests/test_futures_products.py` | 各商品點值／乘數正確 | ✅ | **2026-09-02 完成（程式面）**：`FUTURES_TARGET_PRODUCTS` 擴為 7 檔（TX／MTX／TMF／TE／ZEF／TF／ZFF），六檔新商品逐一實測可爬可清可入庫，**crawler／updater 一行都沒改**。15 條測試。⏳ **歷史回補進行中**（背景執行，約 40 小時），進度查 `SELECT product, MIN(date), MAX(date), COUNT(*) FROM futures_price_daily GROUP BY product` |
+| Phase4-1 | 多商品擴充（MTX、TMF、TE、TF） | `core/config/settings.py`、`tests/test_futures_products.py` | 各商品點值／乘數正確 | ✅ | **2026-09-02 完成（程式面）**：`FUTURES_TARGET_PRODUCTS` 擴為 7 檔（TX／MTX／TMF／TE／ZEF／TF／ZFF），六檔新商品逐一實測可爬可清可入庫，**crawler／updater 一行都沒改**。15 條測試。**2026-09-04 04:28 歷史回補全數完成**：TX 2,842 天、MTX 2,843、TE 2,843、TF 2,844（皆 2015-01-05 起）、ZEF 1,263（2021-06-28 起）、ZFF 1,151（2021-12-06 起）、TMF 512（2024-07-29 起）；全程 `ERROR` 0、保險絲 0，連續性檢查的斷點全數為春節與清明連假 |
 | Phase4-2 | 日盤／夜盤整併 | `core/utils/constant.py`、`core/adapters/tw/futures_quote_adapter.py`、`core/backtest/datafeed/tw/futures_datafeed.py` | 跨盤別跳空被保留 | ✅ | **2026-09-02 完成**：策略把 `session` 設為 `FuturesSession.COMBINED` 即得整併序列（**前一交易日夜盤 ＋ 當日日盤**，open 取夜盤故跨盤別跳空留在 bar 內）。12 條測試。實作時踩到兩個「不會報錯」的坑：`COMBINED` 被拿去查資料表（整場零交易）、ETL 直接迭代 `FuturesSession` 而去爬不存在的時段，兩者皆已固化為測試 |
 | Phase5-1 | 分 K 與 Tick（Shioaji futures ticks） | `core/pipeline/tw/*/futures_tick_*.py`、`core/utils/constant.py` | 日內策略可回測 | ✅ | **2026-09-02 完成（爬取與清洗已實測）**：`--target futures_tick` 上線。**TAIFEX 與 Shioaji 的商品代碼沒有規律**（MTX→MXF、TE→EXF、TF→FXF），對照表是實際登入逐一核對的；時段由時間戳判定（實測 TX202612 於 2026-08-28 的 29 筆中有 10 筆屬前一日夜盤）。12 條測試。⏸ **DolphinDB 寫入路徑未實測**（本機未啟動 server、套件未安裝），無連線時保留中繼檔並記 warning |
 | Phase5-2 | frontend 期貨專屬指標（保證金曲線、口數曝險） | `frontend/services/futures_metrics.py`、`frontend/app.py` | 指標可顯示 | ✅ | **2026-09-02 完成**：以**欄位**判斷是不是期貨報表，另外顯示峰值佔用保證金／峰值口數／資金使用率／平均保證金報酬率，並繪出保證金與口數曝險的階梯曲線（由交易明細的進出場日推導，不需引擎多輸出檔案）。7 條測試（邏輯抽到不含 Streamlit 的 service 才測得到）|
@@ -817,6 +817,11 @@ PRIMARY KEY `(date, product, expiry, session)`。
 >   已為此在 `FuturesPriceUpdater.update()` 補上 `resume: bool` 參數（`config.py` 的註解
 >   原本就說「往前擴張需要另行指定區間重跑」，但程式其實沒有這個開關），歷史回補走
 >   `update(start_date=..., end_date=..., resume=False)`。
+>   **⚠️ 這個坑對「只有幾天驗證資料」的商品特別致命**（2026-09-02~04 的六檔回補實例）：
+>   CDF／EEF／NYF 目前表內只有 2026-08-27／28 兩天，`resume=True` 會把起點算成 08-29，
+>   印一句「已是最新」就跳過整段歷史，**退出碼 0、無任何錯誤訊息**。回補這些商品時，
+>   起點一律以「排除驗證列後的實際最新日」手動指定：
+>   `SELECT MAX(date) FROM futures_price_daily WHERE product=? AND date<'2026-08-01'`。
 > - **`--target no_tick` ／ `all` 已含 `futures_price`**（與其他資料類型一致）。首次執行日常更新會順帶跑完整段回補，需有心理準備；之後每日只補新交易日。
 > - **⚠️ 2017-05-15 之前沒有夜盤，但仍會被查詢**（2026-08-29 實測）：
 >   起點 2015-01-01 到夜盤上線之間約 **590 個交易日**，每天仍會多打一次夜盤請求
