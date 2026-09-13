@@ -179,7 +179,7 @@ Equity changes data updated. Latest available date: 2020Q1   ← 沒往前推
   照那個版本跑完整段回補，**54 個年季只有 14 個 Q1 會有資料，其餘 40 季白打兩千次請求卻退出碼 0**。
   已修正並以 2330 逐季實查驗證（四季全中，且與同頁的去年同期表確實分開），
   統計行補上 `cleaned empty`。後續進度改看
-  [`backlog/權益變動表ETL補完.md`](../../backlog/權益變動表ETL補完.md)。
+  [權益變動表](../pipeline/equity-change.md)（原 `backlog/權益變動表ETL補完.md`，2026-09-13 結案移出）。
 - 逐檔 resume 已就緒（`get_crawled_stock_ids` 取差集），重跑只補差集，不會重抓。
 
 ### 3.5 財報三表的年季缺口

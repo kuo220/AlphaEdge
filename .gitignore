@@ -36,6 +36,10 @@ tests/backtest/cost_formula_diff.csv
 # Shioaji（第三方套件會往當時的工作目錄寫，擋不住來源只能擋檔名）
 shioaji.log
 
+# 長時間回補的 nohup 輸出（權益變動表那次 34 小時就是 13 MB）。
+# 同樣的內容 LogManager 已寫進 logs/ 的檔案 sink，這份只是為了好 grep
+backfill_*.log
+
 # Downloads Content
 Downloads/*
 

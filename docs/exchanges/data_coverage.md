@@ -11,7 +11,7 @@
 | 除權除息          | **上市**：證交所 `TWT49U`；**上櫃**：櫃買中心 `bulletin/exDailyQ` | `StockDividendAPI`        | SQLite `dividend`        | 2013-01-01（`DEFAULT_DIVIDEND_START_DATE`）                                                             | 股價還原係數、現金股利、開盤競價基準       |
 | 融資融券餘額       | **上市**：證交所 `MI_MARGN`；**上櫃**：櫃買中心 `margin/balance` | `StockMarginAPI`          | SQLite `margin`          | 2013-01-01（`DEFAULT_MARGIN_START_DATE`）                                                              | 券源檢核（`check_borrowable`）、券資比；歷史回補已於 2026-08-16 完成（574 萬列、3,330 個交易日） |
 | 月營收          | 台股資料來源（由 pipeline 更新） | `MonthlyRevenueReportAPI` | SQLite `monthly_revenue` | 2013-01（`DEFAULT_START_YEAR` 起、1 月）                                                                   | 基本面可用                                |
-| 財報           | 台股資料來源（由 pipeline 更新） | `FinancialStatementAPI`   | SQLite 各財報表              | 2013 年第 1 季（`DEFAULT_START_YEAR`）；**`equity_change` 例外，目前僅 2020Q1**                                    | 基本面可用；權益變動表的資料形狀與限制見 [權益變動表](../pipeline/equity-change.md) |
+| 財報           | 台股資料來源（由 pipeline 更新） | `FinancialStatementAPI`   | SQLite 各財報表              | 2013 年第 1 季（`DEFAULT_START_YEAR`）；`equity_change` 亦已補至 2013Q1（**2026-09-11 回補完成**，54 個年季零缺口） | 基本面可用；權益變動表的資料形狀與限制見 [權益變動表](../pipeline/equity-change.md) |
 | FinMind 參考資料 | FinMind API           | `FinMindAPI`              | SQLite FinMind 相關表       | 券商分點：`2021-06-30`（`FINMIND_BROKER_TRADING_START_DATE`）；台股總覽／證券商為 API 快照，更新流程未帶歷史起日                    | 股票、券商、分點                             |
 | 台期貨日線       | TAIFEX 每日行情頁（POST） | `FuturesPriceAPI`（`core/api/tw/futures_price_api.py`） | SQLite `tw_futures.db` `futures_price_daily` | 2015-01-01（`DEFAULT_FUTURES_START_DATE`）                                                              | 日盤／夜盤分列存（`session` 欄位）；指數期貨 7 檔（`FUTURES_TARGET_PRODUCTS`：TX／MTX／TMF／TE／ZEF／TF／ZFF，**歷史回補已於 2026-09-04 完成並驗收**，逐檔涵蓋見〈已知限制〉）＋ 股票期貨（`--target futures_stock_price`，預設流動性前 20 檔） |
 | 台期貨連續合約   | 由 `futures_price_daily` 衍生（不連網路） | `FuturesPriceAPI`（`get_continuous*`） | SQLite `tw_futures.db` `futures_continuous` | 同上                                                                                                    | 3 種調整方式 × 3 種換月規則；每次 `--target futures_continuous` 整段重建 |
@@ -29,7 +29,7 @@
 | `StockDividendAPI`        | `core/api/tw/stock_dividend_api.py`      | SQLite    | `dividend`                                                                                           | 2013-01-01                                                                        |
 | `StockMarginAPI`          | `core/api/tw/stock_margin_api.py`        | SQLite    | `margin`                                                                                             | 2013-01-01                                                                        |
 | `MonthlyRevenueReportAPI` | `core/api/tw/monthly_revenue_report_api.py` | SQLite    | `monthly_revenue`                                                                                    | 2013-01                                                                           |
-| `FinancialStatementAPI`   | `core/api/tw/financial_statement_api.py` | SQLite    | `balance_sheet`、`comprehensive_income`、`cash_flow`、`equity_change`                                  | 2013 Q1；`equity_change` 目前僅 2020Q1                                               |
+| `FinancialStatementAPI`   | `core/api/tw/financial_statement_api.py` | SQLite    | `balance_sheet`、`comprehensive_income`、`cash_flow`、`equity_change`                                  | 2013 Q1（四張表皆是）                                               |
 | `FinMindAPI`              | `core/api/tw/finmind_api.py`             | SQLite    | `taiwan_stock_info`、`taiwan_stock_info_with_warrant`、`taiwan_securities_trader_info`、`taiwan_stock_trading_daily_report_secid_agg` | `finmind`／`broker_trading`：`2021-06-30`；`stock_info`／`broker_info` 等為快照，無程式內建歷史起日 |
 | `StockTickAPI`            | `core/api/tw/stock_tick_api.py`          | DolphinDB | `tickDB` / `tick`                                                                                    | 預設更新 `2024-05-10`；Shioaji 約 **2020-03-02** 起                                      |
 | `FuturesPriceAPI`         | `core/api/tw/futures_price_api.py`       | SQLite    | `futures_price_daily`、`futures_continuous`（`tw_futures.db`）                                         | 2015-01-01                                                                        |
@@ -53,7 +53,7 @@ python -m tasks.update_db --target <targets...>
 | `chip`                    | 2013-01-01                                                   |
 | `dividend`                | 2013-01-01                                                   |
 | `margin`                  | 2013-01-01（`DEFAULT_MARGIN_START_DATE`）                    |
-| `fs`                      | 2013 年第 1 季；`equity_change` 為逐檔查詢，歷史回補進行中（目前僅 2020Q1）        |
+| `fs`                      | 2013 年第 1 季；`equity_change` 為逐檔查詢，歷史回補已於 2026-09-11 完成        |
 | `mrr`                     | 2013 年 1 月                                                   |
 | `tick`                    | 2024-05-10（`TICK_UPDATE_START_DATE`）；Shioaji 可查約自 2020-03-02 |
 | `finmind`                 | `broker_trading` 區間自 2021-06-30；其餘子項見下                       |
@@ -100,9 +100,11 @@ python -m tasks.update_db --target <targets...>
 ## 已知限制
 
 - 專案目前無內建加密貨幣 / prediction market collectors（如 Kalshi、Polymarket 實作）。
-- **`equity_change`（權益變動表）與其他三張財報表不同**：目前僅涵蓋 2020Q1，其餘 55 個年季待回補；
-  且爬取清單取自 `taiwan_stock_info` 現況，**不含已下市公司與興櫃**（倖存者偏誤來源）。
-  資料形狀為長表、單位仟元，詳見[權益變動表](../pipeline/equity-change.md)。
+- **`equity_change`（權益變動表）的形狀與其他三張財報表不同**：長表、單位仟元，
+  涵蓋 **2013Q1~2026Q2 共 54 個年季、14,541,477 列**（2026-09-11 回補完成、2026-09-13 複驗）。
+  爬取清單取自 `taiwan_stock_info` 現況，**不含已下市公司與興櫃**（倖存者偏誤來源）；
+  另有 6 檔公司的 2013~2014 年季站方導向「採 IFRSs 前」的另一組端點、本表沒有。
+  詳見[權益變動表](../pipeline/equity-change.md)〈已知限制〉。
 - `tick` 依賴 DolphinDB 環境與對應連線參數，未設定時無法使用 tick 相關流程。
 - 上表「起始日期」與 `tasks.update_db` 的 `get_update_time_config` 一致者，皆定義於 `core/config/settings.py`（`DEFAULT_PRICE_START_DATE`、`DEFAULT_CHIP_START_DATE`、`DEFAULT_START_YEAR`、`TICK_UPDATE_START_DATE`、`FINMIND_BROKER_TRADING_START_DATE` 等）。
 - 實際本地 SQLite／DolphinDB 內容可能與預設起日不同，以庫內最早一筆為準。
