@@ -39,6 +39,11 @@ class FinancialStatementCrawler(BaseDataCrawler):
     # 必須分開處理，否則逐檔回補會把暫時性失敗記成「這檔沒有權益變動表」而永久略過
     EQUITY_CHANGE_UNREACHABLE_MARKER: str = "Unreachable Server"
     EQUITY_CHANGE_NO_DATA_MARKER: str = "查無資料"
+    # 站方對民國 103 年（含）以前、尚未採 IFRSs 的年季只回導流訊息「…請至採IFRSs前之
+    # 個別報表 或 合併報表 查詢！」，頁面裡沒有任何表格。這是永久狀態，重跑不會變。
+    # 用片段比對而非整句，站方文案微調時才不會失效；**只在解不出表格時才看它**——
+    # 正常報表頁的導覽或註腳若出現這幾個字，整頁比對會把有資料的公司誤記成查無資料
+    EQUITY_CHANGE_PRE_IFRS_MARKER: str = "採IFRSs前"
     EQUITY_CHANGE_MAX_RETRIES: int = 3
     EQUITY_CHANGE_RETRY_DELAY_SECONDS: int = 30
 
@@ -304,6 +309,15 @@ class FinancialStatementCrawler(BaseDataCrawler):
                     try:
                         return pd.read_html(StringIO(res.text))
                     except ValueError:
+                        # 導流到「採 IFRSs 前」端點：回 [] 讓它寫進查無資料的永久名單，
+                        # 回 None（待重試）的話每輪整段回補都會重打，而結果永遠一樣
+                        if self.EQUITY_CHANGE_PRE_IFRS_MARKER in res.text:
+                            logger.debug(
+                                f"Pre-IFRS equity changes not served here: "
+                                f"{stock_id} {year}Q{season}"
+                            )
+                            return []
+
                         # 既非「查無資料」也非過載，卻解不出表格：版面可能已改制。
                         # **回 None（待重試）而不是 []（確定沒有資料）**——站方真的
                         # 沒資料時會回明確訊息，上面已經攔下了；解析不出來代表拿到
