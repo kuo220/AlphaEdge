@@ -27,7 +27,7 @@ class StockChipCrawler(BaseDataCrawler):
     # TPEX URL 格式變更日（2014/12/1 起）
     TPEX_URL_CHANGE_DATE: datetime.date = datetime.date(2014, 12, 1)
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         self.tpex_url_change_date: datetime.date = self.TPEX_URL_CHANGE_DATE

@@ -36,9 +36,14 @@ fd 仍指向 `logs/pipeline/update_futures_price.log`、已寫入 4.3 MB，
 """
 
 from pathlib import Path
-from typing import Callable, Dict, Optional, Set, Tuple
+from typing import TYPE_CHECKING, Callable, Dict, Optional, Set, Tuple
 
 from loguru import logger
+
+if TYPE_CHECKING:
+    # loguru 只在 `__init__.pyi` 宣告 `Logger`，執行期 import 會 ImportError，
+    # 故只給型別檢查器看（`get_logger()` 的回傳型別）
+    from loguru import Logger
 
 from core.config import (
     BACKTEST_LOGS_DIR_PATH,
@@ -220,6 +225,6 @@ class LogManager:
         )
 
     @staticmethod
-    def get_logger():
+    def get_logger() -> "Logger":
         """Get the loguru logger instance"""
         return logger

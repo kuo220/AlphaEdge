@@ -70,7 +70,7 @@ class FuturesChipCrawler(BaseDataCrawler):
     # 故一律檢查第一行是不是真的 CSV 表頭——這是本端點最容易靜默寫錯資料的地方。
     CSV_HEADER_KEYWORD: str = "日期"
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
     def setup(self) -> None:

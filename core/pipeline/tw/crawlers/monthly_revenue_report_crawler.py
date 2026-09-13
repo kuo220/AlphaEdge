@@ -36,7 +36,7 @@ class MonthlyRevenueReportCrawler(BaseDataCrawler):
     CRAWL_DELAY_MIN: float = 1.0
     CRAWL_DELAY_MAX: float = 3.0
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Downloads directory Path
         self.mrr_dir: Path = MONTHLY_REVENUE_REPORT_DOWNLOADS_PATH
 

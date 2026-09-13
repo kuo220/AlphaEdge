@@ -85,7 +85,7 @@ class Backtester:
         reporter_cls: Type[BaseBacktestReporter],
         event_counts: Optional[Dict[str, int]] = None,
         adjusted_price: bool = False,
-    ):
+    ) -> None:
         self.strategy: BaseStrategy = strategy  # 要回測的策略
         self.account: BaseAccount = account  # 虛擬帳戶資訊
         self.position_manager: BasePositionManager = position_manager  # 倉位管理器

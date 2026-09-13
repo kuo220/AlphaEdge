@@ -34,7 +34,7 @@ class FinMindUpdater(BaseDataUpdater):
     # 預設日期（update_all 時 broker_trading 若未給 start_date）
     DEFAULT_BROKER_TRADING_START_DATE: datetime.date = datetime.date(2021, 6, 30)
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         # SQLite Connection（用於讀取：股票/券商列表、metadata 從 DB 查詢）

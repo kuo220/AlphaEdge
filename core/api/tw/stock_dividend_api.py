@@ -32,7 +32,7 @@ Stock dividend API: query SQLite dividend table（除權除息計算結果表）
 class StockDividendAPI(BaseDataAPI):
     """Stock dividend API"""
 
-    def __init__(self, conn: Optional[sqlite3.Connection] = None):
+    def __init__(self, conn: Optional[sqlite3.Connection] = None) -> None:
         # 由 DataFeed 傳入共用連線；未指定時自行建立（與 StockPriceAPI 同慣例）
         self.conn: Optional[sqlite3.Connection] = conn
         self.owns_conn: bool = conn is None
@@ -43,7 +43,7 @@ class StockDividendAPI(BaseDataAPI):
 
         self.setup()
 
-    def setup(self):
+    def setup(self) -> None:
         """Set Up the Config of Data API"""
 
         if self.owns_conn:

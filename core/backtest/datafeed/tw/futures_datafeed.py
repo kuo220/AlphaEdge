@@ -46,7 +46,7 @@ class TwFuturesDataFeed(BaseDataFeed):
         self,
         margin_config: Optional[FuturesMarginConfig] = None,
         roll_config: Optional[FuturesRollConfig] = None,
-    ):
+    ) -> None:
         # 單次回測共用一條 SQLite 連線：行情與保證金查的是同一個 DB 檔
         self.conn: Optional[sqlite3.Connection] = None
 

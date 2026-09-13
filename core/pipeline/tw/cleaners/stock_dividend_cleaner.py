@@ -90,7 +90,7 @@ class StockDividendCleaner(BaseDataCleaner):
         "減除股利參考價",
     ]
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         # Dividend DataFrame Cleaned Columns

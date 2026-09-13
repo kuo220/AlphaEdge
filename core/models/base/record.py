@@ -35,7 +35,7 @@ class BaseTradeRecord:
         transaction_cost: float = 0.0,
         realized_pnl: float = 0.0,
         roi: float = 0.0,
-    ):
+    ) -> None:
         # Basic Info
         self.id: int = id  # 交易編號（每筆交易唯一編號）
         self.symbol: str = symbol  # 商品代號

@@ -41,7 +41,9 @@ from core.pipeline.tw.utils.stock_tick_utils import StockTickUtils
 pytestmark = pytest.mark.slow
 
 
-def test_update_without_db(start_date: datetime.date, end_date: datetime.date = None):
+def test_update_without_db(
+    start_date: datetime.date, end_date: datetime.date = None
+) -> None:
     """測試 StockTickUpdater.update，不存入資料庫"""
     if end_date is None:
         end_date = datetime.date.today()
@@ -170,7 +172,7 @@ def test_scan_tick_downloads_folder():
         return {}
 
 
-def test_update_tick_downloads_metadata():
+def test_update_tick_downloads_metadata() -> None:
     """
     測試 StockTickUtils.update_tick_downloads_metadata() 函數
     更新 tick_downloads_metadata.json 檔案
@@ -244,7 +246,7 @@ def test_update_tick_downloads_metadata():
         traceback.print_exc()
 
 
-def test_both_functions():
+def test_both_functions() -> None:
     """
     測試兩個函數的組合使用
     """

@@ -31,7 +31,7 @@ class StockBacktestReporter(BaseBacktestReporter):
         output_dir: Optional[Path] = None,
         price: Optional[StockPriceAPI] = None,
         show: Optional[bool] = None,
-    ):
+    ) -> None:
         super().__init__(strategy, output_dir)
 
         # 由 Backtester 傳入 DataFeed 已經開好的連線；未指定時自行建立並由

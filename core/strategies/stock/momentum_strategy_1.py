@@ -51,7 +51,7 @@ class MomentumStrategy1(BaseStockStrategy):
     # 等於把「交易日集合一次建立」的優化悄悄關掉——綁住的是這一邊，不是日曆那一邊
     CALENDAR_LOOKBACK_DAYS: int = MarketCalendar.MAX_LOOKBACK_DAYS
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.strategy_name: str = "Momentum-1"
         self.init_capital: float = 1000000.0

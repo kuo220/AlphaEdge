@@ -38,7 +38,7 @@ class TwStockDataFeed(BaseDataFeed):
     # 會在 end_date 之後，只查回測區間本身會整段漏掉
     FORCE_COVER_LOOKAHEAD_DAYS: int = 21
 
-    def __init__(self):
+    def __init__(self) -> None:
         # 單次回測共用一條 SQLite 連線：四個 API 查的是同一個 DB 檔，
         # 各開一條沒有任何好處，只會讓連線數隨 API 數量線性成長
         self.conn: Optional[sqlite3.Connection] = None

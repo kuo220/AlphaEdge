@@ -33,7 +33,7 @@ class CorporateActionLoader(BaseDataLoader):
     # 偵測值是從價格反推的近似，交易所給的才是官方參考價
     SOURCE_PRIORITY: List[str] = ["detected", "tpex", "twse"]
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         self.conn: Optional[sqlite3.Connection] = None

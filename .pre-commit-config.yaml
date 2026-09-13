@@ -51,3 +51,15 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+
+      # 文件路徑漂移閘門。搬檔案的那一刻就該被擋下來，不必等 push——
+      # 2026-09-13 之前它不在任何閘門裡，紅了三天沒人發現（健檢第四輪 S2）。
+      # 同樣是掃全專案的「引用關係」而非單檔，故 `pass_filenames: false`。
+      # `check_api_orphan_methods.py` 刻意不放這裡：它要 import `core/api`，
+      # 比這支慢一個量級，留給 CI
+      - id: check-doc-paths
+        name: 文件路徑檢查（scripts/check_doc_paths.py）
+        entry: python3 scripts/check_doc_paths.py
+        language: system
+        pass_filenames: false
+        always_run: true

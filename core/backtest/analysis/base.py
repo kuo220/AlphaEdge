@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import List, Optional
 
 from core.models import BaseAccount
 from core.strategies.base import BaseStrategy
@@ -13,7 +13,7 @@ class BaseBacktestAnalyzer(ABC):
     （雙軌關係見 `core/backtest/README.md`〈績效指標〉）。
     """
 
-    def __init__(self, strategy: BaseStrategy):
+    def __init__(self, strategy: BaseStrategy) -> None:
         self.strategy: BaseStrategy = strategy  # Backtest strategy
         self.account: BaseAccount = self.strategy.account  # Account
 
@@ -24,13 +24,13 @@ class BaseBacktestAnalyzer(ABC):
 
     # ===== Equity-based Metrics =====
     @abstractmethod
-    def compute_equity_curve(self) -> None:
-        """計算並繪製權益曲線（淨資產隨時間變化）"""
+    def compute_equity_curve(self, *args, **kwargs) -> List[float]:
+        """計算權益曲線（淨資產隨時間變化）"""
         pass
 
     @abstractmethod
-    def compute_mdd(self) -> None:
-        """計算並繪製 Max Drawdown"""
+    def compute_mdd(self, *args, **kwargs) -> float:
+        """計算 Max Drawdown"""
         pass
 
     # ===== Risk-Adjusted Metrics =====

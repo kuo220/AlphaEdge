@@ -19,7 +19,7 @@ class StockAccount(BaseAccount):
     以及把借券費與融券利息納入的總交易成本口徑。
     """
 
-    def __init__(self, init_capital: float = 0.0):
+    def __init__(self, init_capital: float = 0.0) -> None:
         super().__init__(init_capital)
 
         # Short Positions

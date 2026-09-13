@@ -42,7 +42,7 @@ class StockTradeRecord(BaseTradeRecord):
         margin: float = 0.0,
         holding_days: int = 0,
         roi_on_capital: float = 0.0,
-    ):
+    ) -> None:
         super().__init__(
             id=id,
             symbol=stock_id,

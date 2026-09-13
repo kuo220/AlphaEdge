@@ -32,7 +32,7 @@ Futures Continuous Loader
 class FuturesContinuousLoader(BaseDataLoader):
     """把建好的連續合約序列寫進 `futures_continuous`"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         self.conn: Optional[sqlite3.Connection] = None

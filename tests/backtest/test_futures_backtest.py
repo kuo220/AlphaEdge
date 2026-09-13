@@ -60,7 +60,7 @@ class ScriptedFuturesStrategy(BaseFuturesStrategy):
         self,
         open_script: Optional[Dict[datetime.date, List[FuturesOrder]]] = None,
         close_script: Optional[Dict[datetime.date, List[FuturesOrder]]] = None,
-    ):
+    ) -> None:
         super().__init__()
 
         self.strategy_name: str = "ScriptedFutures"
@@ -564,7 +564,7 @@ class StubFuturesPriceAPI:
         "未沖銷契約量",
     ]
 
-    def __init__(self, trading_days: Optional[List[datetime.date]] = None):
+    def __init__(self, trading_days: Optional[List[datetime.date]] = None) -> None:
         self.trading_days: List[datetime.date] = trading_days or [DAY_1]
         self.rows: List[list] = [
             [DAY_1, "TX", "202403", "day", 18000, 18100, 17900, 18050, 100, 18050, 500],

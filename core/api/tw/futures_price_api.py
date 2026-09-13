@@ -38,7 +38,7 @@ loader 之間的暫存，唯一鍵與去重要入庫後才成立，資料庫才�
 class FuturesPriceAPI(BaseDataAPI):
     """Futures Price API"""
 
-    def __init__(self, conn: Optional[sqlite3.Connection] = None):
+    def __init__(self, conn: Optional[sqlite3.Connection] = None) -> None:
         # 由 DataFeed 傳入共用連線；未指定時自行建立
         self.conn: Optional[sqlite3.Connection] = conn
         self.owns_conn: bool = conn is None

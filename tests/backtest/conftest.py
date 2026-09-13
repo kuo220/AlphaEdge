@@ -81,7 +81,7 @@ class ScriptedStrategy(BaseStockStrategy):
         open_script: Optional[Dict[datetime.date, List[StockOrder]]] = None,
         close_script: Optional[Dict[datetime.date, List[StockOrder]]] = None,
         stop_loss_script: Optional[Dict[datetime.date, List[StockOrder]]] = None,
-    ):
+    ) -> None:
         super().__init__()
 
         self.strategy_name: str = "ScriptedStrategy"
@@ -154,7 +154,7 @@ class ScriptedDataFeed(TwStockDataFeed):
         self,
         force_cover_script: Optional[Dict[datetime.date, Set[str]]] = None,
         cash_dividend_script: Optional[Dict[datetime.date, Dict[str, float]]] = None,
-    ):
+    ) -> None:
         super().__init__()
 
         self.force_cover_script: Dict[datetime.date, Set[str]] = (

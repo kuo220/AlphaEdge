@@ -85,7 +85,7 @@ class StockMarginCleaner(BaseDataCleaner):
     # 合法證券代號樣式（用於濾掉「合計」「共 N 筆」等統計列）
     STOCK_ID_PATTERN: str = r"[0-9A-Z]{4,6}"
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         # Margin DataFrame Cleaned Columns

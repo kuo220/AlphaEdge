@@ -61,10 +61,10 @@ def test_get_retries_then_returns_none(
     """
 
     class FailingSession:
-        def get(self, *args, **kwargs):
+        def get(self, *args, **kwargs) -> None:
             raise exception
 
-        def post(self, *args, **kwargs):
+        def post(self, *args, **kwargs) -> None:
             raise exception
 
     monkeypatch.setattr(RequestUtils, "ses", FailingSession())
@@ -82,7 +82,7 @@ def test_get_retries_then_returns_none(
 class _FakeResponse:
     """最小 Response 替身，只帶 fetch() 會看的三個屬性"""
 
-    def __init__(self, status_code: int, text: str = ""):
+    def __init__(self, status_code: int, text: str = "") -> None:
         self.status_code: int = status_code
         self.text: str = text
 
@@ -165,7 +165,7 @@ def test_fetch_timeout_is_unreachable(monkeypatch: pytest.MonkeyPatch) -> None:
 
     from core.pipeline.shared.request_utils import FetchStatus
 
-    def send():
+    def send() -> None:
         raise requests.exceptions.ReadTimeout("boom")
 
     _install_session(monkeypatch, send)

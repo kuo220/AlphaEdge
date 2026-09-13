@@ -182,6 +182,6 @@ class ShioajiAccount:
 class ShioajiAPI:
     """Shioaji API_KEY and API_SECRET_KEY"""
 
-    def __init__(self, api_key: str, api_secret_key: str):
+    def __init__(self, api_key: str, api_secret_key: str) -> None:
         self.api_key: str = api_key
         self.api_secret_key: str = api_secret_key

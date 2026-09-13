@@ -29,7 +29,7 @@ from core.utils.log_manager import LogManager
 class StockTickAPI(BaseDataAPI):
     """Tick data API"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.default_stock_id: str = "2330"
         self.query_start_date: str = "2024.05.10"
         self.query_end_date: str = "2024.05.10"

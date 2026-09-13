@@ -40,7 +40,7 @@ class FuturesBacktestReporter(StockBacktestReporter):
         output_dir: Optional[Path] = None,
         price: Optional[Any] = None,
         show: Optional[bool] = None,
-    ):
+    ) -> None:
         # 對標商品：策略交易的第一個商品（多商品策略以第一個為代表）
         self.benchmark_product: str = (
             strategy.products[0] if getattr(strategy, "products", None) else "TX"

@@ -17,7 +17,7 @@ from core.pipeline.utils.exceptions import ColumnLayoutError
 class BaseDataCleaner(ABC):
     """Base Class of Data Cleaner"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     @abstractmethod

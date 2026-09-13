@@ -26,7 +26,7 @@ class StockTickCleaner(BaseDataCleaner):
     INITIAL_RETRY_DELAY: float = 0.1
     RETRY_BACKOFF_MULTIPLIER: int = 2
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         # Downloads directory Path

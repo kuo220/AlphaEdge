@@ -20,14 +20,14 @@ from core.utils.log_manager import LogManager
 class StockChipAPI(BaseDataAPI):
     """Institutional investors chip API"""
 
-    def __init__(self, conn: Optional[sqlite3.Connection] = None):
+    def __init__(self, conn: Optional[sqlite3.Connection] = None) -> None:
         # 由 DataFeed 傳入共用連線；未指定時自行建立
         self.conn: Optional[sqlite3.Connection] = conn
         self.owns_conn: bool = conn is None
 
         self.setup()
 
-    def setup(self):
+    def setup(self) -> None:
         """Set Up the Config of Data API"""
 
         if self.owns_conn:

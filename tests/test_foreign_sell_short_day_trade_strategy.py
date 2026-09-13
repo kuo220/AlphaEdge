@@ -45,7 +45,7 @@ class FakeDividendAPI:
 
     def __init__(
         self, basis_by_date: Optional[Dict[datetime.date, Dict[str, float]]] = None
-    ):
+    ) -> None:
         self.basis_by_date: Dict[datetime.date, Dict[str, float]] = basis_by_date or {}
 
     def get_opening_reference_price_map(self, date: datetime.date) -> Dict[str, float]:
@@ -62,7 +62,7 @@ class FakePriceAPI:
         close_map_by_date: Dict[datetime.date, Dict[str, Any]],
         volume_map_by_date: Dict[datetime.date, Dict[str, int]],
         dividend_api: Optional[FakeDividendAPI] = None,
-    ):
+    ) -> None:
         self.close_map_by_date: Dict[datetime.date, Dict[str, Any]] = close_map_by_date
         self.volume_map_by_date: Dict[datetime.date, Dict[str, int]] = (
             volume_map_by_date
@@ -100,7 +100,7 @@ class FakePriceAPI:
 class FakeChipAPI:
     """只回傳腳本給定的外資買賣超對照表，不連資料庫"""
 
-    def __init__(self, net_shares_by_date: Dict[datetime.date, Dict[str, Any]]):
+    def __init__(self, net_shares_by_date: Dict[datetime.date, Dict[str, Any]]) -> None:
         self.net_shares_by_date: Dict[datetime.date, Dict[str, Any]] = (
             net_shares_by_date
         )

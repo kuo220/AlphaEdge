@@ -51,7 +51,7 @@ Futures Margin API: query the two margin tables in tw_futures.db
 class FuturesMarginAPI(BaseDataAPI):
     """Futures Margin API"""
 
-    def __init__(self, conn: Optional[sqlite3.Connection] = None):
+    def __init__(self, conn: Optional[sqlite3.Connection] = None) -> None:
         # 由 DataFeed 傳入共用連線；未指定時自行建立
         self.conn: Optional[sqlite3.Connection] = conn
         self.owns_conn: bool = conn is None
@@ -95,18 +95,21 @@ class FuturesMarginAPI(BaseDataAPI):
                 `{"結算保證金", "維持保證金", "原始保證金"}`；查無資料時為 None
         """
 
-        try:
-            row = self.conn.execute(
-                f"SELECT 結算保證金, 維持保證金, 原始保證金 "
-                f"FROM {FUTURES_MARGIN_HISTORY_TABLE_NAME} "
-                f"WHERE product = ? AND effective_date <= ? "
-                f"ORDER BY effective_date DESC LIMIT 1",
-                (product, str(date)),
-            ).fetchone()
-        except sqlite3.OperationalError:
-            # 表不存在（尚未跑過保證金 ETL）：與「查無該商品」同樣回 None，
-            # 由呼叫端決定要中止還是退回比率近似
+        # 表不存在（尚未跑過保證金 ETL）：與「查無該商品」同樣回 None，
+        # 由呼叫端決定要中止還是退回比率近似。**只判斷表存不存在**——
+        # 舊版連 `database is locked` 一起吞，會讓回測誤用比率近似值（S1）
+        if not self.check_table_exist(
+            conn=self.conn, table_name=FUTURES_MARGIN_HISTORY_TABLE_NAME
+        ):
             return None
+
+        row = self.conn.execute(
+            f"SELECT 結算保證金, 維持保證金, 原始保證金 "
+            f"FROM {FUTURES_MARGIN_HISTORY_TABLE_NAME} "
+            f"WHERE product = ? AND effective_date <= ? "
+            f"ORDER BY effective_date DESC LIMIT 1",
+            (product, str(date)),
+        ).fetchone()
 
         if row is None and fallback_to_earliest:
             row = self.conn.execute(
@@ -182,19 +185,21 @@ class FuturesMarginAPI(BaseDataAPI):
                 （與 `get_margin()` 同一套語意）
         """
 
-        try:
-            row = self.conn.execute(
-                f"SELECT 結算保證金適用比例, 維持保證金適用比例, 原始保證金適用比例 "
-                f"FROM {STOCK_FUTURES_MARGIN_RATE_HISTORY_TABLE_NAME} "
-                f"WHERE product_id = ? AND effective_date <= ? "
-                f"ORDER BY effective_date DESC LIMIT 1",
-                (product_id, str(date)),
-            ).fetchone()
-        except sqlite3.OperationalError:
-            # 表不存在（尚未跑過保證金 ETL）：與 `get_margin()` 同樣回 None。
-            # **舊版只有 `get_margin()` 有這段**，於是同一個
-            # 「還沒跑 ETL」的環境下，查金額回 None、查比例卻直接拋例外
+        # 表不存在（尚未跑過保證金 ETL）：與 `get_margin()` 同樣回 None。
+        # **更舊的版本只有 `get_margin()` 有這段**，於是同一個「還沒跑 ETL」的
+        # 環境下，查金額回 None、查比例卻直接拋例外
+        if not self.check_table_exist(
+            conn=self.conn, table_name=STOCK_FUTURES_MARGIN_RATE_HISTORY_TABLE_NAME
+        ):
             return None
+
+        row = self.conn.execute(
+            f"SELECT 結算保證金適用比例, 維持保證金適用比例, 原始保證金適用比例 "
+            f"FROM {STOCK_FUTURES_MARGIN_RATE_HISTORY_TABLE_NAME} "
+            f"WHERE product_id = ? AND effective_date <= ? "
+            f"ORDER BY effective_date DESC LIMIT 1",
+            (product_id, str(date)),
+        ).fetchone()
 
         if row is None and fallback_to_earliest:
             # 級距穩定的商品（Ex: CDF 一直是級距 1）從不出現在調整公告裡，
@@ -296,16 +301,18 @@ class FuturesMarginAPI(BaseDataAPI):
         查不到**，那是來源限制（2020/03 之前的公告附件是掃描影像）。
         """
 
-        try:
-            row = self.conn.execute(
-                f"SELECT MIN(effective_date), MAX(effective_date) "
-                f"FROM {FUTURES_MARGIN_HISTORY_TABLE_NAME} WHERE product = ?",
-                (product,),
-            ).fetchone()
-        except sqlite3.OperationalError:
-            # 表還不存在＝尚未跑過 `--target futures_margin`；那是「還沒有資料」
-            # 不是查詢寫錯，全新環境（CI、剛 clone）本來就會走到這裡
+        # 表還不存在＝尚未跑過 `--target futures_margin`；那是「還沒有資料」
+        # 不是查詢寫錯，全新環境（CI、剛 clone）本來就會走到這裡
+        if not self.check_table_exist(
+            conn=self.conn, table_name=FUTURES_MARGIN_HISTORY_TABLE_NAME
+        ):
             return None
+
+        row = self.conn.execute(
+            f"SELECT MIN(effective_date), MAX(effective_date) "
+            f"FROM {FUTURES_MARGIN_HISTORY_TABLE_NAME} WHERE product = ?",
+            (product,),
+        ).fetchone()
 
         if row is None or row[0] is None:
             return None

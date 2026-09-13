@@ -43,7 +43,7 @@ class FuturesRollPlanner:
         rule: FuturesRollRule = FuturesRollRule.LAST_TRADING_DAY,
         days_before_expiry: int = DEFAULT_DAYS_BEFORE_EXPIRY,
         include_weekly: bool = False,
-    ):
+    ) -> None:
         self.calendar: FuturesCalendar = calendar
         self.rule: FuturesRollRule = rule
         self.days_before_expiry: int = days_before_expiry

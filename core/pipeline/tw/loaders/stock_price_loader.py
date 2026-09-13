@@ -13,7 +13,7 @@ from core.pipeline.utils.sqlite_utils import SQLiteUtils
 class StockPriceLoader(BaseDataLoader):
     """Stock Price Loader"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         # SQLite Connection

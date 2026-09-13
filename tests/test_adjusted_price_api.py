@@ -354,7 +354,7 @@ def test_empty_basis_is_a_no_op() -> None:
 class StockQuoteStub:
     """`on_bar_close()` 只取 symbol 與 close，故以最小 stub 代替完整報價"""
 
-    def __init__(self, symbol: str, close: float):
+    def __init__(self, symbol: str, close: float) -> None:
         self.symbol: str = symbol
         self.close: float = close
         self.cur_price: float = close

@@ -62,7 +62,7 @@ class DateProgressStore:
         比誤把「沒問到」當成「問過了沒有」安全得多。
     """
 
-    def __init__(self, source: str, path: Optional[Path] = None):
+    def __init__(self, source: str, path: Optional[Path] = None) -> None:
         self.source: str = source
         self.path: Path = path or (
             DOWNLOADS_METADATA_DIR_PATH / "no_data" / f"{source}_date_progress.json"

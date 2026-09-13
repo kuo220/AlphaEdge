@@ -79,7 +79,7 @@ class FuturesChipUpdater(BaseDataUpdater):
     # 而月批次一個月只有一次請求，且日常續跑本來就從表內最新日接續、根本走不到這裡。
     INSTITUTIONAL_EARLIEST_DATE: datetime.date = datetime.date(2023, 9, 4)
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         self.crawler: Optional[FuturesChipCrawler] = None

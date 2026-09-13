@@ -2,7 +2,7 @@ import argparse
 import datetime
 import sys
 from contextlib import contextmanager
-from typing import Dict, List, Optional, Set, Union
+from typing import Dict, Iterator, List, Optional, Set, Union
 
 from loguru import logger
 
@@ -327,7 +327,7 @@ def _build_time_config(
 
 
 @contextmanager
-def target_guard(name: str, failed_targets: List[str]):
+def target_guard(name: str, failed_targets: List[str]) -> Iterator[None]:
     """
     - Description:
         隔離單一 target 的失敗：記錄下來但不中斷其餘 target

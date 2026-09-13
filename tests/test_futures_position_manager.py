@@ -628,7 +628,7 @@ def test_costs_are_deducted_when_configured() -> None:
 class StubMarginAPI:
     """只回傳固定值的假 API，避免測試連 tw_futures.db"""
 
-    def __init__(self, per_lot=None, covered=None):
+    def __init__(self, per_lot=None, covered=None) -> None:
         self.per_lot = per_lot
         self.covered = covered
         self.calls = []

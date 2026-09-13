@@ -26,7 +26,7 @@ class StockPriceAPI(BaseDataAPI):
         self,
         conn: Optional[sqlite3.Connection] = None,
         dividend_api: Optional[StockDividendAPI] = None,
-    ):
+    ) -> None:
         # 由 DataFeed 傳入共用連線；未指定時自行建立
         self.conn: Optional[sqlite3.Connection] = conn
         self.owns_conn: bool = conn is None

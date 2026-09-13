@@ -54,7 +54,7 @@ class FuturesContinuousUpdater(BaseDataUpdater):
     # **不預設全建**：`OPEN_INTEREST` 需要逐日的未沖銷契約量，成本高於前兩者
     DEFAULT_ROLL_RULES: List[FuturesRollRule] = [FuturesRollRule.LAST_TRADING_DAY]
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         self.price_api: Optional[FuturesPriceAPI] = None

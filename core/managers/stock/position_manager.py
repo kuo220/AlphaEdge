@@ -23,7 +23,7 @@ class StockPositionManager(BasePositionManager):
         self,
         account: StockAccount,
         cost_model: Optional[StockCostModel] = None,
-    ):
+    ) -> None:
         super().__init__(account)
         self.cost_model: StockCostModel = cost_model or StockCostModel(
             CostConfig.default()

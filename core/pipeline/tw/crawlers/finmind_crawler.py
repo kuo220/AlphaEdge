@@ -23,7 +23,7 @@ FinMind 資料爬蟲
 class FinMindCrawler(BaseDataCrawler):
     """爬取 FinMind 提供的台股相關資料"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.api: Optional[DataLoader] = None
         self.setup()
@@ -44,7 +44,7 @@ class FinMindCrawler(BaseDataCrawler):
         self.api.login_by_token(api_token=api_token)
         logger.info("FinMind API initialized successfully")
 
-    def crawl(self, *args, **kwargs):
+    def crawl(self, *args, **kwargs) -> None:
         pass
 
     def crawl_stock_info(self) -> Optional[pd.DataFrame]:

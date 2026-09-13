@@ -114,7 +114,7 @@ class FuturesPositionManager(BasePositionManager):
         account: FuturesAccount,
         cost_model: Optional[TwFuturesCostModel] = None,
         margin_config: Optional[FuturesMarginConfig] = None,
-    ):
+    ) -> None:
         super().__init__(account)
         self.account: FuturesAccount = account
         # 成本一律走 CostModel（與 `StockPositionManager` 同一種接法）：

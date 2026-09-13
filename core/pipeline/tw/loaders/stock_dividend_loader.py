@@ -31,7 +31,7 @@ class StockDividendLoader(BaseDataLoader):
     # 排序原則：交易所官方資料優先於第三方回補。清單中沒列到的來源排在最後。
     SOURCE_PRIORITY: List[str] = ["finmind", "tpex", "twse"]
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         # SQLite Connection

@@ -53,7 +53,7 @@ def make_quote(
 class StubMarginAPI:
     """固定回傳每口保證金的假 API"""
 
-    def __init__(self, per_lot: Optional[int]):
+    def __init__(self, per_lot: Optional[int]) -> None:
         self.per_lot = per_lot
 
     def get_initial_margin(self, product, date, fallback_to_earliest=False):
@@ -266,7 +266,7 @@ def test_no_orders_when_max_lots_is_zero(strategy: MomentumFuturesStrategy) -> N
 class StubPriceAPI:
     """回傳固定收盤序列的假行情 API"""
 
-    def __init__(self, closes: List[float]):
+    def __init__(self, closes: List[float]) -> None:
         self.closes = closes
 
     def get_close_series(self, product, expiry, start_date, end_date, session=None):

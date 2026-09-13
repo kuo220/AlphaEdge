@@ -165,7 +165,7 @@ def test_analyzer_refuses_to_annualize_per_trade_returns() -> None:
     from core.backtest.analysis.analyzer import StockBacktestAnalyzer
 
     class _Record:
-        def __init__(self, pnl: float, day: int):
+        def __init__(self, pnl: float, day: int) -> None:
             self.realized_pnl = pnl
             self.exit_date = None
             self.roi = pnl / 10000
@@ -361,7 +361,7 @@ def _make_analyzer(trade_records: List) -> "object":
 class _TradeRecord:
     """交易統計只讀這三個欄位，不必造完整的 StockTradeRecord"""
 
-    def __init__(self, realized_pnl: float, roi: float, holding_days: int):
+    def __init__(self, realized_pnl: float, roi: float, holding_days: int) -> None:
         self.realized_pnl: float = realized_pnl
         self.roi: float = roi
         self.holding_days: int = holding_days

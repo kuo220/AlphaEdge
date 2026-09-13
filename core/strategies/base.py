@@ -11,7 +11,7 @@ from core.utils import BarExecutionOrder, InstrumentType, Market, PositionType, 
 class BaseStrategy(ABC):
     """Strategy Framework (Market/Instrument-agnostic Base Template)"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """=== Account Setting ==="""
         self.account: Optional[BaseAccount] = None  # 虛擬帳戶資訊
 

@@ -23,7 +23,7 @@ class FuturesOrder(BaseOrder):
         position_type: PositionType = PositionType.LONG,
         price: float = 0.0,
         volume: int = 0,  # Unit: Contract（口）
-    ):
+    ) -> None:
         super().__init__(
             symbol=f"{product}{expiry}",
             date=date,

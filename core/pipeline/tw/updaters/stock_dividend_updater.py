@@ -36,7 +36,7 @@ class StockDividendUpdater(BaseDataUpdater):
     YEAR_REQUEST_DELAY_MIN: int = 3
     YEAR_REQUEST_DELAY_MAX: int = 8
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         # SQLite Connection

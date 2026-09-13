@@ -50,7 +50,7 @@ from core.utils.log_manager import LogManager
 class FuturesStockUniverseUpdater(BaseDataUpdater):
     """Futures Stock Universe Updater"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         self.crawler: FuturesStockUniverseCrawler = FuturesStockUniverseCrawler()

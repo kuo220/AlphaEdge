@@ -257,7 +257,7 @@ def test_target_guard_isolates_failure() -> None:
 class _FakeArgs:
     """取代 argparse.Namespace 的最小替身"""
 
-    def __init__(self, target: List[str], from_date=None):
+    def __init__(self, target: List[str], from_date=None) -> None:
         self.target: List[str] = target
         self.from_date = from_date
 
@@ -365,7 +365,7 @@ def test_price_loader_does_not_read_whole_table_into_memory(
     )
     loader.add_to_db()
 
-    def explode(*args, **kwargs):
+    def explode(*args, **kwargs) -> None:
         raise AssertionError("不應再整表讀取主鍵")
 
     monkeypatch.setattr(loader_module.pd, "read_sql_query", explode)
@@ -473,3 +473,65 @@ def test_sqlite_utils_returns_none_for_missing_table(tmp_path: Path) -> None:
     )
 
     conn.close()
+
+
+# === S5：期貨線的「壞檔 → DataLoadError」（健檢第四輪）===
+# 台股線（price／margin／finmind）已在上面涵蓋，期貨線原本一條都沒有。
+# **tick 線不在此列**：`stock_tick_loader.add_to_db()` 根本沒呼叫 `finish_load()`，
+# 它的失敗語意屬另一條路徑（F-052，歸「ETL 失敗語意與缺口回補」）
+def test_futures_price_loader_raises_on_broken_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """期貨日行情的壞檔必須拋出，且失敗檔名要出現在例外裡"""
+
+    import core.pipeline.tw.loaders.futures_price_loader as loader_module
+
+    downloads: Path = tmp_path / "futures_price"
+    downloads.mkdir()
+    monkeypatch.setattr(loader_module, "TW_FUTURES_DB_PATH", tmp_path / "tw_futures.db")
+    monkeypatch.setattr(loader_module, "FUTURES_PRICE_DOWNLOADS_PATH", downloads)
+
+    loader = loader_module.FuturesPriceLoader()
+    loader.futures_price_dir = downloads
+    pd.DataFrame([{"unexpected_column": 1}]).to_csv(
+        downloads / "futures_price_20260901.csv", index=False
+    )
+
+    with pytest.raises(DataLoadError) as exc_info:
+        loader.add_to_db()
+
+    # ⚠️ 期貨線存的是**完整路徑**，台股線（price／margin）只存檔名——
+    # 兩條線的失敗清單格式不一致（健檢第四輪 S5 發現，尚未收斂）。
+    # 這裡斷言「檔名出現在清單裡」，兩種格式都通得過
+    assert len(exc_info.value.failed_files) == 1
+    assert "futures_price_20260901.csv" in exc_info.value.failed_files[0]
+
+
+def test_futures_universe_loader_raises_on_broken_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    股票期貨標的池的壞檔必須拋出
+
+    這張表是契約單位的唯一來源，靜默少一天的快照會讓該日之後的回測用到
+    錯誤的契約乘數——而那不會報錯，只會讓損益數字不對。
+    """
+
+    import core.pipeline.tw.loaders.futures_stock_universe_loader as loader_module
+
+    downloads: Path = tmp_path / "futures_universe"
+    downloads.mkdir()
+    monkeypatch.setattr(loader_module, "TW_FUTURES_DB_PATH", tmp_path / "tw_futures.db")
+    monkeypatch.setattr(loader_module, "FUTURES_UNIVERSE_DOWNLOADS_PATH", downloads)
+
+    loader = loader_module.FuturesStockUniverseLoader()
+    loader.universe_dir = downloads
+    pd.DataFrame([{"unexpected_column": 1}]).to_csv(
+        downloads / "futures_stock_universe_20260901.csv", index=False
+    )
+
+    with pytest.raises(DataLoadError) as exc_info:
+        loader.add_to_db()
+
+    assert len(exc_info.value.failed_files) == 1
+    assert "futures_stock_universe_20260901.csv" in exc_info.value.failed_files[0]

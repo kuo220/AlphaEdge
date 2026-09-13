@@ -20,7 +20,7 @@ class StockChipCleaner(BaseDataCleaner):
     TPEX_FIRST_REFORM_DATE: datetime.date = datetime.date(2014, 12, 1)
     TPEX_SECOND_REFORM_DATE: datetime.date = datetime.date(2018, 1, 15)
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         # Chip DataFrame Cleaned Columns

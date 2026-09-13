@@ -23,7 +23,7 @@ from core.strategies.stock import BaseStockStrategy
 class StockBacktestAnalyzer(BaseBacktestAnalyzer):
     """Analyzes backtest results to compute key metrics like equity curve, MDD, and ROI"""
 
-    def __init__(self, strategy: BaseStockStrategy):
+    def __init__(self, strategy: BaseStockStrategy) -> None:
         # Account
         super().__init__(strategy)
 

@@ -204,7 +204,7 @@ class TwFuturesSpec(InstrumentSpec):
 
     DEFAULT_TICK_SIZE: float = 1.0  # 台指期系列的最小跳動點（點）
 
-    def __init__(self, tick_size: float = DEFAULT_TICK_SIZE):
+    def __init__(self, tick_size: float = DEFAULT_TICK_SIZE) -> None:
         self.tick_size: float = tick_size  # 最小跳動點（點）
 
     def to_units(self, volume: int) -> int:

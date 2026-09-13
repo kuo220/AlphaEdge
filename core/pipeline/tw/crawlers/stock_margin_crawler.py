@@ -30,7 +30,7 @@ from core.utils import TimeUtils
 class StockMarginCrawler(BaseDataCrawler):
     """爬取上市、上櫃股票每日信用交易（融資融券餘額）"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
     def setup(self) -> None:

@@ -80,7 +80,7 @@ class FuturesMarginCrawler(BaseDataCrawler):
     # 公告明細頁的相對連結基準
     NEWS_DETAIL_BASE: str = "https://www.taifex.com.tw/cht/11/"
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
     def setup(self) -> None:

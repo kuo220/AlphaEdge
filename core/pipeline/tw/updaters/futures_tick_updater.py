@@ -42,7 +42,7 @@ class FuturesTickUpdater(BaseDataUpdater):
     # 剩餘配額低於此值（MB）就停手
     MIN_REMAINING_QUOTA_MB: float = 100.0
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         self.crawler: FuturesTickCrawler = FuturesTickCrawler()

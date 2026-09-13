@@ -23,7 +23,7 @@ class TickQuote:
         ask_price: float = 0.0,
         ask_volume: int = 0,  # Unit: Lot
         tick_type: int = 0,
-    ):
+    ) -> None:
         # Basic Info
         self.stock_id: str = stock_id  # Stock ID
         self.time: pd.Timestamp = time  # Quote timestamp
@@ -58,7 +58,7 @@ class StockQuote(BaseQuote):
         close: float = 0.0,
         adj_close: Optional[float] = None,
         tick: TickQuote = None,
-    ):
+    ) -> None:
         super().__init__(
             symbol=stock_id,
             scale=scale,

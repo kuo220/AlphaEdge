@@ -43,7 +43,7 @@ class FuturesStockUniverseAPI(BaseDataAPI):
     # 標準型契約單位（股）；`futures_stock_universe.contract_size` 的預設值
     STANDARD_CONTRACT_SIZE: int = 2000
 
-    def __init__(self, conn: Optional[sqlite3.Connection] = None):
+    def __init__(self, conn: Optional[sqlite3.Connection] = None) -> None:
         # 由 DataFeed 傳入共用連線；未指定時自行建立
         self.conn: Optional[sqlite3.Connection] = conn
         self.owns_conn: bool = conn is None
@@ -70,19 +70,22 @@ class FuturesStockUniverseAPI(BaseDataAPI):
         該日適用的快照日，再以它為條件查詢。
         """
 
-        try:
-            if date is None:
-                row = self.conn.execute(
-                    f"SELECT MAX(snapshot_date) FROM {FUTURES_STOCK_UNIVERSE_TABLE_NAME}"
-                ).fetchone()
-            else:
-                row = self.conn.execute(
-                    f"SELECT MAX(snapshot_date) FROM {FUTURES_STOCK_UNIVERSE_TABLE_NAME} "
-                    f"WHERE snapshot_date <= ?",
-                    (str(date),),
-                ).fetchone()
-        except sqlite3.OperationalError:
+        # 表還沒建（尚未跑過標的池 ETL）才回 None；被鎖住或 schema 壞掉一律上拋（S1）
+        if not self.check_table_exist(
+            conn=self.conn, table_name=FUTURES_STOCK_UNIVERSE_TABLE_NAME
+        ):
             return None
+
+        if date is None:
+            row = self.conn.execute(
+                f"SELECT MAX(snapshot_date) FROM {FUTURES_STOCK_UNIVERSE_TABLE_NAME}"
+            ).fetchone()
+        else:
+            row = self.conn.execute(
+                f"SELECT MAX(snapshot_date) FROM {FUTURES_STOCK_UNIVERSE_TABLE_NAME} "
+                f"WHERE snapshot_date <= ?",
+                (str(date),),
+            ).fetchone()
 
         if row is None or row[0] is None:
             # 查詢日早於第一份快照：退回最早的一份。

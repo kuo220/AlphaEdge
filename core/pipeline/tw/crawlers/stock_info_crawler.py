@@ -23,7 +23,7 @@ class StockInfoCrawler(BaseDataCrawler):
     Crawls basic information of Taiwanese stocks (e.g., ticker, name, industry category), excluding price and financial data
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
     def setup(self, *args, **kwargs) -> None:

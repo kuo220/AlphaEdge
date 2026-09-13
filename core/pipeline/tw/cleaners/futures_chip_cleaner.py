@@ -55,7 +55,7 @@ class FuturesChipCleaner(BaseDataCleaner):
     # 三大法人的身份別（來源給中文，原樣保留）
     INVESTOR_TYPES: List[str] = ["自營商", "投信", "外資及陸資"]
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
     def setup(self) -> None:

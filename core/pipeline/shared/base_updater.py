@@ -101,7 +101,7 @@ class UpdateStats:
 class BaseDataUpdater(ABC):
     """Base Class of Data Updater"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     @staticmethod

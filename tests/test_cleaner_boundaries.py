@@ -53,7 +53,7 @@ def test_fill_nan_without_exclusions_keeps_old_behaviour() -> None:
 class _Row:
     """`price` 表一列的最小替身"""
 
-    def __init__(self, stock_id: str, close):
+    def __init__(self, stock_id: str, close) -> None:
         self.stock_id: str = stock_id
         self.收盤價 = close
         self.開盤價 = close

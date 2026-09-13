@@ -114,7 +114,7 @@ class ForeignSellShortDayTradeStrategy(BaseStockStrategy):
     # 交易日曆往前多取的曆日數：訊號需要 T−2，起始日前至少要有兩個交易日
     CALENDAR_LOOKBACK_DAYS: int = 30
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         # === 策略基本資訊 ===

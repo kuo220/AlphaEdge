@@ -433,7 +433,7 @@ def test_set_figure_config_does_not_open_browser_by_default() -> None:
     opened: List[str] = []
 
     class _Figure(go.Figure):
-        def show(self, *args, **kwargs):
+        def show(self, *args, **kwargs) -> None:
             opened.append("shown")
 
     reporter: StockBacktestReporter = StockBacktestReporter.__new__(
