@@ -24,16 +24,20 @@ Docker 內因為 compose 與 Dockerfile 各自寫死 `/results` 才看起來一�
 """
 
 
-def test_default_results_root_exists() -> None:
+def test_default_results_root_is_project_results() -> None:
     """
-    預設路徑必須真的存在
+    預設路徑是專案根目錄的 `results/`
 
-    這是舊版最直接的症狀：預設指向一個不存在的目錄，本機不設環境變數
-    就整頁「找不到任何回測結果資料夾」。
+    舊版最直接的症狀：預設指向已經不存在的 `core/backtest/results`，本機不設
+    環境變數就整頁「找不到任何回測結果資料夾」。第二條斷言確認 `PROJECT_ROOT`
+    真的是 repo 根目錄——錨點層數算錯時，路徑會安靜地變成 `frontend/results`。
+
+    **不檢查 `results/` 是否存在**：它是回測產物、不進版控，剛 clone 或在 CI 上本來就沒有，
+    跑過一次回測才會出現。檢查存在與否量到的是「這台機器跑過回測沒」，不是設定對不對。
     """
 
     assert DEFAULT_RESULTS_ROOT == PROJECT_ROOT / "results"
-    assert DEFAULT_RESULTS_ROOT.is_dir()
+    assert (PROJECT_ROOT / "pyproject.toml").is_file()
 
 
 def test_default_matches_backend_results_dir() -> None:

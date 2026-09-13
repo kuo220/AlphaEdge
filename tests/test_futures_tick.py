@@ -2,6 +2,7 @@ import datetime
 from typing import List, Optional, Tuple
 
 import pandas as pd
+import pytest
 
 from core.pipeline.tw.cleaners.futures_tick_cleaner import FuturesTickCleaner
 from core.pipeline.tw.crawlers.futures_tick_crawler import FuturesTickCrawler
@@ -203,15 +204,25 @@ def test_quota_check_passes_when_usage_is_unavailable() -> None:
 
 
 # === 沒有 DolphinDB 的環境 ===
-def test_loader_degrades_without_dolphindb() -> None:
+def test_loader_degrades_without_dolphindb(monkeypatch: pytest.MonkeyPatch) -> None:
     """
     **沒有 DolphinDB 也不能整個壞掉**
 
     期貨 tick 是選用功能（`[tick]` 相依），只跑日線回測的機器與 CI 都沒有它。
     此時應保留中繼檔並記 warning，而不是拋錯中止。
+
+    **`DDB_PATH` 由測試自己設**：它是「設定」而不是「DolphinDB 在不在」，缺值本來就該
+    當場拋出（見 `test_require_tick_db_path_raises_when_unset`）。不設的話本測試會在
+    `.env` 有值的本機通過、在沒有 `.env` 的 CI 失敗——量到的是機器，不是降級行為。
     """
 
+    import core.config.schema as schema
     from core.pipeline.tw.loaders.futures_tick_loader import FuturesTickLoader
+
+    monkeypatch.setattr(schema, "TICK_DB_PATH", "dfs://tickDB")
+    # 裝了 dolphindb 但 server 沒開的機器會逐次重試；只試一次、不等待
+    monkeypatch.setattr(FuturesTickLoader, "CONNECT_MAX_RETRIES", 1)
+    monkeypatch.setattr(FuturesTickLoader, "CONNECT_RETRY_DELAY", 0.0)
 
     loader: FuturesTickLoader = FuturesTickLoader()
 
