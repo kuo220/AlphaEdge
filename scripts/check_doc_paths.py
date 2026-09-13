@@ -59,16 +59,13 @@ _NARRATIVE: Set[Tuple[str, str]] = {
     ("backlog/健檢第三輪收斂.md", "core/pipeline/loaders/stock_tick_loader.py"),
 }
 
-# 已知待修，但相依其他工作線先提交後才能動的檔案（健檢第三輪 S4 第 3 項）。
-# 印在獨立區塊、不影響結束碼，**解除封鎖後要連同這裡的條目一起刪掉**——
-# 留著不刪，這份檢查就會對那個檔案永久失明
-_PENDING: Dict[str, str] = {
-    "docs/futures/tw-futures-platform.md": (
-        "該檔正被權益變動表那條線修改且尚未提交（2026-09-13 確認仍有未提交變更），"
-        "動它會把對方未完成的內容一併提交。2026-09-13 的 `pipeline/tw/utils/` 搬遷"
-        "又在該檔新增 1 處（`url_manager.py`），同樣因此擋住"
-    ),
-}
+# 已知待修但暫時擋住的檔案。**解除封鎖後要連同條目一起刪掉**——
+# 留著不刪，這份檢查就會對那個檔案永久失明。
+#
+# 2026-09-13：`docs/futures/tw-futures-platform.md` 的 10 處已全數修正，
+# 本清單因此清空。當初擋住的理由是該檔有另一條線的未提交變更，
+# 最後是以「只暫存 HEAD＋本次修正、不碰對方工作目錄內容」的方式解掉的。
+_PENDING: Dict[str, str] = {}
 
 
 def _iter_markdown_files() -> List[Path]:

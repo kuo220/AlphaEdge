@@ -47,27 +47,27 @@
 
 | 編號 | 步驟名稱 | 產出檔案 | 驗證方式 | 狀態 | 備註／中斷點 |
 |------|----------|----------|----------|:----:|--------------|
-| Phase0-1 | `downloads/` 收斂為市場維度目錄 | `core/config.py`、`core/pipeline/downloads/` | 既有 ETL 全部跑通且落點正確；`tests/` 全綠 | ✅ | **2026-08-22 完成**：9 個常數改掛 `TW_STOCK_DOWNLOADS_PATH`，常數名稱不動；`git mv` 為純 rename。實作時多抓到 1 處漏網（`tests/test_finmind_pipeline.py`），見完成紀錄 |
-| Phase1-1 | `core/config.py` 新增期貨 DB 與表名常數 | `core/config.py` | `TW_FUTURES_DB_PATH` 可解析 | ✅ | **2026-08-22 完成**：DB 路徑 ＋ 6 個表名 ＋ 5 個中繼目錄 ＋ meta 目錄。`DEFAULT_FUTURES_START_DATE` 當時刻意未加，已於 **2026-08-29 補上為 2015-01-01**（見 Phase1-2） |
+| Phase0-1 | `downloads/` 收斂為市場維度目錄 | `core/config/paths.py`、`core/pipeline/downloads/` | 既有 ETL 全部跑通且落點正確；`tests/` 全綠 | ✅ | **2026-08-22 完成**：9 個常數改掛 `TW_STOCK_DOWNLOADS_PATH`，常數名稱不動；`git mv` 為純 rename。實作時多抓到 1 處漏網（`tests/test_finmind_pipeline.py`），見完成紀錄 |
+| Phase1-1 | `core/config/schema.py` 新增期貨 DB 與表名常數 | `core/config/schema.py` | `TW_FUTURES_DB_PATH` 可解析 | ✅ | **2026-08-22 完成**：DB 路徑 ＋ 6 個表名 ＋ 5 個中繼目錄 ＋ meta 目錄。`DEFAULT_FUTURES_START_DATE` 當時刻意未加，已於 **2026-08-29 補上為 2015-01-01**（見 Phase1-2） |
 | Phase1-2 | `futures_price` 四層 ETL（TAIFEX 日線／結算價） | `core/pipeline/tw/*/futures_price_*.py`、`tasks/update_db.py` | `--target futures_price` 跑完可查到資料且重跑冪等 | ✅ | **2026-08-29 完成**：`tw_futures.db` 已建，TX 端對端驗過（3 日 36 列），續跑零重爬。schema 較原規格多 `最後最佳買價／賣價` 兩欄（理由見該步驟）
-| Phase1-3a | `FuturesPriceAPI` | `core/api/futures_price_api.py` | 只從 `tw_futures.db` 讀，不讀中繼檔 | ✅ | **2026-09-01 完成**：17 條測試 ＋ 實資料 smoke test。**不做換月／不挑近月**，當日所有到期月原樣回傳 |
-| Phase1-3b | `FuturesQuoteAdapter` | `core/adapters/futures_quote_adapter.py` | 產出的 `FuturesQuote` 欄位語意正確 | ✅ | **2026-09-01 完成**（與 Phase1-4 同批）：10 條測試。**只做型別轉換不做選擇**，換月屬 Phase1-7／2-4 |
+| Phase1-3a | `FuturesPriceAPI` | `core/api/tw/futures_price_api.py` | 只從 `tw_futures.db` 讀，不讀中繼檔 | ✅ | **2026-09-01 完成**：17 條測試 ＋ 實資料 smoke test。**不做換月／不挑近月**，當日所有到期月原樣回傳 |
+| Phase1-3b | `FuturesQuoteAdapter` | `core/adapters/tw/futures_quote_adapter.py` | 產出的 `FuturesQuote` 欄位語意正確 | ✅ | **2026-09-01 完成**（與 Phase1-4 同批）：10 條測試。**只做型別轉換不做選擇**，換月屬 Phase1-7／2-4 |
 | Phase1-4 | `models/futures` ＋ `managers/futures`（簡化保證金） | `core/models/futures/`、`core/managers/futures/` | 口數、多空、未平倉語意正確 | ✅ | **2026-09-01 完成**：23 條測試，PnL ＝ 價格變動 × 乘數 × 口數。**逐日盯市已實作**（`settle_daily()` 不再是 no-op）；保證金為簡化版，完整版仍屬 Phase2-2 |
 | Phase1-5 | `BaseFuturesStrategy` ＋ 一支示範策略 | `core/strategies/futures/` | 19 條測試 ＋ 實資料產生訂單 | ✅ | **2026-09-01 完成**。**`load_futures_strategies()` 與 `run.py` 分流皆不需要**，理由見完成紀錄 |
-| Phase1-6 | 實作期貨 model 組（不新增引擎） | `core/backtest/models/`、`core/backtest/datafeed/futures_datafeed.py`、`core/backtest/report/futures_reporter.py`、`core/backtest/factory.py` | 台股回歸雙線逐筆相同；期貨策略可跑完 | ✅ | **2026-09-02 完成**：LONG 915 筆與 SHORT 快照逐筆相同（快照重產後 0 diff）、493 條測試通過、`--strategy MomentumFuturesStrategy` 可跑完並產出五張圖與四份 CSV。**偏離原規格：引擎改了一處**（`snapshot_daily_equity()` 的部位計價 16 行，下沉為 1 行呼叫 `SettlementModel.mark_position()`），理由見下方步驟章節 |
-| Phase1-7 | 連續合約構建（先做一種調整方式） | `core/pipeline/tw/{loaders,updaters}/futures_continuous_*.py`、`core/backtest/datafeed/futures_roll.py` | 換月接點的 `roll_flag` 正確 | ✅ | **2026-09-02 完成**：`--target futures_continuous` 可跑，TX 2015~2026 建出 2,842 個交易日、140 次換月、8,526 列（3 種調整方式）。**三種調整方式全做**（原規格只要求一種）、換月規則三種可切換並與 Phase2-4 共用同一份實作。12 條測試，含以真實表驗「還原一致 ＋ 接點無假跳空」 |
+| Phase1-6 | 實作期貨 model 組（不新增引擎） | `core/backtest/models/`、`core/backtest/datafeed/tw/futures_datafeed.py`、`core/backtest/report/futures_reporter.py`、`core/backtest/factory.py` | 台股回歸雙線逐筆相同；期貨策略可跑完 | ✅ | **2026-09-02 完成**：LONG 915 筆與 SHORT 快照逐筆相同（快照重產後 0 diff）、493 條測試通過、`--strategy MomentumFuturesStrategy` 可跑完並產出五張圖與四份 CSV。**偏離原規格：引擎改了一處**（`snapshot_daily_equity()` 的部位計價 16 行，下沉為 1 行呼叫 `SettlementModel.mark_position()`），理由見下方步驟章節 |
+| Phase1-7 | 連續合約構建（先做一種調整方式） | `core/pipeline/tw/{loaders,updaters}/futures_continuous_*.py`、`core/backtest/datafeed/tw/futures_roll.py` | 換月接點的 `roll_flag` 正確 | ✅ | **2026-09-02 完成**：`--target futures_continuous` 可跑，TX 2015~2026 建出 2,842 個交易日、140 次換月、8,526 列（3 種調整方式）。**三種調整方式全做**（原規格只要求一種）、換月規則三種可切換並與 Phase2-4 共用同一份實作。12 條測試，含以真實表驗「還原一致 ＋ 接點無假跳空」 |
 | Phase2-1 | 期貨成本模型（期交稅、手續費、滑價） | `core/backtest/models/cost_model.py`、`fill_model.py`、`core/utils/constant.py` | **不可複用證交稅**；有單元測試 | ✅ | **2026-09-02 完成**：期交稅（法規值十萬分之二、**買賣各課一次**、稅基為契約價值）、每口手續費（市場常見值 50 元，可逐商品指定）、滑價改以**跳動點**表達並可逐商品設定。16 條測試；`FuturesCostConfig` 一併從 `managers/` 移到 `cost_model.py`（與股票的 `CostConfig` 同位置），部位管理層改為一律問 CostModel，費率不再有第二份 |
-| Phase2-2 | 槓桿／部位控管（保證金 ETL 已分家） | `core/managers/futures/`、`core/backtest/models/settlement_model.py`、`core/backtest/datafeed/futures_datafeed.py` | 追繳／可開口數依當時生效的保證金計算 | ✅ | **2026-09-02 完成**：查表改為**預設模式**（API 由 DataFeed 注入策略與部位管理層**共用的同一個設定物件**）、追繳以**權益 vs 維持保證金**判斷並可選強制平倉／僅標記、可開口數隨生效日改變。14 條測試（含一條以真實表驗證 TX 2024-08-09 → 08-22 由 265,000 調為 292,000）。保證金歷史序列本身見 [台期貨保證金ETL](../../backlog/台期貨保證金ETL.md) S1~S5 |
-| Phase2-3 | 期貨交易日曆（日盤 ＋ 夜盤、結算日） | `core/backtest/datafeed/futures_calendar.py` | 不沿用股票 calendar | ✅ | **2026-09-02 完成**：交易日取自行情表（臨時休市／補行交易日自動涵蓋）、結算日為第三個星期三且**遇休市順延到期貨自己的下一個開盤日**、週契約另有規則、夜盤跨日與 2017-05-15 上線日皆已處理。14 條測試，含一條以真實表比對 **140 個已到期 TX 月契約的最後交易日，140/140 完全相同** |
-| Phase2-4 | 換月規則參數化 | `core/backtest/datafeed/futures_roll.py`、`settlement_model.py`、`core/strategies/futures/base.py` | 三種換月規則可切換 | ✅ | **2026-09-02 完成**：`FuturesRollConfig` 由 factory 建立並由**策略、結算模型、DataFeed 三方共用**；結算模型在換月時自動轉倉（平舊倉 ＋ 同口數同方向開新倉，展期價差如實入帳）。13 條測試，含以真實資料驗「回測換月接點 ＝ `futures_continuous` 的 `roll_flag`」完全一致 |
-| Phase3-1 | 籌碼訊號 ETL（三大法人、大額交易人、PCR） | `core/pipeline/tw/*/futures_chip_*.py`、`core/api/futures_chip_api.py` | 前視偏差對齊（T+1 可用） | ✅ | **2026-09-02 完成**：`--target futures_chip` 上線，三個資料集三張表，**一天三次請求即涵蓋全市場**（不逐商品打）。`FuturesChipAPI.get_available()` 只回傳「查詢日**之前**」已公布的籌碼——那一個等號就是前視偏差。13 條測試。⏳ 歷史回補背景進行中 |
-| Phase4-1 | 多商品擴充（MTX、TMF、TE、TF） | `core/config.py`、`tests/test_futures_products.py` | 各商品點值／乘數正確 | ✅ | **2026-09-02 完成（程式面）**：`FUTURES_TARGET_PRODUCTS` 擴為 7 檔（TX／MTX／TMF／TE／ZEF／TF／ZFF），六檔新商品逐一實測可爬可清可入庫，**crawler／updater 一行都沒改**。15 條測試。⏳ **歷史回補進行中**（背景執行，約 40 小時），進度查 `SELECT product, MIN(date), MAX(date), COUNT(*) FROM futures_price_daily GROUP BY product` |
-| Phase4-2 | 日盤／夜盤整併 | `core/utils/constant.py`、`core/adapters/futures_quote_adapter.py`、`core/backtest/datafeed/futures_datafeed.py` | 跨盤別跳空被保留 | ✅ | **2026-09-02 完成**：策略把 `session` 設為 `FuturesSession.COMBINED` 即得整併序列（**前一交易日夜盤 ＋ 當日日盤**，open 取夜盤故跨盤別跳空留在 bar 內）。12 條測試。實作時踩到兩個「不會報錯」的坑：`COMBINED` 被拿去查資料表（整場零交易）、ETL 直接迭代 `FuturesSession` 而去爬不存在的時段，兩者皆已固化為測試 |
+| Phase2-2 | 槓桿／部位控管（保證金 ETL 已分家） | `core/managers/futures/`、`core/backtest/models/settlement_model.py`、`core/backtest/datafeed/tw/futures_datafeed.py` | 追繳／可開口數依當時生效的保證金計算 | ✅ | **2026-09-02 完成**：查表改為**預設模式**（API 由 DataFeed 注入策略與部位管理層**共用的同一個設定物件**）、追繳以**權益 vs 維持保證金**判斷並可選強制平倉／僅標記、可開口數隨生效日改變。14 條測試（含一條以真實表驗證 TX 2024-08-09 → 08-22 由 265,000 調為 292,000）。保證金歷史序列本身見 [台期貨保證金ETL](../../backlog/台期貨保證金ETL.md) S1~S5 |
+| Phase2-3 | 期貨交易日曆（日盤 ＋ 夜盤、結算日） | `core/backtest/datafeed/tw/futures_calendar.py` | 不沿用股票 calendar | ✅ | **2026-09-02 完成**：交易日取自行情表（臨時休市／補行交易日自動涵蓋）、結算日為第三個星期三且**遇休市順延到期貨自己的下一個開盤日**、週契約另有規則、夜盤跨日與 2017-05-15 上線日皆已處理。14 條測試，含一條以真實表比對 **140 個已到期 TX 月契約的最後交易日，140/140 完全相同** |
+| Phase2-4 | 換月規則參數化 | `core/backtest/datafeed/tw/futures_roll.py`、`settlement_model.py`、`core/strategies/futures/base.py` | 三種換月規則可切換 | ✅ | **2026-09-02 完成**：`FuturesRollConfig` 由 factory 建立並由**策略、結算模型、DataFeed 三方共用**；結算模型在換月時自動轉倉（平舊倉 ＋ 同口數同方向開新倉，展期價差如實入帳）。13 條測試，含以真實資料驗「回測換月接點 ＝ `futures_continuous` 的 `roll_flag`」完全一致 |
+| Phase3-1 | 籌碼訊號 ETL（三大法人、大額交易人、PCR） | `core/pipeline/tw/*/futures_chip_*.py`、`core/api/tw/futures_chip_api.py` | 前視偏差對齊（T+1 可用） | ✅ | **2026-09-02 完成**：`--target futures_chip` 上線，三個資料集三張表，**一天三次請求即涵蓋全市場**（不逐商品打）。`FuturesChipAPI.get_available()` 只回傳「查詢日**之前**」已公布的籌碼——那一個等號就是前視偏差。13 條測試。⏳ 歷史回補背景進行中 |
+| Phase4-1 | 多商品擴充（MTX、TMF、TE、TF） | `core/config/settings.py`、`tests/test_futures_products.py` | 各商品點值／乘數正確 | ✅ | **2026-09-02 完成（程式面）**：`FUTURES_TARGET_PRODUCTS` 擴為 7 檔（TX／MTX／TMF／TE／ZEF／TF／ZFF），六檔新商品逐一實測可爬可清可入庫，**crawler／updater 一行都沒改**。15 條測試。⏳ **歷史回補進行中**（背景執行，約 40 小時），進度查 `SELECT product, MIN(date), MAX(date), COUNT(*) FROM futures_price_daily GROUP BY product` |
+| Phase4-2 | 日盤／夜盤整併 | `core/utils/constant.py`、`core/adapters/tw/futures_quote_adapter.py`、`core/backtest/datafeed/tw/futures_datafeed.py` | 跨盤別跳空被保留 | ✅ | **2026-09-02 完成**：策略把 `session` 設為 `FuturesSession.COMBINED` 即得整併序列（**前一交易日夜盤 ＋ 當日日盤**，open 取夜盤故跨盤別跳空留在 bar 內）。12 條測試。實作時踩到兩個「不會報錯」的坑：`COMBINED` 被拿去查資料表（整場零交易）、ETL 直接迭代 `FuturesSession` 而去爬不存在的時段，兩者皆已固化為測試 |
 | Phase5-1 | 分 K 與 Tick（Shioaji futures ticks） | `core/pipeline/tw/*/futures_tick_*.py`、`core/utils/constant.py` | 日內策略可回測 | ✅ | **2026-09-02 完成（爬取與清洗已實測）**：`--target futures_tick` 上線。**TAIFEX 與 Shioaji 的商品代碼沒有規律**（MTX→MXF、TE→EXF、TF→FXF），對照表是實際登入逐一核對的；時段由時間戳判定（實測 TX202612 於 2026-08-28 的 29 筆中有 10 筆屬前一日夜盤）。12 條測試。⏸ **DolphinDB 寫入路徑未實測**（本機未啟動 server、套件未安裝），無連線時保留中繼檔並記 warning |
 | Phase5-2 | frontend 期貨專屬指標（保證金曲線、口數曝險） | `frontend/services/futures_metrics.py`、`frontend/app.py` | 指標可顯示 | ✅ | **2026-09-02 完成**：以**欄位**判斷是不是期貨報表，另外顯示峰值佔用保證金／峰值口數／資金使用率／平均保證金報酬率，並繪出保證金與口數曝險的階梯曲線（由交易明細的進出場日推導，不需引擎多輸出檔案）。7 條測試（邏輯抽到不含 Streamlit 的 service 才測得到）|
 | Phase5-3 | **程式碼**目錄收斂 | 全專案 | 台股回歸逐筆相同 | ✅ | **2026-09-02 全部完成**：`pipeline/`（2026-08-31）＋ `api/`／`adapters/`／`backtest/datafeed/`（2026-09-02）皆已收斂為 `tw/`。**形狀偏離原規格**：改為 `pipeline/tw/`（純市場軸）而非原定 `pipeline/tw_stock`／`tw_futures`——每層目錄只承載一條軸，商品類別由檔名承載，與美股 §3.1 一致；原路徑 B 會把市場與商品壓成單一目錄名。理由見該文件〈每層目錄只承載一條軸〉 |
 | Phase6-1 | `futures_stock_universe` 標的池 ETL | `core/pipeline/tw/*/futures_stock_universe_*.py`、`tasks/update_db.py` | 掛牌／下市與乘數異動可追蹤 | ✅ | **2026-08-29 完成**：`--target futures_stock_universe` 可跑，320 檔入庫、標的代號 270/270 對得上現股。**流動性前 N 檔篩選改列 Phase6-2**（需要成交量，標的池階段還沒有）
-| Phase6-2 | 股票期貨行情 ETL 與除權息乘數調整 | `core/api/futures_stock_universe_api.py`、`core/adapters/futures_quote_adapter.py`、`core/backtest/datafeed/futures_datafeed.py`、`tasks/update_db.py` | 與台股除權息處理對照，無雙重調整 | ✅ | **2026-09-02 完成**：`--target futures_stock_price` 上線（清單取自標的池、預設只爬流動性前 20 檔）；**股期的乘數改為逐日查契約單位**（除權息會調整它），adapter 新增 `multiplier_resolver` 掛點；股期行情一律用原始價，除權息由契約單位承接，**不再套還原價**（雙重調整）。11 條測試
+| Phase6-2 | 股票期貨行情 ETL 與除權息乘數調整 | `core/api/tw/futures_stock_universe_api.py`、`core/adapters/tw/futures_quote_adapter.py`、`core/backtest/datafeed/tw/futures_datafeed.py`、`tasks/update_db.py` | 與台股除權息處理對照，無雙重調整 | ✅ | **2026-09-02 完成**：`--target futures_stock_price` 上線（清單取自標的池、預設只爬流動性前 20 檔）；**股期的乘數改為逐日查契約單位**（除權息會調整它），adapter 新增 `multiplier_resolver` 掛點；股期行情一律用原始價，除權息由契約單位承接，**不再套還原價**（雙重調整）。11 條測試
 
 ---
 
@@ -496,7 +496,7 @@ TAIFEX 的盤後交易時段，其交易資料**歸屬於次一營業日**（官
 
 > **狀態（2026-08-22）**：`URLManager` 目前 20 條 URL 全為 TWSE／TPEX／MOPS，**零筆 TAIFEX**。
 > 下表是動工前要湊齊的清單，「來源網址」欄由使用者確認後填入，再一併寫進
-> `core/pipeline/utils/url_manager.py`。**優先級 P0 者不齊就無法跑 Phase1-2 的最小閉環。**
+> `core/pipeline/tw/utils/url_manager.py`。**優先級 P0 者不齊就無法跑 Phase1-2 的最小閉環。**
 
 #### A. Phase 1 最小閉環必要（P0）
 
@@ -581,7 +581,7 @@ TAIFEX 的盤後交易時段，其交易資料**歸屬於次一營業日**（官
 
 實作慣例（沿用台股既有做法）：
 
-- 在 `core/config.py` 新增 `TW_FUTURES_DB_NAME: str = "tw_futures.db"` 與 `TW_FUTURES_DB_PATH`（沿用 `get_static_resolved_path(base_dir=DATABASE_DIR_PATH, ...)`），並比照 `PRICE_TABLE_NAME` 新增 `FUTURES_*_TABLE_NAME` 常數，不要在程式中散落字串。
+- 在 `core/config/schema.py` 新增 `TW_FUTURES_DB_NAME: str = "tw_futures.db"` 與 `TW_FUTURES_DB_PATH`（沿用 `get_static_resolved_path(base_dir=DATABASE_DIR_PATH, ...)`），並比照 `PRICE_TABLE_NAME` 新增 `FUTURES_*_TABLE_NAME` 常數，不要在程式中散落字串。
 - 中繼檔目錄同樣走常數：`TW_FUTURES_DOWNLOADS_PATH` 之下再掛 `FUTURES_PRICE_DOWNLOADS_PATH` 等（結構見 §3.1）。**任何地方都不要自行以字串拼 downloads 路徑**——目前全專案 30 個檔案都只透過常數取用，這是 Phase0-1 的搬遷成本能壓到極低的唯一原因，不要破壞它。
 - 期貨 loader 繼承 `BaseDataLoader`，在 `setup()` 內 `connect()` → `create_missing_tables()`，與 `StockPriceLoader` 同一套骨架。
 - 共用 `core/pipeline/utils/sqlite_utils.py` 的 `SQLiteUtils`（`check_table_exist`、`get_table_latest_value` 等）做增量更新的起訖日判斷，不要另寫一套。
@@ -718,7 +718,7 @@ PRIMARY KEY `(date, product, expiry, session)`。
 
 - **目的**：`core/database/` 早就是市場維度（`tw_stock.db` ＋ `tw_futures.db`），`downloads/` 卻還跟著程式碼用扁平命名。**在放進任何期貨中繼檔之前先歸位**，否則之後只會有兩個壞選項：混合樹（`downloads/{price, chip, …, tw_futures/}`，看到 `price/` 不知道屬於誰），或事後連同程式碼一起搬（成本高一個量級）。決策理由見 §3.0。
 - **做法**（純資料目錄搬遷，**零行為改變**）：
-  1. `core/config.py` 新增兩個中介常數：
+  1. `core/config/paths.py` 新增兩個中介常數：
 
      ```python
      TW_STOCK_DOWNLOADS_PATH: Path = get_static_resolved_path(
@@ -733,8 +733,8 @@ PRIMARY KEY `(date, product, expiry, session)`。
   3. `git mv` 既有目錄到 `downloads/tw_stock/` 之下（版控中只有 `meta/` 的 14 個 JSON，CSV 暫存區為空）。
   4. 修掉唯一一處自行重組路徑的測試：`tests/test_finmind_updater.py:81`（`project_root / "core" / "pipeline" / "downloads" / "finmind"`）。
   5. 修 3 處提到舊路徑的註解：`monthly_revenue_report_crawler.py:184`、`financial_statement_crawler.py:386`、`tasks/load_broker_trading_to_db.py:19`。
-- **成本實查（2026-08-22）**：全專案 30 個檔案取用 downloads 路徑，**全部走 config 常數，無一硬寫字串**；因此改動集中在 `core/config.py`，其餘只有 1 個測試 ＋ 3 行註解。這是全專案搬遷成本最低的一塊。
-- **產出**：`core/config.py`、`core/pipeline/downloads/`（目錄搬遷）、`tests/test_finmind_updater.py`。
+- **成本實查（2026-08-22）**：全專案 30 個檔案取用 downloads 路徑，**全部走 config 常數，無一硬寫字串**；因此改動集中在 `core/config/paths.py`，其餘只有 1 個測試 ＋ 3 行註解。這是全專案搬遷成本最低的一塊。
+- **產出**：`core/config/paths.py`、`core/pipeline/downloads/`（目錄搬遷）、`tests/test_finmind_updater.py`。
 - **驗證方式**：
   1. `.venv/bin/python -m pytest tests -q` 全綠。
   2. 任取一個既有 target（例如 `--target dividend`）跑一次日更，中繼檔落在 `downloads/tw_stock/dividend/`，且入庫筆數與搬遷前一致。
@@ -742,7 +742,7 @@ PRIMARY KEY `(date, product, expiry, session)`。
 - **相依**：無。**本步驟阻塞 Phase1-2 之後所有會寫中繼檔的步驟。**
 
 > **✅ 完成紀錄（2026-08-22）**
-> - **實際改動**：`core/config.py` 新增 `TW_STOCK_DOWNLOADS_PATH` ／ `TW_FUTURES_DOWNLOADS_PATH`，9 個既有常數（8 個 `*_DOWNLOADS_PATH` ＋ `DOWNLOADS_METADATA_DIR_PATH`）的 `base_dir` 改掛前者。**常數名稱一個都沒改**——改名會擴散到 30 個檔案，搬目錄不需要。
+> - **實際改動**：`core/config/paths.py` 新增 `TW_STOCK_DOWNLOADS_PATH` ／ `TW_FUTURES_DOWNLOADS_PATH`，9 個既有常數（8 個 `*_DOWNLOADS_PATH` ＋ `DOWNLOADS_METADATA_DIR_PATH`）的 `base_dir` 改掛前者。**常數名稱一個都沒改**——改名會擴散到 30 個檔案，搬目錄不需要。
 > - **目錄搬遷**：`git mv` 9 個目錄，git 全部辨識為 rename（14 個受版控的 meta JSON 內容未動）。
 > - **事前成本估計準確**：預估「9 個常數 ＋ `git mv` ＋ 1 個測試 ＋ 3 行註解」，實際多出 1 處——`tests/test_finmind_pipeline.py:43` 與 `test_finmind_updater.py:81` 是**同一段自行重組路徑的程式碼複製了兩份**，第一次盤點的 grep 樣式太窄只抓到一個。教訓：盤點這類「自行拼路徑」的殘留時，樣式要放寬到 `downloads` 而不是完整路徑。
 > - **不需要改的**：`tests/test_broker_trading_updater.py` 的 `downloads/finmind`、`downloads/meta/broker_trading` 指的是 `tests/downloads/` 這個測試自建的 fixture 根目錄，與正式路徑無關，維持原樣。
@@ -753,11 +753,11 @@ PRIMARY KEY `(date, product, expiry, session)`。
 
 ### Phase 1：單商品日 K 最小可跑閉環
 
-#### Phase1-1. `core/config.py` 新增期貨 DB 與表名常數 ✅
+#### Phase1-1. `core/config/schema.py` 新增期貨 DB 與表名常數 ✅
 
 - **目的**：先把路徑與表名收斂成常數，避免後續在程式中散落字串。
 - **做法**：新增 `TW_FUTURES_DB_NAME: str = "tw_futures.db"` 與 `TW_FUTURES_DB_PATH`（沿用 `get_static_resolved_path(base_dir=DATABASE_DIR_PATH, ...)`），並比照 `PRICE_TABLE_NAME` 新增 `FUTURES_*_TABLE_NAME` 常數；中繼檔常數則掛在 Phase0-1 建立的 `TW_FUTURES_DOWNLOADS_PATH` 之下（`FUTURES_PRICE_DOWNLOADS_PATH` 等，結構見 §3.1）。
-- **產出**：`core/config.py`。
+- **產出**：`core/config/schema.py`。
 - **驗證方式**：`TW_FUTURES_DB_PATH` 可正確解析為 `core/database/tw_futures.db`；`FUTURES_PRICE_DOWNLOADS_PATH` 解析為 `core/pipeline/downloads/tw_futures/price`。
 - **相依**：Phase0-1。
 
@@ -873,7 +873,7 @@ PRIMARY KEY `(date, product, expiry, session)`。
 
 - **目的**：提供回測的統一讀取層。
 - **做法**：**只從 `tw_futures.db` 讀，不讀 `downloads/` 下的中繼檔**。
-- **產出**：`core/api/futures_price_api.py`。
+- **產出**：`core/api/tw/futures_price_api.py`。
 - **驗證方式**：查詢結果與 DB 內容一致；程式碼中無任何讀取 CSV／Parquet 的路徑。
 - **相依**：Phase1-2。
 
@@ -923,9 +923,9 @@ PRIMARY KEY `(date, product, expiry, session)`。
 #### Phase1-3b. `FuturesQuoteAdapter` ✅
 
 - **目的**：把 `FuturesPriceAPI` 的查詢結果轉成回測引擎吃的 `FuturesQuote`。
-- **做法**：比照 `core/adapters/stock_quote_adapter.py`；**換月政策不進 adapter**——
+- **做法**：比照 `core/adapters/tw/stock_quote_adapter.py`；**換月政策不進 adapter**——
   它只做型別轉換，要哪一個合約由呼叫端指定。
-- **產出**：`core/adapters/futures_quote_adapter.py`。
+- **產出**：`core/adapters/tw/futures_quote_adapter.py`。
 - **驗證方式**：產出的 `FuturesQuote` 欄位語意正確（口數、乘數、到期月）。
 - **相依**：**Phase1-4 的 `FuturesQuote` model**（見上方 ⚠️），與 Phase1-4 同批完成。
 
@@ -1031,14 +1031,14 @@ PRIMARY KEY `(date, product, expiry, session)`。
 
   - `core/backtest/factory.py` 的 `build_backtester()` 補上 `InstrumentType.FUTURE` 分支——**這是本步驟唯一需要改動的既有檔案**。
   - **關鍵設計點**：期貨的損益實現語意與股票不同——股票是「開倉→持有→平倉才實現」，期貨是**每日結算**（未實現損益每天變成保證金專戶的實際現金流動，隔日成本基礎重設為結算價）。此差異由 `BasePositionManager.settle_daily()` 掛點承接（該掛點由多市場抽象的 Phase4-2 建立，股票實作為 no-op），**不得改動 FIFO 主幹**。
-- **產出**：`core/backtest/models/`（期貨 4 個 model）、`core/backtest/datafeed/futures_datafeed.py`、`core/managers/futures/position_manager.py`；修改 `core/backtest/factory.py`。
+- **產出**：`core/backtest/models/`（期貨 4 個 model）、`core/backtest/datafeed/tw/futures_datafeed.py`、`core/managers/futures/position_manager.py`；修改 `core/backtest/factory.py`。
 - **驗證方式**：台股既有回歸雙線（LONG 915 筆 ＋ SHORT 快照）逐筆相同——**期貨的加入不得使既有引擎改動任何一行**；期貨示範策略可跑完並產出報表。
 - **相依**：Phase1-5、[多市場回測引擎架構](../backtest/multi-market-engine.md) 全部完成。
 
 > **✅ 完成紀錄（2026-09-02）**
 >
 > **產出**：`TwFuturesSpec`／`TwFuturesFillModel`／`TwFuturesCostModel`／`TwFuturesSettlementModel`
-> （分別追加在既有的四支 model 檔）、`core/backtest/datafeed/futures_datafeed.py`、
+> （分別追加在既有的四支 model 檔）、`core/backtest/datafeed/tw/futures_datafeed.py`、
 > `core/backtest/report/futures_reporter.py`、`core/backtest/factory.py` 的
 > `(TW, FUTURE)` 分支，以及 `tests/backtest/test_futures_backtest.py`（23 條）。
 >
@@ -1094,7 +1094,7 @@ PRIMARY KEY `(date, product, expiry, session)`。
 > 報酬統計），`NONE` 是抓錯用的對照組。三者存在同一張表的不同 `method`，
 > 主鍵為 `(date, product, session, method, roll_rule)`。
 >
-> **換月規則做成共用層**（`core/backtest/datafeed/futures_roll.py`）：建連續合約
+> **換月規則做成共用層**（`core/backtest/datafeed/tw/futures_roll.py`）：建連續合約
 > 與策略轉倉（Phase2-4）用**同一份實作**。兩處各寫一套的話，回測拿到的序列與
 > 策略實際轉倉的時點會對不上，而且不會有任何錯誤，只會讓績效差一截卻找不到原因。
 > 三種規則：撐到最後交易日／提前 N 個交易日／未沖銷量交叉。
@@ -1231,7 +1231,7 @@ PRIMARY KEY `(date, product, expiry, session)`。
 
 - **目的**：股票 calendar 不涵蓋夜盤與結算日，直接沿用會算錯持倉天數與可交易時段。
 - **做法**：建立期貨日曆——日盤 08:45–13:45、夜盤 15:00–次日 05:00、結算日（每月第三個星期三）與最後交易日邏輯、臨時休市。
-- **產出**：`core/backtest/datafeed/futures_calendar.py`（多市場抽象的 Phase4-1 已把 `market_calendar.py` 移入 `core/backtest/datafeed/`，期貨日曆與其並列，不沿用股票 calendar）。
+- **產出**：`core/backtest/datafeed/tw/futures_calendar.py`（多市場抽象的 Phase4-1 已把 `market_calendar.py` 移入 `core/backtest/datafeed/`，期貨日曆與其並列，不沿用股票 calendar）。
 - **驗證方式**：抽樣比對 TAIFEX 行事曆；結算日與夜盤標記正確。
 - **相依**：Phase1-6。
 
@@ -1352,7 +1352,7 @@ PRIMARY KEY `(date, product, expiry, session)`。
 #### Phase4-1. 多商品擴充 ✅
 
 - **目的**：從大台擴充到小台（MTX）、微台（TMF）與類股期貨（TE／TF）。
-- **前置已備妥（2026-08-29）**：六檔候選的契約乘數都已查證並登錄於 `FUTURES_MULTIPLIER`（MTX 50、TMF 10、TE 4000、TF 1000、ZEF 500、ZFF 250），**本步驟只需在 `core/config.py` 的 `FUTURES_TARGET_PRODUCTS` 加代碼**，crawler／updater 不必改。
+- **前置已備妥（2026-08-29）**：六檔候選的契約乘數都已查證並登錄於 `FUTURES_MULTIPLIER`（MTX 50、TMF 10、TE 4000、TF 1000、ZEF 500、ZFF 250），**本步驟只需在 `core/config/schema.py` 的 `FUTURES_TARGET_PRODUCTS` 加代碼**，crawler／updater 不必改。
 - **做法**：
   1. 擴充 `FUTURES_TARGET_PRODUCTS` 並重跑回補（自 2015 起每加一檔約 6,100 次請求）。
   2. 逐商品驗證 PnL = 價格變動 × 乘數 × 口數。
