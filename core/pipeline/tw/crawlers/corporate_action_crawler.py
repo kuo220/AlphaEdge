@@ -7,7 +7,7 @@ from loguru import logger
 
 from core.pipeline.shared.base_crawler import BaseDataCrawler, CrawlResult
 from core.pipeline.shared.request_utils import FetchResult, RequestUtils
-from core.pipeline.utils.url_manager import URLManager
+from core.pipeline.tw.utils.url_manager import URLManager
 from core.utils import TimeUtils
 
 """

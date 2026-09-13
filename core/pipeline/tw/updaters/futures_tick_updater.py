@@ -11,7 +11,7 @@ from core.pipeline.shared.base_updater import BaseDataUpdater
 from core.pipeline.tw.cleaners.futures_tick_cleaner import FuturesTickCleaner
 from core.pipeline.tw.crawlers.futures_tick_crawler import FuturesTickCrawler
 from core.pipeline.tw.loaders.futures_tick_loader import FuturesTickLoader
-from core.pipeline.utils.stock_tick_utils import StockTickUtils
+from core.pipeline.tw.utils.stock_tick_utils import StockTickUtils
 from core.utils import FuturesSession, TimeUtils
 from core.utils.account import ShioajiAccount
 from core.utils.log_manager import LogManager

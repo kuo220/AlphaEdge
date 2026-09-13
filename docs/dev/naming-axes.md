@@ -51,12 +51,12 @@
 | `core/backtest/factory.py` | 分派鍵為 `(strategy.market, strategy.instrument_type)`；未支援的組合拋出含兩軸值的 `ValueError` |
 | `core/backtest/models/` | 實作類別命名即「地區 ＋ 商品」：`TwStockSpec`、`TwStockFillModel`、`TwStockSettlementModel`、`TwFuturesSpec` |
 | `core/api/`、`core/adapters/`、`core/backtest/datafeed/` | **目錄只承載市場一條軸**（`tw/`），商品類別由檔名承載（`stock_price_api.py` vs `futures_price_api.py`）；類別名仍是「地區 ＋ 商品」（`TwStockDataFeed`）。2026-09-02 由台期貨規劃 Phase5-3 收斂 |
-| `core/pipeline/{shared,tw}/` | 目錄**只承載軸 A**（`tw/`，未來 `us/`）；商品類別由檔名承載（`stock_price_crawler.py` vs `futures_price_crawler.py`）。base 類別放 `shared/`，否則 `us/` 會反過來相依 `tw/` |
+| `core/pipeline/{shared,tw,utils}/` | 目錄**只承載軸 A**（`tw/`，未來 `us/`）；商品類別由檔名承載（`stock_price_crawler.py` vs `futures_price_crawler.py`）。base 類別放 `shared/`，否則 `us/` 會反過來相依 `tw/`。**`utils/` 是層不是軸**，只放跨市場通用的工具；綁定單一市場的工具歸 `tw/utils/`（2026-09-13 收斂，見下）|
 | `core/strategies/`、`core/models/`、`core/managers/` | 子目錄承載**軸 B**（`base/` ＋ `stock/` ＋ `futures/`，2026-09-01 起）。`strategy_loader` 逐一掃描這些子套件，新增商品類別不需改程式 |
 | `data/db/` | 檔名帶軸 A：`tw_stock.db`、`tw_futures.db`（常數 `TW_STOCK_DB_PATH`／`TW_FUTURES_DB_PATH`） |
 | `core/pipeline/tw/crawlers/financial_statement_crawler.py` | `self.listing_boards`（軸 C） |
 | `core/pipeline/tw/crawlers/monthly_revenue_report_crawler.py` | `self.issuer_origins`（軸 D）；TWSE／TPEX 的區分由呼叫端各自的迴圈決定，不是清單內容 |
-| `core/pipeline/utils/url_manager.py` | URL 樣板佔位符 `{issuer_origin}` |
+| `core/pipeline/tw/utils/url_manager.py` | URL 樣板佔位符 `{issuer_origin}` |
 | `futures_stock_universe.underlying_listing_board` 欄 | 存的是「上市／上櫃」，屬軸 C |
 
 ### 新增一個（市場, 商品）組合
@@ -94,6 +94,28 @@
 `core/pipeline/` 的收斂曾有兩種提案：`pipeline/tw/` ＋ `pipeline/us/`（純市場軸），
 或 `pipeline/tw_stock/` ＋ `pipeline/tw_futures/`（市場 ＋ 商品壓成單一目錄名）。
 **採前者**——每層目錄只承載一條軸，商品類別由檔名承載，與本文件的整體原則一致。
+
+### `utils/` 是層，不是軸（2026-09-13）
+
+`core/pipeline/utils/` 與 `shared/` 同屬跨市場共用層，但當時裡面混了兩支**只有台股
+用得到**的檔案：`url_manager.py`（整張表都是 TWSE／TPEX／MOPS／TAIFEX 端點）與
+`stock_tick_utils.py`（Shioaji 金鑰、metadata 的鍵是台股代號）。兩支已搬到
+`core/pipeline/tw/utils/`。
+
+**為什麼不在 `utils/` 底下再開 `tw/`／`us/`**：那會讓同一層同時承載「層」與「軸」，
+正是本節要避免的事。`utils/` 只留通用工具（`data_utils.py`、`sqlite_utils.py`、
+`exceptions.py`、`constant.py`），綁定單一市場的一律往該市場目錄放。
+
+**這次刻意不動 `constant.py`**：裡面的 `ListingBoard`／`IssuerOrigin`／`PriceColumn`／
+`ChipColumn`／`FuturesPriceColumn` 確實只有台股適用，但它們的去向早已定在
+F-007——**欄位 Enum 是資料表 schema 的一部分**，該下沉到 `core/config/schema.py`
+（歸 [PostgreSQL遷移計畫](../../backlog/PostgreSQL遷移計畫.md) Phase2-3）。
+先搬到 `tw/` 等於搬兩次，且會與那批改動撞在同一批檔案上。
+
+**同層還有一處未收的洩漏**：`core/pipeline/shared/payload.py` 的 `TYPEK` 欄位是公開
+資訊觀測站專屬參數。它只被 `financial_statement_crawler.py` 一支使用，**但整個 dataclass
+的其餘欄位是通用 HTTP payload**，拆或不拆要連同 `Payload` 的定位一起決定，
+故本次不動。
 
 ## 遺留與後續
 

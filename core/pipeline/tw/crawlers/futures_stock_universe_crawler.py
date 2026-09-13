@@ -8,7 +8,7 @@ from loguru import logger
 
 from core.pipeline.shared.base_crawler import BaseDataCrawler
 from core.pipeline.shared.request_utils import RequestUtils
-from core.pipeline.utils.url_manager import URLManager
+from core.pipeline.tw.utils.url_manager import URLManager
 
 """
 股票期貨標的池爬蟲（TAIFEX 股票期貨、選擇權標的證券一覽表）

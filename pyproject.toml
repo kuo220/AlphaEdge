@@ -138,7 +138,7 @@ ignore = [
 
 # dolphindb 是選用相依（見 [project.optional-dependencies] 的 tick），
 # 這幾處的 import 是「可用性探測」，不是沒用到的 import
-"core/pipeline/utils/stock_tick_utils.py" = ["F401"]
+"core/pipeline/tw/utils/stock_tick_utils.py" = ["F401"]
 "core/pipeline/loaders/stock_tick_loader.py" = ["F401"]
 "scripts/manual/manual_tick_updater.py" = ["F401"]
 

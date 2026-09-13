@@ -35,7 +35,7 @@
 | S6 | 2015~2019 補完（OCR） | — | OCR 值與下一次公告的「調整前」欄吻合 | ⏸ | **暫緩**：來源為掃描影像，需系統套件 ＋ 有靜默錯誤風險，解除條件見該步驟 |
 | S7 | 價差部位保證金（第三張費率表） | `core/pipeline/tw/*/futures_margin_*.py`、`core/api/tw/futures_margin_api.py` | 跨月份兩腿的保證金合計低於各繳全額，且與公告費率一致 | ⏸ | **暫緩**：2026-09-04 由回測端 F-058 反推出的缺口，**解除條件是出現價差／對沖策略需求**，見該步驟 |
 
-> **URL 已於 2026-09-01 全數寫入 `core/pipeline/utils/url_manager.py` 並實測打通**
+> **URL 已於 2026-09-01 全數寫入 `core/pipeline/tw/utils/url_manager.py` 並實測打通**
 > （`TAIFEX_INDEX_MARGIN_URL`／`TAIFEX_STOCK_MARGIN_URL`／`TAIFEX_HISTORY_NEWS_URL`／
 > `TAIFEX_NEWS_DETAIL_URL`），解析上的坑寫在該檔註解裡，動工前先看那一段。
 
@@ -424,7 +424,7 @@
 - **優先級**：P3（保證金影響資金效率與可開口數，**不影響 PnL 本身**，
   故不擋 [台期貨平台](../docs/futures/tw-futures-platform.md) 的 Phase1-5／1-6 主線）
 - **相關程式**：`core/managers/futures/position_manager.py`（`FuturesMarginConfig`）、
-  `core/pipeline/utils/url_manager.py`（四個端點與解析坑）、`core/config/`
+  `core/pipeline/tw/utils/url_manager.py`（四個端點與解析坑）、`core/config/`
 - **相關 backlog**：[台期貨平台](../docs/futures/tw-futures-platform.md) Phase2-2
   的另一半（槓桿／部位控管）相依本文件；本文件不含那部分
 - **相關文件**：[ETL 入庫約定](../docs/pipeline/etl-ingestion.md)（§3.4 欄位語言、§4 事故樣式）

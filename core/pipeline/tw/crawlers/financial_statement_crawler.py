@@ -16,7 +16,8 @@ from core.config import (
 from core.pipeline.shared.base_crawler import BaseDataCrawler
 from core.pipeline.shared.payload import Payload
 from core.pipeline.shared.request_utils import RequestUtils
-from core.pipeline.utils import FinancialStatementType, ListingBoard, URLManager
+from core.pipeline.tw.utils.url_manager import URLManager
+from core.pipeline.utils import FinancialStatementType, ListingBoard
 from core.pipeline.utils.data_utils import DataUtils
 from core.utils import TimeUtils
 

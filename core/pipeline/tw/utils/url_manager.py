@@ -1,5 +1,13 @@
 from typing import Any, Dict
 
+"""
+台股資料來源的 URL 總表（TWSE／TPEX／MOPS／TAIFEX）
+
+**整張表都是台灣的端點，故歸在 `tw/` 底下**：`core/pipeline/{shared,utils}/` 是
+跨市場共用層，把只有台股用得到的端點放在那裡，等 `us/` 進來就會變成美股流程
+相依台股模組（見 `docs/dev/naming-axes.md`〈每層目錄只承載一條軸〉）。
+"""
+
 
 class URLManager:
     """URL Manager"""

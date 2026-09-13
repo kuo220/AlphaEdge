@@ -13,7 +13,8 @@ from core.config import (
 )
 from core.pipeline.shared.base_crawler import BaseDataCrawler, CrawlResult
 from core.pipeline.shared.request_utils import FetchResult, RequestUtils
-from core.pipeline.utils import DataType, IssuerOrigin, URLManager
+from core.pipeline.tw.utils.url_manager import URLManager
+from core.pipeline.utils import DataType, IssuerOrigin
 from core.pipeline.utils.data_utils import DataUtils
 from core.utils import FileEncoding, TimeUtils
 

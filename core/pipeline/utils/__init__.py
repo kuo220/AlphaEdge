@@ -18,4 +18,3 @@ from .exceptions import (
     PipelineError,
     UnbuildableSeriesError,
 )
-from .url_manager import URLManager

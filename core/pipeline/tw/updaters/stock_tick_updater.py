@@ -14,8 +14,8 @@ from core.pipeline.tw.cleaners.stock_tick_cleaner import StockTickCleaner
 from core.pipeline.tw.crawlers.stock_info_crawler import StockInfoCrawler
 from core.pipeline.tw.crawlers.stock_tick_crawler import StockTickCrawler
 from core.pipeline.tw.loaders.stock_tick_loader import StockTickLoader
+from core.pipeline.tw.utils.stock_tick_utils import StockTickUtils
 from core.pipeline.utils.exceptions import DataLoadError
-from core.pipeline.utils.stock_tick_utils import StockTickUtils
 from core.utils import ShioajiAccount, ShioajiAPI, TimeUtils
 from core.utils.log_manager import LogManager
 
