@@ -138,7 +138,7 @@
 >
 > 原因 `core/api/tw/stock_split.py` 的模組說明本來就寫著：`stock_dividend`
 > 只記除權息、不含分割。該表的移除相依
-> [還原價缺非除權息公司行動](../../backlog/還原價缺非除權息公司行動.md) S2 的 `corporate_action`
+> [非除權息的公司行動與還原價](../pipeline/corporate-action.md) S2 的 `corporate_action`
 > ETL，屬**那條線的 S3**，不是本步驟做得掉的。benchmark 改用還原價這半邊已完成。
 >
 > **連線**：reporter 新增 `close()` 並改吃 Backtester 傳入的 `StockPriceAPI`
