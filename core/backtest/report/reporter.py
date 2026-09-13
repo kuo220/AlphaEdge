@@ -7,10 +7,6 @@ import plotly.graph_objects as go
 from loguru import logger
 
 from core.api.tw.stock_price_api import StockPriceAPI
-from core.api.tw.stock_split import (
-    SPLIT_ADJUSTMENT_WARNING_PCT,
-    apply_split_adjustment,
-)
 from core.backtest.report.base import BaseBacktestReporter
 from core.config import resolve_show_figures
 from core.models.stock.record import StockTradeRecord
@@ -105,16 +101,15 @@ class StockBacktestReporter(BaseBacktestReporter):
 
     def _get_adjusted_price(self, price_series: pd.Series, stock_id: str) -> pd.Series:
         """
-        計算調整後價格（處理股票分割，支援多次分割）
+        benchmark 的還原價（**分割已由還原係數涵蓋，本方法不再另外調整**）
 
-        實作在 `core/api/tw/stock_split.py`，**與 analyzer 的 Information Ratio
-        共用同一份分割表**：分割調整表寫在誰身上，另一邊就得再抄一次，
-        而抄漏一次分割的代價是整段序列從那天起錯 N 倍。
+        2026-09-13 之前這裡會再套一次 `stock_split.apply_split_adjustment()`，
+        因為當時的還原係數只認除權息、不含分割。`corporate_action` 表上線後
+        分割與減資都進了累乘係數，**再套一次就是重複調整**——實測 0050 會從
+        1.82% 變成 303%。本方法保留只是為了讓兩處呼叫端不必各自改。
         """
 
-        return apply_split_adjustment(
-            price_series, stock_id, warning_pct=SPLIT_ADJUSTMENT_WARNING_PCT
-        )
+        return price_series
 
     def generate_trading_report(self) -> pd.DataFrame:
         """生成回測報告"""

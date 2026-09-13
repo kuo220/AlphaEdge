@@ -247,73 +247,78 @@ def test_analyzer_direction_metrics(make_strategy) -> None:
     assert analyzer.compute_average_holding_days() == 5.0
 
 
-# === 分割調整：reporter 與 analyzer 必須共用同一份 ===
-def test_split_adjustment_removes_the_fake_gap() -> None:
+# === 分割調整：已由 corporate_action 經還原係數統一處理（還原價 S3）===
+def test_adjustment_factor_covers_splits_and_reductions() -> None:
     """
-    0050 在 2025-06-18 一拆四，調整後序列不可出現假跳空
+    分割與減資都要進累乘係數，不再靠一份只認得 0050 的過渡表
 
-    `stock_dividend` 只記除權息、**不含分割**，所以還原價的累積因子在分割日
-    前後完全相同（實測皆為 1.4545），原始收盤價卻由 188.65 掉到 47.57。
-    少了這道調整，任何跨過該日的序列都會多出一天 −75% 的假跌幅。
+    `core/api/tw/stock_split.py` 於 2026-09-13 刪除。在那之前，還原係數只認
+    除權息（`stock_dividend` 不含分割），所以 reporter 與 analyzer 各自
+    再套一次分割調整才拿得到正確的 benchmark；`corporate_action` 表上線後
+    兩者都由 `get_adjusted_close_series()` 一次處理完。
     """
 
-    from core.api.tw.stock_split import apply_split_adjustment
+    import sqlite3
 
-    raw: pd.Series = pd.Series(
-        [188.65, 47.57, 47.10],
-        index=[
-            datetime.date(2025, 6, 10),
-            datetime.date(2025, 6, 18),
-            datetime.date(2025, 6, 19),
-        ],
+    from core.api.tw.stock_dividend_api import StockDividendAPI
+    from core.config import CORPORATE_ACTION_TABLE_NAME, DIVIDEND_TABLE_NAME
+
+    conn: sqlite3.Connection = sqlite3.connect(":memory:")
+    pd.DataFrame([{"date": "2025-03-01", "stock_id": "0050", "還原係數": 0.98}]).to_sql(
+        DIVIDEND_TABLE_NAME, conn, index=False
     )
+    pd.DataFrame(
+        [
+            {
+                "date": "2025-06-18",
+                "stock_id": "0050",
+                "調整倍率": 0.25,  # 一拆四：價格變四分之一
+            }
+        ]
+    ).to_sql(CORPORATE_ACTION_TABLE_NAME, conn, index=False)
 
-    adjusted: pd.Series = apply_split_adjustment(raw, "0050")
+    api: StockDividendAPI = StockDividendAPI(conn=conn)
 
-    assert adjusted.loc[datetime.date(2025, 6, 10)] == pytest.approx(188.65)
-    assert adjusted.loc[datetime.date(2025, 6, 18)] == pytest.approx(47.57 * 4)
-    # 調整後跨分割日的單日變動回到常態（原本是 −74.8%）
-    change: float = (
-        adjusted.loc[datetime.date(2025, 6, 18)]
-        / adjusted.loc[datetime.date(2025, 6, 10)]
-        - 1
+    before: float = api.get_cumulative_factor("0050", datetime.date(2025, 6, 10))
+    after: float = api.get_cumulative_factor("0050", datetime.date(2025, 6, 18))
+
+    # 分割後的係數應為分割前的 4 倍（1 / 0.25），才能把 −75% 的假跌幅補回來
+    assert after / before == pytest.approx(4.0)
+    conn.close()
+
+
+def test_reporter_no_longer_double_adjusts() -> None:
+    """
+    reporter 不可再對還原價套一次分割調整
+
+    **重複調整實測會讓 0050 的分割日由 1.82% 變成 303%**。這條釘住
+    `_get_adjusted_price()` 已退化為原樣回傳——它保留只是為了讓兩處呼叫端
+    不必各自改。
+    """
+
+    reporter: StockBacktestReporter = StockBacktestReporter.__new__(
+        StockBacktestReporter
     )
-    assert abs(change) < 0.05
-
-
-def test_split_adjustment_leaves_unlisted_stocks_alone() -> None:
-    """沒有分割紀錄的個股原樣回傳，不做任何調整"""
-
-    from core.api.tw.stock_split import apply_split_adjustment
-
-    raw: pd.Series = pd.Series([100.0, 101.0], index=[DAY_1, datetime.date(2024, 1, 3)])
-
-    assert apply_split_adjustment(raw, "2330").equals(raw)
-
-
-def test_reporter_delegates_split_adjustment_to_the_shared_table() -> None:
-    """
-    reporter 不可自留一份分割表
-
-    分割表寫在誰身上，另一邊就得再抄一次；抄漏一次分割的代價是整段序列
-    從那天起錯 N 倍（F-087 的教訓）。這條測試釘住「只有一份」。
-    """
-
-    from core.api.tw import stock_split
-
-    assert not hasattr(StockBacktestReporter, "STOCK_SPLITS")
-
     raw: pd.Series = pd.Series(
         [188.65, 47.57],
         index=[datetime.date(2025, 6, 10), datetime.date(2025, 6, 18)],
     )
-    reporter: StockBacktestReporter = StockBacktestReporter.__new__(
-        StockBacktestReporter
-    )
 
-    assert reporter._get_adjusted_price(raw, "0050").equals(
-        stock_split.apply_split_adjustment(raw, "0050")
-    )
+    assert reporter._get_adjusted_price(raw, "0050").equals(raw)
+
+
+def test_transitional_split_table_is_gone() -> None:
+    """
+    過渡表已刪除，不得有人再 import 它
+
+    留著會出現兩份分割來源，而抄漏一次分割的代價是整段序列從那天起錯 N 倍
+    （F-087 的教訓）。
+    """
+
+    import importlib
+
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("core.api.tw.stock_split")
 
 
 # === reporter 可維護性（健檢 F-067）===

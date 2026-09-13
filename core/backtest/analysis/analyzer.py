@@ -6,7 +6,6 @@ import pandas as pd
 from loguru import logger
 
 from core.api.tw.stock_price_api import StockPriceAPI
-from core.api.tw.stock_split import apply_split_adjustment
 from core.backtest.analysis.base import BaseBacktestAnalyzer
 from core.backtest.analysis.risk_metrics import (
     TRADING_DAYS_PER_YEAR,
@@ -251,8 +250,8 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
             而原始收盤價由 188.65 掉到 47.57（一拆四）。少了這道調整，
             任何跨過分割日的回測，IR 都會被一天 −74.8% 的假跌幅整段汙染。
 
-            分割表與 reporter 共用 `core/api/tw/stock_split.py` 同一份，
-            不各留一份（F-087 的教訓）。
+            分割與減資由 `corporate_action` 表經還原係數統一處理，
+            呼叫端不需要再補（2026-09 之前是靠一份只認得 0050 的過渡表）。
         - Parameters:
             - start_date: datetime.date
                 起始日（含）
@@ -266,9 +265,11 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
         if self.price is None:
             self.price = StockPriceAPI()
 
-        series: pd.Series = apply_split_adjustment(
-            self.price.get_adjusted_close_series(self.benchmark, start_date, end_date),
-            self.benchmark,
+        # 分割與減資都已含在 `get_adjusted_close_series()` 的累乘係數裡
+        # （`corporate_action` 表，2026-09），**不可再套一次分割調整**——
+        # 重複調整實測會讓 0050 的分割日由 1.82% 變成 303%
+        series: pd.Series = self.price.get_adjusted_close_series(
+            self.benchmark, start_date, end_date
         )
         if series.empty or len(series) < 2:
             logger.warning(

@@ -4,14 +4,17 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+from loguru import logger
 
 from core.api.base import BaseDataAPI
 from core.config import (
     API_LOG_FILE_LEVEL,
     API_LOGS_DIR_PATH,
+    CORPORATE_ACTION_TABLE_NAME,
     DIVIDEND_TABLE_NAME,
     TW_STOCK_DB_PATH,
 )
+from core.pipeline.utils.sqlite_utils import SQLiteUtils
 from core.utils.log_manager import LogManager
 
 """
@@ -203,11 +206,7 @@ class StockDividendAPI(BaseDataAPI):
         if self.factor_cache is not None:
             return self.factor_cache
 
-        query: str = f"""
-        SELECT date, stock_id, 還原係數 FROM {DIVIDEND_TABLE_NAME}
-        ORDER BY stock_id, date
-        """
-        df: pd.DataFrame = pd.read_sql_query(query, self.conn)
+        df: pd.DataFrame = self._load_adjustment_events()
 
         cache: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
         if df.empty:
@@ -230,8 +229,69 @@ class StockDividendAPI(BaseDataAPI):
         self.factor_cache = cache
         return cache
 
+    def _load_adjustment_events(self) -> pd.DataFrame:
+        """
+        - Description:
+            取出**所有**會造成價格跳空的事件，除權息與非除權息的公司行動都算
+
+            兩張表的欄位語意**完全一致**，都是「參考價 ÷ 前收盤價」，
+            所以可以直接疊在一起走同一套累乘：
+
+            | 表 | 欄位 | 典型值 | 意義 |
+            |----|------|:---:|------|
+            | `dividend` | `還原係數` | < 1 | 除權息造成價格下跳 |
+            | `corporate_action` | `調整倍率` | 減資 > 1、分割 < 1 | 公司行動造成價格跳動 |
+
+            **`corporate_action` 的倍率可以大於 1，這正是它不能併進 `dividend`
+            的原因**（那一欄的既有讀取端都假設恆 < 1），但在這裡不構成問題：
+            累乘的是倒數，方向由數值自己決定——減資倍率 9.99 的倒數是 0.1，
+            會把事件之後的價格往下調回來，正是要的效果。
+
+            同一個 `(date, stock_id)` 兩表都有時**以 `dividend` 為準**：
+            減資與除權息同日是可能的，但 `dividend.還原係數` 是交易所對除權息
+            算出來的官方參考價，語意更精確。實測全期間只有極少數會撞。
+        - Return:
+            - pd.DataFrame
+                欄位 `date`／`stock_id`／`還原係數`，已依 `(stock_id, date)` 排序
+        """
+
+        dividend_df: pd.DataFrame = pd.read_sql_query(
+            f"SELECT date, stock_id, 還原係數 FROM {DIVIDEND_TABLE_NAME}",
+            self.conn,
+        )
+
+        # `corporate_action` 是 2026-09 才建的表，舊環境可能還沒有——
+        # 查不到時只用除權息，行為與加入本表之前完全相同
+        if not SQLiteUtils.check_table_exist(
+            conn=self.conn, table_name=CORPORATE_ACTION_TABLE_NAME
+        ):
+            logger.warning(
+                f"[dividend] 找不到 {CORPORATE_ACTION_TABLE_NAME}，還原價僅涵蓋除權息；"
+                "減資與分割的假跳空不會被消除。"
+                "請跑 `python -m tasks.update_db --target corporate_action`"
+            )
+            return dividend_df.sort_values(["stock_id", "date"], kind="stable")
+
+        action_df: pd.DataFrame = pd.read_sql_query(
+            f"SELECT date, stock_id, 調整倍率 AS 還原係數 "
+            f"FROM {CORPORATE_ACTION_TABLE_NAME}",
+            self.conn,
+        )
+
+        merged: pd.DataFrame = pd.concat([dividend_df, action_df], ignore_index=True)
+        before: int = len(merged)
+        # `keep="first"` 讓 dividend 勝出（它被 concat 在前面）
+        merged = merged.drop_duplicates(subset=["date", "stock_id"], keep="first")
+        if len(merged) < before:
+            logger.info(
+                f"[dividend] 除權息與公司行動同日重疊 {before - len(merged)} 筆，"
+                "以除權息為準"
+            )
+
+        return merged.sort_values(["stock_id", "date"], kind="stable")
+
     def reset_factor_cache(self) -> None:
-        """清掉累乘係數快取（更新 `dividend` 表後需呼叫）"""
+        """清掉累乘係數快取（更新 `dividend` 或 `corporate_action` 表後需呼叫）"""
 
         self.factor_cache = None
 
