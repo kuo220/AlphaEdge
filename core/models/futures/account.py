@@ -42,7 +42,7 @@ class FuturesAccount(BaseAccount):
             （net position）。要看毛部位請直接走 `get_positions()`。
 
             **相抵是防禦性的**：`FuturesPositionManager.open_position()` 已擋掉
-            同契約雙向持倉（健檢 F-058），因此同一契約的所有部位方向一致，
+            同契約雙向持倉，因此同一契約的所有部位方向一致，
             淨口數的絕對值即等於毛口數。這條性質是呼叫端的前提——
             `MomentumFuturesStrategy` 以 `lots != 0` 判斷「是否已有部位」、
             以 `sum(abs(lots))` 對 `max_lots` 扣減，兩者在淨額為 0 時

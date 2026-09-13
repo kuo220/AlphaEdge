@@ -16,7 +16,7 @@ from core.pipeline.utils.constant import FuturesPriceColumn
 from core.utils import FuturesAdjustMethod, FuturesRollRule
 
 """
-連續合約與換月規則測試（Phase1-7）
+連續合約與換月規則測試
 
 **連續合約唯一的難點是「調整方向」，而方向錯了不會報錯**：把加號寫成減號同樣
 產出一條連續的序列、同樣通過還原檢查，只是每個換月接點的日變動都變成

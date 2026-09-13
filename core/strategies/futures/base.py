@@ -24,8 +24,8 @@ BaseFuturesStrategy: 台期貨策略基底
 1. **一天不只一個報價**
    同一天同一商品有多個到期月在交易（見 `FuturesPriceAPI` 的說明）。
    引擎傳進來的 `quotes` 是「當日所有契約」，**策略必須自己挑一個**。
-   本基底提供 `select_near_month()` 作為預設政策，但**換月規則屬 Phase2-4**，
-   要別的規則就覆寫它。
+   本基底提供 `select_near_month()` 作為預設政策，換月規則由 `roll_config` 決定，
+   要別的政策就覆寫它。
 
 2. **數量單位是口，且受保證金約束**
    股票是「用多少錢買多少股」，期貨是「繳多少保證金開幾口」。
@@ -67,11 +67,11 @@ class BaseFuturesStrategy(BaseStrategy):
         self.products: List[str] = []  # 要交易的商品代碼（Ex: ["TX"]）
         # 交易時段。**日盤與夜盤是兩筆獨立行情**，混用會讓同一契約一天出現兩筆報價。
         # 設為 `FuturesSession.COMBINED` 則由 DataFeed 整併成單一序列
-        # （前一交易日夜盤 ＋ 當日日盤，跨盤別跳空保留在 bar 內，見 Phase4-2）
+        # （前一交易日夜盤 ＋ 當日日盤，跨盤別跳空保留在 bar 內）
         self.session: FuturesSession = FuturesSession.DAY
         self.max_lots: int = 0  # 總口數上限（0 表示不開倉）
         # 期貨限制的是**總口數**不是持倉檔數，故明確解除引擎的檔數上限。
-        # `BaseStrategy` 的預設值已於 2026-09-03 由 0 改為 None（健檢 F-076），
+        # `BaseStrategy` 的預設值已於 2026-09-03 由 0 改為 None，
         # 此處保留是為了讓「期貨不用檔數上限」這件事在基底裡看得見
         self.max_holdings: Optional[int] = None
         # 單次開倉最多動用可動用餘額的比例；保證金交易若不設限，
@@ -80,8 +80,8 @@ class BaseFuturesStrategy(BaseStrategy):
 
         """ === Cost & Margin ===
 
-        兩者皆為 None 時走各自的預設：成本全為 0（費率屬 Phase2-1）、
-        保證金用比率近似。**正式回測應帶入 `FuturesMarginConfig.from_api()`**，
+        兩者皆為 None 時走各自的預設：成本帶市場常見費率、保證金查表（API 由 DataFeed 注入）。
+        要改用比率近似須明確宣告 `FuturesMarginConfig.ratio()`，
         固定比率跨年份的誤差實測為 +143% ~ −38%（見 `backlog/台期貨保證金ETL.md` S5）。
         """
         self.cost_config: Optional[FuturesCostConfig] = None
@@ -122,13 +122,13 @@ class BaseFuturesStrategy(BaseStrategy):
         - Description:
             挑出該商品當日的**當家契約**
 
-            **規則由 `roll_config` 決定**（Phase2-4）：撐到最後交易日／提前 N 個
+            **規則由 `roll_config` 決定**：撐到最後交易日／提前 N 個
             交易日／未沖銷量交叉。這份規則同時被 `TwFuturesSettlementModel`
             用來轉倉——**兩處必須是同一個設定物件**，否則會出現「訊號在次月、
             部位還在近月」這種不會報錯的錯配。
 
             尚未注入日曆時（純記憶體測試、或 DataFeed 還沒 setup）退回
-            「取最近的到期月」，行為與 Phase2-4 之前相同。
+            「取最近的到期月」，即最單純的近月政策。
 
             ⚠️ 預設規則之下，**近月在最後交易日當天仍是近月**；要提早避開結算日
             請改用 `FuturesRollRule.DAYS_BEFORE_EXPIRY`。
@@ -272,7 +272,7 @@ class BaseFuturesStrategy(BaseStrategy):
         """
         該契約是否已進入最後 `days` 個交易日（`days=0` 即「今天就是最後交易日」）
 
-        **換月規則屬 Phase2-4**，本方法只回答「還剩幾天」這個事實，
+        **換月規則由 `roll_config` 決定**，本方法只回答「還剩幾天」這個事實，
         要不要因此換月由策略決定。
         """
 

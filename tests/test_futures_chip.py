@@ -17,7 +17,7 @@ from core.pipeline.tw.cleaners.futures_chip_cleaner import FuturesChipCleaner
 from core.pipeline.tw.crawlers.futures_chip_crawler import FuturesChipCrawler
 
 """
-台期貨籌碼 ETL 與前視偏差測試（Phase3-1）
+台期貨籌碼 ETL 與前視偏差測試
 
 **本組資料的核心風險不是抓不到，是「抓到了但用錯時間」**：三大法人、大額交易人
 與 PCR **全部是盤後公布**，回測若在當日訊號裡讀到當日籌碼，等於用收盤後才知道的

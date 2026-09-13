@@ -160,7 +160,7 @@ class StockChipCleaner(BaseDataCleaner):
                 "自營商買賣超股數",
             ]
             # `zip()` 長度不一時會**安靜地截斷**，多出來的欄位保留原名、
-            # 之後被 reindex 填成 0——版面一改就整批變成假的 0（健檢 F-038）
+            # 之後被 reindex 填成 0——版面一改就整批變成假的 0
             self.check_column_count(
                 df, len(new_col_name), f"TPEX chip {date}（依位置命名）"
             )
@@ -196,7 +196,7 @@ class StockChipCleaner(BaseDataCleaner):
                 "三大法人買賣超股數",
             ]
             # `zip()` 長度不一時會**安靜地截斷**，多出來的欄位保留原名、
-            # 之後被 reindex 填成 0——版面一改就整批變成假的 0（健檢 F-038）
+            # 之後被 reindex 填成 0——版面一改就整批變成假的 0
             self.check_column_count(
                 df, len(new_col_name), f"TPEX chip {date}（依位置命名）"
             )
@@ -226,7 +226,7 @@ class StockChipCleaner(BaseDataCleaner):
             old_col_name: List[str] = list(df.columns)
             new_col_name: List[str] = self.chip_cleaned_cols
             # `zip()` 長度不一時會**安靜地截斷**，多出來的欄位保留原名、
-            # 之後被 reindex 填成 0——版面一改就整批變成假的 0（健檢 F-038）
+            # 之後被 reindex 填成 0——版面一改就整批變成假的 0
             self.check_column_count(
                 df, len(new_col_name), f"TPEX chip {date}（依位置命名）"
             )

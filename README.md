@@ -84,7 +84,7 @@ graph TB
     FrontendDocker --> FrontendApp
 ```
 
-`Backtester` is the **only** backtest engine: market-agnostic, no subclasses. All market-specific behavior is injected as five pluggable models (`InstrumentSpec`, `FillModel`, `CostModel`, `SettlementModel`, `DataFeed`) assembled by `factory.py` from the `market` a strategy declares. Adding a market does not require changing `backtester.py`. See [Multi-Market Engine](docs/backtest/multi-market-engine.md) and [Module Map](docs/backtest/module-map.md).
+`Backtester` is the **only** backtest engine: market-agnostic, no subclasses. All market-specific behavior is injected as five pluggable models (`InstrumentSpec`, `FillModel`, `CostModel`, `SettlementModel`, `DataFeed`) assembled by `factory.py` from the `market` + `instrument_type` a strategy declares. Adding a (market, instrument) combination does not require changing `backtester.py`. See [Multi-Market Engine](docs/backtest/multi-market-engine.md) and [Module Map](docs/backtest/module-map.md).
 
 
 
@@ -96,8 +96,9 @@ graph TB
 | `core/`         | Core trading domain code (strategies, managers, models, adapters, API, ETL, backtest engine; outputs land in the top-level `results/`) |
 | `frontend/`     | Streamlit Docker image for viewing backtest results                                                                             |
 | `tasks/`        | Data maintenance and database update scripts                                                                                    |
-| `tests/`        | Unit/integration tests for crawlers, updaters, and DB workflows                                                                 |
-| `docs/`         | Project docs (setup, deployment, data coverage)                                                                                 |
+| `tests/`        | Unit/integration tests and the backtest regression lines (`tests/backtest/`)                                                    |
+| `scripts/`      | Guardrail checks (layer deps, doc paths, orphan API methods), regression script and manual scripts                              |
+| `docs/`         | Usage and architecture docs (setup, commands, deployment, data, backtest and ETL design)                                       |
 | `strategy_lab/` | Research workspace organized by concept (`strategies/`, `data_analysis/`, `notebooks/`, `ideas/`); see `strategy_lab/README.md` |
 | `dev/`          | Optional conda environment definitions (`dev/env/quant_mac.yml`, `quant_win.yml`)                                                |
 | `backlog/`      | Internal notes and future work items                                                                                            |
@@ -111,26 +112,21 @@ graph TB
 | Document                                                | Description                                                   |
 | ------------------------------------------------------- | ------------------------------------------------------------- |
 | [Dev Setup](docs/setup/dev-setup.md)                    | Python environment, dependencies, formatting, env vars        |
-| [Dev Deployment](docs/deployment/dev-deployment.md)     | Local service startup flow, collector run commands, dashboard |
-| [Prod Deployment](docs/deployment/prod-deployment.md)   | Docker Compose deployment, monitoring, multi-node strategy    |
-| [Data Coverage](docs/exchanges/data_coverage.md)        | Data source and API coverage in current platform              |
+| [Dev Deployment](docs/deployment/dev-deployment.md)     | Day-to-day local flow: update data, run a backtest, view results |
+| [Prod Deployment](docs/deployment/prod-deployment.md)   | Building Docker images, running containers, role separation   |
+| [Data Coverage](docs/exchanges/data_coverage.md)        | Data sources, API mapping, start dates and price adjustment   |
 | [Command Usage](docs/commands/command-usage.md)         | Full `update_db` target reference and runnable examples       |
 | [Strategy Development Guide](core/strategies/README.md) | How to implement strategies in this project                   |
 | [Multi-Market Engine](docs/backtest/multi-market-engine.md) | Backtest engine architecture: one engine, five pluggable models |
 | [Module Map](docs/backtest/module-map.md)               | Who calls whom on the backtest path, per-file responsibilities |
 | [Short-Selling Framework](docs/backtest/short-selling-framework.md) | Direction-driven accounting, costs, margin call, forced cover |
-| [Code Quality Baseline](docs/dev/code-quality.md)       | Tooling (pyproject / ruff / CI / pre-commit), lint ignore rationale, coverage baseline |
+| [TW Futures Platform](docs/futures/tw-futures-platform.md) | Futures tables and commands; mark-to-market, margin, contract roll and session semantics; known limits |
 | [ETL Ingestion](docs/pipeline/etl-ingestion.md)         | Batching, idempotency and failure semantics of the data-load stage; per-updater checklist |
-| [Broker Trading NO_DATA](docs/pipeline/broker-trading-no-data.md) | Metadata semantics for empty API responses (decision record) |
-| [Health Check 2026-09](docs/dev/health-check-2026-09.md) | Repo-wide architecture/logic audit record: 101 findings graded A–D, each with its disposition |
-| [TW Futures Platform](docs/futures/tw-futures-platform.md) | TAIFEX futures backtest platform: margin, contract roll, night session, stock-futures contract size |
+| [Equity Change Data](docs/pipeline/equity-change.md)    | `equity_change` data shape, known limits and throttling       |
+| [Corporate Actions](docs/pipeline/corporate-action.md)  | `corporate_action` table: sources, adjustment ratios and the false-gap guard |
+| [Code Quality](docs/dev/code-quality.md)                | Tooling (pyproject / ruff / CI / pre-commit) and lint ignore rationale |
 | [Naming Axes](docs/dev/naming-axes.md)                  | Directory naming decision for the market axis vs the instrument-type axis |
 | [Runtime Artifacts](docs/dev/runtime-artifacts.md)      | Conventions for `data/` / `results/` / `logs/`, log bucketing and retention |
-| [Equity Change Data](docs/pipeline/equity-change.md)    | `equity_change` data shape, coverage, known limits and throttling |
-| [Corporate Actions](docs/pipeline/corporate-action.md)  | Adjustment ratios for non-dividend corporate actions (capital reduction, splits) and known limits |
-| [Frontend Report Metrics](docs/frontend/report-metrics.md) | How the frontend and the reporter share one set of performance-metric functions |
-| [Crawler Coverage Audit](docs/dev/crawler-coverage-2026-09.md) | Per-table coverage and stop points, measured from actual database content |
-| [Health Check Round 3](docs/dev/health-check-round3-2026-09.md) | Disposition and completion record for the five round-3 findings |
 
 
 ---
@@ -223,7 +219,7 @@ After installing dependencies above, open two terminal tabs at project root:
 ```bash
 source .venv/bin/activate
 python run.py --strategy <StrategyClassName>
-# optional: --mode backtest|live (default: backtest)
+# optional: --show opens charts in a browser; --mode live is not implemented (exits with code 1)
 ```
 
 **Tab 2 (Frontend: view results)**
@@ -245,8 +241,8 @@ Open an **interactive shell** inside the image and run commands exactly as you w
 # build image
 docker build -f core/Dockerfile -t alphaedge-core .
 
-# start the container and enter a shell (working directory: /app)
-docker run --rm -it --entrypoint /bin/bash alphaedge-core
+# start the container and enter a shell (working directory: /app); the image has no database, mount the host data/
+docker run --rm -it -v "$(pwd)/data:/app/data:ro" --entrypoint /bin/bash alphaedge-core
 ```
 
 Inside the container:
@@ -285,8 +281,8 @@ docker run --rm -p 8501:8501 alphaedge-frontend
 
 > ⚠️ **You must prepare `data/db/*.db` on the host first.** The images contain **no
 > database**; compose bind-mounts the host's `./data` **read-only** at `/app/data`.
-> Without it the core service fails at `sqlite3.connect` (health-check F-094).
-> See the "Update Database" section for how to build the database.
+> Without it the core service fails at `sqlite3.connect`.
+> See "Update database" under Command Usage below for how to build the database.
 >
 > Read-only is deliberate: the container only runs backtests and must not write to
 > the host database, which a background ETL job may be writing at the same time.
@@ -328,7 +324,7 @@ Replace `<StrategyClassName>` with your strategy class name. More command scenar
 
 ```bash
 python run.py --strategy <StrategyClassName>
-# optional: --mode backtest|live (default: backtest)
+# optional: --show opens charts in a browser; --mode live is not implemented (exits with code 1)
 ```
 
 ## Project Structure
@@ -338,14 +334,14 @@ AlphaEdge/
 ├── core/                    # trading domain modules
 │   ├── strategies/            # strategy implementations
 │   │   ├── base.py            # BaseStrategy (market-agnostic)
-│   │   ├── strategy_loader.py # auto-scans every market sub-package
+│   │   ├── strategy_loader.py # auto-scans every instrument-type sub-package (stock / futures)
 │   │   ├── ridge.py           # ridge signal shared by research and production (a module on purpose)
 │   │   ├── stock/             # BaseStockStrategy + concrete stock strategies
 │   │   └── futures/           # BaseFuturesStrategy + TW futures strategies
 │   ├── api/                   # data access APIs (SQLite / DolphinDB)
 │   ├── adapters/              # data adapters / integrations
 │   │   └── tw/                # StockQuoteAdapter (day/tick → StockQuote), FuturesQuoteAdapter
-│   ├── managers/              # position managers (base/ + per-market)
+│   ├── managers/              # position managers (base/ + stock/ + futures/)
 │   ├── models/                # domain models (base/ + stock/ + futures/)
 │   ├── utils/                 # shared helpers (enums, time, logging, Shioaji account)
 │   ├── config/                # paths, table schema and settings constants (lowest layer)
@@ -360,38 +356,43 @@ AlphaEdge/
 │   │   ├── models/            # InstrumentSpec / FillModel / CostModel / SettlementModel
 │   │   ├── datafeed/          # data loading, quote conversion, trading calendar
 │   │   ├── report/            # trading report, direction summary, charts
-│   │   ├── analysis/          # performance metrics (`risk_metrics.py` is pure functions, shared by the frontend and the analyzer)
+│   │   └── analysis/          # performance metrics (`risk_metrics.py` is pure functions, shared by the frontend and the analyzer)
 ├── data/                      # runtime data (git-ignored): db/ (tw_stock.db, tw_futures.db) + downloads/
 ├── results/                   # per-strategy backtest outputs (csv / png), git-ignored
 ├── logs/                      # api/ pipeline/ backtest/, git-ignored
 ├── frontend/                  # Streamlit docker image
 │   ├── app.py                 # Streamlit entrypoint
 │   ├── config.py              # frontend configuration
-│   ├── services/              # data loading services
-│   │   └── report_loader.py   # load backtest report files
+│   ├── services/              # data loading and metrics (no Streamlit calls, so testable)
+│   │   ├── report_loader.py   # load backtest report files
+│   │   ├── metrics.py         # stock report metrics (same formulas as the reporter)
+│   │   └── futures_metrics.py # futures-only metrics (margin, lot exposure)
+│   ├── static/theme.css       # page styles
+│   ├── requirements.txt       # frontend image dependencies
 │   ├── Dockerfile             # frontend container image
 │   ├── README.md              # frontend usage notes
 │   └── __init__.py
 ├── strategy_lab/              # research workspace (strategies/ / data_analysis/ / notebooks/ / ideas/)
-├── tasks/                     # data update scripts
-├── tests/                     # test suites (`backtest/` holds engine and regression lines; `temp/`, `database/` are runtime artifacts)
+├── tasks/                     # data update and maintenance entrypoints (update_db, delete_price_data, clean_logs)
+├── tests/                     # test suites (`backtest/` holds engine and regression lines; `temp/`, `database/`, `downloads/` are runtime artifacts)
 ├── dev/env/                   # optional conda environment definitions (mac/win)
 ├── backlog/                   # internal planning notes
 ├── docs/                      # project docs
 │   ├── backtest/              # engine architecture, module map, short-selling spec
-│   ├── dev/                   # code quality, naming axes, runtime artifacts, audit record
-│   ├── futures/               # TW futures platform plan and per-phase completion notes
-│   ├── pipeline/              # ETL ingestion contract and decision records
-│   ├── setup/
-│   ├── deployment/
-│   ├── exchanges/
-│   └── commands/
+│   ├── dev/                   # code quality, naming axes, runtime artifacts
+│   ├── futures/               # TW futures platform: data, backtest semantics, known limits
+│   ├── pipeline/              # ETL ingestion contract, equity change, corporate actions
+│   ├── setup/                 # dev environment setup
+│   ├── deployment/            # dev and prod deployment
+│   ├── exchanges/             # data coverage
+│   └── commands/              # command usage (zh-TW / en)
 ├── scripts/                   # guardrail checks and one-off tools
 │   ├── run_regression.sh      # SHORT + LONG regression guardrail (run before/after engine changes)
 │   ├── check_layer_deps.py    # layer deps, import cycles, cross-axis directory pollution (CI + pre-commit)
 │   ├── check_doc_paths.py     # file paths in docs that no longer resolve (stale after a move)
 │   ├── check_api_orphan_methods.py  # public methods in `core/api` with zero callers and zero tests
-│   ├── clean_pycache.sh       # remove __pycache__ and .pyc
+│   ├── clean_pycache.sh/.ps1  # remove __pycache__ and .pyc (macOS/Linux, Windows)
+│   ├── fix_single_market_batches.py  # one-off data fix: batches loaded for only one market
 │   └── manual/                # scripts needing credentials or a database (see its README)
 ├── docker-compose.yml         # compose: core + frontend + shared results volume
 ├── run.py

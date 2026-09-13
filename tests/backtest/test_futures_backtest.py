@@ -32,7 +32,7 @@ from core.strategies.futures import BaseFuturesStrategy
 from core.utils import Action, FuturesSession, PositionType, Scale
 
 """
-台期貨回測 model 組的測試（Phase1-6）
+台期貨回測 model 組的測試
 
 **期貨與股票在回測層的四個根本差異**，本檔逐一釘住——每一個都不會報錯，
 只會讓數字靜默偏掉：
@@ -71,7 +71,7 @@ class ScriptedFuturesStrategy(BaseFuturesStrategy):
         self.start_date: datetime.date = DAY_1
         self.end_date: datetime.date = datetime.date(2024, 3, 31)
 
-        # **本檔驗的是接線不是成本**：預設費率（Phase2-1）會讓每個斷言都要先扣掉
+        # **本檔驗的是接線不是成本**：預設費率會讓每個斷言都要先扣掉
         # 手續費與期交稅，成本本身另有 `tests/test_futures_cost.py`
         self.cost_config: FuturesCostConfig = FuturesCostConfig.free()
 
@@ -641,7 +641,7 @@ def test_datafeed_returns_only_the_declared_session() -> None:
 
 
 def test_datafeed_has_no_tick_support_yet() -> None:
-    """Tick 級別屬 Phase5-1，回空 list 而非拋錯"""
+    """期貨 Tick 級別尚未實作，回空 list 而非拋錯"""
 
     assert make_feed(ScriptedFuturesStrategy()).get_quotes(DAY_1, Scale.TICK) == []
 

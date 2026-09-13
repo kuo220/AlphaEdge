@@ -1,7 +1,7 @@
 """
 台灣市場的報價轉換器（股票 ＋ 期貨）
 
-目錄只承載「市場」一條軸，商品類別由檔名承載（見 `docs/dev/naming-axes.md`）。
+目錄只承載「市場」一條軸，商品類別由檔名承載（`scripts/check_layer_deps.py` 會擋跨軸混放）。
 """
 
 from .futures_quote_adapter import FuturesQuoteAdapter

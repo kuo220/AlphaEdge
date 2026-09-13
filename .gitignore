@@ -10,7 +10,6 @@ __pycache__/
 
 
 # 執行期產物：程式寫出來的東西一律在這三個目錄底下，`core/` 只放原始碼
-# （分界與判準見 docs/dev/runtime-artifacts.md）
 data/
 results/
 logs/
@@ -20,7 +19,7 @@ strategy_lab/**/output/
 
 # 同上，但報告產出物寫在 reports/ 而不是 output/：各研究的 `generate_docx.py`
 # 不傳輸出路徑時預設就寫進自己那個 reports/ 目錄，跑一次就是幾 MB 的二進位 diff。
-# `check-added-large-files` 擋不住已經進版控的檔案（F-088 的教訓）
+# `check-added-large-files` 擋不住已經進版控的檔案（它只檢查新加入的檔案）
 strategy_lab/**/reports/*.docx
 
 # 測試產物：fixture 資料庫、下載暫存、一次性比對輸出

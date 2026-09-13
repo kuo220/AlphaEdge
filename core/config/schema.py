@@ -18,7 +18,7 @@ TICK_DB_NAME: str = "tickDB"
 TW_STOCK_DB_PATH: Path = get_static_resolved_path(
     base_dir=DATABASE_DIR_PATH, dir_name=TW_STOCK_DB_NAME
 )
-# **`DDB_PATH` 沒設定時不可拼成 `"NonetickDB"`**（健檢 F-015）：
+# **`DDB_PATH` 沒設定時不可拼成 `"NonetickDB"`**：
 # 那是一個看起來像路徑的字串，DolphinDB 會拿它去建一個名字很怪的資料庫，
 # 或是查一個永遠不存在的路徑，錯誤訊息完全指不到真正的原因。
 #
@@ -72,7 +72,7 @@ DIVIDEND_TABLE_NAME: str = "dividend"
 # 既有讀取端的假設反向。表名不叫 `stock_split`：分割只有 6 筆、減資有 600 多筆
 CORPORATE_ACTION_TABLE_NAME: str = "corporate_action"
 TICK_TABLE_NAME: str = "tick"
-# 期貨 tick **與股票分表**（Phase5-1）：主鍵不同（期貨要 product ＋ expiry ＋
+# 期貨 tick **與股票分表**：主鍵不同（期貨要 product ＋ expiry ＋
 # session 才能定位一筆成交，股票只要 stock_id），且期貨有夜盤。
 # 兩者塞同一張表會讓分割鍵（partition key）失去意義，查詢一律掃全表
 FUTURES_TICK_TABLE_NAME: str = "futures_tick"
@@ -85,7 +85,7 @@ STOCK_INFO_TABLE_NAME: str = "taiwan_stock_info"
 STOCK_INFO_WITH_WARRANT_TABLE_NAME: str = "taiwan_stock_info_with_warrant"
 SECURITIES_TRADER_INFO_TABLE_NAME: str = "taiwan_securities_trader_info"
 # 台期貨（皆位於 tw_futures.db）
-# **`futures_contract` 的表名常數已刪除**（健檢 F-098）：規劃時預留給股票期貨乘數，
+# **`futures_contract` 的表名常數已刪除**：規劃時預留給股票期貨乘數，
 # 後來改走 `futures_stock_universe.contract_size`，於是這個常數變成有宣告、無建表、
 # 無 loader、無讀取端——留著只會讓人以為 DB 裡有這張表。
 # 指數期貨乘數見程式碼常數 `FUTURES_MULTIPLIER`，股票期貨乘數見

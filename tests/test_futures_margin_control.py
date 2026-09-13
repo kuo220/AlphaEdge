@@ -16,7 +16,7 @@ from core.utils import Action, MarginCallPolicy, PositionType, Scale
 from core.utils.constant import FUTURES_MULTIPLIER
 
 """
-台期貨槓桿與部位控管測試（Phase2-2）
+台期貨槓桿與部位控管測試
 
 **期貨的資金約束與股票完全不同**，本檔逐一釘住：
 

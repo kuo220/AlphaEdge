@@ -32,7 +32,7 @@
   - [可直接複用的工具類 (Utils)](#可直接複用的工具類-utils)
     - [StockUtils — 手續費／證交稅／單位換算](#stockutils--手續費證交稅單位換算)
     - [Units / Commission — 單位與成本常數](#units--commission--單位與成本常數)
-    - [Action / Scale / PositionType / Market — 列舉常數](#action--scale--positiontype--market--列舉常數)
+    - [Action / Scale / PositionType / Market / InstrumentType — 列舉常數](#action--scale--positiontype--market--instrumenttype--列舉常數)
   - [資料來源摘要](#資料來源摘要)
   - [研究腳本怎麼寫？](#研究腳本怎麼寫)
     - [最小可運行的研究腳本](#最小可運行的研究腳本)
@@ -367,7 +367,7 @@ InstrumentType.STOCK, InstrumentType.FUTURE, InstrumentType.OPTION  # 商品類�
 > `strategy_lab` 不在 `pyproject` 的 `packages.find` 裡（只裝 `core*`／`tasks*`／`tests*`），
 > 直接跑檔案路徑時 `sys.path[0]` 是腳本自己的目錄，`import strategy_lab.…` 會失敗。
 > 舊版靠每支腳本開頭的 `sys.path.insert` 硬塞，那會遮蔽「沒安裝就跑」的 import
-> 錯誤（健檢 F-009，已於 2026-09-10 清除）。
+> 錯誤（已清除）。
 
 
 ```python

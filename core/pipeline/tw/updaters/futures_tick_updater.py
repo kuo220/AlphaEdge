@@ -33,7 +33,6 @@ from core.utils.log_manager import LogManager
 
 ⚠️ **本 updater 尚未於本機完整實測**：DolphinDB server 未啟動、且期貨 tick 會
 消耗使用者的 Shioaji 配額，故只驗到「契約清單解析」與「爬取單一契約」。
-見 `docs/futures/tw-futures-platform.md` Phase5-1 的紀錄。
 """
 
 

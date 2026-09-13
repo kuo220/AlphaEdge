@@ -31,7 +31,7 @@
 ## 處置
 
 刪除該日**整天**的資料（不是只刪存在的那半邊），刪除前逐列匯出 CSV 備份。
-兩支 updater 的候選日期都是差集（健檢 F-050），所以刪完重跑就會把整天重爬回來：
+兩支 updater 的候選日期都是差集，所以刪完重跑就會把整天重爬回來：
 
     python scripts/fix_single_market_batches.py --dry-run   # 只報告不寫入
     python scripts/fix_single_market_batches.py             # 執行，先備份再刪

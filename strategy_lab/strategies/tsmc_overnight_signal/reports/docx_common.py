@@ -2,8 +2,8 @@
 """
 TSMC 隔夜訊號 Word 報告的共用零件（樣式、表格、圖片、CSV 讀取）。
 
-**單獨成檔是為了解掉 `generate_docx` ↔ `docx_append` 的循環 import**
-（健檢 F-006）：原本兩檔互相 import，靠 import 順序與函式內延遲 import 僥倖
+**單獨成檔是為了解掉 `generate_docx` ↔ `docx_append` 的循環 import**：
+原本兩檔互相 import，靠 import 順序與函式內延遲 import 僥倖
 不炸。更實際的代價是它讓 `scripts/check_layer_deps.py` 的結束碼永遠是 1，
 於是這支專門為了守住分層而寫的腳本沒辦法接進 CI 或 pre-commit 當閘門——
 **唯一的違規把整個閘門鎖住了**。

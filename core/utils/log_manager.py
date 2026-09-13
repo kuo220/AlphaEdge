@@ -1,10 +1,10 @@
 """
 Log Manager：以 loguru 統一設定日誌
 
-**loguru 的 sink 預設收下整個行程的每一行**（健檢 F-001）：本專案有 33 個
+**loguru 的 sink 預設收下整個行程的每一行**：本專案有 33 個
 `setup_logger()` 呼叫端，少了 `filter=` 的話，`core/api/` 的一次查詢會同時寫進
 `logs/api/`、`logs/pipeline/`、`logs/backtest/` 底下的**每一個**檔案。
-`logs/api/` 每天長約 100 MB（F-097）大部分不是 api 自己的日誌，是別人的。
+`logs/api/` 每天長約 100 MB，大部分不是 api 自己的日誌，是別人的。
 
 修法是**依「記錄從哪個套件發出」分桶**：api 桶只收 `core.api.*`、
 backtest 桶只收回測相關套件、pipeline 桶收其餘。這樣不需要改動任何一個
@@ -155,7 +155,7 @@ class LogManager:
             level=level,
             format=format,
             enqueue=True,  # Thread-safe logging
-            # 沒有 filter 的話，這個 sink 會收下整個行程的每一行（F-001）
+            # 沒有 filter 的話，這個 sink 會收下整個行程的每一行
             filter=LogManager.build_bucket_filter(log_dir),
             # **檔案被外部刪掉時要重建**（2026-09-03 事故，見模組說明）
             watch=True,

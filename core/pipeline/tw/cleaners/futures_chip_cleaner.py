@@ -10,7 +10,7 @@ from core.pipeline.shared.base_cleaner import BaseDataCleaner
 """
 台期貨籌碼清洗器（三大法人、大額交易人、選擇權 PCR）
 
-**欄位語言跟著來源走**（見 `docs/pipeline/etl-ingestion.md` §3.4）：三個資料集都是
+**欄位語言跟著來源走**：三個資料集都是
 交易所直接給的中文欄名，一律原樣保留；只有**主鍵欄改成英文**
 （`date`／`product_name`／`investor`／`product`／`expiry`／`trader_type`），
 理由是主鍵會出現在每一句查詢裡。

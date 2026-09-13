@@ -179,7 +179,7 @@ def test_fill_price_limit_rejected(make_order, make_quote) -> None:
 
 
 def test_fill_price_tick_scale(make_order, make_quote) -> None:
-    """§7.6：Tick 級別以當日累計高低點為界，且只納入已發生的報價"""
+    """Tick 級別以當日累計高低點為界，且只納入已發生的報價"""
 
     fill_model: TwStockFillModel = TwStockFillModel()
 
@@ -227,7 +227,7 @@ def test_fill_model_state_shared_with_engine(
 def test_same_day_short_cover(
     make_strategy, make_backtester, make_order, make_quote
 ) -> None:
-    """§4.5：OPEN_THEN_CLOSE 下，當沖放空可在同一天完成開倉與回補"""
+    """OPEN_THEN_CLOSE 下，當沖放空可在同一天完成開倉與回補"""
 
     strategy = short_strategy(
         make_strategy,
@@ -265,7 +265,7 @@ def test_same_day_short_cover(
 
     records: List[StockTradeRecord] = backtester.account.trade_records
     assert len(records) == 1
-    assert records[0].realized_pnl == 4768.0  # §6.1 當沖手算值
+    assert records[0].realized_pnl == 4768.0  # 當沖手算值（100 元放空 1 張、95 元回補）
     assert records[0].holding_days == 0
     assert backtester.account.positions == []
 
@@ -317,7 +317,7 @@ def test_close_then_open_cannot_cover_same_day(
 
 # === 當沖日終未回補 ===
 def test_uncovered_day_trade_forced(make_strategy, make_backtester, make_quote) -> None:
-    """§7.1：當沖放空日終未回補，以收盤價強制回補並計數"""
+    """當沖放空日終未回補，以收盤價強制回補並計數"""
 
     strategy = short_strategy(
         make_strategy,
@@ -349,7 +349,7 @@ def test_uncovered_day_trade_forced(make_strategy, make_backtester, make_quote) 
 
 
 def test_limit_up_cannot_cover(make_strategy, make_backtester, make_quote) -> None:
-    """§7.1：全日鎖漲停無法回補，轉為融券留倉並單獨計數"""
+    """全日鎖漲停無法回補，轉為融券留倉並單獨計數"""
 
     strategy = short_strategy(
         make_strategy,
@@ -387,7 +387,7 @@ def test_limit_up_cannot_cover(make_strategy, make_backtester, make_quote) -> No
 
 # === 留倉的每日檢查 ===
 def test_margin_call_force_cover(make_strategy, make_backtester, make_quote) -> None:
-    """§7.2：維持率跌破 130% 時，以當日收盤價強制回補並記為斷頭"""
+    """維持率跌破 130% 時，以當日收盤價強制回補並記為斷頭"""
 
     strategy = short_strategy(
         make_strategy,
@@ -456,7 +456,7 @@ def test_margin_call_warn_only(make_strategy, make_backtester, make_quote) -> No
 def test_borrow_fee_not_double_counted(
     make_strategy, make_backtester, make_quote
 ) -> None:
-    """§4.3：MARGIN 的券費只在開倉收一次，逐日計提的 accrued_borrow_fee 必須維持 0"""
+    """MARGIN 的券費只在開倉收一次，逐日計提的 accrued_borrow_fee 必須維持 0"""
 
     strategy = short_strategy(
         make_strategy,
@@ -491,7 +491,7 @@ def test_borrow_fee_not_double_counted(
     assert position.borrow_fee == 80  # 開倉時一次收取
     # **曆日而非 bar 數**：DAY_1 開倉、跑到 DAY_1 + 10 天，中間相隔 10 個曆日。
     # 舊版每根 bar +1 會得到 11（含開倉那根），與 `TradeRecord.holding_days`
-    # 的曆日語意不一致（健檢 F-063）
+    # 的曆日語意不一致
     assert position.holding_days == 10
 
 
@@ -535,7 +535,7 @@ def test_sbl_borrow_fee_covers_the_whole_weekend(
     make_strategy, make_backtester, make_quote
 ) -> None:
     """
-    跨週末只有 1 根 bar，卻是 3 個曆日的借券費（健檢 F-059）
+    跨週末只有 1 根 bar，卻是 3 個曆日的借券費
 
     舊版每根 bar 計 1/365，一年只計到 252 個交易日，年化費率因此低估
     約 31%（1 − 252/365）——而借券費是**按日曆計息**的，週末照收。
@@ -579,7 +579,7 @@ def test_sbl_borrow_fee_covers_the_whole_weekend(
 def test_max_holding_days_force_cover(
     make_strategy, make_backtester, make_quote
 ) -> None:
-    """§7.3：超過最長持有天數的保險絲會強制回補"""
+    """超過最長持有天數的保險絲會強制回補"""
 
     strategy = short_strategy(
         make_strategy,

@@ -26,7 +26,7 @@ from core.utils.log_manager import LogManager
 兩個來源都支援日期區間，故一律**以「年」為單位請求**：2013~今日各只要十餘次請求，
 不退化成逐日爬取。實測全期間上市 360 筆、上櫃 283 筆，量很小。
 
-**每次都掃整個區間，不從 `MAX(date)+1` 續跑**（同 F-050）：這類事件是「事後公告」，
+**每次都掃整個區間，不從 `MAX(date)+1` 續跑**：這類事件是「事後公告」，
 而且量少到重掃整段也只有二十幾次請求；用 `MAX(date)+1` 會讓中間任何一年的缺漏
 永遠補不回來。入庫走 `INSERT OR REPLACE`，重跑是冪等的。
 """
@@ -69,7 +69,7 @@ class CorporateActionUpdater(BaseDataUpdater):
             - start_date: datetime.date
                 回補起日
             - end_date: Optional[datetime.date]
-                回補迄日；None 取當日（預設值不可在 def 行求值，見 F-002）
+                回補迄日；None 取當日（預設值不可在 def 行求值）
         """
 
         logger.info("* Start Updating TWSE & TPEX Corporate Action Data...")

@@ -12,7 +12,7 @@ from core.backtest.analysis.risk_metrics import (
 )
 
 """
-風險調整後報酬的公式（健檢 F-068）
+風險調整後報酬的公式
 
 舊版的四個問題都會讓數字看起來合理但實際錯誤：分子用百分比、分母用小數；
 沒有年化；以「每筆交易」為樣本；Sortino 的下檔標準差算的是低於門檻那幾期
@@ -215,7 +215,7 @@ def test_analyzer_computes_metrics_from_daily_equity() -> None:
     assert analyzer.compute_sharpe_ratio(daily_equity) is not None
 
 
-# === Information Ratio（F-068 漏掉的第四個指標）===
+# === Information Ratio===
 def test_information_ratio_matches_hand_calculation() -> None:
     """
     手算對照：策略 [2%, -1%, 3%, 0%]、基準 [1%, -1%, 1%, 1%]
@@ -339,7 +339,7 @@ def test_analyzer_information_ratio_is_none_without_daily_equity() -> None:
     assert analyzer.compute_information_ratio() is None
 
 
-# === 交易統計的除零防護（健檢第三輪 S1）===
+# === 交易統計的除零防護===
 def _make_analyzer(trade_records: List) -> "object":
     """建一個只帶交易紀錄的 analyzer（不連資料庫、不建策略）"""
 

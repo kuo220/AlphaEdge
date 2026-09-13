@@ -343,10 +343,10 @@ def test_borrow_check_disabled_by_default() -> None:
     assert fill_model.fill(order, make_quote()) is order
 
 
-# === 成交路徑防線（健檢 F-064、F-037 殘餘、F-022）===
+# === 成交路徑防線===
 def test_slippage_pushed_price_is_clamped_back() -> None:
     """
-    滑價把價格推出當日區間時要夾回（F-064）
+    滑價把價格推出當日區間時要夾回
 
     `validate()` 跑在 `fill()` **之前**，於是滑價之後沒有任何檢查——
     一筆本來在區間內的單，加了滑價就可能成交在當日根本沒出現過的價位。
@@ -396,7 +396,7 @@ def test_close_leg_only_warns_and_counts() -> None:
 
 def test_no_volume_day_is_rejected() -> None:
     """
-    當日無成交量一律拒單（F-037 的下游殘餘）
+    當日無成交量一律拒單
 
     無成交日的 `high`／`low` 都是 0，`get_price_range()` 回 `(None, None)`
     而**跳過**區間檢查——策略因此能在整天無量的標的上以任意價格成交。
@@ -440,7 +440,7 @@ def test_tick_scale_is_never_rejected_for_volume() -> None:
 
 def test_tick_quote_carries_a_price() -> None:
     """
-    tick 路徑的 `cur_price`／`close`／`volume` 必須帶出來（F-022）
+    tick 路徑的 `cur_price`／`close`／`volume` 必須帶出來
 
     舊版只掛 `tick=tick_quote`，OHLC 與 cur_price 全部留在預設值 0.0，
     於是任何讀 `quote.close` 的地方都拿到 0 元。

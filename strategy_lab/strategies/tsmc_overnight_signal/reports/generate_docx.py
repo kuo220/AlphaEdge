@@ -11,7 +11,7 @@
     .venv/bin/python -m strategy_lab.strategies.tsmc_overnight_signal.run
 
 共用零件（樣式、表格、圖片、CSV 讀取）在 `docx_common.py`，敘事內容在
-`docx_append.py`；三者單向相依，不再互相 import（健檢 F-006）。
+`docx_append.py`；三者單向相依，不再互相 import。
 
 產出的兩個 `.docx` 是**產出物、不進版控**（`.gitignore` 的
 `strategy_lab/**/reports/*.docx`）：`build_report()` 不傳 `output_path` 時
@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import List, Optional
 
 # 循環解掉之後，這兩個 import 才能放回模組層級——函式內 import 只是把問題藏起來，
-# 讓 `scripts/check_layer_deps.py` 看不見，實際的相依環還在（健檢 F-006）
+# 讓 `scripts/check_layer_deps.py` 看不見，實際的相依環還在
 from strategy_lab.strategies.tsmc_overnight_signal.reports.docx_append import (
     append_en_report,
     append_zh_report,

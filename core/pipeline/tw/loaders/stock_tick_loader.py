@@ -80,7 +80,7 @@ class StockTickLoader(BaseDataLoader):
         """
 
         # `DDB_PATH` 沒設定時舊版會拼出 `"NonetickDB"` 這種看起來像路徑的字串，
-        # 錯誤訊息完全指不到真正的原因（健檢 F-015）；在連線之前就攔下來
+        # 錯誤訊息完全指不到真正的原因；在連線之前就攔下來
         require_tick_db_path()
 
         _max_retries: int = (
@@ -201,7 +201,7 @@ class StockTickLoader(BaseDataLoader):
 
         except Exception as e:
             # **原本記在 `info` 等級**：DolphinDB 寫入失敗與正常訊息在 log 裡
-            # 完全一樣，一整天的 tick 沒進去也不會有人知道（健檢 F-056）
+            # 完全一樣，一整天的 tick 沒進去也不會有人知道
             logger.error(f"The csv file fail to save into database and table!\n{e}")
             raise DataLoadError("tick", [csv_path.name], succeeded=0) from e
 

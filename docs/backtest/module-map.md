@@ -8,7 +8,7 @@
 
 ## 一、分層與相依方向
 
-相依**單向由上往下**，同層之間不互相 import。違反這條線的兩次事故都記在[多市場回測引擎架構 §6.4](multi-market-engine.md)。
+相依**單向由上往下**，同層之間不互相 import。違反時 `scripts/check_layer_deps.py` 會以非零狀態碼結束（CI 有跑）。
 
 ```
 入口層      run.py ── tasks/update_db.py
@@ -71,7 +71,7 @@ sequenceDiagram
     end
 
     BT->>R: generate_trading_report() / direction_summary / event_report
-    BT->>R: 四張圖
+    BT->>R: 五張圖
     BT->>Feed: close()
 ```
 
@@ -96,9 +96,9 @@ sequenceDiagram
 
 | 檔案 | 職責 | 被誰呼叫 |
 |------|------|----------|
-| `run.py` | CLI 解析（`--mode`、`--strategy`）、載入策略、建引擎、`run()` | 使用者 |
-| `core/strategies/strategy_loader.py` | 掃描 `core/strategies/` 下**所有市場子套件**，找出繼承 `BaseStrategy` 的類別；類別名即策略識別名 | `run.py` |
-| `core/backtest/factory.py` | 依 `strategy.market` 組裝 model 組合；`build_cost_config()` 依策略宣告推導成本設定 | `run.py`、測試 |
+| `run.py` | CLI 解析（`--mode`、`--strategy`、`--show/--no-show`）、載入策略、建引擎、`run()` | 使用者 |
+| `core/strategies/strategy_loader.py` | 掃描 `core/strategies/` 下**所有商品類別子套件**，找出繼承 `BaseStrategy` 的類別；類別名即策略識別名 | `run.py` |
+| `core/backtest/factory.py` | 依 `(strategy.market, strategy.instrument_type)` 組裝 model 組合；`build_cost_config()` 依策略宣告推導成本設定 | `run.py`、測試 |
 
 ### 引擎與可插拔 model
 
@@ -142,9 +142,10 @@ sequenceDiagram
 | 檔案 | 職責 |
 |------|------|
 | `core/backtest/report/base.py` | `BaseBacktestReporter`：報表介面與存檔工具 |
-| `core/backtest/report/reporter.py` | 台股報表：交易明細、多空統計、事件計數、五張圖、benchmark（`0050`）比較 |
+| `core/backtest/report/reporter.py` | 台股報表：交易明細、多空統計、事件計數、五張圖、benchmark（`0050` 還原價）比較 |
 | `core/backtest/report/futures_reporter.py` | 期貨報表：繼承台股報表，只覆寫交易明細欄位（`Contract ID`）、多空統計欄位、對標序列（近月拼接） |
-| `core/backtest/analysis/analyzer.py` | 績效指標（Sharpe／Sortino／Profit Factor 等），目前未接進 `run()` 主流程 |
+| `core/backtest/analysis/analyzer.py` | 績效指標（Sharpe／Sortino／Profit Factor 等） |
+| `core/backtest/analysis/risk_metrics.py` | 風險調整後報酬的純函式，前端與 reporter 共用同一份公式 |
 
 ---
 
@@ -154,9 +155,9 @@ sequenceDiagram
 
 | 檔案 | 內容 | 產生者 |
 |------|------|--------|
-| `<策略>_trading_report.csv` | 已平倉交易逐筆明細（25 欄，含放空專屬的 `Borrow Fee`／`Interest`／`Margin`／`Holding Days`／`ROI on Capital`） | `generate_trading_report()` |
+| `<策略>_trading_report.csv` | 已平倉交易逐筆明細（含放空專屬的 `Borrow Fee`／`Interest`／`Margin`／`Holding Days`／`ROI on Capital`） | `generate_trading_report()` |
 | `<策略>_direction_summary.csv` | 多空分開的勝率、損益、成本統計 | `generate_direction_summary()` |
-| `<策略>_event_report.csv` | 六種事件計數（強制回補、斷頭、拒單、漲停回補失敗） | `generate_event_report()` |
+| `<策略>_event_report.csv` | 事件計數（強制回補、斷頭、拒單、漲停回補失敗等） | `generate_event_report()` |
 | `<策略>_daily_equity.csv` | **含未實現損益**的逐日權益序列 | `Backtester.snapshot_daily_equity()` |
 | `<策略>_balance_curve.png` | 權益曲線 | `plot_balance_curve()` |
 | `<策略>_networth.png` | 策略 vs `0050` 淨值 | `plot_balance_and_benchmark_curve()` |
@@ -164,7 +165,7 @@ sequenceDiagram
 | `<策略>_everyday_profit.png` | 每日損益長條圖（**已實現口徑**） | `plot_everyday_profit()` |
 | `<策略>_everyday_equity_change.png` | 每日權益變化（**盯市口徑**，無 `daily_equity` 時不產出） | `plot_everyday_equity_change()` |
 
-日誌落在 `logs/backtest/`。
+日誌落在 `logs/backtest/`。圖表預設不開瀏覽器，要開用 `run.py --show` 或 `ALPHAEDGE_SHOW_FIGURES`。
 
 ### 權益曲線的兩種口徑
 
@@ -187,20 +188,20 @@ sequenceDiagram
 
 | 動作 | 檔案 |
 |------|------|
-| 新增 | `core/models/<market>/`（五個領域模型） |
-| 新增 | `core/strategies/<market>/base.py`（設定 `self.market`） |
-| 新增 | `core/backtest/models/` 的該市場 `InstrumentSpec`／`FillModel`／`CostModel`／`SettlementModel` |
-| 新增 | `core/backtest/datafeed/` 的該市場 `DataFeed` |
-| 新增 | `core/managers/<market>/position_manager.py` |
-| **修改** | `core/backtest/factory.py`：加一個 `elif (strategy.market, strategy.instrument_type) == (Market.TW, InstrumentType.FUTURE):` |
+| 新增 | `core/models/<instrument>/`（五個領域模型） |
+| 新增 | `core/strategies/<instrument>/base.py`（設定 `self.market` 與 `self.instrument_type`） |
+| 新增 | `core/backtest/models/` 的該組合 `InstrumentSpec`／`FillModel`／`CostModel`／`SettlementModel` |
+| 新增 | `core/backtest/datafeed/<market>/` 的該組合 `DataFeed` |
+| 新增 | `core/managers/<instrument>/position_manager.py` |
+| **修改** | `core/backtest/factory.py`：加一個 `elif (strategy.market, strategy.instrument_type) == (...)` 分支 |
 
-`backtester.py`、`strategy_loader.py`、`run.py` 皆為 **0 行改動**——`StrategyLoader` 會自動掃描新的市場子套件，CLI 也不需要 `--market`（市場由策略類別自己宣告）。
+`backtester.py`、`strategy_loader.py`、`run.py` 皆為 **0 行改動**——`StrategyLoader` 會自動掃描新的子套件，CLI 也不需要 `--market`（市場由策略類別自己宣告）。
 
 ---
 
 ## 六、動這些模組前要知道的事
 
-1. **不要在 `core/backtest/__init__.py`、`core/strategies/__init__.py` 與 `core/backtest/datafeed/__init__.py` 加 re-export。** 三處都會因套件層 eager import 造成循環，已刻意移除；呼叫端一律用完整模組路徑。
+1. **不要在 `core/backtest/__init__.py`、`core/strategies/__init__.py` 與 `core/backtest/datafeed/__init__.py` 加 re-export。** 三處都會因套件層 eager import 造成循環；呼叫端一律用完整模組路徑。
 2. **策略不要自己 `StockPriceAPI()`。** API 實例由 `DataFeed` 統一持有，`setup_apis(feed)` 只是取用；自行建立會讓單次回測開出多條互不相干的連線。
 3. **策略層不得出現資料庫欄位字面值。** 資料表欄位是中文（`"收盤價"`、`"成交股數"`），只有 `core/api/` 可以引用（常數定義在 `core/pipeline/utils/constant.py` 的 `PriceColumn`／`ChipColumn`）。策略一律呼叫具名查詢方法：
 
@@ -211,28 +212,28 @@ sequenceDiagram
    | `StockPriceAPI.get_close_series(stock_id, start, end)` | 個股區間收盤序列 |
    | `StockChipAPI.get_trust_net_shares_map(date)` | 單日全市場投信買賣超股數對照表 |
 
-   `tests/test_strategy_data_access.py` 會在策略層出現欄位字面值時失敗——這類錯誤原本是**靜默**的（換資料源後策略會安靜地不開倉，報表上只表現為訊號變少）。
+   `tests/test_strategy_data_access.py` 會在策略層出現欄位字面值時失敗——這類錯誤是**靜默**的（換資料源後策略會安靜地不開倉，報表上只表現為訊號變少）。
 4. **`core/api/` 不可 import `core/utils/instrument.py`。** `StockUtils` 相依 `MarketCalendar`，而後者相依 `StockPriceAPI`；API 層位於其下，反向相依會直接循環。
 5. **回歸雙線不經過 reporter。** `tests/backtest/make_baseline.py` 直接從 `account.trade_records` 組 `DataFrame`，改壞報表欄位兩條線都一樣綠——動 `reporter.py` 時要靠 `test_reporting.py` 與 `test_reporter_timeline.py`。
-6. **報表層另開一條連線且未關閉。** `StockBacktestReporter.setup()` 自行 `StockPriceAPI()` 取 benchmark（`0050`）價格，`owns_conn=True` 但流程中沒有 `close()`。`DataFeed` 那條共用連線與它無關。
+6. **reporter 共用 `DataFeed` 的連線。** `Backtester` 把 `StockPriceAPI` 傳給 reporter 取 benchmark，reporter 的 `close()` 只關自己開的連線（`owns_conn` 語意）。
 7. **任何動到 `core/backtest/`、`core/managers/`、`core/models/` 的改動，先跑 `./scripts/run_regression.sh`。**
 
 ---
 
-## 七、已知的相依例外（2026-09-02 健檢 S3）
+## 七、已知的相依例外
 
-§一的圖描述的是**呼叫方向**；實際 `import` 方向有五處與圖不同，皆已登錄在 `scripts/check_layer_deps.py` 的 `_KNOWN_REVERSE`（ratchet：新增反向相依會讓腳本以非零結束），細節見 [全專案架構與邏輯健檢.md](../dev/health-check-2026-09.md) 附錄 A：
+§一的圖描述的是**呼叫方向**；實際 `import` 方向有幾處與圖不同，皆登錄在 `scripts/check_layer_deps.py` 的 `_KNOWN_REVERSE`（ratchet：新增反向相依會讓腳本以非零結束）：
 
-| 編號 | 現況 | 為什麼先不動 |
-|---|---|---|
-| F-003 | `core/utils/instrument.py` import 引擎層的 `market_calendar` | `StockUtils` 有 pipeline／adapters／strategy_lab 三方使用者，搬進 `core/backtest/` 會讓資料管線反向相依引擎（見 [多市場引擎 §五](multi-market-engine.md)） |
-| F-004 | `core/pipeline/tw/cleaners/futures_tick_cleaner.py` 與 `futures_continuous_*` import `futures_calendar`／`futures_roll` | 交易日曆與換月規則屬「市場結構」，目前住在 `datafeed/` 下；正確歸屬是獨立的 `core/markets/`（或 `core/utils/`）層，待美股進來時一併搬 |
-| F-005 | 本文件 §一 把「策略層在引擎層之上」畫成相依方向；實際是引擎／factory／報表 → 策略契約（三個 `base.py`）→ 引擎的 model 型別 | 圖的用途是說明呼叫序列，改畫相依圖反而難讀；以本節與 `check_layer_deps.py` 的 rank 4（策略契約）補充 |
-| F-007 | `core/api/tw/*` import `core/pipeline/utils`（欄位常數、SQLite 工具），pipeline 又 import api | 套件層互相相依、檔案層無循環；欄位常數應下沉到 `core/config/schema.py` 或 `core/models/`，屬 PostgreSQL 遷移的 schema 批次 |
-| F-008 | `settlement_model.py` import `futures_roll`（datafeed）、`StockCostModel`、兩個 PositionManager 的具體類別 | model 之間刻意不互相依賴的原則在期貨結算模型被打破（轉倉需要 planner 與 manager）；升級路徑是把「轉倉」抽成獨立的 `RollModel` 掛點 |
+| 現況 | 為什麼先不動 |
+|---|---|
+| `core/utils/instrument.py` import 引擎層的 `market_calendar` | `StockUtils` 有 pipeline／adapters／strategy_lab 三方使用者，搬進 `core/backtest/` 會讓資料管線反向相依引擎（見 [多市場回測引擎架構 §五](multi-market-engine.md#五已知簡化)） |
+| `core/pipeline/tw/cleaners/futures_tick_cleaner.py` 與 `futures_continuous_*` import `futures_calendar`／`futures_roll` | 交易日曆與換月規則屬「市場結構」，目前住在 `datafeed/` 下；正確歸屬是獨立的市場結構層，待美股進來時一併搬 |
+| 策略層與引擎層互相引用契約：引擎／factory／報表 → 策略契約（三個 `base.py`）→ 引擎的 model 型別 | 圖的用途是說明呼叫序列，改畫相依圖反而難讀；`check_layer_deps.py` 以獨立的「策略契約」等級處理 |
+| `core/api/tw/*` import `core/pipeline/utils`（欄位常數、SQLite 工具），pipeline 又 import api | 套件層互相相依、檔案層無循環；欄位常數應下沉到 `core/config/schema.py`，屬 PostgreSQL 遷移的 schema 批次 |
+| `settlement_model.py` import `futures_roll`（datafeed）、`StockCostModel`、兩個 PositionManager 的具體類別 | 期貨轉倉需要 planner 與 manager，打破了「model 之間不互相依賴」；升級路徑是把轉倉抽成獨立的 `RollModel` 掛點 |
 
 ## 相關文件
 
-- [多市場回測引擎架構](multi-market-engine.md)——設計決策、已知簡化、重構期間的實查發現
+- [多市場回測引擎架構](multi-market-engine.md)——設計決策與已知簡化
 - [放空回測框架規格](short-selling-framework.md)——方向驅動的記帳原則
 - [策略開發指南](../../core/strategies/README.md)——策略怎麼寫

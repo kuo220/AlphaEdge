@@ -14,8 +14,7 @@ from core.pipeline.tw.crawlers.stock_price_crawler import StockPriceCrawler
 
 原本 `crawl_*()` 只有 DataFrame 與 `None` 兩種回傳值，而 `None` 同時代表休市、
 站方尚未更新、連線失敗與 IP 被擋。updater 對這四種一律記一行 `is a Holiday!`
-就跳過，於是**資料缺一天不會有任何錯誤**，回測把那天當休市靜默跳過
-（健檢 F-028、F-030 ③④）。
+就跳過，於是**資料缺一天不會有任何錯誤**，回測把那天當休市靜默跳過。
 """
 
 

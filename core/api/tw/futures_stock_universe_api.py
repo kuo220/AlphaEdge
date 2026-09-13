@@ -87,7 +87,7 @@ class FuturesStockUniverseAPI(BaseDataAPI):
         if row is None or row[0] is None:
             # 查詢日早於第一份快照：退回最早的一份。
             # **這是近似不是事實**——本表只回溯到建表之日（2026-08-29），
-            # 更早的掛牌狀態與契約單位無從得知（見 Phase6-2 的已知限制）
+            # 更早的掛牌狀態與契約單位無從得知
             row = self.conn.execute(
                 f"SELECT MIN(snapshot_date) FROM {FUTURES_STOCK_UNIVERSE_TABLE_NAME}"
             ).fetchone()
@@ -237,7 +237,7 @@ class FuturesStockUniverseAPI(BaseDataAPI):
             「回測賺錢、實際掛不到單」的假訊號。
 
             **成交量取自行情表而不是標的池**：標的池沒有量的欄位，這也是本篩選
-            當初被移出 Phase6-1 的原因。故**必須先有股期行情才能篩**。
+            不放在標的池 ETL 的原因。故**必須先有股期行情才能篩**。
         - Parameters:
             - top_n: int
                 取前幾檔

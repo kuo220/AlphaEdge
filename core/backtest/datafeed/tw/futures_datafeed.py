@@ -35,8 +35,8 @@ class TwFuturesDataFeed(BaseDataFeed):
        時段**（`strategy.session`），不提供「兩個都拿」的選項。
     3. **沒有還原價**：期貨沒有除權息，`get_quotes()` 的 `adjusted` 參數一律忽略。
 
-    ⚠️ **交易日判準暫以「表內當日有資料」代替**（與 `StockPriceAPI` 同一種作法）。
-    真正的期貨交易日曆（結算日、夜盤跨日、與台股不一致的補班日）屬 Phase2-3。
+    **交易日取自行情表當日有資料的日子**（颱風假、補行交易日自動涵蓋）；
+    結算日與夜盤跨日由 `FuturesCalendar` 處理。
     """
 
     # 日曆往回測結束日之後多取的曆日數：末段契約的最後交易日可能落在區間外
@@ -203,7 +203,7 @@ class TwFuturesDataFeed(BaseDataFeed):
         if self.start_date is None or self.end_date is None:
             return FuturesCalendar()
 
-        # **多商品要取聯集**（健檢 F-070）：舊版只看 `products[0]`，
+        # **多商品要取聯集**：舊版只看 `products[0]`，
         # 於是第一個商品停止交易（下市、尚未上市、資料缺一段）的那些日子，
         # 整場回測都會被判定為休市——連還在交易的其他商品都跟著停擺。
         #
@@ -243,7 +243,7 @@ class TwFuturesDataFeed(BaseDataFeed):
             - date: datetime.date
                 交易日
             - scale: Scale
-                報價級別；**目前僅支援 DAY**，Tick 屬 Phase5-1
+                報價級別；**目前僅支援 DAY**，期貨 Tick 回測尚未實作
             - adjusted: bool
                 期貨不適用，僅為對齊介面
         - Return:
@@ -252,9 +252,7 @@ class TwFuturesDataFeed(BaseDataFeed):
         """
 
         if scale == Scale.TICK:
-            logger.warning(
-                "[Futures DataFeed] 期貨 Tick 級別回測尚未實作（屬 Phase5-1），本日無報價"
-            )
+            logger.warning("[Futures DataFeed] 期貨 Tick 級別回測尚未實作，本日無報價")
             return []
 
         quotes: List[FuturesQuote] = []

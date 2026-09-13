@@ -5,7 +5,7 @@ import numpy as np
 """
 Ridge 迴歸的擬合與 alpha 挑選
 
-**這份實作原本存在兩份**（健檢 F-087）：`strategy_lab/strategies/
+**這份實作原本存在兩份**：`strategy_lab/strategies/
 tsmc_overnight_signal/pipeline.py` 一份、`core/strategies/stock/
 overnight_lead_event_strategy.py` 一份，逐字相同。研究版與成品版本來就該產生
 **一模一樣的訊號**——那是「研究結果搬得進生產」的唯一保證；各留一份的話，

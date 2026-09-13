@@ -10,7 +10,7 @@ from core.api.tw.futures_stock_universe_api import FuturesStockUniverseAPI
 from core.config import TW_FUTURES_DB_PATH
 
 """
-股票期貨標的池 API 與乘數測試（Phase6-2）
+股票期貨標的池 API 與乘數測試
 
 **股期與指數期貨最根本的差異：乘數不是常數**。指數期貨的乘數寫在
 `FUTURES_MULTIPLIER`（TX 200）幾十年不變；股期的「契約單位」標準型是 2,000 股，

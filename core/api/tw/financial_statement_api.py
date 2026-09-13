@@ -18,7 +18,7 @@ from core.utils.log_manager import LogManager
 """
 Financial Statement Data API: query SQLite financial statement tables
 
-**表名由呼叫端傳入**（四張報表共用同一組查詢），故一定要走白名單（健檢 F-026）：
+**表名由呼叫端傳入**（四張報表共用同一組查詢），故一定要走白名單：
 表名不能參數化，只能拼進 SQL，而拼字串的地方就是注入的入口。四張表是封閉集合，
 白名單既擋得住，也讓「傳錯表名」在當下就報錯，而不是回一張空表。
 """

@@ -4,7 +4,7 @@ from core.pipeline.utils import IssuerOrigin, ListingBoard
 from core.utils import InstrumentType, Market
 
 """
-命名軸線的防迴歸護欄（四條軸的定案見 `docs/dev/naming-axes.md`）
+命名軸線的防迴歸護欄（Market／InstrumentType／ListingBoard／IssuerOrigin 四條軸）
 
 全專案曾用「市場／market」一個詞同時指四條互相正交的軸，導致相依的兩份架構文件
 講「多市場」時指的不是同一件事。本檔把四條軸的邊界釘住——**軸之間的值一旦出現

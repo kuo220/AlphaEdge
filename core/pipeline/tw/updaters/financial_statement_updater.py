@@ -100,11 +100,10 @@ class EquityChangeSeasonStats:
         欄位刻意與 `UpdateStats` 對齊（requested／ok／no_data／unreachable／
         clean_failed），但不共用那個類別：`UpdateStats.record()` 收的是同一天
         多個來源的 `CrawlResult`，而權益變動表是「一檔一次請求」，
-        且 crawler 的回傳值還是舊的三態（`None`／`[]`／非空 list，見健檢 F-035）。
+        且 crawler 的回傳值還是舊的三態（`None`／`[]`／非空 list）。
 
         **這行統計是本步驟唯一的異常偵測手段**：2026-08-22 的 2020Q1 回補少抓了
-        323 檔、行程仍以結束碼 0 結束，就是因為收尾沒有一行可對照的數字
-        （見 ETL 入庫約定 §4.5）。
+        323 檔、行程仍以結束碼 0 結束，就是因為收尾沒有一行可對照的數字。
     """
 
     requested: int = 0  # 實際送出請求的檔數
@@ -190,7 +189,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
     # 不該炸掉幾十小時的回補），但**連續**的例外不是「某一頁怪」，而是環境或程式
     # 壞了（2026-09-04 實際發生過：`pd.read_html` 因缺 html5lib 而 ImportError）。
     # 那種情況下繼續跑只會用 2 秒/檔的速度把整段回補變成一長串失敗。
-    # 注意這與 §4.5 的「連續 N 檔查無資料就早退」不同：那裡拿「沒有資料」這種
+    # 注意這與舊版「連續 N 檔查無資料就早退」不同：那裡拿「沒有資料」這種
     # 正常結果當統計樣本，這裡數的是例外——例外從來不是合法的業務結果
     EQUITY_CHANGE_MAX_CONSECUTIVE_ERRORS: int = 20
     # 各季申報期限取「各行業中最晚」的那一天（見本檔開頭的申報期限表）：
@@ -295,7 +294,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
         # Set Up Update Period
         # **不可用 years × seasons 的笛卡兒積**：起點 2024Q3、終點 2026Q4 時
         # `seasons` 只會是 [3, 4]，2025Q1／Q2 與 2026Q1／Q2 整整四季不會被爬，
-        # 且不會有任何錯誤——它們只是從來沒出現在迴圈裡（健檢 F-054）
+        # 且不會有任何錯誤——它們只是從來沒出現在迴圈裡
         year_seasons: List[Tuple[int, int]] = TimeUtils.generate_year_period_range(
             start_year, start_season, end_year, end_season, periods_per_year=4
         )
@@ -378,7 +377,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
         # Set Up Update Period
         # **不可用 years × seasons 的笛卡兒積**：起點 2024Q3、終點 2026Q4 時
         # `seasons` 只會是 [3, 4]，2025Q1／Q2 與 2026Q1／Q2 整整四季不會被爬，
-        # 且不會有任何錯誤——它們只是從來沒出現在迴圈裡（健檢 F-054）
+        # 且不會有任何錯誤——它們只是從來沒出現在迴圈裡
         year_seasons: List[Tuple[int, int]] = TimeUtils.generate_year_period_range(
             start_year, start_season, end_year, end_season, periods_per_year=4
         )
@@ -461,7 +460,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
         # Set Up Update Period
         # **不可用 years × seasons 的笛卡兒積**：起點 2024Q3、終點 2026Q4 時
         # `seasons` 只會是 [3, 4]，2025Q1／Q2 與 2026Q1／Q2 整整四季不會被爬，
-        # 且不會有任何錯誤——它們只是從來沒出現在迴圈裡（健檢 F-054）
+        # 且不會有任何錯誤——它們只是從來沒出現在迴圈裡
         year_seasons: List[Tuple[int, int]] = TimeUtils.generate_year_period_range(
             start_year, start_season, end_year, end_season, periods_per_year=4
         )
@@ -547,7 +546,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
                 要爬的股票清單；None 時取 `taiwan_stock_info` 的上市櫃股票
         - Raise:
             - DataLoadError
-                有批次入庫失敗時，於整段跑完後拋出（中途不中斷，見 §3.2）
+                有批次入庫失敗時，於整段跑完後拋出（中途不中斷）
         """
 
         logger.info("* Start Updating Equity Changes Data...")
@@ -562,7 +561,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
 
         # **不可用 years × seasons 的笛卡兒積**：起點 2024Q3、終點 2026Q4 時
         # `seasons` 只會是 [3, 4]，2025Q1／Q2 與 2026Q1／Q2 整整四季不會被爬，
-        # 且不會有任何錯誤——它們只是從來沒出現在迴圈裡（健檢 F-054）
+        # 且不會有任何錯誤——它們只是從來沒出現在迴圈裡
         year_seasons: List[Tuple[int, int]] = TimeUtils.generate_year_period_range(
             start_year, start_season, end_year, end_season, periods_per_year=4
         )
@@ -676,7 +675,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
         )
 
         # 入庫失敗**跑完才拋**：單一批次失敗不該中止其餘幾十小時的回補，
-        # 但整段結束後必須讓行程非零結束，否則缺漏要靠事後對帳才會發現（§3.2）
+        # 但整段結束後必須讓行程非零結束，否則缺漏要靠事後對帳才會發現
         if failed_files:
             raise DataLoadError(EQUITY_CHANGE_TABLE_NAME, failed_files)
 
@@ -1067,7 +1066,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
             落地與入庫是兩個步驟（`save_equity_changes()` → `add_to_db()`），
             行程若剛好在兩者之間被中止，那批 CSV 就只存在於磁碟上。而 resume 的
             依據是資料表，於是那 100 檔會被當成「還沒爬」再打一次——已經付過的
-            請求成本白付。`INSERT OR IGNORE` 讓重複入庫是安全的（§3.1），
+            請求成本白付。`INSERT OR IGNORE` 讓重複入庫是安全的，
             所以這裡寧可多掃一次目錄。
 
             **只在該年季還有待補公司時才呼叫**：整季已完成時掃全季 CSV
@@ -1105,7 +1104,7 @@ class FinancialStatementUpdater(BaseDataUpdater):
             **入庫失敗不在這裡拋出**：`finish_load()` 會拋 `DataLoadError`，
             若讓它一路往上炸，一個壞批次就會中止剩下幾十小時的回補。
             改為收集起來，由 `update_equity_changes()` 於整段結束後一次拋出——
-            「單檔失敗不中止整批，但跑完必須讓失敗浮出來」（§3.2）。
+            「單檔失敗不中止整批，但跑完必須讓失敗浮出來」。
         - Parameters:
             - files: List[Path]
                 要入庫的 CSV

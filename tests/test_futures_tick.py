@@ -9,7 +9,7 @@ from core.pipeline.tw.updaters.futures_tick_updater import FuturesTickUpdater
 from core.utils import SHIOAJI_FUTURES_CATEGORY
 
 """
-台期貨 Tick ETL 測試（Phase5-1）
+台期貨 Tick ETL 測試
 
 **本組最容易錯的是「兩邊的契約代碼不一樣」**：小型臺指在 TAIFEX 是 `MTX`、
 在 Shioaji 是 `MXF`；電子期貨 `TE` vs `EXF`；金融期貨 `TF` vs `FXF`；

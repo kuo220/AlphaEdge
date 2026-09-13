@@ -100,7 +100,7 @@ class BaseAccount:
         - Description:
             檢查指定的商品是否有**未平倉**部位
 
-            **`is_closed` 一定要濾掉**（健檢 F-020）：`positions` 是只增不減的
+            **`is_closed` 一定要濾掉**：`positions` 是只增不減的
             清單，平倉只是把 `is_closed` 設為 True。少了這個條件，一檔賣掉之後
             仍會被當成「還在庫存」——雙向持倉檢查會永久拒絕該標的的反向開倉，
             而 `Backtester` 用它挑出「有部位的報價」時也會一直帶著已平倉的標的。

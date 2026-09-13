@@ -3,7 +3,7 @@ import sqlite3
 import sys
 from pathlib import Path
 
-# 專案根目錄（供組合資料檔路徑用；原本還兼作 sys.path 注入，F-009 已移除）
+# 專案根目錄（供組合資料檔路徑用；原本還兼作 sys.path 注入，已移除）
 project_root: Path = Path(__file__).resolve().parent.parent
 
 # 直接使用表名常數，避免導入 config 時的依賴問題
@@ -31,7 +31,7 @@ try:
 except (ImportError, ModuleNotFoundError):
     # 退路指向現行的產物根目錄。**舊值 `core/database/tw_stock.db` 早已不存在**
     # （2026-08「執行期產物移出 core/」之後），走到這裡只會查一個空路徑然後
-    # 回報「資料表不存在」——那是最難查的一種錯（健檢 F-092）
+    # 回報「資料表不存在」——那是最難查的一種錯
     TW_STOCK_DB_PATH = project_root / "data" / "db" / "tw_stock.db"
 
 

@@ -23,7 +23,7 @@ from core.config import (
 _PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
 
 """
-`core/api/` 公開介面的覆蓋（健檢第三輪 S2）
+`core/api/` 公開介面的覆蓋
 
 本檔涵蓋的九個方法在 2026-09-05 的掃描中是**零呼叫且零測試**——它們沒有壞
 （逐一實測過都正常回傳），問題是沒有任何東西盯著它們：下一次資料表欄位一改，

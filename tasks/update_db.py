@@ -357,7 +357,7 @@ def cleanup_api_logs() -> None:
     - Description:
         收尾清掉過舊的 api 桶日誌
 
-        `logs/api/` 每天長約 100 MB（健檢 F-097）——每次查詢都寫一行，
+        `logs/api/` 每天長約 100 MB——每次查詢都寫一行，
         而回測一跑就是數十萬次查詢。保留 7 天足夠追查昨晚的問題，
         再久就只是佔硬碟。清理失敗不影響更新結果，故只記 warning。
     """
@@ -383,7 +383,7 @@ def main() -> None:
 
     # no_tick = 所有資料類型 − **所有** tick（包含 finmind）
     #
-    # **`futures_tick` 也要排除**（健檢 F-078）：舊版只排除 `DataType.TICK`，
+    # **`futures_tick` 也要排除**：舊版只排除 `DataType.TICK`，
     # 於是預設的 `python -m tasks.update_db` 會去跑期貨 tick——那需要 Shioaji
     # 金鑰與 `[tick]` 選用相依，沒有的機器每晚都以結束碼 1 收場，
     # 久了就沒人在看那個紅燈了。

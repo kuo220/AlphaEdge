@@ -1,6 +1,7 @@
 # 開發部署（Dev Deployment）
 
-此文件以目前 `AlphaEdge` 實際程式入口為準，不依賴 `docs_2` 的 collector / compose 架構。
+本文件是本機的日常流程：啟用環境 → 更新資料 → 執行回測 → 檢視結果。
+環境建置見 [開發環境設定](../setup/dev-setup.md)；每個指令的完整參數見 [指令教學](../commands/command-usage.zh-TW.md)。
 
 ## 1) 啟用環境
 
@@ -10,54 +11,39 @@ source .venv/bin/activate
 
 ## 2) 更新資料庫
 
-### 全量（不含 tick，預設）
-
 ```bash
-python -m tasks.update_db
-# 或
-python -m tasks.update_db --target no_tick
+python -m tasks.update_db                          # 全部資料（不含兩種 tick），等同 --target no_tick
+python -m tasks.update_db --target chip price      # 只更新指定資料
+python -m tasks.update_db --target tick            # 台股 tick（需 DolphinDB 與 Shioaji 金鑰）
 ```
 
-### 指定資料類型
-
-```bash
-python -m tasks.update_db --target chip price
-python -m tasks.update_db --target fs mrr
-python -m tasks.update_db --target finmind
-```
-
-### 更新 tick（需 DolphinDB 設定）
-
-```bash
-python -m tasks.update_db --target tick
-```
+- 候選日期是差集，中間缺的日子會自動補回，平常不需要指定起日。
+- 任一 target 失敗不中斷其餘 target，但整批跑完會以**結束碼 1** 收場；請看 log 尾端的統計行。
+- **長跑的 ETL 進行中不要動 `logs/` 與 `data/db/`**。
 
 ## 3) 執行回測
 
-策略名稱使用「類別名稱」，可先查看 `core/strategies/stock/`。
-
-```bash
-python run.py --strategy MomentumStrategy1
-```
-
-目前可載入的策略（`StrategyLoader.load_strategies()` 於 2026-09-02 實測）：
+策略名稱使用「類別名稱」：
 
 ```bash
 python run.py --strategy MomentumStrategy1                  # 台股做多動能
 python run.py --strategy ForeignSellShortDayTradeStrategy   # 台股外資大賣強勢股當沖放空
-python run.py --strategy MomentumFuturesStrategy            # 台指期動能（示範）
-python run.py --strategy OvernightLeadEventStrategy         # 2330 隔夜訊號（研究搬入，建構順序有問題，見健檢 F-072）
+python run.py --strategy MomentumFuturesStrategy            # 台指期動能（示範用，非交易邏輯）
+python run.py --strategy OvernightLeadEventStrategy         # 2330 隔夜訊號
+```
+
+策略放在 `core/strategies/stock/` 與 `core/strategies/futures/`，由 `StrategyLoader` 自動收錄；
+怎麼寫策略見 [策略開發指南](../../core/strategies/README.md)。
+
+動到 `core/backtest/`、`core/managers/`、`core/models/` 之後，先跑回歸雙線：
+
+```bash
+./scripts/run_regression.sh
 ```
 
 ## 4) 檢視結果
 
-回測結果輸出在：
-
-- `results/<StrategyName>/`
-
-通常包含：
-
-所有檔名都以策略名稱為前綴：
+回測結果輸出在 `results/<StrategyName>/`，所有檔名都以策略名稱為前綴：
 
 | 檔案 | 內容 |
 |------|------|
@@ -71,14 +57,23 @@ python run.py --strategy OvernightLeadEventStrategy         # 2330 隔夜訊號�
 | `<StrategyName>_everyday_profit.png` | 每日損益 |
 | `<StrategyName>_everyday_equity_change.png` | 每日權益變化 |
 
-日誌另外落在 `logs/backtest/`。
+日誌落在 `logs/backtest/`。用前端瀏覽（需 `pip install -e ".[frontend]"`）：
+
+```bash
+streamlit run frontend/app.py
+```
+
+不設環境變數時前端讀 `PROJECT_ROOT/results`，與回測輸出同一處。
 
 ## 5) 常用維運指令
 
 ```bash
-# 刪除指定日期的 price 資料
+# 刪除指定日期的 price 資料（預設只預覽，加 --apply 才刪）
 python -m tasks.delete_price_data --date 2025-07-13
 
 # 將 broker_trading CSV 載入 tw_stock.db
 python -m tasks.load_broker_trading_to_db
+
+# 清理已輪替的日誌（預設只預覽）
+python -m tasks.clean_logs
 ```

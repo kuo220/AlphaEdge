@@ -42,7 +42,7 @@ class StockTickAPI(BaseDataAPI):
         """Set Up the Config of Data API"""
 
         # `DDB_PATH` 沒設定時舊版會拼出 `"NonetickDB"` 這種看起來像路徑的字串，
-        # 錯誤訊息完全指不到真正的原因（健檢 F-015）；在連線之前就攔下來
+        # 錯誤訊息完全指不到真正的原因；在連線之前就攔下來
         require_tick_db_path()
 
         self.session: ddb.session = ddb.session()

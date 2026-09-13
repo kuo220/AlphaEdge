@@ -21,7 +21,7 @@ from core.utils.log_manager import LogManager
 Stock dividend API: query SQLite dividend table（除權除息計算結果表）
 
 本表同時服務兩個互不相同的需求，取值時務必分清楚：
-- **價格序列還原**（`docs/exchanges/data_coverage.md`〈股價還原〉）：用「還原係數」
+- **價格序列還原**：用「還原係數」
 - **放空的股利補償現金流**：用「現金股利」
 
 具名查詢方法一律回傳 `{stock_id: 值}` 對照表，與 `StockPriceAPI` 的
@@ -164,7 +164,6 @@ class StockDividendAPI(BaseDataAPI):
             取得指定日期的開盤競價基準對照表
 
             除權息日的漲跌停須以此為基準，沿用前一交易日收盤會讓整段區間偏移
-            （見 `docs/exchanges/data_coverage.md`〈股價還原〉）
 
         - Parameters:
             - date: datetime.date
@@ -192,8 +191,7 @@ class StockDividendAPI(BaseDataAPI):
             這正是把「除權息造成的跳空」從報酬率裡扣掉的效果。
 
             **不用前復權**：前復權會讓同一個歷史日期的價格隨著每次新除權息而改變，
-            LONG baseline 會在每次除權息後自動失效，回歸保護等於形同虛設
-            （決策理由見 `docs/exchanges/data_coverage.md`〈還原方式〉）。
+            LONG baseline 會在每次除權息後自動失效，回歸保護等於形同虛設。
 
             快取在**整個 process 生命週期內有效**：回測期間資料表不會變動；
             若在同一個 process 內更新了 `dividend` 表，須自行呼叫 `reset_factor_cache()`

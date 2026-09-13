@@ -42,7 +42,7 @@ from core.pipeline.tw.utils.url_manager import URLManager
     本頁給的是 2 碼代碼（`CD`），行情頁要帶的是**加尾碼 `F`** 的 `CDF`。
     2026-08-29 以 CDF／QFF／NYF／SRF／SWF／NAF 逐一實測，四種商品類型皆可正常取得行情。
     ⚠️ 除權息調整後另掛的契約（`EE1` 等數字尾碼）**不在本頁**，須走 TAIFEX
-    契約調整公告，屬 Phase6-2 的範圍。
+    契約調整公告，目前未接。
 """
 
 

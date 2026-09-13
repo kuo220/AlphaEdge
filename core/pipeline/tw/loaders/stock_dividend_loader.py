@@ -23,7 +23,7 @@ class StockDividendLoader(BaseDataLoader):
 
     # 同一筆除權息若跨來源重複，保留優先序**最高**的那一筆。
     #
-    # **不可依檔名字典序決定**（健檢 F-047）：舊版直接對 `sorted(dir.iterdir())`
+    # **不可依檔名字典序決定**：舊版直接對 `sorted(dir.iterdir())`
     # 的結果 `drop_duplicates(keep="last")`，於是「留下哪一筆」取決於檔名的
     # 字母順序——今天剛好是 `twse_` 勝出，日後多一個來源（例如 `finmind_`）
     # 或檔名改個前綴，勝出的就換人，而且不會有任何跡象。
@@ -111,7 +111,7 @@ class StockDividendLoader(BaseDataLoader):
         ):
             self.create_db()
 
-        # 主鍵是 (date, stock_id, ...)，「某一檔的整段歷史」查不到索引（F-099）
+        # 主鍵是 (date, stock_id, ...)，「某一檔的整段歷史」查不到索引
         self.create_symbol_date_index(self.conn, DIVIDEND_TABLE_NAME)
 
     def add_to_db(self, remove_files: bool = False) -> None:

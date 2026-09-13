@@ -11,7 +11,8 @@ load_dotenv()
 檔案系統佈局：原始碼路徑、執行期產物三根、以及掛在它們底下的所有目錄常數
 
 分界只有一條——**`core/` 是被讀的，`data/`／`results/`／`logs/` 是被寫的**。
-分界的完整說明與「設定 vs 產物」的判準見 `docs/dev/runtime-artifacts.md`。
+判準：**人維護、重跑不變、缺檔會改變行為**的是設定（放 `core/`、進版控）；
+**程式寫出、重跑會被覆寫**的是產物（放產物根、不進版控）。
 """
 
 
@@ -38,7 +39,7 @@ def get_env_path(env_key: str, default: Path) -> Path:
 # 錨點原本只有 BASE_DIR_PATH，導致產物只能往套件內長——`core/` 是
 # `pip install -e .` 安裝的套件，卻累積了 6.4 GB 程式寫入的檔案，
 # 逼得 pyproject／ruff／coverage 各維護一份排除清單，`.gitignore`
-# 更只能全 repo 封鎖副檔名。詳見 docs/dev/runtime-artifacts.md。
+# 更只能全 repo 封鎖副檔名。
 #
 # ⚠️ 層數跟著本檔案的位置走：`core/config/paths.py` → parents[1] 才是 `core/`。
 # 這裡原本是 `.parent`（當時檔案在 `core/config.py`），拆成套件後多了一層目錄，
@@ -111,9 +112,9 @@ PIPELINE_DOWNLOADS_PATH: Path = get_static_resolved_path(
     base_dir=DATA_DIR_PATH, dir_name="downloads"
 )
 
-# 中繼檔依「市場」分層，與 data/db/ 的 tw_stock.db／tw_futures.db 同一個維度。
-# 程式碼（pipeline / api / adapters）維持命名平行不分目錄——兩者搬遷成本差一個量級，
-# 決策理由見 docs/futures/tw-futures-platform.md §3.0
+# 中繼檔依「市場」分層，與 data/db/ 的 tw_stock.db／tw_futures.db、程式碼的 `tw/` 層
+# 同一個維度。用單層 `tw_stock` 而非 `tw/stock` 兩層：市場 × 商品只會出現實際支援的
+# 組合，多一層只裝兩個項目純屬導覽成本
 TW_STOCK_DOWNLOADS_PATH: Path = get_static_resolved_path(
     base_dir=PIPELINE_DOWNLOADS_PATH, dir_name="tw_stock"
 )

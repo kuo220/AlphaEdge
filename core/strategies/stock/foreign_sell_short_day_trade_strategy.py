@@ -96,7 +96,7 @@ class ForeignSellShortDayTradeStrategy(BaseStockStrategy):
     # 平盤下放空過濾（預設關閉）
     #
     # 台股自 2013/9/23 起**全面取消**平盤下放空限制，現行僅「處置股票」仍受限，
-    # 而處置股清單無資料源（追蹤於 docs/backtest/short-selling-framework.md §7.7），
+    # 而處置股清單目前沒有資料源，
     # 因此無法只對真正受限的標的套用。
     #
     # 引擎側的 `ShortConstraint.allow_below_reference` 目前**有定義、無呼叫端**，

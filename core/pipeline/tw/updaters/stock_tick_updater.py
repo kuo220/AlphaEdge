@@ -104,12 +104,12 @@ class StockTickUpdater(BaseDataUpdater):
             更新 tick 資料
 
             跑完若有任何股票爬取失敗即拋 `DataLoadError`——失敗數只印在統計表裡
-            的話，行程仍以結束碼 0 回報成功（健檢 F-052）。
+            的話，行程仍以結束碼 0 回報成功。
         - Parameters:
             - start_date: datetime.date
                 回補起日
             - end_date: Optional[datetime.date]
-                回補迄日；None 取當日（預設值不可在 def 行求值，見 F-002）
+                回補迄日；None 取當日（預設值不可在 def 行求值）
         """
 
         end_date: datetime.date = end_date or datetime.date.today()
@@ -380,7 +380,7 @@ class StockTickUpdater(BaseDataUpdater):
             if not df_list:
                 # **先看有沒有失敗的日期**：舊版先判斷 `skipped_dates`，於是
                 # 「有幾天連不上、其餘幾天本來就沒資料」的股票會被算成 skipped，
-                # 失敗在統計表裡完全看不見（健檢 F-052）
+                # 失敗在統計表裡完全看不見
                 if failed_dates:
                     logger.warning(
                         f"Stock {stock_id}: {len(failed_dates)} 個日期爬取失敗、"

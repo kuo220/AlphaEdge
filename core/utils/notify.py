@@ -12,7 +12,7 @@ from .constant import Action, StockPriceType
 """
 LINE 推播通知
 
-**LINE Notify 已於 2025-03-31 停止服務**（健檢 F-017）。舊實作打的
+**LINE Notify 已於 2025-03-31 停止服務**。舊實作打的
 `https://notify-api.line.me/api/notify` 現在不會成功，而且原本連
 `raise_for_status()` 都沒有——所有通知早就默默地送不出去，卻沒有任何跡象。
 

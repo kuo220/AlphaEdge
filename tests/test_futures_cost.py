@@ -19,7 +19,7 @@ from core.utils import Action, FuturesCost, PositionType
 from core.utils.constant import FUTURES_MULTIPLIER
 
 """
-台期貨交易成本測試（Phase2-1）
+台期貨交易成本測試
 
 **期貨成本與股票沒有一項可以共用**，本檔逐一釘住——每一項都不會報錯，
 只會讓績效靜默偏掉：
@@ -160,7 +160,7 @@ def test_position_manager_uses_the_cost_model() -> None:
     """
     **費率只有一份**：部位管理器不自己算，一律問 CostModel
 
-    兩處各算一份必然漂移——這是 Phase2-1 把成本收斂到 model 的理由。
+    兩處各算一份必然漂移——這是成本收斂到 model 的理由。
     """
 
     account: FuturesAccount = FuturesAccount(init_capital=INIT_CAPITAL)

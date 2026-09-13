@@ -104,8 +104,8 @@ class TimeUtils:
         - Description:
             產生連續的「(年, 期)」序列，期可以是季（4）或月（12）
 
-            **不可用 `for year in years: for period in periods:` 的笛卡兒積**
-            （健檢 F-054）：起點 2024Q3、終點 2026Q4 時，`periods` 會是 `[3, 4]`，
+            **不可用 `for year in years: for period in periods:` 的笛卡兒積**：
+            起點 2024Q3、終點 2026Q4 時，`periods` 會是 `[3, 4]`，
             於是 2025Q1／Q2 與 2026Q1／Q2 **整整四季不會被爬**，而且不會有任何錯誤
             ——它們只是從來沒出現在迴圈裡。
         - Parameters:

@@ -65,7 +65,7 @@ def test_no_db_column_literal_in_strategies(column: str) -> None:
     )
 
 
-# === 策略不得自建資料連線（健檢 F-074）===
+# === 策略不得自建資料連線===
 # 樣式與說明成對，測試失敗時直接把「該怎麼做」印出來，不必再去翻 README
 FORBIDDEN_DATA_ACCESS: List[Tuple[str, str, str]] = [
     (
@@ -136,7 +136,7 @@ def test_forbidden_pattern_actually_matches() -> None:
     護欄本身要抓得到東西
 
     三個樣式若因為寫錯而永遠不命中，上面那條會永遠通過而毫無作用——
-    這正是本專案已經踩過的坑（F-090 的假綠燈、`test_broker_trading_updater.py`
+    這正是本專案已經踩過的坑（回歸腳本把 skip 當通過的假綠燈、`test_broker_trading_updater.py`
     整段包在 try/except）。這裡以**合成的違規程式碼**驗證樣式真的有效。
     """
 
@@ -156,10 +156,10 @@ def test_forbidden_pattern_actually_matches() -> None:
     )
 
 
-# === 策略層的三道防線（健檢 F-072、F-073、F-075、F-076）===
+# === 策略層的三道防線===
 def test_momentum_strategy_rejects_tick_scale() -> None:
     """
-    TICK 級別要當場擋下，不是等到第一根 bar 才崩（F-075）
+    TICK 級別要當場擋下，不是等到第一根 bar 才崩
 
     本策略的訊號建立在「前一交易日收盤」上，TICK 路徑只會掛 `self.tick`、
     `self.price` 維持 None，第一根 bar 就會撞 `ValueError("Invalid API type")`。
@@ -182,7 +182,7 @@ def test_momentum_strategy_rejects_tick_scale() -> None:
 
 def test_max_holdings_defaults_to_unlimited() -> None:
     """
-    `BaseStrategy.max_holdings` 預設 None ＝ 不限制（F-076）
+    `BaseStrategy.max_holdings` 預設 None ＝ 不限制
 
     舊版預設 0，而 `Backtester.check_max_holdings()` 只把 None 當成不限制
     ——忘記設定的新策略，每一張開倉單都被引擎剔除，回測跑完是零筆交易、
@@ -209,7 +209,7 @@ def test_max_holdings_defaults_to_unlimited() -> None:
 
 def test_overnight_lead_event_strategy_can_be_constructed() -> None:
     """
-    建構本身不可觸網、不可依賴尚未注入的 API（F-072）
+    建構本身不可觸網、不可依賴尚未注入的 API
 
     舊版在 `__init__()` 末尾就呼叫 `_build_signals()`，而它要用
     `self.price`——那是 `setup_apis()` 才掛上去的，於是這一行本身就
@@ -228,7 +228,7 @@ def test_overnight_lead_event_strategy_can_be_constructed() -> None:
 
 def test_strategy_loader_isolates_a_broken_module(monkeypatch) -> None:
     """
-    單一模組壞掉不該讓所有策略都列不出來（F-073）
+    單一模組壞掉不該讓所有策略都列不出來
 
     舊版一路 `import_module()` 到底，任何一支策略有 import 錯誤，
     `run.py --strategy` 連「有哪些策略可用」都印不出來。
@@ -255,7 +255,7 @@ def test_strategy_loader_isolates_a_broken_module(monkeypatch) -> None:
 
 def test_strategy_loader_rejects_duplicate_class_names() -> None:
     """
-    同名類別要當場拋出，不可靜默覆蓋（F-073）
+    同名類別要當場拋出，不可靜默覆蓋
 
     key 是類別名，覆蓋之後「跑的到底是哪一支」要看掃描順序，比模組壞掉更難查。
     """
@@ -298,7 +298,7 @@ def test_momentum_skips_stocks_without_a_valid_previous_close() -> None:
     """
     昨收為 `NaN` 的股票不可變成買進候選
 
-    無成交日的收盤價在資料庫是 `NULL`（F-037 修復後），讀進來是 `NaN`，
+    無成交日的收盤價在資料庫是 `NULL`（無成交價改存 NULL 之後），讀進來是 `NaN`，
     而 `price_chg < 門檻` 對 `NaN` 恆為 `False`——**不會 continue，反而一路
     走成候選**，log 裡只留一行「漲幅 nan%」。
 
@@ -347,7 +347,7 @@ def test_momentum_skips_stocks_without_a_valid_previous_close() -> None:
     assert strategy.check_open_signal([quote]) == [], "昨收為 NaN 的股票不可產生開倉單"
 
 
-# === sys.path 注入不得再出現（健檢 F-009）===
+# === sys.path 注入不得再出現===
 def test_no_sys_path_injection_anywhere() -> None:
     """
     `sys.path.insert` 全專案應為 0 處

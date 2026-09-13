@@ -199,7 +199,7 @@ class TwFuturesSpec(InstrumentSpec):
     **跳動點只登錄已查證的商品**（理由同 `FUTURES_MULTIPLIER`：猜錯不會有徵兆）：
     台指期系列（TX／MTX／TMF）為 1 點。電子期、金融期與股票期貨的跳動點不同且
     尚未查證，要回測那些商品必須在建構時明確指定 `tick_size`；
-    Phase4-1 擴充多商品時再改為依商品查表。
+    逐商品查證後再改為依商品查表。
     """
 
     DEFAULT_TICK_SIZE: float = 1.0  # 台指期系列的最小跳動點（點）

@@ -25,7 +25,7 @@ def build_manager(
 
 
 def test_short_open_position_margin(make_order) -> None:
-    """§6.2：融券開倉扣「保證金 + 開倉成本」，賣出價款留作擔保品不計入餘額"""
+    """融券開倉扣「保證金 + 開倉成本」，賣出價款留作擔保品不計入餘額"""
 
     manager: StockPositionManager = build_manager(ShortMethod.MARGIN)
 
@@ -52,7 +52,7 @@ def test_short_open_position_margin(make_order) -> None:
 
 
 def test_short_open_position_day_trade(make_order) -> None:
-    """§6.1：當沖開倉不佔保證金、稅率減半、無借券費"""
+    """當沖開倉不佔保證金、稅率減半、無借券費"""
 
     manager: StockPositionManager = build_manager(
         ShortMethod.DAY_TRADE, is_day_trade=True
@@ -119,7 +119,7 @@ def test_short_open_position_rejected_by_exposure_limit(make_order) -> None:
 
 
 def test_reject_opposite_direction_position(make_order) -> None:
-    """§7.5：同一標的已有多單時不得開空單"""
+    """同一標的已有多單時不得開空單"""
 
     manager: StockPositionManager = build_manager(ShortMethod.MARGIN)
 
@@ -135,7 +135,7 @@ def test_reject_opposite_direction_position(make_order) -> None:
 
 
 def test_short_open_close_roundtrip_margin(make_order) -> None:
-    """§6.2：融券持有 10 天後回補，損益、餘額與保證金三者一致"""
+    """融券持有 10 天後回補，損益、餘額與保證金三者一致"""
 
     manager: StockPositionManager = build_manager(ShortMethod.MARGIN)
 
@@ -184,7 +184,7 @@ def test_short_open_close_roundtrip_margin(make_order) -> None:
 
 
 def test_short_open_close_roundtrip_day_trade(make_order) -> None:
-    """§6.1：當沖同日開平倉，損益 4768 且不佔保證金"""
+    """當沖同日開平倉，損益 4768 且不佔保證金"""
 
     manager: StockPositionManager = build_manager(
         ShortMethod.DAY_TRADE, is_day_trade=True
@@ -248,7 +248,7 @@ def test_short_loss_when_price_rises(make_order) -> None:
 
 
 def test_short_partial_cover_fifo(make_order) -> None:
-    """§7.4：開兩筆放空、只回補部分，保證金與擔保價款須等比例攤提"""
+    """開兩筆放空、只回補部分，保證金與擔保價款須等比例攤提"""
 
     manager: StockPositionManager = build_manager(ShortMethod.MARGIN)
 
@@ -331,7 +331,7 @@ def test_close_position_ignores_opposite_direction(make_order) -> None:
     assert len(manager.account.get_positions(position_type=PositionType.SHORT)) == 1
 
 
-# === 同標的雙向持倉：兩個方向都要擋（健檢 F-057）===
+# === 同標的雙向持倉：兩個方向都要擋===
 def test_short_after_long_is_rejected(make_order) -> None:
     """先做多再放空會被擋（既有行為）"""
 
@@ -354,7 +354,7 @@ def test_short_after_long_is_rejected(make_order) -> None:
 
 def test_long_after_short_is_also_rejected(make_order) -> None:
     """
-    先放空再做多**同樣**要被擋（放空框架 §7.5「反之亦然」）
+    先放空再做多**同樣**要被擋（反之亦然）
 
     舊版只在放空端檢查，於是同一檔會同時掛著多空兩個部位——兩邊各自盯市、
     各自計算維持率，帳面曝險與實際完全對不上。
@@ -382,7 +382,7 @@ def test_long_is_allowed_after_the_short_is_covered(make_order) -> None:
     """
     回補之後就該能做多——否則這道防線會變成「一輩子不能再碰這檔」
 
-    這條同時釘住 F-020：`check_has_position()` 若不濾 `is_closed`，
+    這條同時釘住已平倉部位的處理：`check_has_position()` 若不濾 `is_closed`，
     已平倉的部位會讓反向開倉被永久拒絕。
     """
 

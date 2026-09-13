@@ -137,7 +137,7 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
         - Description:
             年化波動度（%）
 
-            **樣本是日報酬而不是每筆交易的 ROI**（健檢 F-068）：交易筆數與時間
+            **樣本是日報酬而不是每筆交易的 ROI**：交易筆數與時間
             無關，一年交易 5 次與 500 次算出的「波動度」不可比，也無從年化。
         - Parameters:
             - daily_equity: Optional[List[Dict]]
@@ -299,8 +299,8 @@ class StockBacktestAnalyzer(BaseBacktestAnalyzer):
             年化 Information ratio；公式見
             `risk_metrics.compute_annualized_information_ratio()`
 
-            與 Sharpe／Sortino／Volatility 同一口徑（健檢 F-068 漏掉的第四個
-            指標）：樣本是**日報酬**、以 √252 年化、基準是**真的基準序列**。
+            與 Sharpe／Sortino／Volatility 同一口徑：
+            樣本是**日報酬**、以 √252 年化、基準是**真的基準序列**。
             舊版以每筆交易的 `record.roi` 為樣本，且從每個樣本減去寫死的
             `benchmark_return = 0.0`——減去常數不改變分母，等於算出
             `mean(每筆 ROI) / std(每筆 ROI)`，與相對基準的超額報酬無關。

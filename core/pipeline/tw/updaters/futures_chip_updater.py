@@ -190,7 +190,7 @@ class FuturesChipUpdater(BaseDataUpdater):
 
         # **「該有資料卻沒拿到」必須讓行程非零結束**：TAIFEX 擋流量時回的是
         # HTTP 200 ＋ 一整頁 HTML，與非交易日的回應一模一樣。舊版只記 warning，
-        # 於是被擋的月份會被當成「那幾個月沒有籌碼」而永遠不再補（健檢 F-053）。
+        # 於是被擋的月份會被當成「那幾個月沒有籌碼」而永遠不再補。
         if blocked:
             raise DataLoadError("futures_chip", blocked)
 

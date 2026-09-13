@@ -26,8 +26,8 @@ from core.utils import ShioajiAPI
 台股 tick 的 DolphinDB 與 metadata 工具
 
 **綁定台股，故與 `url_manager.py` 同樣歸在 `tw/` 底下**：報價來源是 Shioaji
-（台灣券商），metadata 的鍵是台股代號（見 `docs/dev/naming-axes.md`
-〈每層目錄只承載一條軸〉）。
+（台灣券商），metadata 的鍵是台股代號；每層目錄只承載一條軸，
+跨市場共用的 `core/pipeline/utils/` 不放只有台股用得到的東西。
 """
 
 

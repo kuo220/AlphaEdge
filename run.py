@@ -20,7 +20,7 @@ from core.strategies.strategy_loader import StrategyLoader
 # Notes: Strategy Name 為 Class 名稱
 #
 # -----------------------------------------------------------------------
-# 退出碼（健檢 F-077）
+# 退出碼
 # -----------------------------------------------------------------------
 # 0  回測正常結束
 # 2  用法錯誤：策略名找不到（與 argparse 自己的用法錯誤同碼，缺 --strategy
@@ -43,7 +43,7 @@ def parse_arguments() -> argparse.Namespace:
     )
 
     # `live` 保留在 choices 裡（它是規劃中的模式，`--mode` 這個參數才有意義），
-    # 但 help 必須講明尚未實作——否則 `--help` 看起來像已經支援實盤（F-077）
+    # 但 help 必須講明尚未實作——否則 `--help` 看起來像已經支援實盤
     parser.add_argument(
         "--mode",
         choices=["backtest", "live"],
@@ -53,7 +53,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--strategy", type=str, required=True, help="Name of the strategy class"
     )
-    # 回測畫完的五張圖要不要在瀏覽器開起來（健檢 F-067）。**預設不開**：
+    # 回測畫完的五張圖要不要在瀏覽器開起來。**預設不開**：
     # 舊版寫死開啟，每跑一次回測就彈出 5 個分頁，批次掃參數時一次開幾十個，
     # 在無頭環境（CI、容器、nohup）更是直接失敗。圖本來就會存成 PNG。
     show_group = parser.add_mutually_exclusive_group()
@@ -82,7 +82,7 @@ def main() -> None:
 
     if strategy_name not in strategies:
         # 錯誤訊息走 stderr、退出碼非 0：這兩件事缺一不可——訊息印在 stdout
-        # 會混進正常輸出，退出碼 0 則讓呼叫端完全看不出失敗（F-077）
+        # 會混進正常輸出，退出碼 0 則讓呼叫端完全看不出失敗
         print(
             f"Strategy '{strategy_name}' not found. "
             "Please check the spelling or ensure it is registered.",

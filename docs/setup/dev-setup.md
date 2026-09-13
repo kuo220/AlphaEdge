@@ -92,7 +92,7 @@ pytest -m "not slow"    # 略過需要 tw_stock.db 與外部 API 憑證的測試
 pip install pre-commit && pre-commit install
 ```
 
-設定理由與已知的待收斂項目見 [程式碼品質工具鏈與基線](../dev/code-quality.md)。
+設定理由與暫時關閉的規則見 [程式碼品質工具鏈](../dev/code-quality.md)。
 
 ---
 

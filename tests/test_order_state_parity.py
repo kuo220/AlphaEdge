@@ -6,7 +6,7 @@ from core.utils.constant import OrderState
 _PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
 
 """
-專案自訂的 `OrderState` 必須與 Shioaji 那份一致（健檢 F-011）
+專案自訂的 `OrderState` 必須與 Shioaji 那份一致
 
 `core/utils/callback.py` 的 `order_cb(stat, msg)` 由 Shioaji 回呼，`stat` 是
 `shioaji.constant.OrderState`；而函式裡拿來比較的是專案自己那份。兩者都是

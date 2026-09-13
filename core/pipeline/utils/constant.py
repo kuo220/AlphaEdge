@@ -21,7 +21,7 @@ class DataType(str, Enum):
     FUTURES_CONTINUOUS = "FUTURES_CONTINUOUS"
     # 台期貨籌碼：三大法人 ＋ 大額交易人 ＋ 選擇權 PCR（皆為盤後公布）
     FUTURES_CHIP = "FUTURES_CHIP"
-    # 股票期貨行情：商品清單來自標的池而非字面值常數（見 Phase6-2）
+    # 股票期貨行情：商品清單來自標的池而非字面值常數
     FUTURES_STOCK_PRICE = "FUTURES_STOCK_PRICE"
     # 期貨逐筆成交（Shioaji → DolphinDB）；需要 `[tick]` 選用相依與 Shioaji 金鑰
     FUTURES_TICK = "FUTURES_TICK"

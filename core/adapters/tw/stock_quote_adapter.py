@@ -190,8 +190,8 @@ class StockQuoteAdapter:
             該列是否有可交易的成交價
 
             **無成交日的 OHLC 是 NULL（或歷史資料裡的 0）**：來源給的是 `--`，
-            舊版 cleaner 填成 0 之後就變成「當天成交價是 0 元」，回測會照著它成交
-            （健檢 F-037）。cleaner 已改為保留 NULL，這裡把兩種形態一起濾掉，
+            舊版 cleaner 填成 0 之後就變成「當天成交價是 0 元」，回測會照著它成交。
+            cleaner 已改為保留 NULL，這裡把兩種形態一起濾掉，
             讓尚未執行修復腳本的資料庫也不會拿 0 元價去成交。
         - Parameters:
             - stock: Any
@@ -247,7 +247,7 @@ class StockQuoteAdapter:
                 ask_volume=data.ask_volume,
                 tick_type=data.tick_type,
             )
-            # **cur_price／close／volume 一定要帶**（健檢 F-022）：
+            # **cur_price／close／volume 一定要帶**：
             # 舊版只掛 `tick=tick_quote`，OHLC 與 cur_price 全部留在預設值 0.0，
             # 於是任何讀 `quote.close` 的地方（部位盯市、報表、策略）都拿到 0 元。
             #

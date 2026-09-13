@@ -19,7 +19,7 @@ from core.utils import Action, PositionType, Scale
 from core.utils.constant import FUTURES_MULTIPLIER
 
 """
-多商品擴充測試（Phase4-1）
+多商品擴充測試
 
 **每個商品的乘數不同，而乘數錯了不會報錯**——只會讓整條 PnL 靜默偏掉：
 TX 一點 200 元、MTX 50 元、TMF 10 元、TE 4,000 元、TF 1,000 元。
@@ -77,7 +77,7 @@ def test_every_target_product_has_a_verified_multiplier() -> None:
 
 
 def test_target_products_cover_the_index_futures_family() -> None:
-    """Phase4-1 的擴充清單：大台 ＋ 小台 ＋ 微台 ＋ 電子 ＋ 金融（含小型）"""
+    """擴充清單：大台 ＋ 小台 ＋ 微台 ＋ 電子 ＋ 金融（含小型）"""
 
     assert set(FUTURES_TARGET_PRODUCTS) == {
         "TX",

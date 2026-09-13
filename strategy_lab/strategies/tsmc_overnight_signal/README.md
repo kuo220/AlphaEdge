@@ -81,7 +81,7 @@
   - 若連續兩天同方向（都持有或都空手），則當日不產生換手成本。
 
   > **舊版 README 這裡寫的是 0.1425%／0.4425%**，那是診斷路徑的費率，
-  > 卻被寫成主結果的假設（健檢 F-086）。實際主結果的手續費只有其 3 成，
+  > 卻被寫成主結果的假設。實際主結果的手續費只有其 3 成，
   > 但多了 20 元的下限——在小額部位上反而更貴。
 
 ### 4.2 為什麼要用 Ridge？
@@ -143,7 +143,7 @@
 
 ```bash
 # 建議使用專案虛擬環境。**一律用 `-m`**：`strategy_lab` 不在 pyproject 的
-# packages.find 裡，直接跑檔案路徑會 ModuleNotFoundError（健檢 F-009）
+# packages.find 裡，直接跑檔案路徑會 ModuleNotFoundError
 .venv/bin/python -m strategy_lab.strategies.tsmc_overnight_signal.run
 # 產生 Word 報告（需 python-docx）
 .venv/bin/python -m strategy_lab.strategies.tsmc_overnight_signal.reports.generate_docx

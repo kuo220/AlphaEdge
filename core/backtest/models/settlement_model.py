@@ -479,7 +479,7 @@ class TwStockSettlementModel(BaseSettlementModel):
         - Description:
             逐日計提持有成本並更新持有天數
 
-            **持有天數與計提天數都是曆日，不是 bar 數**（健檢 F-059、F-063）：
+            **持有天數與計提天數都是曆日，不是 bar 數**：
             週五開的空單到週一只過了 1 根 bar，卻是 3 個曆日的借券費。舊版每根
             bar `+= 1` 並以 `holding_days=1` 計提，一年只計到 252 天，
             年化費率因此低估約 31%（1 − 252/365）；而 `holding_days` 這個名字
@@ -544,8 +544,8 @@ class TwStockSettlementModel(BaseSettlementModel):
             原封不動付給出借方，兩者相抵後除息本身不產生損益。還原價只用於**訊號**
             （`Backtester.adjusted_price`），不參與這裡的記帳。
 
-            現金股利為 `NaN`（上市權息並存的標的無法拆出現金股利，見
-            `docs/exchanges/data_coverage.md`〈已知限制〉）時**不猜 0**：記 warning
+            現金股利為 `NaN`（上市權息並存的標的無法拆出現金股利）時
+            **不猜 0**：記 warning
             並計入 `dividend_compensation_unknown`，讓報表看得見被跳過的補償筆數。
         - Parameters:
             - date: datetime.date
@@ -777,20 +777,15 @@ class TwFuturesSettlementModel(BaseSettlementModel):
 
     ---
 
-    **尚未實作的三件事**（各有所屬步驟，不在本階段硬塞）：
-
-    | 缺項 | 所屬步驟 | 不做的後果 |
-    |------|----------|-----------|
-    | 保證金追繳（維持保證金不足時強制平倉） | Phase2-2 | 帳戶可能出現實務上會被斷頭的部位 |
-    | 換月規則（提前轉倉到次月） | Phase2-4 | 部位一路留到最後交易日，吃到結算日的價格行為 |
-    | 期貨交易日曆（結算日、夜盤） | Phase2-3 | 交易日判準暫以「表內當日有資料」代替 |
+    **保證金追繳、換月轉倉與交易日曆**分別由本 model 的追繳檢查、`FuturesRollPlanner`
+    與 `FuturesCalendar` 處理，細節見各自的 docstring。
 
     ⚠️ **到期契約的權宜出場**：已到期的契約不會再有報價，策略因此拿不到報價、
     也就下不出那張平倉單——不處理的話該部位會一路留到回測結束並持續佔用保證金
     （實測：示範策略在 2024-04 開的近月部位卡到 12 月，凍結 79 萬保證金）。
     故本 model 在契約連續 `MAX_NO_QUOTE_DAYS` 根 bar 沒有報價時，以**最近一次
-    結算價**強制出場並計入 `forced_cover_no_quote`。這是**權宜措施不是換月**：
-    真正的換月（最後交易日前 N 日轉到次月）屬 Phase2-4，屆時本段應被取代。
+    結算價**強制出場並計入 `forced_cover_no_quote`。這是**兜底不是換月**：
+    換月轉倉會先把月契約部位轉走，本段接住的是轉倉接不到的部位（例如週契約）。
     """
 
     # 契約連續幾根 bar 沒有報價就強制出場。
@@ -833,8 +828,8 @@ class TwFuturesSettlementModel(BaseSettlementModel):
         - Description:
             一根 bar 收盤後逐日盯市：以當日結算價結清每個未平倉部位的當日損益
 
-            `event_counts` 目前沒有期貨專屬的事件要記——保證金追繳屬 Phase2-2，
-            屆時才會有「強制平倉」這類需要單獨計數的事件。
+            保證金追繳的強制平倉計入 `forced_cover_margin_call`，
+            到期兜底出場計入 `forced_cover_no_quote`。
         - Parameters:
             - date: datetime.date
                 當前交易日
@@ -1013,7 +1008,7 @@ class TwFuturesSettlementModel(BaseSettlementModel):
                 expiries.get(position.product, []),
                 open_interest.get(position.product),
             )
-            # **不可換到比現在更近的月份**（健檢 F-071）：`OPEN_INTEREST` 規則
+            # **不可換到比現在更近的月份**：`OPEN_INTEREST` 規則
             # 比較的是「次月未沖銷量是否超過近月」，而未沖銷量會逐日波動——
             # 換到次月之後，近月的未沖銷量可能又反超一天，於是部位被換回去。
             # 每來回一次就付兩次手續費與一次展期價差，而且是憑空產生的。
@@ -1047,7 +1042,7 @@ class TwFuturesSettlementModel(BaseSettlementModel):
         - Description:
             平掉舊契約並以相同口數與方向開新契約（展期價差如實入帳）
 
-            **兩腿一定要用同一種價**（健檢 F-071）：舊版舊腿走盯市價
+            **兩腿一定要用同一種價**：舊版舊腿走盯市價
             （＝結算價），新腿卻用 `close`。結算價與收盤價在期貨是兩個不同的
             數字，混用會讓帳上多出一筆**不存在的展期價差**——而展期價差正是
             這裡唯一該記錄的東西，摻進口徑差異就失去意義了。
@@ -1109,7 +1104,7 @@ class TwFuturesSettlementModel(BaseSettlementModel):
             出場價取 `position.price`——逐日盯市之後它就是最近一次結算價，
             該部位到期前的損益早已逐日結進帳戶，故這一段的價差為 0。
             與真正的最終結算價（最後交易日次一營業日的特別開盤參考價）仍有落差，
-            **這是 Phase2-4 正式換月規則接手前的權宜措施**。
+            **正常情況下換月轉倉會先把部位轉走，這段是兜底**。
         - Parameters:
             - date: datetime.date
                 當前交易日（＝出場日；會比實際最後交易日晚幾根 bar）
@@ -1226,7 +1221,7 @@ class TwFuturesSettlementModel(BaseSettlementModel):
         - Description:
             一筆報價的盯市價：結算價優先，缺漏時退回收盤價
 
-            抽出來是為了讓**轉倉的兩腿用同一種價**（健檢 F-071）：舊腿走盯市價、
+            抽出來是為了讓**轉倉的兩腿用同一種價**：舊腿走盯市價、
             新腿走 `close` 的話，帳上會多出一筆不存在的展期價差。
         - Parameters:
             - quote: FuturesQuote

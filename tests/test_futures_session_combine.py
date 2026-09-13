@@ -14,7 +14,7 @@ from core.pipeline.utils.constant import FuturesPriceColumn
 from core.utils import FuturesSession, Scale
 
 """
-日盤／夜盤整併測試（Phase4-2）
+日盤／夜盤整併測試
 
 **整併最容易錯的是「夜盤屬於哪一天」**：TAIFEX 的夜盤 15:00 開盤、次日 05:00
 收盤，制度上屬於**次一交易日**——星期五晚上那一段屬於星期一。資料表為了忠實

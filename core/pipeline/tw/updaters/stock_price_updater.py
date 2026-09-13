@@ -88,7 +88,7 @@ class StockPriceUpdater(BaseDataUpdater):
             更新收盤行情
 
             **候選日期是差集而不是 `MAX(date)+1`**：後者讓中間缺的日子永遠不會
-            再被嘗試（健檢 F-050）。詳見 `date_planner` 的模組說明。
+            再被嘗試。詳見 `date_planner` 的模組說明。
         - Parameters:
             - start_date: datetime.date
                 回補起日

@@ -99,7 +99,7 @@ class Backtester:
         self.reporter_cls: Type[BaseBacktestReporter] = reporter_cls  # 報表產生器
 
         # 回測結束是否在瀏覽器開圖；`None` 代表交給 reporter 依環境變數決定。
-        # 由 `run.py --show/--no-show` 覆寫（健檢 F-067）
+        # 由 `run.py --show/--no-show` 覆寫
         self.show_figures: Optional[bool] = None
 
         # 回測參數
@@ -122,7 +122,7 @@ class Backtester:
 
         # 是否以還原價（後復權）計算訊號。
         # **預設關閉**：開啟會改變所有策略的訊號，LONG baseline 必然失效，
-        # 須單獨重產（重產的代價見 `docs/backtest/multi-market-engine.md`〈回歸護欄〉）
+        # 須單獨重產回歸 baseline（`scripts/run_regression.sh` 的兩條線）
         self.adjusted_price: bool = adjusted_price
 
         self.setup()
@@ -294,8 +294,8 @@ class Backtester:
             **已知限制**：Tick 級別的 `order.date` 只到「日」（`StockQuote.date`
             對 tick 也是 `datetime.date`），因此同一 bar 內的 tick 委託無法依成交
             時間排序，會被壓成依代號排序。要恢復真正的時間序，得讓 `check_*_signal`
-            回傳帶時間戳的委託事件——屬事件迴圈的範圍（見
-            `docs/backtest/multi-market-engine.md` §5.1）。
+            回傳帶時間戳的委託事件——屬事件驅動迴圈的範圍，
+            現行的逐 bar 迴圈尚未支援。
         - Parameters:
             - orders: List[BaseOrder]
                 同一根 bar 內、同一個階段（開倉或平倉）的委託
@@ -321,7 +321,7 @@ class Backtester:
             未啟用任何假設時回傳原物件本身，行為與導入前逐筆相同。
             查無報價時直接放行——那是資料缺口，不是成交假設該處理的事。
 
-            **成交後還要再驗一次價格區間**（健檢 F-064）：`validate_fill_price()`
+            **成交後還要再驗一次價格區間**：`validate_fill_price()`
             跑在滑價之前，滑價把價格推出 `[low, high]` 之後沒有任何檢查。
             開倉腿夾回區間、平倉腿只警告——拒掉平倉單會讓部位被迫留倉，
             那是比價格偏一點嚴重得多的失真。
@@ -384,7 +384,7 @@ class Backtester:
             start_date=self.start_date, end_date=self.end_date
         )
 
-        # `try/finally`：中途拋例外時連線一樣要關（F-067）。舊版把 `close()`
+        # `try/finally`：中途拋例外時連線一樣要關。舊版把 `close()`
         # 放在最後一行，於是任何一天的資料異常都會讓那條 SQLite 連線留下來，
         # 而回測是常常在中途炸的——這正是連線會累積的路徑
         try:
@@ -690,7 +690,7 @@ class Backtester:
 
         # Generate Backtest Report (Chart)
         # `price` 共用 DataFeed 已經開好的連線：reporter 自己再開一條，
-        # 一次回測就是兩條連往同一個檔案的 SQLite 連線（F-067）
+        # 一次回測就是兩條連往同一個檔案的 SQLite 連線
         reporter: BaseBacktestReporter = self.reporter_cls(
             self.strategy,
             self.strategy_result_dir,
@@ -719,5 +719,5 @@ class Backtester:
             reporter.plot_everyday_profit()
             reporter.plot_everyday_equity_change()
         finally:
-            # reporter 自己開的連線由它自己關；共用連線不歸它關（F-067）
+            # reporter 自己開的連線由它自己關；共用連線不歸它關
             reporter.close()

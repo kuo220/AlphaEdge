@@ -1,6 +1,6 @@
 # clean_pycache.ps1
 # 📂 自動找出 AlphaEdge 根目錄（此腳本在 scripts/，所以是**上一層**）
-# 舊版寫 `..\..` 往上兩層，會清到專案同層其他專案的 __pycache__（健檢 F-091）；
+# 舊版寫 `..\..` 往上兩層，會清到專案同層其他專案的 __pycache__；
 # 同目錄的 clean_pycache.sh 一直都是正確的一層
 $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $alphaEdgeRoot = Resolve-Path "$scriptPath\.."

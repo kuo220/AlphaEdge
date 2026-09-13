@@ -5,7 +5,7 @@ import numpy as np
 from core.strategies.ridge import ridge_fit_predict, tune_alpha
 
 """
-研究版與成品版必須產生同一組訊號（健檢 F-087）
+研究版與成品版必須產生同一組訊號
 
 `strategy_lab/` 的研究結論是拿來搬進 `core/` 的；兩邊各留一份 ridge 實作時，
 哪天有人在其中一邊調了正則化項的處理，訊號會開始分岔而沒有任何跡象——

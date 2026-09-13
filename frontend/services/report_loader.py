@@ -24,7 +24,7 @@ except ModuleNotFoundError:
     )
 
 """
-回測報表的讀取與彙總（F-082、F-084）
+回測報表的讀取與彙總
 
 **前端只讀不算**：指標一律來自 reporter 已落地的 CSV，不在前端另寫一份公式。
 舊版 `app.py` 自行重算，四個地方與 reporter 不同源：
@@ -254,7 +254,7 @@ def compute_daily_returns(equity: pd.Series) -> pd.Series:
         由權益序列算**日報酬**（風險指標的樣本）
 
         舊版拿的是「每平倉一筆一個節點」的累積餘額，那是**每筆交易**的報酬；
-        乘 √252 年化等於宣稱「一年有 252 筆交易」（同 F-068 的第 2、3 個缺陷）。
+        乘 √252 年化等於宣稱「一年有 252 筆交易」（`risk_metrics` 模組說明列的第 2、3 個缺陷）。
     - Parameters:
         - equity: pd.Series
             權益序列
@@ -281,7 +281,7 @@ def summarise_overview(
 
         有多空兩列時依 `Trades` 加權合併（勝率與平均 ROI 是比率，直接相加沒有意義）。
         沒有這份檔案才退回交易明細自行彙總，此時 **`ROI` 欄已經是百分比、
-        不可再乘 100**——那正是 F-082 的成因。兩條路徑在同一份報表上必須給
+        不可再乘 100**——舊版前端就是這樣把平均 ROI 放大 100 倍。兩條路徑在同一份報表上必須給
         出相同的數字，由 `tests/test_frontend_report_loader.py` 盯住。
     - Parameters:
         - trading_df: pd.DataFrame

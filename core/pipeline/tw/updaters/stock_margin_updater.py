@@ -87,7 +87,7 @@ class StockMarginUpdater(BaseDataUpdater):
 
             **以 `price` 表的交易日為日曆**：台股有補行交易日（補班的週六照常
             開市，2013 起有 11 天），用「非週末」近似會整天漏抓。候選日期是差集
-            而非 `MAX(date)+1`（健檢 F-050）。
+            而非 `MAX(date)+1`。
 
             `price` 落後於 margin 時該區間會少幾天——實務上 price 一律先於
             margin 更新，風險極低，且下次執行會自動補上。
@@ -95,7 +95,7 @@ class StockMarginUpdater(BaseDataUpdater):
             - start_date: datetime.date
                 回補起日
             - end_date: Optional[datetime.date]
-                回補迄日；None 取當日（預設值不可在 def 行求值，見 F-002）
+                回補迄日；None 取當日（預設值不可在 def 行求值）
         """
 
         logger.info("* Start Updating TWSE & TPEX Margin Data...")

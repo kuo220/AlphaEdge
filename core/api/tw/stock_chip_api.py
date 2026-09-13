@@ -152,7 +152,7 @@ class StockChipAPI(BaseDataAPI):
             return pd.DataFrame()
 
         # **舊版寫的是 `self.get(start_date, end_date)`**，而 `get()` 只收一個
-        # `date` ——這個公開方法一被呼叫就 `TypeError`（健檢 F-024）。
+        # `date` ——這個公開方法一被呼叫就 `TypeError`。
         # 全專案沒有呼叫端，所以壞了三年也沒人發現，但 API 門面看起來是可用的
         df: pd.DataFrame = self.get_range(start_date, end_date)
         if df.empty:

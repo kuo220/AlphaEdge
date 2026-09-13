@@ -17,7 +17,7 @@ from core.config import (
 _PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
 
 """
-`FinMindAPI` 的離線覆蓋（健檢 F-029）
+`FinMindAPI` 的離線覆蓋
 
 這一檔在 2026-09-05 是**全 repo 唯一覆蓋率 0% 的 `core/api` 檔**——原有的
 `tests/manual_finmind_api.py` 需要真的 `tw_stock.db`，pytest 不會收集它。
@@ -128,7 +128,7 @@ def api(conn: sqlite3.Connection) -> FinMindAPI:
     return FinMindAPI(conn=conn)
 
 
-# === 連線注入（F-029）===
+# === 連線注入===
 def test_injected_connection_is_used(conn: sqlite3.Connection) -> None:
     """傳進去的連線就是實際查詢用的那一條，不會另開一條連 tw_stock.db"""
 

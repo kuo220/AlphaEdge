@@ -84,7 +84,7 @@ graph TB
     FrontendDocker --> FrontendApp
 ```
 
-`Backtester` 是**唯一的回測引擎，市場無關、沒有子類**。市場差異全部下沉為五個可插拔的 model（`InstrumentSpec`、`FillModel`、`CostModel`、`SettlementModel`、`DataFeed`），由 `factory.py` 依策略宣告的 `market` 組裝。新增一個市場不需要修改 `backtester.py` 一行。詳見[多市場回測引擎架構](docs/backtest/multi-market-engine.md)與[模組使用關係](docs/backtest/module-map.md)。
+`Backtester` 是**唯一的回測引擎，市場無關、沒有子類**。市場差異全部下沉為五個可插拔的 model（`InstrumentSpec`、`FillModel`、`CostModel`、`SettlementModel`、`DataFeed`），由 `factory.py` 依策略宣告的 `market` ＋ `instrument_type` 組裝。新增一個（市場, 商品）組合不需要修改 `backtester.py` 一行。詳見[多市場回測引擎架構](docs/backtest/multi-market-engine.md)與[模組使用關係](docs/backtest/module-map.md)。
 
 ## 模組說明
 
@@ -93,8 +93,9 @@ graph TB
 | `core/`         | 交易領域核心程式碼（策略、管理器、模型、介接層、API、ETL 與回測引擎；回測輸出落在根目錄的 `results/`） |
 | `frontend/`     | 用於檢視回測結果的 Streamlit Docker 映像                              |
 | `tasks/`        | 資料維護與資料庫更新腳本                                              |
-| `tests/`        | crawler、updater 與資料庫流程的單元/整合測試                          |
-| `docs/`         | 專案文件（環境設定、部署、資料覆蓋範圍）                              |
+| `tests/`        | 單元／整合測試與回測回歸線（`tests/backtest/`）                       |
+| `scripts/`      | 護欄檢查（分層相依、文件路徑、API 孤兒方法）、回歸腳本與人工執行腳本   |
+| `docs/`         | 使用與架構說明文件（安裝、指令、部署、資料、回測與 ETL 設計）          |
 | `strategy_lab/` | 策略研究工作區，依概念分為 `strategies/`、`data_analysis/`、`notebooks/`、`ideas/`；見 `strategy_lab/README.md` |
 | `dev/`          | 選用的 conda 環境定義（`dev/env/quant_mac.yml`、`quant_win.yml`）      |
 | `backlog/`      | 內部規劃與待辦筆記                                                    |
@@ -106,26 +107,21 @@ graph TB
 | 文件                                               | 說明                                            |
 | -------------------------------------------------- | ----------------------------------------------- |
 | [開發環境設定](docs/setup/dev-setup.md)            | Python 環境、相依套件、格式化工具、環境變數     |
-| [開發部署](docs/deployment/dev-deployment.md)      | 本地服務啟動流程、collector 執行指令、dashboard |
-| [正式環境部署](docs/deployment/prod-deployment.md) | Docker Compose 部署、監控、多節點策略           |
-| [資料覆蓋範圍](docs/exchanges/data_coverage.md)    | 目前平台資料來源與 API 覆蓋範圍                 |
+| [開發部署](docs/deployment/dev-deployment.md)      | 本機更新資料、執行回測、檢視結果的日常流程      |
+| [正式環境部署](docs/deployment/prod-deployment.md) | Docker 映像建置、容器執行與角色切分             |
+| [資料覆蓋範圍](docs/exchanges/data_coverage.md)    | 資料來源、API 對照、起始日期與股價還原          |
 | [指令教學](docs/commands/command-usage.zh-TW.md)   | `update_db` target 對照與完整執行範例           |
 | [策略開發指南](core/strategies/README.md)          | 本專案策略實作方式                              |
 | [多市場回測引擎架構](docs/backtest/multi-market-engine.md) | 單一引擎 ＋ 五個可插拔 model 的設計與已知簡化 |
 | [模組使用關係](docs/backtest/module-map.md)        | 回測路徑上誰呼叫誰、逐檔案職責與輸出檔案        |
 | [放空回測框架規格](docs/backtest/short-selling-framework.md) | 方向驅動的記帳、成本、維持率追繳與強制回補 |
-| [程式碼品質工具鏈與基線](docs/dev/code-quality.md) | pyproject／ruff／CI／pre-commit 設定、lint ignore 理由、覆蓋率基線 |
+| [台期貨平台](docs/futures/tw-futures-platform.md) | 期貨資料表與指令、盯市／保證金／換月／日夜盤語意與已知限制 |
 | [ETL 入庫約定](docs/pipeline/etl-ingestion.md) | 入庫階段的分批時機、冪等性與失敗語意；新增 updater 的檢查表 |
-| [券商分點 NO_DATA 的 metadata 語意](docs/pipeline/broker-trading-no-data.md) | API 回傳空資料時的 metadata 處理（選型紀錄） |
-| [全專案架構與邏輯健檢（2026-09）](docs/dev/health-check-2026-09.md) | 全 repo 架構與邏輯健檢紀錄：101 條發現分 A~D 級，每條附處置去處 |
-| [台期貨平台規劃與實作](docs/futures/tw-futures-platform.md) | 台指期回測平台：保證金、換月、夜盤、股期契約單位與各 Phase 完成紀錄 |
+| [權益變動表資料](docs/pipeline/equity-change.md) | `equity_change` 的資料形狀、已知限制與節流設定 |
+| [非除權息的公司行動](docs/pipeline/corporate-action.md) | `corporate_action` 表的資料源、調整倍率與假跳空護欄 |
+| [程式碼品質工具鏈](docs/dev/code-quality.md) | pyproject／ruff／CI／pre-commit 設定與 lint ignore 理由 |
 | [命名軸線](docs/dev/naming-axes.md) | 市場軸與商品類別軸的目錄命名定案，以及哪些目錄不分市場 |
 | [執行期產物](docs/dev/runtime-artifacts.md) | `data/`／`results/`／`logs/` 的目錄約定、日誌分桶與保留策略 |
-| [權益變動表資料](docs/pipeline/equity-change.md) | `equity_change` 的資料形狀、涵蓋範圍、已知限制與節流設定 |
-| [非除權息的公司行動與還原價](docs/pipeline/corporate-action.md) | 減資、面額變更、分割等非除權息事件的還原倍率來源與已知限制 |
-| [前端指標與報表同源化](docs/frontend/report-metrics.md) | 前端與 reporter 共用同一組績效指標函式的設計 |
-| [資料爬蟲涵蓋範圍盤點](docs/dev/crawler-coverage-2026-09.md) | 以資料庫實際內容為準的各表涵蓋範圍與中斷點 |
-| [健檢第三輪收斂](docs/dev/health-check-round3-2026-09.md) | 第三輪健檢五條的處置與完成紀錄 |
 
 ---
 
@@ -216,7 +212,7 @@ API 金鑰與路徑等設定請複製範本並自行填寫：`cp .env.example .e
 ```bash
 source .venv/bin/activate
 python run.py --strategy <StrategyClassName>
-# 選用：--mode backtest|live（預設 backtest）
+# 選用：--show 在瀏覽器開圖；--mode live 尚未實作（以結束碼 1 結束）
 ```
 
 **分頁 2（Frontend：檢視回測結果）**
@@ -238,8 +234,8 @@ streamlit run frontend/app.py
 # 建立映像
 docker build -f core/Dockerfile -t alphaedge-core .
 
-# 啟動 container 並進入 shell（工作目錄：/app）
-docker run --rm -it --entrypoint /bin/bash alphaedge-core
+# 啟動 container 並進入 shell（工作目錄：/app）；映像不含資料庫，回測需掛入本機 data/
+docker run --rm -it -v "$(pwd)/data:/app/data:ro" --entrypoint /bin/bash alphaedge-core
 ```
 
 在 container 內：
@@ -278,7 +274,7 @@ docker run --rm -p 8501:8501 alphaedge-frontend
 
 > ⚠️ **必須先在本機備妥 `data/db/*.db`**。映像裡**不含資料庫**，compose 是把本機的
 > `./data` 以**唯讀**掛進容器（`/app/data:ro`）。沒有資料庫時 core 服務會在
-> `sqlite3.connect` 當場失敗（健檢 F-094）。資料庫怎麼來見〈更新資料庫〉一節。
+> `sqlite3.connect` 當場失敗。資料庫怎麼來見下方〈指令教學〉的「更新資料庫」。
 >
 > 唯讀是刻意的：容器只跑回測，不該寫到本機的資料庫——背景 ETL 可能正在寫同一個檔。
 > 回測產出走 `alphaedge_results` volume，日誌走掛載的 `./logs`。
@@ -319,6 +315,7 @@ python -m tasks.update_db --target no_tick
 
 ```bash
 python run.py --strategy <StrategyClassName>
+# 選用：--show 在瀏覽器開圖；--mode live 尚未實作（以結束碼 1 結束）
 ```
 
 ## 專案結構
@@ -328,14 +325,14 @@ AlphaEdge/
 ├── core/                    # 交易領域模組
 │   ├── strategies/            # 策略實作
 │   │   ├── base.py            # BaseStrategy（市場無關）
-│   │   ├── strategy_loader.py # 自動掃描所有市場子套件
+│   │   ├── strategy_loader.py # 自動掃描所有商品類別子套件（stock／futures）
 │   │   ├── ridge.py           # 研究版與成品版共用的 ridge 訊號（刻意為模組，不是子套件）
 │   │   ├── stock/             # BaseStockStrategy ＋ 各支台股策略
 │   │   └── futures/           # BaseFuturesStrategy 與台期貨策略
 │   ├── api/                   # 資料存取 API（SQLite／DolphinDB）
 │   ├── adapters/              # 資料介接 / 整合層
 │   │   └── tw/               # StockQuoteAdapter（日線/Tick → StockQuote）、FuturesQuoteAdapter
-│   ├── managers/              # 倉位管理器（base/ ＋ 各市場）
+│   ├── managers/              # 倉位管理器（base/ ＋ stock/ ＋ futures/）
 │   ├── models/                # 領域模型（base/ ＋ stock/ ＋ futures/）
 │   ├── utils/                 # 共用工具（enum、時間、日誌、Shioaji 帳號）
 │   ├── config/                # 路徑、資料表 schema 與設定常數（全專案最底層）
@@ -350,38 +347,43 @@ AlphaEdge/
 │   │   ├── models/            # InstrumentSpec／FillModel／CostModel／SettlementModel
 │   │   ├── datafeed/          # 資料載入、報價轉換、交易日判定
 │   │   ├── report/            # 交易報表、多空統計、圖表
-│   │   ├── analysis/          # 績效指標（`risk_metrics.py` 為純函式，前端與 analyzer 共用同一組公式）
+│   │   └── analysis/          # 績效指標（`risk_metrics.py` 為純函式，前端與 analyzer 共用同一組公式）
 ├── data/                      # 執行期資料（不進版控）：db/（tw_stock.db、tw_futures.db）＋ downloads/
 ├── results/                   # 各策略回測輸出（csv／png），不進版控
 ├── logs/                      # api/、pipeline/、backtest/ 三桶，不進版控
 ├── frontend/                  # Streamlit Docker 映像
 │   ├── app.py                 # Streamlit 入口
 │   ├── config.py              # frontend 設定
-│   ├── services/              # 資料載入服務
-│   │   └── report_loader.py   # 載入回測報表檔案
+│   ├── services/              # 資料載入與指標計算（不含 Streamlit 呼叫，測試得到）
+│   │   ├── report_loader.py   # 載入回測報表檔案
+│   │   ├── metrics.py         # 股票報表指標（與 reporter 共用公式）
+│   │   └── futures_metrics.py # 期貨專屬指標（保證金、口數曝險）
+│   ├── static/theme.css       # 版面樣式
+│   ├── requirements.txt       # frontend 映像的相依
 │   ├── Dockerfile             # frontend 容器映像
 │   ├── README.md              # frontend 使用說明
 │   └── __init__.py
 ├── strategy_lab/              # 策略研究工作區（strategies/ / data_analysis/ / notebooks/ / ideas/）
-├── tasks/                     # 資料更新腳本
-├── tests/                     # 測試套件（`backtest/` 為引擎與回歸線；`temp/`、`database/` 為執行期產物）
+├── tasks/                     # 資料更新與維運入口（update_db、delete_price_data、clean_logs）
+├── tests/                     # 測試套件（`backtest/` 為引擎與回歸線；`temp/`、`database/`、`downloads/` 為執行期產物）
 ├── dev/env/                   # 選用的 conda 環境定義（mac／win）
 ├── backlog/                   # 內部規劃筆記
 ├── docs/                      # 專案文件
 │   ├── backtest/              # 引擎架構、模組使用關係、放空框架規格
-│   ├── dev/                   # 程式碼品質、命名軸線、執行期產物、健檢紀錄
-│   ├── futures/               # 台期貨平台規劃與各 Phase 完成紀錄
-│   ├── pipeline/              # ETL 入庫約定與選型紀錄
-│   ├── setup/
-│   ├── deployment/
-│   ├── exchanges/
-│   └── commands/
+│   ├── dev/                   # 程式碼品質、命名軸線、執行期產物
+│   ├── futures/               # 台期貨平台：資料、回測語意與已知限制
+│   ├── pipeline/              # ETL 入庫約定、權益變動表、公司行動
+│   ├── setup/                 # 開發環境設定
+│   ├── deployment/            # 開發與正式環境部署
+│   ├── exchanges/             # 資料覆蓋範圍
+│   └── commands/              # 指令教學（中文／英文）
 ├── scripts/                   # 護欄檢查與一次性工具
 │   ├── run_regression.sh      # 回歸雙線護欄（動回測引擎前後都要跑）
 │   ├── check_layer_deps.py    # 分層相依、循環 import、跨軸目錄污染（CI 與 pre-commit 皆跑）
 │   ├── check_doc_paths.py     # 文件裡指不到的檔案路徑（搬家後沒更新的引用）
 │   ├── check_api_orphan_methods.py  # `core/api` 零呼叫零測試的公開方法
-│   ├── clean_pycache.sh       # 清除 __pycache__ 與 .pyc
+│   ├── clean_pycache.sh／.ps1 # 清除 __pycache__ 與 .pyc（macOS／Linux、Windows）
+│   ├── fix_single_market_batches.py  # 一次性資料修復：只入庫單一市場的批次
 │   └── manual/                # 需要金鑰或資料庫的人工執行腳本（見該目錄 README）
 ├── docker-compose.yml         # compose：core + frontend + 共用 results volume
 ├── run.py

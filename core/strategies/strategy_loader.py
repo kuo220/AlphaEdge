@@ -12,7 +12,7 @@ from core.strategies.base import BaseStrategy
 """
 StrategyLoader: 自動載入 core/strategies/ 下所有市場的策略類別
 
-**單一模組壞掉不該讓所有策略都跑不了**（健檢 F-073）：舊版是一路
+**單一模組壞掉不該讓所有策略都跑不了**：舊版是一路
 `import_module()` 到底，任何一支策略有 import 錯誤、或在 module level 做了
 會炸的事，整個 `load_strategies()` 就往外拋——`run.py --strategy` 於是連
 「有哪些策略可用」都列不出來，而錯誤訊息只指向那支壞掉的模組。

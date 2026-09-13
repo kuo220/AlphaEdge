@@ -14,8 +14,8 @@ from core.utils.constant import FUTURES_MULTIPLIER
 FuturesQuoteAdapter: 把 `FuturesPriceAPI` 的查詢結果轉成回測吃的 `FuturesQuote`
 
 **只做型別轉換，不做任何選擇**。單日單商品會有多個到期月，本 adapter 一律**全部**
-轉出，要哪一個由呼叫端決定——換月是政策，屬 Phase1-7（連續合約）與 Phase2-4
-（換月規則參數化），寫進 adapter 會讓兩處各有一套換月邏輯。
+轉出，要哪一個由呼叫端決定——換月是政策，由連續合約與 `FuturesRollPlanner` 負責，
+寫進 adapter 會讓兩處各有一套換月邏輯。
 
 與 `StockQuoteAdapter` 的差異：
 - 沒有 `filter_common_stocks()` 這類過濾：期貨的商品清單由設定檔決定，不是從
@@ -111,7 +111,7 @@ class FuturesQuoteAdapter:
     ) -> List[FuturesQuote]:
         """
         - Description:
-            把「前一交易日的夜盤 ＋ 當日日盤」整併成一根 bar（Phase4-2）
+            把「前一交易日的夜盤 ＋ 當日日盤」整併成一根 bar
 
             **為什麼是前一交易日的夜盤**：TAIFEX 的夜盤 15:00 開盤、次日 05:00
             收盤，制度上屬於**次一交易日**——星期五晚上那一段屬於星期一。
@@ -236,7 +236,7 @@ class FuturesQuoteAdapter:
             - date: datetime.date
                 報價日期
             - scale: Scale
-                報價級別；目前僅日線（Tick 屬 Phase5-1）
+                報價級別；目前僅日線
         - Return:
             - List[FuturesQuote]
                 報價清單

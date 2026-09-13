@@ -13,13 +13,13 @@ from core.utils import Scale
 """
 cleaner 的三個邊界，共通點是**出錯時不會有任何錯誤**
 
-1. F-037：無成交日的 `--` 被 `fillna(0)` 填成 0，變成「當天成交價 0 元」。
-2. F-038：上櫃依位置命名欄位，版面一改就整批對到錯的名字。
-3. F-047：除權息三來源去重依檔名字典序，勝出的是誰取決於字母順序。
+1. 無成交日的 `--` 被 `fillna(0)` 填成 0，變成「當天成交價 0 元」。
+2. 上櫃依位置命名欄位，版面一改就整批對到錯的名字。
+3. 除權息三來源去重依檔名字典序，勝出的是誰取決於字母順序。
 """
 
 
-# === F-037：無成交價要保持 NULL ===
+# === 無成交價要保持 NULL ===
 def test_fill_nan_keeps_price_columns_null() -> None:
     """價格欄維持 NaN，成交量等欄位仍填 0"""
 
@@ -93,7 +93,7 @@ def test_adapter_keeps_rows_with_a_price() -> None:
     assert quotes[0].close == 600.0
 
 
-# === F-038：依位置命名前要先數欄位 ===
+# === 依位置命名前要先數欄位 ===
 def test_check_column_count_raises_on_mismatch() -> None:
     """欄位數不符要當場拋出，不可繼續依位置命名"""
 
@@ -134,7 +134,7 @@ def test_tpex_price_cleaner_rejects_unexpected_layout() -> None:
         StockPriceCleaner().clean_tpex_price(df, datetime.date(2024, 1, 2))
 
 
-# === F-047：去重依來源優先序 ===
+# === 去重依來源優先序 ===
 def make_dividend_rows(sources: List[str]) -> pd.DataFrame:
     """同一個 (date, stock_id) 來自多個來源"""
 

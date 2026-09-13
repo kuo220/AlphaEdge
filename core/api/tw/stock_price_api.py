@@ -249,8 +249,7 @@ class StockPriceAPI(BaseDataAPI):
             - 漲跌停與檔位判定 → 原始價
 
             刻意不做成 `get_close_map(adjusted=True)`：同一個方法回傳兩種語意的價格，
-            呼叫端很容易拿錯而且不會有任何錯誤訊息
-            （決策理由見 `docs/exchanges/data_coverage.md`〈股價還原〉）。
+            呼叫端很容易拿錯而且不會有任何錯誤訊息。
 
             無除權息紀錄的股票其係數為 1，回傳值與 `get_close_map()` 相同。
         - Parameters:

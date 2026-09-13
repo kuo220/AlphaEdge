@@ -124,7 +124,7 @@ def _render_metrics(
     equity: pd.Series,
 ) -> None:
     """
-    關鍵指標**一律取自 reporter 落地的 CSV**（F-082）
+    關鍵指標**一律取自 reporter 落地的 CSV**
 
     總覽四個數字來自 `direction_summary.csv`；權益相關（MDD、Sharpe、Sortino）
     來自 `daily_equity.csv`。前端不再自行重算任何一條公式。
@@ -158,7 +158,7 @@ def _render_metrics(
     st.markdown("##### 損益與資產")
     r2c1, r2c2, r2c3 = st.columns(3)
     r2c1.metric("總已實現損益", _fmt_number(overview["total_pnl"]))
-    # `ROI` 欄本來就是百分比，**不再乘 100**（F-082）
+    # `ROI` 欄本來就是百分比，**不再乘 100**
     r2c2.metric("平均 ROI", _fmt_number(overview["avg_roi"], "%"))
     r2c3.metric(
         "最後累積資產",
@@ -201,7 +201,7 @@ def _render_direction_summary(direction_summary: pd.DataFrame) -> None:
 
 def _render_event_report(event_report: pd.DataFrame) -> None:
     """
-    尾部事件計數（F-084）
+    尾部事件計數
 
     強制回補、斷頭、拒單這些是放空策略的尾部風險，**被平均進總績效就看不見了**，
     必須單獨列出。
@@ -297,7 +297,7 @@ def _get_chart_theme() -> dict[str, str]:
 
 def _render_interactive_charts(df: pd.DataFrame, equity: pd.Series) -> None:
     """
-    資產曲線與每日損益一律走 `daily_equity.csv`（F-082）
+    資產曲線與每日損益一律走 `daily_equity.csv`
 
     舊版拿「依 `Sell Date` 排序的 `Cumulative Balance`」畫這兩張圖，有兩個問題：
     `Sell Date` 對 SHORT 是**開倉日**，曲線不是依平倉順序長出來的；而已實現
@@ -375,7 +375,7 @@ if report.csv_path is None:
 
 df = read_trading_report(report.csv_path)
 
-# reporter 另外落地的三份 CSV：前端只讀不算，指標一律以這些為準（F-084）
+# reporter 另外落地的三份 CSV：前端只讀不算，指標一律以這些為準
 direction_summary = read_direction_summary(report.direction_summary_path)
 event_report = read_event_report(report.event_report_path)
 daily_equity = read_daily_equity(report.daily_equity_path)
@@ -403,7 +403,7 @@ with overview_tab:
 
 with detail_tab:
     st.subheader("交易報表")
-    # 一律依**平倉日**排序：`Sell Date` 對 SHORT 是開倉日（F-082）
+    # 一律依**平倉日**排序：`Sell Date` 對 SHORT 是開倉日
     detail_df = sort_by_exit_date(df)
     # 期貨的識別欄是 Contract ID（`{商品}{到期月}`），股票是 Stock ID
     stock_col = next(

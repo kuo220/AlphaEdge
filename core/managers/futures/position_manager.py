@@ -67,7 +67,7 @@ class FuturesMarginConfig:
     # （2020-03 起），用比率近似回測是刻意的降級，應由使用者明確表態
     use_api: bool = True
 
-    # === 追繳（Phase2-2）===
+    # === 追繳 ===
     # 權益低於維持保證金時的處理；**強制平倉是預設**——真實帳戶不會讓部位
     # 在保證金不足的情況下續留，只標記會讓回測高估留倉能力
     margin_call_policy: MarginCallPolicy = MarginCallPolicy.FORCE_COVER
@@ -288,7 +288,7 @@ class FuturesPositionManager(BasePositionManager):
                 損益（未扣交易成本）
         """
 
-        # **一律走成本模型**（健檢 F-062）：同一條公式原本在這裡與
+        # **一律走成本模型**：同一條公式原本在這裡與
         # `FuturesCostModel.realized_pnl()` 各寫一份，兩邊都對只是巧合——
         # 哪天有人改了乘數或方向的處理，另一邊不會跟著改，也不會有測試失敗
         return self.cost_model.realized_pnl(
@@ -333,7 +333,7 @@ class FuturesPositionManager(BasePositionManager):
             「可動用餘額是否足以繳出保證金與交易成本」。
 
             **同一契約不允許雙向持倉**：已有反向未平倉部位即拒單，與股票端
-            同一判準（放空框架 §7.5）。跨月份的價差部位不受此限。
+            同一判準。跨月份的價差部位不受此限。
         - Parameters:
             - order: FuturesOrder
                 目標契約的訂單資訊
@@ -356,8 +356,8 @@ class FuturesPositionManager(BasePositionManager):
             )
             return None
 
-        # 同一契約不允許同時持有反向部位（判準沿用放空框架 §7.5「反之亦然」，
-        # 股票端已於健檢 F-057 補上對稱檢查）。**期貨端漏了這條**（健檢 F-058）：
+        # 同一契約不允許同時持有反向部位（判準沿用股票端「同標的不得雙向持倉，反之亦然」，
+        # 股票端已補上對稱檢查）。**期貨端漏了這條**：
         # 同契約多空並存時，`get_open_lots()` 把兩邊相抵成淨口數（＝曝險為 0），
         # 但 `margin_used` 卻各佔一份原始保證金——帳上「沒有曝險卻押著兩份保證金」，
         # 而交易所對沖部位只收單邊，可開口數因此被系統性低估。

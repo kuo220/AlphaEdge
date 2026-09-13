@@ -92,7 +92,7 @@ class MonthlyRevenueReportUpdater(BaseDataUpdater):
         # **不可用 years × months 的笛卡兒積**：起點 2025/03、終點 2026/12 時
         # `months` 只會是 [3..12]，2026/01 與 2026/02 不會被爬；起點月份大於終點
         # 月份時 `months` 甚至是空清單，整輪什麼都不做。兩種情況都不會有任何錯誤
-        # ——那些年月只是從來沒出現在迴圈裡（健檢 F-054）
+        # ——那些年月只是從來沒出現在迴圈裡
         year_months: List[Tuple[int, int]] = TimeUtils.generate_year_period_range(
             start_year, start_month, end_year, end_month, periods_per_year=12
         )

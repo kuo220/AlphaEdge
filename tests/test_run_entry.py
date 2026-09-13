@@ -9,12 +9,12 @@ _PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
 _RUN_PY: Path = _PROJECT_ROOT / "run.py"
 
 """
-`run.py` 的退出碼契約（健檢 F-077）
+`run.py` 的退出碼契約
 
 舊版**兩種失敗都回 0**：策略名找不到只 `print` 後 `return`，`--mode live` 是
 `pass`。目前 `run.py` 只有人手動跑所以還沒出事，但一旦接進批次（例如每晚
 重跑策略），「策略名打錯」與「回測跑完」在退出碼上長得一模一樣——
-那是最典型的假綠燈，與 F-090（回歸腳本把 skip 當通過）同一類問題。
+那是最典型的假綠燈，與回歸腳本曾把 skip 當通過是同一類問題。
 
 **一定要用 subprocess 驗**：退出碼是**行程**的性質，直接呼叫 `main()` 只驗得到
 有沒有拋例外，驗不到 `sys.exit()` 實際交給呼叫端的那個數字，也驗不到
@@ -119,7 +119,7 @@ def test_help_says_live_is_not_implemented() -> None:
     """
     `--help` 不可讓 `live` 看起來已經支援
 
-    F-077 的第二半：模式列在 `choices` 裡而沒有任何說明，讀 `--help` 的人
+    另一半問題：模式列在 `choices` 裡而沒有任何說明，讀 `--help` 的人
     會以為實盤可用。保留選項但在說明裡講明，比從 `choices` 移除更誠實——
     它確實是規劃中的模式。
     """

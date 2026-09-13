@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
 """
-分層相依檢查：以 AST 掃全專案 import，驗證 docs/backtest/module-map.md §一 宣告的相依方向
+分層相依檢查：以 AST 掃全專案 import，驗證 `_LAYER_RULES` 宣告的相依方向
 
 - Features:
     1. 反向相依：低層 import 高層（例如 core/api → core/backtest）、`core/` import 到
@@ -16,7 +16,7 @@ from typing import Dict, List, Optional, Set, Tuple
     2. 循環 import：檔案層級的強連通分量（含套件 `__init__.py` 的 re-export 邊）
     3. 市場語意洩漏：`core/backtest/backtester.py` 不得出現 Stock／Futures／Tw 字樣，
        `if market ==` 只允許出現在 `factory.py`
-    4. 跨軸目錄污染：依 docs/dev/naming-axes.md，每層目錄只承載一條軸
+    4. 跨軸目錄污染：每層目錄只承載一條軸（市場 `tw/`／`us/` 或商品類別 `stock/`／`futures/`）
     5. `sys.path` 注入：專案已可 `pip install -e .`，逐處列出以便複查
 - 使用場景:
     python scripts/check_layer_deps.py            # 只印報告，違規時以非零狀態碼結束
@@ -37,7 +37,6 @@ _SCAN_DIRS: Tuple[str, ...] = (
 _SCAN_FILES: Tuple[str, ...] = ("run.py",)
 
 # 分層等級：數字越大越上層；import 只能由高往低（等級相同且套件不同者另外列為「同層互相 import」）
-# 對照 docs/backtest/module-map.md §一
 # 第四欄 exact=True 表示只比對「模組名完全相同」，不含其子模組——
 # 用在策略套件門面（`core/strategies/stock/__init__.py` 只 re-export 基底類別）
 _LAYER_RULES: Tuple[Tuple[str, int, str, bool], ...] = (
@@ -71,26 +70,26 @@ _LAYER_RULES: Tuple[Tuple[str, int, str, bool], ...] = (
     ("tests", 9, "測試（可 import 任何層）", False),
 )
 
-# 已登錄、尚未修的反向相依（backlog/全專案架構與邏輯健檢.md 附錄 A）。
+# 已登錄、尚未修的反向相依。
 # 這是 ratchet：清單內的只列為「已知」，不影響結束碼；新出現的任何一條都會讓檢查失敗。
 # **修掉之後要把對應那條從本清單移除**，不要讓它長期留著
 _KNOWN_REVERSE: Dict[Tuple[str, str], str] = {
     (
         "core.utils.instrument",
         "core.backtest.datafeed.tw.market_calendar",
-    ): "F-003 共用層 import 引擎層；StockUtils 歸屬未定（docs/dev/naming-axes.md〈遺留與後續〉）",
+    ): "共用層 import 引擎層；StockUtils 歸屬未定",
     (
         "core.pipeline.tw.cleaners.futures_tick_cleaner",
         "core.backtest.datafeed.tw.futures_calendar",
-    ): "F-004 ETL import 引擎層的期貨日曆",
+    ): "ETL import 引擎層的期貨日曆",
     (
         "core.pipeline.tw.updaters.futures_continuous_updater",
         "core.backtest.datafeed.tw.futures_calendar",
-    ): "F-004 ETL import 引擎層的期貨日曆",
+    ): "ETL import 引擎層的期貨日曆",
     (
         "core.pipeline.tw.updaters.futures_continuous_updater",
         "core.backtest.datafeed.tw.futures_roll",
-    ): "F-004 ETL import 引擎層的換月規則",
+    ): "ETL import 引擎層的換月規則",
 }
 
 # 非 core 的頂層套件：core/ 內任何一處 import 到它們都是反向相依
@@ -103,7 +102,7 @@ _NON_CORE_TOPS: Set[str] = {
     "run",
 }
 
-# 跨軸目錄規則（docs/dev/naming-axes.md〈每層目錄只承載一條軸〉）
+# 跨軸目錄規則：每層目錄只承載一條軸
 _MARKET_AXIS_DIRS: Set[str] = {"tw", "us"}
 _INSTRUMENT_AXIS_DIRS: Set[str] = {"stock", "futures", "option", "options"}
 _MARKET_AXIS_PACKAGES: Tuple[str, ...] = (
@@ -376,7 +375,7 @@ def check_strategy_facades(graph: Dict[str, Set[str]]) -> List[str]:
             if dst not in {f"{facade}.base", "core.strategies.base"}:
                 problems.append(
                     f"{facade}/__init__.py import 了 {dst}：門面一 eager import 具體策略"
-                    "就會重現 docs/backtest/multi-market-engine.md §6.4 的循環"
+                    "就會造成循環 import"
                 )
     return problems
 
@@ -388,7 +387,7 @@ def check_sys_path(files: List[Path]) -> List[str]:
 
         以 AST 找 `sys.path.insert(...)`／`sys.path.append(...)` 的呼叫節點。
         舊版用 `"sys.path.insert" in line` 逐行比對字串，於是**說明這件事的
-        docstring 也會被算成一處**——F-009 全數清乾淨後，唯一剩下的那一筆
+        docstring 也會被算成一處**——`sys.path` 注入全數清乾淨後，唯一剩下的那一筆
         正是解釋「原本靠 sys.path.insert 硬塞」的那行註解。
         護欄把自己的說明文字算成違規，就沒辦法拿它當「應為 0」的判準。
     - Parameters:

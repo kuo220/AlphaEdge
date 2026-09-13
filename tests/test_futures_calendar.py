@@ -9,7 +9,7 @@ from core.config import TW_FUTURES_DB_PATH
 from core.utils import FuturesSession
 
 """
-台期貨交易日曆測試（Phase2-3）
+台期貨交易日曆測試
 
 **不可沿用股票 calendar 的四個理由**，本檔逐一釘住：
 
@@ -154,7 +154,7 @@ def test_days_to_expiry_counts_trading_days(calendar) -> None:
     """
     距離最後交易日的天數以**交易日**計
 
-    這是換月規則（Phase2-4「提前 N 日換月」）的輸入；用曆日算會在連假整段位移。
+    這是換月規則（「提前 N 日換月」）的輸入；用曆日算會在連假整段位移。
     """
 
     assert (

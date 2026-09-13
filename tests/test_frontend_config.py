@@ -12,7 +12,7 @@ from frontend.config import (
 )
 
 """
-前端的結果根目錄必須與後端同一個地方（F-083）
+前端的結果根目錄必須與後端同一個地方
 
 舊版有兩個問題，兩個都只在**本機不設環境變數**時發作，而那正是新人第一次
 跑起來的情境：預設指向 `core/backtest/results`（該目錄在 2026-08「執行期產物
@@ -28,7 +28,7 @@ def test_default_results_root_exists() -> None:
     """
     預設路徑必須真的存在
 
-    這是 F-083 最直接的症狀：預設指向一個不存在的目錄，本機不設環境變數
+    這是舊版最直接的症狀：預設指向一個不存在的目錄，本機不設環境變數
     就整頁「找不到任何回測結果資料夾」。
     """
 
@@ -97,7 +97,7 @@ def test_falls_back_to_default_without_env() -> None:
     assert resolve_results_root({}) == DEFAULT_RESULTS_ROOT
 
 
-# === 前端映像的相依（健檢 F-093）===
+# === 前端映像的相依===
 def test_frontend_requirements_cover_every_third_party_import() -> None:
     """
     `frontend/requirements.txt` 必須涵蓋 `frontend/` 實際 import 的每個第三方套件
@@ -105,7 +105,7 @@ def test_frontend_requirements_cover_every_third_party_import() -> None:
     前端映像**不安裝本專案**（只 COPY `frontend/` 與 risk_metrics 那條最小鏈），
     所以 `pyproject.toml` 的相依完全不生效，那一份 requirements 是唯一來源。
     漏一個的症狀是**映像裝得起來、一開頁就 ModuleNotFoundError**——
-    F-093 就是這樣來的（漏了 plotly）。
+    前端映像曾因此漏裝 plotly。
     """
 
     import ast

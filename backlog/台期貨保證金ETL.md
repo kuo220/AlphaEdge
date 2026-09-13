@@ -403,12 +403,12 @@
   （`MomentumFuturesStrategy`）只持單一方向的近月部位，不會產生價差部位；
   在沒有策略要用的情況下先做一張費率表，等到真的要用時費率語意還得重新確認一次。
   同契約的雙向持倉已由 `FuturesPositionManager.open_position()` 直接拒單
-  （判準沿用 [放空框架 §7.5](../docs/backtest/short-selling-framework.md)），
+  （判準沿用 [放空框架 §5.5](../docs/backtest/short-selling-framework.md)），
   所以「淨曝險為 0 卻押著兩份保證金」的錯誤狀態不會發生——**剩下的只是保守**。
 - **保守的方向要講清楚**：兩腿各繳全額 ＝ 高估保證金、低估可開口數，
   績效只會被低估不會被高估。這與 `FuturesMarginConfig` 當初選擇
   「明顯是近似的公式」而不是「看起來很精確的金額」是同一條原則
-  （見 [台期貨平台](../docs/futures/tw-futures-platform.md) Phase1-4）。
+  （見 [台期貨平台](../docs/futures/tw-futures-platform.md)〈記帳〉）。
 - **解除條件**：出現真的要做價差／對沖的策略，或 Phase2-2 的槓桿控管要求
   精確的資金效率。
 - **啟動時的做法**：先確認 TAIFEX 公告裡價差部位保證金的**收取語意**
@@ -422,9 +422,9 @@
 ## 關聯與狀態
 
 - **優先級**：P3（保證金影響資金效率與可開口數，**不影響 PnL 本身**，
-  故不擋 [台期貨平台](../docs/futures/tw-futures-platform.md) 的 Phase1-5／1-6 主線）
+  故不擋台期貨策略與回測主線）
 - **相關程式**：`core/managers/futures/position_manager.py`（`FuturesMarginConfig`）、
   `core/pipeline/tw/utils/url_manager.py`（四個端點與解析坑）、`core/config/`
-- **相關 backlog**：[台期貨平台](../docs/futures/tw-futures-platform.md) Phase2-2
+- **相關 backlog**：[台期貨平台](../docs/futures/tw-futures-platform.md)〈保證金與追繳〉
   的另一半（槓桿／部位控管）相依本文件；本文件不含那部分
 - **相關文件**：[ETL 入庫約定](../docs/pipeline/etl-ingestion.md)（§3.4 欄位語言、§4 事故樣式）

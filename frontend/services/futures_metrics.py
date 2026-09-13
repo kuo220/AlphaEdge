@@ -5,7 +5,7 @@ from typing import Dict, List, Optional
 import pandas as pd
 
 """
-期貨專屬的報表指標（Phase5-2）
+期貨專屬的報表指標
 
 **期貨的風險視角與股票不同**：股票看的是「投入多少錢、值多少錢」，期貨看的是
 「**佔用多少保證金、留了幾口**」——契約價值本身不佔用資金，用股票那組指標

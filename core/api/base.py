@@ -25,8 +25,8 @@ class BaseDataAPI(ABC):
         - Description:
             把查詢參數轉成 SQLite 收得下的型別；`date`／`datetime` 轉 ISO 字串
 
-            **不轉的話是靠 Python 3.12 已 deprecated 的預設 date adapter**
-            （健檢 F-025）：那個 adapter 隨時可能被移除，屆時每一支 API 都會
+            **不轉的話是靠 Python 3.12 已 deprecated 的預設 date adapter**：
+            那個 adapter 隨時可能被移除，屆時每一支 API 都會
             在同一天壞掉，而且錯誤訊息只會說「型別不支援」。
 
             資料表的 `date` 欄一律是 `TEXT`（`YYYY-MM-DD`），ISO 字串本來就是

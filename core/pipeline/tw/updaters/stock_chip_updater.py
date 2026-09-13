@@ -86,13 +86,13 @@ class StockChipUpdater(BaseDataUpdater):
             更新三大法人籌碼
 
             **以 `price` 表的交易日為日曆**：比「非週末」精確，涵蓋國定假日與
-            補行交易日；候選日期是差集而非 `MAX(date)+1`（健檢 F-050）。
+            補行交易日；候選日期是差集而非 `MAX(date)+1`。
             `price` 尚未更新到的區間會少幾天，下次執行自然補上。
         - Parameters:
             - start_date: datetime.date
                 回補起日
             - end_date: Optional[datetime.date]
-                回補迄日；None 取當日（預設值不可在 def 行求值，見 F-002）
+                回補迄日；None 取當日（預設值不可在 def 行求值）
         """
 
         logger.info("* Start Updating TWSE & TPEX Chip Data...")

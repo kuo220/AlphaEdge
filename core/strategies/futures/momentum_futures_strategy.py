@@ -25,8 +25,7 @@ class MomentumFuturesStrategy(BaseFuturesStrategy):
     - 未實作（一律不回傳停損單）
 
     **這支策略的用途是驗證期貨的介面能跑通，不是可用的交易邏輯**——
-    門檻是隨手取的，也沒有處理結算日與換月。要當真實策略用之前至少需要：
-    Phase2-3 的期貨交易日曆、Phase2-4 的換月規則、Phase2-1 的成本模型。
+    門檻是隨手取的，沒有經過任何參數研究，不可當成可交易的策略。
     """
 
     DEFAULT_PRODUCTS: List[str] = ["TX"]

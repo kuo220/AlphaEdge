@@ -66,7 +66,7 @@ def load_reference_table(
 
             舊版整段包在 `try/except Exception` 裡、只記一行 `logger.error` 就回，
             於是三張 FinMind 參考表的入庫失敗會被算成「跳過」，
-            `update_db` 照樣以結束碼 0 回報成功（健檢 F-045）。
+            `update_db` 照樣以結束碼 0 回報成功。
     """
 
     data_type_dir: Path = finmind_dir / spec.data_type.value.lower()

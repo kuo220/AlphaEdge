@@ -55,8 +55,8 @@ class BaseDataLoader(ABC):
             建立 `(stock_id, date)` 索引
 
             四張日更表的主鍵都是 `(date, stock_id, ...)`，**date 在前**，所以
-            「某一天的全市場」很快，「某一檔的整段歷史」卻要掃過整個 date 範圍
-            （健檢 F-099）。而策略研究問的幾乎都是後者。
+            「某一天的全市場」很快，「某一檔的整段歷史」卻要掃過整個 date 範圍。
+            而策略研究問的幾乎都是後者。
 
             `IF NOT EXISTS` ＋ 放在 `create_missing_tables()` 裡：既有資料庫
             下次跑更新時會自動補上，不需要另外寫遷移腳本。

@@ -26,12 +26,12 @@ class FuturesBacktestReporter(StockBacktestReporter):
     本類別逐一覆寫：**交易明細欄位**、**多空統計欄位**、**對標的標的**。
 
     > 待美股加入時應把繪圖抽到 `BaseBacktestReporter`，屆時 baseline 本來就要
-    > 重產（見 `docs/backtest/multi-market-engine.md`〈已知取捨〉）。在那之前
+    > 重產。在那之前
     > 動它會讓台股報表跟著改，不划算。
 
     **對標序列是「近月拼接」，不是連續合約**：每個交易日取該商品最近到期月的
-    收盤價接起來，換月當天會有一段展期價差造成的假跳空。真正的連續合約屬
-    Phase1-7；在那之前這條線只能當粗略參考，不可拿來算精確的對標報酬。
+    收盤價接起來，換月當天會有一段展期價差造成的假跳空。真正的連續合約在
+    `futures_continuous`；這條線只能當粗略參考，不可拿來算精確的對標報酬。
     """
 
     def __init__(
@@ -100,7 +100,7 @@ class FuturesBacktestReporter(StockBacktestReporter):
             )
             return pd.Series(dtype=float)
 
-        # **先濾掉週契約**（健檢 F-069）：`expiry` 可能是 `YYYYMM` 或 `YYYYMMWn`，
+        # **先濾掉週契約**：`expiry` 可能是 `YYYYMM` 或 `YYYYMMWn`，
         # 字典序下 `202401W5` < `202402`，於是一月的週契約會贏過二月的月契約——
         # 一月月契約到期之後，近月序列會黏在快到期的週契約上。
         # 判準沿用 `FuturesRollPlanner.MONTHLY_EXPIRY_PATTERN`，與換月規則同一份。

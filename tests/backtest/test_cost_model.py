@@ -12,7 +12,7 @@ from core.utils.instrument import StockUtils
 
 # === 手算驗收範例 ===
 def test_cost_model_day_trade() -> None:
-    """§6.1：100 元放空 1 張、95 元回補的當沖，各項成本與損益需與手算一致"""
+    """100 元放空 1 張、95 元回補的當沖，各項成本與損益需與手算一致"""
 
     model: StockCostModel = StockCostModel(
         CostConfig.default(ShortMethod.DAY_TRADE, is_day_trade=True)
@@ -65,7 +65,7 @@ def test_cost_model_day_trade() -> None:
 
 
 def test_cost_model_margin_short() -> None:
-    """§6.2：100 元融券放空 1 張、持有 10 天後 95 元回補"""
+    """100 元融券放空 1 張、持有 10 天後 95 元回補"""
 
     model: StockCostModel = StockCostModel(CostConfig.default(ShortMethod.MARGIN))
 
@@ -125,7 +125,7 @@ def test_cost_model_margin_short() -> None:
 
 
 def test_maintenance_ratio() -> None:
-    """§6.2：維持率 =（擔保價款 + 保證金）/ 市值，146 元時剛好觸及 130%"""
+    """維持率 =（擔保價款 + 保證金）/ 市值，146 元時剛好觸及 130%"""
 
     model: StockCostModel = StockCostModel(CostConfig.default(ShortMethod.MARGIN))
 
@@ -157,7 +157,7 @@ def test_long_pnl_direction() -> None:
 
 # === 數值處理規則 ===
 def test_rounding_rules() -> None:
-    """§6.0：費用一律無條件捨去、保證金無條件進位"""
+    """費用一律無條件捨去、保證金無條件進位"""
 
     model: StockCostModel = StockCostModel(CostConfig.default(ShortMethod.MARGIN))
 
@@ -231,14 +231,14 @@ def test_tax_rate_switch() -> None:
     ],
 )
 def test_round_to_tick(price: float, direction: str, expected: float) -> None:
-    """§3.5：六段檔位的邊界取整"""
+    """六段檔位的邊界取整"""
 
     assert StockUtils.round_to_tick(price, direction) == expected
 
 
 # === 資料模型 ===
 def test_record_entry_exit_semantics() -> None:
-    """§2.6：SHORT 的 entry 是放空賣出、exit 是回補買進；LONG 相反"""
+    """SHORT 的 entry 是放空賣出、exit 是回補買進；LONG 相反"""
 
     short_record: StockTradeRecord = StockTradeRecord(
         position_type=PositionType.SHORT,
@@ -278,13 +278,13 @@ def test_short_constraint_defaults() -> None:
     assert limited.check_day_tradable("2317", datetime.date(2024, 1, 2)) is True
 
 
-# === 成本與稅率的日期邊界（健檢 F-059、F-060）===
+# === 成本與稅率的日期邊界===
 def test_day_trade_tax_is_full_before_2017_04_28() -> None:
     """
     當沖證交稅減半自 2017-04-28 起實施，之前一律 0.3%
 
     不看日期就一律減半的話，2013-01 ~ 2017-04 的每一筆當沖賣出都少算一半的稅
-    ——約 4 年 4 個月，而且結果只會偏樂觀（健檢 F-060）。
+    ——約 4 年 4 個月，而且結果只會偏樂觀。
     """
 
     model: StockCostModel = StockCostModel()
@@ -344,7 +344,7 @@ def test_non_day_trade_tax_ignores_the_date() -> None:
     )
 
 
-# === F-060 的另一半：落日警示要看回測區間，不看真實今天 ===
+# === 落日警示要看回測區間，不看真實今天 ===
 def make_day_trade_config(start: datetime.date, end: datetime.date) -> CostConfig:
     """建一份帶回測區間的當沖成本設定（factory 平常會這樣注入）"""
 
@@ -425,7 +425,7 @@ def test_stays_silent_when_the_backtest_range_is_unknown() -> None:
     """
     拿不到回測區間時維持靜默，不退回看 `today()`
 
-    寧可不說，也不要說錯：退回看真實今天就會回到 F-060 的錯誤方向。
+    寧可不說，也不要說錯：退回看真實今天就會回到舊版的錯誤方向。
     """
 
     from loguru import logger

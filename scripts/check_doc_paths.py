@@ -9,7 +9,7 @@ from typing import Dict, List, Set, Tuple
 
 檔案搬家時文件不會自己跟上。**只回報「同名檔確實存在於別處」的引用**——
 那才是漂移；指不到又找不到同名檔的多半是規劃中的未來檔案（`backlog/` 常見），
-不是錯誤（健檢第三輪 S4）。
+不是錯誤。
 
 - Features:
     1. 抓行內程式碼（`` `core/xxx/yyy.py` ``）與 Markdown 連結中的帶目錄路徑
@@ -47,36 +47,17 @@ _EXTENSIONS: Tuple[str, ...] = (".py", ".sh", ".yaml", ".yml", ".toml", ".cfg", 
 _INLINE_CODE: re.Pattern = re.compile(r"`([^`\n]+?)`")
 
 # 歷史紀錄檔：當時的路徑就是那樣，改成現在的路徑反而讓紀錄失真
-_HISTORICAL_DOCS: Set[str] = {
-    "docs/dev/health-check-2026-09.md",
-}
+_HISTORICAL_DOCS: Set[str] = set()
 
 # 敘述搬家這件事本身的句子：舊路徑是主詞，改掉會讓句子不成立
 # （例如「`core/config.py` 已拆為套件」）
 _NARRATIVE: Set[Tuple[str, str]] = {
-    ("docs/dev/runtime-artifacts.md", "core/config.py"),
     ("backlog/PostgreSQL遷移計畫.md", "core/config.py"),
-    # 本檢查誕生的那份健檢紀錄：表格裡列的就是「文件寫的舊路徑」，
-    # S4 的完成紀錄也要講「舊路徑改成了什麼」，舊路徑必然是主詞。
-    # 2026-09-13 該文件由 `backlog/健檢第三輪收斂.md` 移入 `docs/dev/`
-    ("docs/dev/health-check-round3-2026-09.md", "core/config.py"),
-    (
-        "docs/dev/health-check-round3-2026-09.md",
-        "core/pipeline/loaders/stock_tick_loader.py",
-    ),
-    (
-        "docs/dev/health-check-round3-2026-09.md",
-        "core/pipeline/utils/url_manager.py",
-    ),
     ("backlog/index.md", "core/config.py"),
 }
 
 # 已知待修但暫時擋住的檔案。**解除封鎖後要連同條目一起刪掉**——
 # 留著不刪，這份檢查就會對那個檔案永久失明。
-#
-# 2026-09-13：`docs/futures/tw-futures-platform.md` 的 10 處已全數修正，
-# 本清單因此清空。當初擋住的理由是該檔有另一條線的未提交變更，
-# 最後是以「只暫存 HEAD＋本次修正、不碰對方工作目錄內容」的方式解掉的。
 _PENDING: Dict[str, str] = {}
 
 
@@ -198,9 +179,8 @@ def check_markdown_links() -> List[str]:
 
         **與路徑漂移是兩回事**：漂移是「行內程式碼寫的原始碼路徑」搬過家，
         這裡是「Markdown 連結」指向的檔案不存在。後者最常見的成因是
-        **文件結案後搬出 `backlog/`，而引用它的人沒改指向**——實測 2026-09-04
-        `健檢殘留項目收斂.md` 結案刪除後，`health-check-2026-09.md` 的連結就斷了
-        九天沒人發現。
+        **文件結案後搬出 `backlog/`，而引用它的人沒改指向**——實測曾有
+        一份文件結案刪除後，引用它的連結斷了九天沒人發現。
 
         錨點（`#section`）只取檔案部分比對，外部網址略過。
     - Return:

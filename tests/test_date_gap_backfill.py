@@ -12,9 +12,9 @@ from core.utils import TimeUtils
 """
 缺口一定要補得回來
 
-舊做法是 `MAX(date) + 1`，於是中間缺的日子永遠不會再被嘗試（健檢 F-050）：
+舊做法是 `MAX(date) + 1`，於是中間缺的日子永遠不會再被嘗試：
 某天因為連線失敗沒抓到，隔天照樣從新的 `MAX(date)+1` 起跑，那個洞就留在資料庫裡，
-而回測遇到缺日會當成休市靜默跳過（F-028）。
+而回測遇到缺日會當成休市靜默跳過。
 """
 
 
@@ -288,7 +288,7 @@ def test_calendar_tail_extension_skips_weekends() -> None:
     assert extended == {datetime.date(2024, 1, 5), datetime.date(2024, 1, 8)}
 
 
-# === 年 × 期的笛卡兒積（F-054）===
+# === 年 × 期的笛卡兒積===
 def test_year_season_range_covers_every_quarter() -> None:
     """
     起點 2024Q3、終點 2026Q2 必須涵蓋中間每一季

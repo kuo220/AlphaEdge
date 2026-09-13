@@ -67,7 +67,7 @@ class FuturesFillConfig(FillConfig):
     換算出的檔數不同——TX 在 12,000 點時 1 bps 是 1.2 點、在 24,000 點時是 2.4 點，
     同一組設定跨年份回測會靜默變成不同的滑價假設。
 
-    **大台與小台要分開設**（Phase2-1 的明文要求）：MTX 的價差與成交量都與 TX 不同，
+    **大台與小台要分開設**：MTX 的價差與成交量都與 TX 不同，
     用同一個數字會低估小台的成本，故提供 `slippage_ticks_by_product`。
 
     `slippage_ticks_*` 為 0 且未逐商品指定時，退回基底的基點設定（同樣預設關閉），
@@ -249,7 +249,7 @@ class TwStockFillModel(BaseFillModel):
         - Description:
             該報價當日是否真的有成交
 
-            **無成交日仍可下單是 F-037 的下游殘餘**：來源給 `--`，舊版 cleaner
+            **無成交日仍可下單是「無成交價存成 0」的下游殘餘**：來源給 `--`，舊版 cleaner
             填成 0，於是 `high`／`low` 都是 0，`get_price_range()` 回
             `(None, None)` 而**跳過**區間檢查——策略因此能在一個根本沒開盤
             或整天無量的標的上以任意價格成交。
@@ -361,7 +361,7 @@ class TwStockFillModel(BaseFillModel):
             把成交價夾回當根 bar 的 `[low, high]`
 
             **`validate()` 跑在 `fill()` 之前**，於是滑價把價格推出區間之後
-            沒有任何檢查（健檢 F-064）：一筆本來在區間內的單，加了 0.5% 滑價
+            沒有任何檢查：一筆本來在區間內的單，加了 0.5% 滑價
             就可能成交在當日根本沒出現過的價位，而回測不會有任何跡象。
 
             夾回而不是拒單：滑價是使用者刻意開啟的假設，拒單會讓「加了滑價之後
@@ -595,7 +595,7 @@ class TwFuturesFillModel(BaseFillModel):
             event_counts if event_counts is not None else {"rejected_fill_price": 0}
         )
 
-        # Tick 級別的當日累計高低點（Tick 回測屬 Phase5-1，目前不會被填入）
+        # Tick 級別的當日累計高低點（期貨 Tick 回測尚未實作，目前不會被填入）
         self.intraday_range: Dict[str, Tuple[float, float]] = {}
 
         # 前一交易日收盤價；期貨沒有漲跌停檢查，此處僅供無報價時盯市與外部查詢

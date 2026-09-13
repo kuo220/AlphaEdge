@@ -19,7 +19,7 @@ from core.utils import Action, FuturesRollRule, PositionType, Scale
 from core.utils.constant import FUTURES_MULTIPLIER
 
 """
-回測層的換月測試（Phase2-4）
+回測層的換月測試
 
 **換月是市場結構強加的，不是策略訊號**：契約會到期，部位不轉倉就會憑空消失。
 但「什麼時候轉」是政策，故做成可切換的三種規則，且**策略挑合約與結算模型轉倉
@@ -316,7 +316,7 @@ def test_strategy_picks_the_contract_by_the_same_rule() -> None:
 
 
 def test_without_calendar_falls_back_to_nearest_month() -> None:
-    """尚未注入日曆時退回「取最近到期月」，行為與 Phase2-4 之前相同"""
+    """尚未注入日曆時退回「取最近到期月」，即最單純的近月政策"""
 
     from core.strategies.futures.momentum_futures_strategy import (
         MomentumFuturesStrategy,
@@ -415,10 +415,10 @@ def test_backtest_roll_dates_match_the_continuous_table() -> None:
     assert backtest_rolls == table_rolls
 
 
-# === 換月不可回頭（健檢 F-071）===
+# === 換月不可回頭===
 def test_roll_never_goes_back_to_a_nearer_month() -> None:
     """
-    `OPEN_INTEREST` 規則下，未沖銷量反轉不可讓部位換回近月（健檢 F-071）
+    `OPEN_INTEREST` 規則下，未沖銷量反轉不可讓部位換回近月
 
     未沖銷量逐日波動，換到次月之後近月可能又反超一天。每來回一次就付兩次
     手續費與一次展期價差，而且是憑空產生的——換月是單向的。
@@ -494,7 +494,7 @@ def test_quote_mark_price_is_zero_when_nothing_available() -> None:
     assert TwFuturesSettlementModel.get_quote_mark_price(_EmptyQuote()) == 0.0
 
 
-# === 近月拼接不可挑到週契約（健檢 F-069）===
+# === 近月拼接不可挑到週契約===
 def test_near_month_series_excludes_weekly_contracts() -> None:
     """
     `202401W5` 在字典序上小於 `202402`，會贏過二月的月契約
@@ -514,7 +514,7 @@ def test_near_month_series_excludes_weekly_contracts() -> None:
     assert monthly.tolist() == ["202401", "202402"]
 
 
-# === 期貨損益只有一條公式（健檢 F-062）===
+# === 期貨損益只有一條公式===
 def test_manager_pnl_delegates_to_the_cost_model() -> None:
     """
     `calculate_pnl()` 與 `FuturesCostModel.realized_pnl()` 必須是同一條公式

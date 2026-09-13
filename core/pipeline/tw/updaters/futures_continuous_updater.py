@@ -101,7 +101,7 @@ class FuturesContinuousUpdater(BaseDataUpdater):
             - start_date / end_date: Optional[datetime.date]
                 建表區間；None 取 `DEFAULT_FUTURES_START_DATE` ~ 今天
             - session: FuturesSession
-                交易時段（連續合約一律單一時段，日夜盤整併屬 Phase4-2）
+                交易時段（連續合約一律單一時段，日夜盤整併在回測報價層處理）
             - methods / roll_rules: Optional[List[...]]
                 要建的調整方式與換月規則組合
             - days_before_expiry: int

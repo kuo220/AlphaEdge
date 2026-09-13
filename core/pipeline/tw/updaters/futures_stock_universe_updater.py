@@ -30,7 +30,7 @@ from core.utils.log_manager import LogManager
 **存在的理由：股期不能像指數期貨那樣把商品清單寫死在 `FUTURES_TARGET_PRODUCTS`**。
 指數期貨 5~15 檔、幾年才動一次，字面值清單完全夠用；股期 320 檔且會隨掛牌／下市
 異動，手寫清單必然過期，也沒有地方放契約單位的歷史序列。故清單改由本表提供，
-下游（Phase6-2 的股期行情 ETL）以 `get_active_products()` 取得要爬的商品，
+下游（股期行情 ETL）以 `get_active_products()` 取得要爬的商品，
 不必為每一檔手動指定。
 
 1. **一次請求就結束，沒有回補區間**
@@ -179,7 +179,7 @@ class FuturesStockUniverseUpdater(BaseDataUpdater):
         - Description:
             取得最新快照中仍在列的商品代碼（＝ 行情頁的 `commodity_id`）
 
-            **這是 Phase6-2 股期行情 ETL 的商品清單來源**：股期不走
+            **這是股期行情 ETL 的商品清單來源**：股期不走
             `FUTURES_TARGET_PRODUCTS`，改由本表提供，故新掛牌的標的只要跑過一次
             標的池更新就會自動進入爬取範圍，不需要為每一檔手動指定。
 

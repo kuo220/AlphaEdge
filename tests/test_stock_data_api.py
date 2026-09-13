@@ -192,10 +192,10 @@ def test_get_trust_net_shares_map(chip_api: StockChipAPI) -> None:
     assert "9999" not in chip_map
 
 
-# === API 邊界（健檢 F-024、F-025、F-026）===
+# === API 邊界===
 def test_sql_params_converts_dates_to_iso() -> None:
     """
-    `date`／`datetime` 一律轉 ISO 字串（F-025）
+    `date`／`datetime` 一律轉 ISO 字串
 
     不轉的話是靠 Python 3.12 已 deprecated 的 sqlite date adapter，
     那個 adapter 隨時可能被移除，屆時每一支 API 都會在同一天壞掉。
@@ -212,7 +212,7 @@ def test_sql_params_converts_dates_to_iso() -> None:
 
 def test_get_net_chip_no_longer_raises(tmp_path) -> None:
     """
-    `get_net_chip()` 一被呼叫就 `TypeError`（F-024）
+    `get_net_chip()` 一被呼叫就 `TypeError`
 
     舊版寫的是 `self.get(start_date, end_date)`，而 `get()` 只收一個 `date`。
     全專案沒有呼叫端，所以壞了也沒人發現，但 API 門面看起來是可用的。
@@ -266,7 +266,7 @@ def test_get_net_chip_returns_empty_without_data(tmp_path) -> None:
 
 def test_financial_statement_table_name_is_whitelisted() -> None:
     """
-    表名由呼叫端傳入，只能走白名單（F-026）
+    表名由呼叫端傳入，只能走白名單
 
     表名不能參數化、只能拼進 SQL，而拼字串的地方就是注入的入口。
     """

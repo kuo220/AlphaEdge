@@ -61,19 +61,19 @@ MARGIN_CALL_WARN_ONLY = "WARN_ONLY"  # 僅記錄不強制回補
 # 定義台期貨交易時段常量
 # 夜盤自 2017-05-15 開始，之前僅有日盤。
 # **兩個時段是各自獨立的行情**（OHLC 不同、欄位結構也不同），資料層一律分開存，
-# 是否合併成單一序列屬回測層的參數（見 docs/futures/tw-futures-platform.md §5.8）
+# 是否合併成單一序列屬回測層的參數：合併是有損操作，分開存隨時可合併、合併存回不去
 FUTURES_SESSION_DAY = "day"  # 一般交易時段 08:45–13:45
 FUTURES_SESSION_NIGHT = "night"  # 盤後交易時段 15:00–次日 05:00
-# 整併後的單一序列（Phase4-2）。**這個值不會出現在資料表裡**，
+# 整併後的單一序列。**這個值不會出現在資料表裡**，
 # 它是報價層才有的組合結果：前一交易日的夜盤 ＋ 當日日盤合成一根 bar
 FUTURES_SESSION_COMBINED = "combined"
 
-# 定義連續合約的價格調整方式（Phase1-7）
+# 定義連續合約的價格調整方式
 FUTURES_ADJUST_NONE = "NONE"  # 不調整：直接接起來，換月接點會有假跳空
 FUTURES_ADJUST_BACKWARD = "BACKWARD"  # 逆向（差額）調整：最新一段維持原價
 FUTURES_ADJUST_RATIO = "RATIO"  # 比例調整：以乘數銜接，報酬率連續
 
-# 定義換月規則（Phase1-7 建表、Phase2-4 接進回測）
+# 定義換月規則（建連續合約與回測轉倉共用）
 FUTURES_ROLL_LAST_TRADING_DAY = "LAST_TRADING_DAY"  # 撐到最後交易日收盤才換
 FUTURES_ROLL_DAYS_BEFORE_EXPIRY = "DAYS_BEFORE_EXPIRY"  # 到期前 N 個交易日換
 FUTURES_ROLL_OPEN_INTEREST = "OPEN_INTEREST"  # 未沖銷契約量交叉時換
@@ -102,7 +102,7 @@ FUTURES_PRODUCT_SHF = "SHF"  # 航運期貨
 # 2000 → 249 檔、100 → 47 檔、10000 → 21 檔、1000 → 3 檔），故以它反推類型不會誤判。
 #
 # ⚠️ **這個數量不等於契約乘數**：它是「掛牌時的標準契約單位」，標的除權息後
-# TAIFEX 會調整契約乘數或另掛新契約，實際乘數會偏離本值（見 Phase6-2）。
+# TAIFEX 會調整契約乘數或另掛新契約，實際乘數會偏離本值。
 # 算 PnL 一律走 futures_stock_universe 的歷史序列，不要拿這個欄位當乘數用。
 STOCK_FUTURES_TYPE_SINGLE = "個股期貨"  # 標準型，2,000 股
 STOCK_FUTURES_TYPE_MINI_SINGLE = "小型個股期貨"  # 100 股
@@ -113,7 +113,7 @@ STOCK_FUTURES_TYPE_MINI_ETF = "小型ETF期貨"  # 1,000 受益權單位
 #
 # **起始日同樣重要**：減半優惠自 2017-04-28 起實施，在那之前現股當沖賣出一律
 # 課 0.3%。回測若不看日期就一律用減半稅率，2013-01 ~ 2017-04 的每一筆當沖
-# 賣出都少算一半的稅——約 4 年 4 個月的區間，而且結果只會偏樂觀（健檢 F-060）。
+# 賣出都少算一半的稅——約 4 年 4 個月的區間，而且結果只會偏樂觀。
 DAY_TRADE_TAX_START: datetime.date = datetime.date(2017, 4, 28)
 DAY_TRADE_TAX_EXPIRY: datetime.date = datetime.date(2027, 12, 31)
 
@@ -212,7 +212,7 @@ class ShortCost(float, Enum):
     SBLFeeRate = 0.03  # 借券（SBL）年化費率（議定區間 0.01%~16%，取市場常見值）
 
 
-# TAIFEX 商品代碼 → Shioaji 期貨分類代碼（Phase5-1）
+# TAIFEX 商品代碼 → Shioaji 期貨分類代碼
 #
 # **兩邊的代碼不一樣，而且不是加個 F 就好**：小型臺指在 TAIFEX 是 `MTX`、
 # 在 Shioaji 是 `MXF`；電子期貨是 `TE` vs `EXF`；金融期貨是 `TF` vs `FXF`。
@@ -264,7 +264,7 @@ class FuturesRollRule(str, Enum):
 
     **換月時點會直接改變績效**，不是實作細節：撐到最後交易日會吃到結算日的
     流動性與價格行為，提前換月則會錯過近月的最後一段行情。三種規則並存於
-    連續合約表的主鍵中，策略層（Phase2-4）以同一組規則決定何時轉倉。
+    連續合約表的主鍵中，策略層以同一組規則決定何時轉倉。
     """
 
     LAST_TRADING_DAY = FUTURES_ROLL_LAST_TRADING_DAY
@@ -479,7 +479,7 @@ class FuturesSession(str, Enum):
     台期貨交易時段
 
     `DAY` 與 `NIGHT` 的值即為 `futures_price_daily` 的 `session` 欄位內容；
-    **`COMBINED` 不是資料表裡的值**，而是 Phase4-2 的整併結果——
+    **`COMBINED` 不是資料表裡的值**，而是日夜盤整併的結果——
     「前一交易日的夜盤 ＋ 當日日盤」合成的一根 bar，只存在於報價層。
     拿 `COMBINED` 去查資料庫一律查不到東西，那是刻意的。
 

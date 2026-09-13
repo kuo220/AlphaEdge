@@ -679,7 +679,7 @@ def test_batch_load_failure_does_not_abort_but_surfaces(
     """
     單批入庫失敗不中止回補，但整段跑完必須讓行程非零結束
 
-    「`except` 之後不吭聲」是本專案實際出過事的樣式（ETL 入庫約定 §4.2）：
+    「`except` 之後不吭聲」是本專案實際出過事的樣式：
     2 個檔案入庫失敗、行程仍回報成功，缺的 1,553 列是事後對帳才發現的。
     """
 
@@ -708,7 +708,7 @@ def test_season_not_filed_is_skipped_without_full_sweep(tmp_path: Path) -> None:
     尚未申報的年季只花試探的請求，不掃全市場
 
     但判斷依據必須是長期上市的權值股，不能是「連續 N 檔查無資料」——
-    後者曾讓 2020Q1 少抓 323 檔（ETL 入庫約定 §4.5）。
+    後者曾讓 2020Q1 少抓 323 檔。
     """
 
     conn: sqlite3.Connection = make_db(tmp_path)
@@ -814,7 +814,7 @@ def test_consecutive_crawl_errors_abort_the_run(
     但**連續**的例外不是「某一頁怪」，是環境或程式壞了，要停下來
 
     隔離若沒有上限，缺套件之類的問題會用 2 秒/檔的速度把幾十小時的回補
-    變成一長串失敗。注意這與 §4.5 的「連續 N 檔查無資料就早退」不同：
+    變成一長串失敗。注意這與舊版「連續 N 檔查無資料就早退」不同：
     那裡拿正常結果當統計樣本，這裡數的是例外。
     """
 

@@ -24,7 +24,7 @@ Futures Continuous Loader
 研究時直接 `WHERE method = ? AND roll_rule = ?` 取用，不必為每種組合建一張表。
 
 **欄位語言沿用來源**（中文 OHLC）：本表的數字直接來自 `futures_price_daily`，
-欄名跟著來源走（見 `docs/pipeline/etl-ingestion.md` §3.4）；
+欄名跟著來源走；
 主鍵與旗標欄則一律英文。
 """
 

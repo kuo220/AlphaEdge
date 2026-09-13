@@ -1,4 +1,4 @@
-# 前端映像的相依（健檢 F-093）
+# 前端映像的相依
 #
 # `frontend/Dockerfile` **不安裝本專案**：它只 COPY `frontend/` 與
 # `core/backtest/analysis/risk_metrics.py` 那條最小鏈（見該 Dockerfile 的註解），

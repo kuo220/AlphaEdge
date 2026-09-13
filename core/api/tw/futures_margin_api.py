@@ -192,7 +192,7 @@ class FuturesMarginAPI(BaseDataAPI):
             ).fetchone()
         except sqlite3.OperationalError:
             # 表不存在（尚未跑過保證金 ETL）：與 `get_margin()` 同樣回 None。
-            # **舊版只有 `get_margin()` 有這段**（健檢 F-027），於是同一個
+            # **舊版只有 `get_margin()` 有這段**，於是同一個
             # 「還沒跑 ETL」的環境下，查金額回 None、查比例卻直接拋例外
             return None
 
@@ -224,7 +224,7 @@ class FuturesMarginAPI(BaseDataAPI):
 
             ⚠️ **快照序列只回溯到本表建立之日**（2026-08-29），更早的日期會取到
             最早那份快照——契約單位在除權息後可能被調整過，那段期間的值不保證正確。
-            精確的乘數歷史屬台期貨規劃 Phase6-2。
+            精確的乘數歷史需另抓 TAIFEX 契約調整公告，目前未接。
         - Parameters:
             - product_id: str
                 股期代碼（Ex: CDF）

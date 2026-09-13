@@ -81,7 +81,7 @@ def test_get_short_market_value() -> None:
 
 def test_short_market_value_falls_back_to_prev_close() -> None:
     """
-    停牌時退回**前收**，而不是開倉價（健檢 F-021）
+    停牌時退回**前收**，而不是開倉價
 
     開倉價是這檔停牌前可能已經漲了好幾成的**起點**，拿它當市值會把維持率
     算得比實際好看——而停牌正是最需要正確維持率的時候。
@@ -102,7 +102,7 @@ def test_short_market_value_last_resort_is_the_open_price() -> None:
 
 def test_check_has_position_ignores_closed_positions() -> None:
     """
-    已平倉的部位不算「還在庫存」（健檢 F-020）
+    已平倉的部位不算「還在庫存」
 
     `positions` 是只增不減的清單，平倉只是把 `is_closed` 設為 True。
     少了這個條件，一檔賣掉之後仍會被當成有部位——雙向持倉檢查會永久拒絕

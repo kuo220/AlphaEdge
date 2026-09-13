@@ -30,10 +30,10 @@ class MomentumStrategy1(BaseStockStrategy):
     `check_has_position()`，同一檔在連續多天都符合條件時會開出多個部位，
     實際能開幾個由 `max_holdings` 與 `calculate_position_size()` 決定。
     這是刻意的語意（動能延續就繼續加），但先前 docstring 沒寫，
-    看回測結果的人無從判斷那些重複的開倉是設計還是 bug（健檢 F-075 ②）。
+    看回測結果的人無從判斷那些重複的開倉是設計還是 bug。
 
     **TICK 級別不支援**：訊號建立在「前一交易日收盤」上，TICK 路徑沒有對應的
-    取價方式；`setup_apis()` 會直接 `NotImplementedError`（F-075 ①）。
+    取價方式；`setup_apis()` 會直接 `NotImplementedError`。
     """
 
     DEFAULT_MAX_HOLDINGS: int = 10
@@ -48,7 +48,7 @@ class MomentumStrategy1(BaseStockStrategy):
     #
     # **與 `MarketCalendar.MAX_LOOKBACK_DAYS` 對齊**：這個窗若比它小，
     # `get_previous_trading_date()` 會在清單裡查不到而退回逐日查詢，
-    # 等於把 F-066 的優化悄悄關掉——綁住的是這一邊，不是日曆那一邊
+    # 等於把「交易日集合一次建立」的優化悄悄關掉——綁住的是這一邊，不是日曆那一邊
     CALENDAR_LOOKBACK_DAYS: int = MarketCalendar.MAX_LOOKBACK_DAYS
 
     def __init__(self):
@@ -74,7 +74,7 @@ class MomentumStrategy1(BaseStockStrategy):
         - Description:
             宣告本策略要用的資料源；實例由 DataFeed 統一持有
 
-            **TICK 級別當場擋下**（健檢 F-075）：本策略的訊號建立在「前一交易日
+            **TICK 級別當場擋下**：本策略的訊號建立在「前一交易日
             收盤」上，TICK 路徑只會掛 `self.tick`、`self.price` 維持 None，
             第一根 bar 就會在 `get_previous_trading_date()` 撞
             `ValueError("Invalid API type")`。docstring 寫的是「日線」，
@@ -106,7 +106,7 @@ class MomentumStrategy1(BaseStockStrategy):
             預先取好回測區間的交易日清單
 
             **每根 bar 都呼叫 `get_last_trading_date()` 是每根 bar 一次
-            `SELECT *`**（健檢 F-066）；換成一次取清單、之後以 `bisect` 平移。
+            `SELECT *`**；換成一次取清單、之後以 `bisect` 平移。
 
             起點往前多抓 `CALENDAR_LOOKBACK_DAYS` 天：第一根 bar 要的是
             **回測起始日之前**的那個交易日，只抓區間內是拿不到的。
@@ -168,7 +168,7 @@ class MomentumStrategy1(BaseStockStrategy):
             yesterday_close_price: float = yesterday_close_map[stock_quote.stock_id]
 
             # **`NaN` 一定要在這裡擋掉**：無成交日的收盤價在資料庫是 `NULL`
-            # （F-037 修復後），讀進來是 `NaN`。而下面的 `price_chg < 門檻`
+            # （無成交價改存 NULL 之後），讀進來是 `NaN`。而下面的 `price_chg < 門檻`
             # 對 `NaN` 恆為 `False`——**不會 `continue`，反而一路走成買進候選**，
             # log 裡只會留下一行「漲幅 nan%」。
             #

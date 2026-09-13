@@ -19,8 +19,8 @@ from core.utils.log_manager import LogManager
 """
 Futures Price API: query SQLite futures_price_daily table
 
-**只讀 `tw_futures.db`，不讀 `downloads/` 下的中繼檔**（見
-`docs/futures/tw-futures-platform.md` §6.3）。
+**只讀 `tw_futures.db`，不讀 `downloads/` 下的中繼檔**：中繼檔只是 crawler 到
+loader 之間的暫存，唯一鍵與去重要入庫後才成立，資料庫才是唯一的真相來源。
 
 與 `StockPriceAPI` 的三個結構性差異，用之前務必先看懂：
 
@@ -28,8 +28,8 @@ Futures Price API: query SQLite futures_price_daily table
    `(date, product, expiry, session)`——同一天同一商品有多個到期月的合約在交易，
    日盤與夜盤又是兩筆獨立行情。任何「一天一列」的假設都會錯。
 2. **本 API 不做換月，也不挑近月**。查詢一律回傳當日**所有**掛牌中的合約，
-   由呼叫端自行決定要哪一個。連續合約與換月規則屬 Phase1-7／Phase2-4，
-   在那之前把「近月」的定義藏進 API 只會讓兩處各有一套換月邏輯。
+   由呼叫端自行決定要哪一個。連續合約與換月規則另有實作（`futures_continuous`、`FuturesRollPlanner`），
+   把「近月」的定義藏進 API 只會讓兩處各有一套換月邏輯。
 3. **夜盤沒有結算價與未沖銷契約量**（來源就沒有這兩項，欄位為 NULL），
    且 **2017-05-15 之前根本沒有夜盤**。
 """
@@ -212,7 +212,7 @@ class FuturesPriceAPI(BaseDataAPI):
 
             判準與 `StockPriceAPI.get_trading_days()` 相同——當日表內有資料即為
             開盤日。**但兩者不可互相替代**：期貨有夜盤、結算日與台股不完全一致，
-            期貨交易日曆屬 Phase2-3，本方法只是「表內有哪些日期」的直接回答。
+            期貨交易日曆見 `FuturesCalendar`，本方法只是「表內有哪些日期」的直接回答。
 
             **不過濾 session**：夜盤成交的那一天同樣是交易日。
         - Parameters:
@@ -408,7 +408,7 @@ class FuturesPriceAPI(BaseDataAPI):
             取得單一合約的收盤價序列（index 為日期字串）
 
             技術指標的共通輸入。固定合約之後才有「序列」可言——跨合約直接接起來
-            會在換月接點產生假跳空，那要走 Phase1-7 的連續合約。
+            會在換月接點產生假跳空，那要走 `futures_continuous` 連續合約。
         - Parameters:
             - product / expiry: str
                 商品代碼與到期月

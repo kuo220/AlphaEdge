@@ -11,9 +11,9 @@ from core.backtest.datafeed.tw.market_calendar import MarketCalendar
 """
 交易日曆的兩條防線
 
-1. F-065：`get_last_trading_date()` 是無界 `while`，起始日落在資料涵蓋範圍之前時
+1. `get_last_trading_date()` 是無界 `while`，起始日落在資料涵蓋範圍之前時
    會一天一天往回查到 1970 年也不會停，而且沒有任何錯誤訊息——看起來就是「卡住了」。
-2. F-066：`is_market_open()` 每個曆日都對 `price` 表做一次 `SELECT *` 只為了判斷空不空。
+2. `is_market_open()` 每個曆日都對 `price` 表做一次 `SELECT *` 只為了判斷空不空。
 """
 
 
@@ -87,7 +87,7 @@ def test_max_lookback_covers_the_longest_holiday() -> None:
     assert MarketCalendar.MAX_LOOKBACK_DAYS >= 12
 
 
-# === F-099：(stock_id, date) 索引 ===
+# === (stock_id, date) 索引 ===
 def test_loader_creates_symbol_date_index(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -136,7 +136,7 @@ def test_index_creation_is_idempotent(
     loader_module.StockPriceLoader()  # 不得拋出
 
 
-# === F-028：缺日要被看見 ===
+# === 缺日要被看見 ===
 def test_calendar_gap_report_counts_unexplained_weekdays(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -202,7 +202,7 @@ def test_calendar_gap_report_flags_a_real_hole(
 
 
 def test_is_market_open_uses_the_prebuilt_set() -> None:
-    """交易日集合建好之後不再逐日查資料庫（F-066）"""
+    """交易日集合建好之後不再逐日查資料庫"""
 
     from core.backtest.datafeed.tw.stock_datafeed import TwStockDataFeed
 
@@ -247,7 +247,7 @@ def test_strategy_prefetch_window_matches_the_calendar_bound() -> None:
     策略的交易日預抓窗不可小於日曆上界
 
     小於的話 `get_previous_trading_date()` 會在清單裡查不到而退回逐日查詢，
-    等於把 F-066 的優化悄悄關掉——綁住的是策略這一邊。
+    等於把「交易日集合一次建立」的優化悄悄關掉——綁住的是策略這一邊。
     """
 
     from core.strategies.stock.momentum_strategy_1 import MomentumStrategy1

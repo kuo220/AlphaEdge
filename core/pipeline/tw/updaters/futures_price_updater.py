@@ -63,8 +63,8 @@ class FuturesPriceUpdater(BaseDataUpdater):
     # 誤觸中止——事後逐日重查，那 20 天全部都有資料。
     #
     # 因此**空產出一律再試一次**：真的沒開盤的日子重試也是空的（只多一次請求），
-    # 被擋的日子則在等待後恢復。這是 `docs/pipeline/etl-ingestion.md` §4.2
-    # 「把暫時性失敗當成『沒有資料』」在期貨這一側的同一個坑。
+    # 被擋的日子則在等待後恢復。否則就是「把暫時性失敗當成『沒有資料』」：
+    # 被擋的日子會被當成沒開盤，之後永遠不會再補。
     #
     # 等待時間隨連續空產出**遞增**（base × 1、×2 … 至多 ×8）：孤立的一天多半真的是
     # 國定假日，等太久是純粹的浪費；連續多天才像被擋，此時才需要給站方足夠的冷卻。
@@ -148,7 +148,7 @@ class FuturesPriceUpdater(BaseDataUpdater):
             取得區間內實際開市的週末（補行交易日）
 
             期貨與現貨共用同一份行事曆，故直接以 `tw_stock.db` 的 `price` 表判斷，
-            不另建期貨日曆（那是 Phase2-3 的事）。
+            不另建期貨日曆（回測用的期貨日曆見 `FuturesCalendar`）。
 
             **已知限制**：`price` 表自 2013 起才有資料，故 **2013 年之前的補行
             交易日無法偵測**，那幾天的期貨資料會缺。補救方式是日後以明確日期
@@ -249,7 +249,7 @@ class FuturesPriceUpdater(BaseDataUpdater):
         """
 
         # 預設值不可寫成 `datetime.date.today()`——那是在 import 時求值的，
-        # 長時間執行的行程會一直用啟動那天的日期（健檢 F-002／ruff B008）
+        # 長時間執行的行程會一直用啟動那天的日期（ruff B008）
         end_date: datetime.date = end_date or datetime.date.today()
 
         target_products: List[str] = products or FUTURES_TARGET_PRODUCTS
@@ -276,7 +276,7 @@ class FuturesPriceUpdater(BaseDataUpdater):
     ) -> None:
         """
         - Description:
-            更新**股票期貨**行情（Phase6-2）
+            更新**股票期貨**行情
 
             與指數期貨走同一條 ETL——商品代碼只是查詢參數——差別只在**商品清單
             從哪裡來**：指數期貨是 `FUTURES_TARGET_PRODUCTS` 這份字面值清單，

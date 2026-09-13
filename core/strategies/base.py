@@ -28,7 +28,7 @@ class BaseStrategy(ABC):
         # 真正決定同一根 bar 能否開平同一標的的是 bar_execution_order（見下方區塊）
         self.enable_intraday: bool = True  # Allow day trade or not
         self.init_capital: float = 0  # Initial capital
-        # 同時可持有的最大檔數；**預設 None ＝ 不限制**（健檢 F-076）。
+        # 同時可持有的最大檔數；**預設 None ＝ 不限制**。
         #
         # 舊版預設 0，而 `Backtester.check_max_holdings()` 只把 None 當成不限制
         # ——於是**忘記設定的新策略，每一張開倉單都被引擎剔除**，回測跑完是

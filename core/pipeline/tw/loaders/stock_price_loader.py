@@ -92,7 +92,7 @@ class StockPriceLoader(BaseDataLoader):
         ):
             self.create_db()
 
-        # 主鍵是 (date, stock_id, ...)，「某一檔的整段歷史」查不到索引（F-099）
+        # 主鍵是 (date, stock_id, ...)，「某一檔的整段歷史」查不到索引
         self.create_symbol_date_index(self.conn, PRICE_TABLE_NAME)
 
     def add_to_db(
@@ -105,11 +105,11 @@ class StockPriceLoader(BaseDataLoader):
             將 downloads 內的 CSV 入庫；**有任何檔案失敗就拋 `DataLoadError`**
 
             舊版逐檔 `except Exception` 後只記 `logger.error` 並 `error_cnt += 1`，
-            跑完照樣印一行 summary 就結束，行程結束碼是 0（健檢 F-043）。
+            跑完照樣印一行 summary 就結束，行程結束碼是 0。
             這與 2026-08-16 margin 事故是同一個形狀：缺的列要事後逐日比對才會發現。
 
             **去重改走 `INSERT OR IGNORE`**：舊版每批都把整張 `price` 表的主鍵
-            （近 1,300 萬列）讀進記憶體建 set（F-044）。改用資料庫自己的主鍵約束，
+            （近 1,300 萬列）讀進記憶體建 set。改用資料庫自己的主鍵約束，
             記憶體不再隨資料量成長，且「重跑」與「真的出錯」仍分得開——
             重複列靜靜跳過，欄位不符、檔案損毀才會拋出。
         - Parameters:

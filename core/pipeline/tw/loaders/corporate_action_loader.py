@@ -102,7 +102,7 @@ class CorporateActionLoader(BaseDataLoader):
         ):
             self.create_db()
 
-        # 主鍵是 (date, stock_id)，「某一檔的整段歷史」查不到索引（F-099 同型問題）
+        # 主鍵是 (date, stock_id)，「某一檔的整段歷史」查不到索引
         self.create_symbol_date_index(self.conn, CORPORATE_ACTION_TABLE_NAME)
 
     def add_to_db(self, remove_files: bool = False) -> None:
@@ -158,7 +158,7 @@ class CorporateActionLoader(BaseDataLoader):
 
             同一個 `(date, stock_id)` 可能同時來自端點與行情偵測；依
             `SOURCE_PRIORITY` 由低到高排序後 `keep="last"`，勝出的是優先序最高者。
-            **不可依檔名字典序決定**（F-047 的教訓）：那會讓「留下哪一筆」
+            **不可依檔名字典序決定**：那會讓「留下哪一筆」
             取決於檔名的字母順序，日後多一個來源勝出的就換人，且不會有跡象。
         - Parameters:
             - df: pd.DataFrame

@@ -33,11 +33,11 @@ jobs:
 
       # 分層相依閘門：反向 import、循環 import、市場語意洩漏、跨軸目錄污染
       # 這支腳本原本永遠 exit 1（strategy_lab 的循環 import 把整個閘門鎖住），
-      # 2026-09-04 解掉之後才有資格當閘門（健檢 F-006）。約 0.5 秒
+      # 2026-09-04 解掉之後才有資格當閘門。約 0.5 秒
       - name: 分層相依檢查
         run: python scripts/check_layer_deps.py
 
-      # SHORT 回歸線：純記憶體、不需要資料庫，約 0.7 秒（健檢 F-095）
+      # SHORT 回歸線：純記憶體、不需要資料庫，約 0.7 秒
       # LONG 線需要 data/db/tw_stock.db，CI 沒有，故仍只能在本機跑
       # （`scripts/run_regression.sh` 現在會在 skip 時以結束碼 3 明說沒跑）
       - name: SHORT 回歸線
@@ -50,7 +50,6 @@ jobs:
         run: pytest -m "not slow" --timeout=300
 
       # 覆蓋率只建立基線、不設門檻：覆蓋率明顯偏低時設門檻只會鼓勵寫無效測試
-      # （見 docs/dev/code-quality.md〈測試覆蓋率基線〉）
       - name: 測試覆蓋率（僅報告，不阻擋）
         continue-on-error: true
         run: pytest -m "not slow" --cov=core --cov-report=term-missing

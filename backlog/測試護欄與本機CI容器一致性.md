@@ -2,7 +2,7 @@
 
 ## Abstract
 
-- **背景／問題**：[全專案架構與邏輯健檢（2026-09）](../docs/dev/health-check-2026-09.md) S18~S20 發現「本機綠、CI 不跑、容器起不來」三處不一致：`run_regression.sh` 在沒有 `tw_stock.db` 的機器會跳過 LONG 線仍印「雙線通過」（F-090）、CI 從不跑 slow 測試與回歸線（F-095）、`frontend` 映像缺 `plotly`（F-093）、`core` 容器沒有 `data/` 與 `tasks/`（F-094）、`run.py` 錯誤退出碼 0（F-077）、一次性 codemod 誤跑會改壞同層專案（F-089）。
+- **背景／問題**：全專案架構與邏輯健檢（2026-09，紀錄文件已刪除，見 git 歷史） S18~S20 發現「本機綠、CI 不跑、容器起不來」三處不一致：`run_regression.sh` 在沒有 `tw_stock.db` 的機器會跳過 LONG 線仍印「雙線通過」（F-090）、CI 從不跑 slow 測試與回歸線（F-095）、`frontend` 映像缺 `plotly`（F-093）、`core` 容器沒有 `data/` 與 `tasks/`（F-094）、`run.py` 錯誤退出碼 0（F-077）、一次性 codemod 誤跑會改壞同層專案（F-089）。
 - **目標**：回歸護欄在任何機器上「要嘛真的跑、要嘛明確說沒跑」；`docker compose up` 能跑完一次回測並在前端看到；一次性腳本清出 `scripts/`。
 - **範圍界線**：不改測試框架、不引入新的 CI 服務、不做覆蓋率門檻。
 - **驗收標準**：`./scripts/run_regression.sh` 在無 DB 機器結束碼非 0 且訊息明確；CI 至少跑 SHORT 線；`docker compose build && docker compose up` 在準備好 `data/db` 的機器上跑完 `MomentumStrategy1` 並於前端顯示；`python run.py --strategy NotExist; echo $?` 非 0。

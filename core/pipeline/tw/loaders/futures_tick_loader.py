@@ -41,7 +41,7 @@ from core.pipeline.shared.base_loader import BaseDataLoader
 ⚠️ **本檔的寫入路徑尚未於本機實測**：DolphinDB server 未啟動
 （`localhost:8848` 連線被拒），`dolphindb` 套件也未安裝（屬 `[tick]` 選用相依）。
 結構完全比照已在生產跑過的 `StockTickLoader`，但**在真的跑起來之前不要當成
-已驗證**——見 `docs/futures/tw-futures-platform.md` Phase5-1 的紀錄。
+已驗證**。
 """
 
 
@@ -87,7 +87,7 @@ class FuturesTickLoader(BaseDataLoader):
         """
 
         # `DDB_PATH` 沒設定時舊版會拼出 `"NonetickDB"` 這種看起來像路徑的字串，
-        # 錯誤訊息完全指不到真正的原因（健檢 F-015）；在連線之前就攔下來
+        # 錯誤訊息完全指不到真正的原因；在連線之前就攔下來
         require_tick_db_path()
 
         attempts: int = max_retries or self.CONNECT_MAX_RETRIES

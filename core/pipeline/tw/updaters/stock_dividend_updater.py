@@ -67,13 +67,13 @@ class StockDividendUpdater(BaseDataUpdater):
 
             **每次都掃整個區間，不從 `MAX(date)+1` 續跑**：本來源支援區間查詢，
             一年只要一次請求，13 年也只有 26 次；而 `MAX(date)+1` 會讓中間任何
-            一年的缺漏永遠補不回來（健檢 F-050）。入庫走 `INSERT OR REPLACE`，
+            一年的缺漏永遠補不回來。入庫走 `INSERT OR REPLACE`，
             重跑是冪等的。
         - Parameters:
             - start_date: datetime.date
                 回補起日
             - end_date: Optional[datetime.date]
-                回補迄日；None 取當日（預設值不可在 def 行求值，見 F-002）
+                回補迄日；None 取當日（預設值不可在 def 行求值）
         """
 
         logger.info("* Start Updating TWSE & TPEX Dividend Data...")

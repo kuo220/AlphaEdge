@@ -13,7 +13,7 @@ from core.utils.constant import FUTURES_MULTIPLIER
 行情 DataFrame → `FuturesQuote` 的轉換測試
 
 本 adapter **只做型別轉換，不做任何選擇**：單日單商品的多個到期月一律全部轉出，
-換月是政策（Phase1-7／Phase2-4），不屬於這一層。
+換月是政策，不屬於這一層。
 
 真正會出事的是**空值處理**：夜盤沒有結算價與未沖銷契約量，`NaN` 若被轉成 0，
 逐日盯市會把部位結算成歸零而不報錯，故單獨釘住。

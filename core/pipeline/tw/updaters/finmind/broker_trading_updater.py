@@ -334,14 +334,14 @@ class BrokerTradingUpdater:
 
         # **有錯誤就必須讓行程非零結束**：舊版只把錯誤數印在統計行裡，
         # `update_db` 照樣印 `✅ Database Update Completed`。單一組合失敗不中止
-        # 整批（其餘組合仍該更新），但跑完之後不能當作沒發生（健檢 F-045）。
+        # 整批（其餘組合仍該更新），但跑完之後不能當作沒發生。
         error_count: int = stats[UpdateStatus.ERROR.value]
         failures: List[str] = []
         if error_count:
             failures.append(f"{error_count} 個 (券商, 股票) 組合更新失敗，詳見上方 log")
 
         # **配額等不回來也是「這次沒跑完」**：舊版只記 warning，於是一次只做了
-        # 三成的更新仍以結束碼 0 結束，排程看不出需要重跑（健檢 F-051）
+        # 三成的更新仍以結束碼 0 結束，排程看不出需要重跑
         if quota_exhausted:
             failures.append(
                 f"API 配額未在等待時限內恢復，只處理了 "

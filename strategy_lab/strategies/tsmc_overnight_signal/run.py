@@ -7,7 +7,7 @@
 
 **必須用 `-m`**：`strategy_lab` 不在 `pyproject` 的 `packages.find` 裡（只裝
 `core*`／`tasks*`／`tests*`），直接跑檔案路徑時 `sys.path[0]` 是腳本自己的目錄，
-`import strategy_lab.…` 會失敗（健檢 F-009）。
+`import strategy_lab.…` 會失敗。
 
 輸出目錄：`strategy_lab/strategies/tsmc_overnight_signal/output/`
 （資產曲線、MDD、滾動 Sharpe、月報酬熱圖、IC 等）。

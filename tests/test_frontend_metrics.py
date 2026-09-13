@@ -25,7 +25,7 @@ from frontend.services.report_loader import (
 )
 
 """
-前端與 reporter 用同一份公式（F-085、F-068）
+前端與 reporter 用同一份公式
 
 舊版 `frontend/app.py` 自己寫了一份 Sharpe／Sortino，而且**寫在模組層級的
 Streamlit 呼叫之後**——測試連 import 都做不到，於是那份公式從來沒有被驗證過。
@@ -180,7 +180,7 @@ def test_pipeline_from_daily_equity_to_ratios() -> None:
     assert compute_max_drawdown(equity) is not None
 
 
-# === F-085：app.py 不再定義計算函式 ===
+# === app.py 不再定義計算函式 ===
 def test_app_defines_no_calculation_functions() -> None:
     """
     `app.py` 只剩渲染函式

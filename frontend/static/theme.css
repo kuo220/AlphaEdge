@@ -1,5 +1,5 @@
 /*
- * AlphaEdge Backtest Viewer 的版面樣式（F-085）
+ * AlphaEdge Backtest Viewer 的版面樣式
  *
  * 由 `frontend/app.py` 的行內字串抽出來：CSS 混在 Python 字串裡沒有語法檢查、
  * 沒有高亮，改一個顏色要捲過 140 行才找得到。`app.py` 在啟動時讀這一檔並注入。

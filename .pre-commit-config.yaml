@@ -32,7 +32,7 @@ repos:
   - repo: local
     hooks:
       # loguru 不吃標準庫的 exc_info=，會把它當 str.format() 的參數默默丟掉，
-      # traceback 從來不會被印出來（健檢 F-080，全專案曾有 15 處）。
+      # traceback 從來不會被印出來（全專案曾有 15 處）。
       # CI 端的等價護欄是 tests/test_entrypoint_and_logging.py 的 AST 掃描，
       # 這條只是讓錯誤寫法在 commit 當下就被擋掉，不必等跑完測試。
       - id: no-stdlib-exc-info
@@ -43,7 +43,7 @@ repos:
 
       # 分層相依閘門（反向 import、循環 import、市場語意洩漏、跨軸目錄污染）。
       # 這支腳本原本永遠 exit 1（strategy_lab 的循環 import 把整個閘門鎖住），
-      # 2026-09-04 解掉之後才有資格當閘門（健檢 F-006）。約 0.5 秒，掃全專案，
+      # 2026-09-04 解掉之後才有資格當閘門。約 0.5 秒，掃全專案，
       # 故 `pass_filenames: false` ＋ `always_run: true`——它看的是「邊」不是單檔
       - id: check-layer-deps
         name: 分層相依檢查（scripts/check_layer_deps.py）

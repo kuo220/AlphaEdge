@@ -7,14 +7,14 @@ import pytest
 """
 入口與日誌的四個坑，共通點是**平常不會有人發現**
 
-1. F-078：預設 `no_tick` 仍包含 `futures_tick`，沒有 Shioaji 金鑰的機器每晚紅燈。
-2. F-079：`delete_price_data` 沒有預覽也沒有確認，打錯日期就少一整天行情。
-3. F-015：`.env` 缺 `DDB_PATH` 時路徑被拼成 `"NonetickDB"`。
-4. F-097：`logs/api/` 每天長約 100 MB。
+1. 預設 `no_tick` 仍包含 `futures_tick`，沒有 Shioaji 金鑰的機器每晚紅燈。
+2. `delete_price_data` 沒有預覽也沒有確認，打錯日期就少一整天行情。
+3. `.env` 缺 `DDB_PATH` 時路徑被拼成 `"NonetickDB"`。
+4. `logs/api/` 每天長約 100 MB。
 """
 
 
-# === F-078：no_tick 要排除所有 tick ===
+# === no_tick 要排除所有 tick ===
 def test_no_tick_excludes_futures_tick() -> None:
     """
     預設的 `python -m tasks.update_db` 不可去跑期貨 tick
@@ -48,7 +48,7 @@ def test_all_still_includes_every_tick_target() -> None:
     assert DataType.FUTURES_TICK.name.lower() in expanded
 
 
-# === F-079：delete_price_data 預設不刪 ===
+# === delete_price_data 預設不刪 ===
 def make_price_db(tmp_path: Path) -> Path:
     """建一個只有 price 表的暫存 DB"""
 
@@ -128,7 +128,7 @@ def test_delete_price_data_parser_has_the_two_flags() -> None:
     assert '"--yes"' in source
 
 
-# === F-015：DDB_PATH 缺值要當場拋出 ===
+# === DDB_PATH 缺值要當場拋出 ===
 def test_require_tick_db_path_raises_when_unset(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -157,7 +157,7 @@ def test_tick_db_path_is_none_rather_than_none_string() -> None:
     )
 
 
-# === F-097：api 桶的檔案 sink 只留 WARNING ===
+# === api 桶的檔案 sink 只留 WARNING ===
 def test_api_log_file_level_is_warning() -> None:
     """
     `core/api/` 每次查詢都寫一行，回測一跑就是數十萬次
@@ -186,7 +186,7 @@ def test_every_api_module_uses_the_shared_level() -> None:
         assert "API_LOG_FILE_LEVEL" in source, f"{path.name} 沒有指定 api 桶日誌等級"
 
 
-# === F-001：sink 要帶 filter，否則每個檔案都收下整個行程的每一行 ===
+# === sink 要帶 filter，否則每個檔案都收下整個行程的每一行 ===
 def make_record(name: str) -> dict:
     """最小的 loguru record 替身；filter 只看 `name`"""
 
@@ -291,7 +291,7 @@ def test_log_file_is_recreated_after_external_deletion(tmp_path: Path) -> None:
         LogManager._configured_logs.discard(str(target))
 
 
-# === F-080：loguru 的 traceback 要真的印得出來 ===
+# === loguru 的 traceback 要真的印得出來 ===
 PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
 
 

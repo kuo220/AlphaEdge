@@ -35,11 +35,11 @@ class StockBacktestReporter(BaseBacktestReporter):
         super().__init__(strategy, output_dir)
 
         # 由 Backtester 傳入 DataFeed 已經開好的連線；未指定時自行建立並由
-        # `close()` 負責關掉（F-067：舊版每跑一次回測就多一條不再使用的連線）
+        # `close()` 負責關掉（舊版每跑一次回測就多一條不再使用的連線）
         self.price: Optional[StockPriceAPI] = price
 
         # 畫完是否在瀏覽器開圖。舊版寫死 True，於是每跑一次回測就彈出 5 個分頁，
-        # 批次跑參數掃描時等於一次開幾十個（F-067）
+        # 批次跑參數掃描時等於一次開幾十個
         self.show: bool = resolve_show_figures() if show is None else show
 
         # Backtest date
@@ -65,7 +65,7 @@ class StockBacktestReporter(BaseBacktestReporter):
         - Description:
             建立資料連線並取 benchmark 的**還原**收盤價
 
-            **benchmark 必須用還原價**（F-067）：原始收盤價在除權息日有跳空，
+            **benchmark 必須用還原價**：原始收盤價在除權息日有跳空，
             0050 這種年年配息的標的，用原始價當基準等於讓基準每年少賺一次配息，
             策略看起來永遠贏得比實際多。`analyzer.compute_benchmark_daily_returns()`
             早就改用還原價了，reporter 這邊一直沒跟上，於是同一份回測的
@@ -90,7 +90,7 @@ class StockBacktestReporter(BaseBacktestReporter):
 
     def close(self) -> None:
         """
-        關閉 reporter 自己開的資料連線（F-067）
+        關閉 reporter 自己開的資料連線
 
         不關的話，每跑一次回測就多一條不再使用的 SQLite 連線；
         由呼叫端注入的連線不歸 reporter 關（`StockPriceAPI` 的 `owns_conn` 語意）。

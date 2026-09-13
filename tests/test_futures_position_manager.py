@@ -20,7 +20,7 @@ from core.utils.constant import FUTURES_MULTIPLIER
 """
 期貨部位記帳測試
 
-**驗收公式（`docs/futures/tw-futures-platform.md` Phase1-4）：
+**驗收公式：
 PnL = 價格變動 × 乘數 × 口數**。本檔把三件與股票根本不同的事釘住：
 
 1. **開倉只凍結保證金**，不買下契約價值——`balance` 減少的是保證金而非契約價值，
@@ -45,7 +45,7 @@ def manager() -> FuturesPositionManager:
     """
     成本全為 0 的部位管理器，讓 PnL 恰好等於價格公式
 
-    **刻意用 `FuturesCostConfig.free()` 而非預設值**：Phase2-1 之後預設帶有
+    **刻意用 `FuturesCostConfig.free()` 而非預設值**：預設帶有
     期交稅與手續費，本檔驗的是「記帳本身」，成本一旦不為 0，任何斷言的偏差
     都要先扣掉費用才知道是不是記帳錯了。成本本身另有 `tests/test_futures_cost.py`。
     """
@@ -450,14 +450,14 @@ def test_open_lots_signs_short_positions_negative(
     assert manager.account.get_open_lots() == {"TX202601": -2, "TX202602": 1}
 
 
-# === 同契約雙向持倉（健檢 F-058）===
+# === 同契約雙向持倉===
 def test_open_rejects_the_opposite_direction_on_the_same_contract(
     manager: FuturesPositionManager,
 ) -> None:
     """
     同一契約已有反向部位即拒單，保證金不被重複佔用
 
-    判準與股票端同一條（放空框架 §7.5「反之亦然」）。舊版放行之後，
+    判準與股票端同一條（反之亦然）。舊版放行之後，
     `get_open_lots()` 相抵成淨口數 0（＝帳上看起來沒有曝險），
     `margin_used` 卻押著兩份原始保證金——而交易所對沖部位只收單邊。
     """
@@ -522,7 +522,7 @@ def test_open_allows_the_opposite_direction_on_another_expiry(
 def test_reopening_the_opposite_direction_after_a_close_is_allowed(
     manager: FuturesPositionManager,
 ) -> None:
-    """平倉之後可以反手：`is_closed` 的部位不算佔位（同健檢 F-020）"""
+    """平倉之後可以反手：`is_closed` 的部位不算佔位"""
 
     manager.open_position(
         make_order(Action.BUY, PositionType.LONG, price=18000, volume=1)
@@ -578,7 +578,7 @@ def test_free_config_makes_pnl_equal_the_price_formula(
 
 def test_default_config_charges_real_fees() -> None:
     """
-    **預設設定不再是零成本**（Phase2-1 起）
+    **預設設定不再是零成本**
 
     零成本回測會系統性高估短線期貨策略；預設帶上期交稅（法規值）與
     每口手續費（市場常見值），要跑純價格公式必須明確改用 `free()`。

@@ -356,7 +356,7 @@ def test_exchange_source_wins_over_detected(loader: CorporateActionLoader) -> No
     跨來源重複時交易所優先
 
     偵測值是從價格反推的近似，端點給的是官方參考價。
-    **不可依檔名字典序決定**（F-047 的教訓）。
+    **不可依檔名字典序決定**。
     """
 
     merged: pd.DataFrame = pd.DataFrame(

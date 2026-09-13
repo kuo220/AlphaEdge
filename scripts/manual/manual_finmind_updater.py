@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, List, Tuple
 from unittest.mock import patch
 
-# 專案根目錄（供組合資料檔路徑用；原本還兼作 sys.path 注入，F-009 已移除）
+# 專案根目錄（供組合資料檔路徑用；原本還兼作 sys.path 注入，已移除）
 project_root: Path = Path(__file__).resolve().parent.parent
 
 # 載入 .env 檔案（在檢查環境變數之前）

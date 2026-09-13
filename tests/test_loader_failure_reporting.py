@@ -311,7 +311,7 @@ def test_price_loader_raises_on_broken_file(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """
-    price loader 的壞檔必須拋出（健檢 F-043）
+    price loader 的壞檔必須拋出
 
     舊版逐檔 `except Exception` 後只記 `logger.error`、`error_cnt += 1`，
     跑完照樣印 summary 就結束，行程結束碼是 0。
@@ -351,7 +351,7 @@ def test_price_loader_does_not_read_whole_table_into_memory(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """
-    去重改走 `INSERT OR IGNORE`，不再把整張 price 表的主鍵讀進記憶體（F-044）
+    去重改走 `INSERT OR IGNORE`，不再把整張 price 表的主鍵讀進記憶體
 
     以「讀不到既有資料也能正確去重」反向釘住：若還在用記憶體 set，
     這裡把 `read_sql_query` 換掉就會壞。
@@ -384,7 +384,7 @@ def test_price_loader_does_not_read_whole_table_into_memory(
 def test_finmind_reference_table_loader_raises_on_broken_file(
     tmp_path: Path,
 ) -> None:
-    """FinMind 參考表入庫失敗必須拋出，不可被算成「跳過」（F-045）"""
+    """FinMind 參考表入庫失敗必須拋出，不可被算成「跳過」"""
 
     from core.pipeline.tw.loaders.finmind.reference_table_loader import (
         load_reference_table,
@@ -440,7 +440,7 @@ def test_finmind_broker_trading_dataframe_path_raises(tmp_path: Path) -> None:
 
 def test_sqlite_utils_does_not_swallow_query_errors(tmp_path: Path) -> None:
     """
-    表存在但欄位打錯要拋出，不可回 None（F-046）
+    表存在但欄位打錯要拋出，不可回 None
 
     回 None 會讓 updater 以為「表是空的」而從預設起日重跑整段回補。
     """

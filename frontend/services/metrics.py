@@ -11,7 +11,7 @@ from core.backtest.analysis.risk_metrics import (
 )
 
 """
-前端的指標計算（F-085、F-068）
+前端的指標計算
 
 **與 reporter 共用同一份公式**：Sharpe 與 Sortino 直接 import
 `core/backtest/analysis/risk_metrics.py` 的純函式，不在前端另寫一份。
@@ -23,7 +23,7 @@ from core.backtest.analysis.risk_metrics import (
 取標準差（那是它們**彼此之間**的離散度，不是相對門檻的偏差）。
 
 本模組不含任何 Streamlit 呼叫，這樣才測得到——`frontend/app.py` 在 import 時
-就會執行 Streamlit 的版面設定，無法在測試裡 import（那正是 F-085）。
+就會執行 Streamlit 的版面設定，無法在測試裡 import（所以指標函式才獨立成本模組）。
 
 ---
 

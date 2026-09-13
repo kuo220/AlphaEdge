@@ -66,7 +66,7 @@ class OvernightLeadEventStrategy(BaseStockStrategy):
         - Description:
             宣告本策略要用的資料源，並在拿到 API 之後才建訊號
 
-            **訊號不能在 `__init__()` 裡建**（健檢 F-072）：`_build_signals()`
+            **訊號不能在 `__init__()` 裡建**：`_build_signals()`
             要用 `self.price`，而 `self.price` 是這裡才掛上去的——舊版在
             `__init__()` 末尾就呼叫它，於是 `OvernightLeadEventStrategy()`
             這行本身就會 `AttributeError`。引擎的 factory 是先建策略、

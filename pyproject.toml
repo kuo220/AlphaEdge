@@ -35,7 +35,7 @@ dev = [
     "pytest>=9.0",
     "pytest-timeout>=2.4",
     "pytest-cov>=5.0",
-    # **版本必須與 .pre-commit-config.yaml 的 ruff-pre-commit rev 一致**（健檢 F-095）：
+    # **版本必須與 .pre-commit-config.yaml 的 ruff-pre-commit rev 一致**：
     # 格式規則跨版本會變，本機用 0.16.3、CI 裝最新版時會出現「本機綠、CI 紅」，
     # 而那種紅燈與程式碼品質無關，只會訓練大家忽略 CI
     "ruff==0.16.3",
@@ -74,7 +74,7 @@ extend-exclude = [
 select = ["E", "F", "I", "UP", "B", "BLE", "TRY"]
 
 # ignore 清單的每一條都必須註明對應的 CLAUDE.md 章節或延後理由，
-# 不要在沒有理由的情況下「順手」打開或關閉（完整說明見 docs/dev/code-quality.md）
+# 不要在沒有理由的情況下「順手」打開或關閉
 ignore = [
     # --- 與 CLAUDE.md §2.4 型別註解規範直接衝突：專案明訂用 typing 的大寫寫法 ---
     "UP006",  # §2.4.3 List/Dict，不改 list[...]/dict[...]
@@ -91,7 +91,7 @@ ignore = [
     # 留著只會讓 CI 永遠紅燈，且逼人把中文註解硬折行，可讀性反而更差
     "E501",
 
-    # --- 例外處理：只量化不修，實測數字見 docs/dev/code-quality.md〈例外處理現況〉---
+    # --- 例外處理：只量化不修，數量記在各條的行尾註解 ---
     # 數量過大會讓 CI 永遠紅燈，故先 ignore 並逐條記錄；
     # 不可因為「讓 CI 變綠」就當成永久豁免
     "BLE001",  # blind-except，85 處
@@ -110,8 +110,8 @@ ignore = [
     "B905",
 
     # --- 潛在缺陷，已逐點記錄，待後續收斂 ---
-    # 這 21 處**不是樣式問題，是真的可能出錯的地方**，完整清單（含 file:line）記在
-    # docs/dev/code-quality.md〈待收斂清單〉。之所以先 ignore 而非在原地加 noqa：
+    # 這 21 處**不是樣式問題，是真的可能出錯的地方**，逐處位置用
+    # `ruff check --select <規則>` 查。之所以先 ignore 而非在原地加 noqa：
     # 加了 noqa 會讓該行超過 88 字元，formatter 就把運算式拆成多行，
     # noqa 反而跟著跑到別行去、失去效力（實測過）。
     # **修掉之後要把對應那條從本清單移除**，不要讓它長期留著。
@@ -131,7 +131,7 @@ ignore = [
 # 獨立執行的手動腳本：`.env` 必須在部分 import **之前**載入（那些模組在 import
 # 期就讀環境變數），所以 import 之間夾著程式碼是刻意的，E402 屬預期行為。
 # `tests/*` 與 `strategy_lab/*` 原本也在這裡，是為了遷就 `sys.path.insert`
-# 卡在 import 中間。那 18 處已於 2026-09-10 清除（F-009），殘留的
+# 卡在 import 中間。那 18 處已於 2026-09-10 清除，殘留的
 # `_PROJECT_ROOT` 賦值一併移到 import 之後，兩條豁免因此不再需要——
 # 移除後 `ruff check .` 對 `tests/` 與 `strategy_lab/` 全綠
 "scripts/manual/*" = ["E402"]
@@ -160,7 +160,6 @@ omit = [
 
 [tool.coverage.report]
 # 只建立基線，**不設 fail_under**：覆蓋率明顯偏低時設門檻只會鼓勵寫無效測試
-# （見 docs/dev/code-quality.md〈測試覆蓋率基線〉）
 exclude_lines = [
     "pragma: no cover",
     "if TYPE_CHECKING:",

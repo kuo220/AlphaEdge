@@ -5,7 +5,7 @@ from typing import Any, Dict
 
 **整張表都是台灣的端點，故歸在 `tw/` 底下**：`core/pipeline/{shared,utils}/` 是
 跨市場共用層，把只有台股用得到的端點放在那裡，等 `us/` 進來就會變成美股流程
-相依台股模組（見 `docs/dev/naming-axes.md`〈每層目錄只承載一條軸〉）。
+相依台股模組。
 """
 
 
@@ -118,7 +118,7 @@ class URLManager:
         # 解析時 `keep_default_na=False` 不可省：穩懋的代碼就是 `NA`，會被當成 NaN
         "TAIFEX_STOCK_FUTURES_LIST_URL": "https://www.taifex.com.tw/cht/2/stockLists",
 
-        # === 台期貨籌碼（TAIFEX，Phase3-1）===
+        # === 台期貨籌碼（TAIFEX）===
         #
         # 三個端點都是 **POST ＋ 日期區間**，回的是 big5 CSV（`*Down` 結尾者為
         # 下載版，`*Qry` 是網頁版）。**一次請求就涵蓋所有商品**，
@@ -182,7 +182,7 @@ class URLManager:
         #     原始／維持／結算保證金——這是唯一可直接入庫的歷史來源
         #   - 2015~2019（16 筆）：只有 PDF，且**全部是掃描影像**
         #     （`/Image` + DCTDecode/CCITTFaxDecode、無 `/Font`、可抽文字 0 字），
-        #     沒有 OCR 就取不到數值。本階段不處理，見台期貨規劃 Phase2-2
+        #     沒有 OCR 就取不到數值。目前不處理
         #   - 另有 2 筆（2020/01/17、2020/01/30）無附件
         "TAIFEX_NEWS_DETAIL_URL": "https://www.taifex.com.tw/cht/11/newsDetail?newsType={news_type}&idx={idx}",
     }

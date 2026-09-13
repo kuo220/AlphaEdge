@@ -311,8 +311,7 @@ def test_transitional_split_table_is_gone() -> None:
     """
     過渡表已刪除，不得有人再 import 它
 
-    留著會出現兩份分割來源，而抄漏一次分割的代價是整段序列從那天起錯 N 倍
-    （F-087 的教訓）。
+    留著會出現兩份分割來源，而抄漏一次分割的代價是整段序列從那天起錯 N 倍。
     """
 
     import importlib
@@ -321,7 +320,7 @@ def test_transitional_split_table_is_gone() -> None:
         importlib.import_module("core.api.tw.stock_split")
 
 
-# === reporter 可維護性（健檢 F-067）===
+# === reporter 可維護性===
 def test_benchmark_uses_adjusted_close() -> None:
     """
     benchmark 取的是**還原**收盤價，不是原始收盤價

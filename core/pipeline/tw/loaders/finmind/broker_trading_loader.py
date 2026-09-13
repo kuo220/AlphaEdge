@@ -145,7 +145,7 @@ def load_from_dataframe(
     except Exception as e:
         # **不再有 fallback 盲插、也不再回 0**：舊版失敗後回 0，
         # 呼叫端把 0 當成「本批皆為重複」而回報 SUCCESS，
-        # 於是入庫失敗被算成成功（健檢 F-045）。
+        # 於是入庫失敗被算成成功。
         logger.opt(exception=True).error(
             f"Error loading broker trading daily report from DataFrame: {e}",
         )

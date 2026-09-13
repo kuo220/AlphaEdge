@@ -61,8 +61,8 @@ class TwStockDataFeed(BaseDataFeed):
         self.force_cover_map: Optional[Dict[datetime.date, Set[str]]] = None
 
         # 回測區間內的交易日集合；`setup()` 建一次，供 `is_market_open()` 查表。
-        # **不建的話每個曆日都會對 price 表做一次 `SELECT *` 只為了判斷空不空**
-        # （健檢 F-066）——13 年就是 4,700 次全表掃描
+        # **不建的話每個曆日都會對 price 表做一次 `SELECT *` 只為了判斷空不空**：
+        # 13 年就是 4,700 次全表掃描
         self.trading_days: Optional[Set[datetime.date]] = None
 
     def setup(self, strategy: BaseStrategy) -> None:
@@ -82,7 +82,7 @@ class TwStockDataFeed(BaseDataFeed):
         if strategy.scale == Scale.TICK:
             self.tick = StockTickAPI()
 
-        # 交易日集合一次建立（F-066），順便報告區間內的可疑缺日（F-028）。
+        # 交易日集合一次建立，順便報告區間內的可疑缺日。
         # **`start_date`／`end_date` 在 `BaseStrategy` 是 Optional 且預設 None**，
         # 沒設的策略在這裡查 `get_trading_days(None, None)` 會 TypeError；
         # 那種策略退回逐日查詢即可（`is_market_open()` 有 fallback）
@@ -111,7 +111,7 @@ class TwStockDataFeed(BaseDataFeed):
         - Description:
             報告回測區間內「平日卻沒有行情」的日期
 
-            **回測遇到缺日會當成休市靜默跳過**（健檢 F-028）：資料缺一天與
+            **回測遇到缺日會當成休市靜默跳過**：資料缺一天與
             當天休市在引擎眼裡完全相同，策略少做一天的判斷卻不會有任何跡象。
             根治在 ETL（見 `core/pipeline/shared/date_planner.py`），這裡負責
             **讓它在回測起跑時就被看見**。
@@ -171,7 +171,6 @@ class TwStockDataFeed(BaseDataFeed):
         依級別取得當日報價
 
         tick 不做還原：tick 為當日盤中資料，跨日還原無意義
-        （見 `docs/exchanges/data_coverage.md`〈股價還原的已知限制〉）
         """
 
         if scale == Scale.TICK:
@@ -284,8 +283,8 @@ class TwStockDataFeed(BaseDataFeed):
         """
         當日除息的每股現金股利（元／股），供放空的股利補償使用
 
-        值可能為 `NaN`（上市權息並存的標的無法拆出現金股利，見
-        `docs/exchanges/data_coverage.md`〈已知限制〉），呼叫端須自行處置
+        值可能為 `NaN`（上市權息並存的標的無法拆出現金股利），
+        呼叫端須自行處置
         """
 
         if self.dividend is None:

@@ -4,7 +4,7 @@
 
 - **背景／問題**：FinMind 券商分點資料的 crawl → clean → load 流程存在重複 I/O（每個組合至少讀 2 次 metadata）、全表掃描的「已存在」查詢、每筆組合一次 commit、以及嚴格序列執行等瓶頸，資料表越大越慢。
 - **目標**：在**不改動「中斷後重新爬取時能跳過已爬過的資料」語意**的前提下，降低磁碟 I/O、縮小查詢範圍、減少 commit 次數並導入並行爬取。
-- **範圍界線**：**不改** resume 判斷依據（仍為 metadata ＋ DB）、不改資料表 schema 語意、不處理 NO_DATA 的 metadata 更新（屬 [券商分點 NO_DATA 的 metadata 語意](../docs/pipeline/broker-trading-no-data.md)，已選型未實作）。
+- **範圍界線**：**不改** resume 判斷依據（仍為 metadata ＋ DB）、不改資料表 schema 語意、不處理 NO_DATA 的 metadata 更新（屬 [券商分點NO_DATA的metadata語意.md](券商分點NO_DATA的metadata語意.md)，已選型未實作）。
 - **驗收標準**：全部步驟落地或明確標記暫緩，且每項變更後「中斷 → 重跑」皆不會重複爬取已存在的 `(broker_id, stock_id, date)`。
 
 ---
@@ -185,4 +185,4 @@
 
 - **優先級**：P2
 - **相關程式**：`core/pipeline/tw/crawlers/finmind_crawler.py`、`core/pipeline/tw/cleaners/finmind_cleaner.py`、`core/pipeline/tw/loaders/finmind_loader.py`、`core/pipeline/tw/updaters/finmind_updater.py`
-- **相關文件**：[券商分點 NO_DATA 的 metadata 語意](../docs/pipeline/broker-trading-no-data.md)（選型紀錄；若動工，NO_DATA 的 metadata 處理可與本文件一併減少 API 用量）
+- **相關文件**：[券商分點NO_DATA的metadata語意.md](券商分點NO_DATA的metadata語意.md)（選型紀錄；若動工，NO_DATA 的 metadata 處理可與本文件一併減少 API 用量）

@@ -15,7 +15,7 @@ from core.pipeline.shared.request_utils import FetchResult, FetchStatus
 原本 `crawl_*()` 只有兩種回傳值：DataFrame 或 `None`，而 `None` 同時代表
 「休市」「站方還沒更新」「連線失敗」「IP 被擋」。updater 對這四種一律
 記一行 `is a Holiday!` 就跳過，於是**資料缺一天不會有任何錯誤**，
-回測把那天當休市靜默跳過（健檢 F-028、F-030 ③④）。
+回測把那天當休市靜默跳過。
 
 `CrawlResult` 把結果收斂成三種，判準寫在 `BaseDataCrawler` 的兩個共用函式：
 

@@ -38,7 +38,7 @@ def test_artifact_roots_live_outside_core(name: str) -> None:
     """
     三個產物根一律在 `core/` 之外
 
-    分界見 `docs/dev/runtime-artifacts.md`：`core/` 是被讀的，產物根是被寫的。
+    `core/` 是被讀的，產物根是被寫的。
     """
 
     path: Path = getattr(config, name)

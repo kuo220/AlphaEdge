@@ -21,7 +21,7 @@ from frontend.services.report_loader import (
 )
 
 """
-前端只讀不算：指標與 reporter 落地的 CSV 逐值相同（F-082、F-084）
+前端只讀不算：指標與 reporter 落地的 CSV 逐值相同
 
 以 `results/Foreign-Sell-Short-Day-Trade/` 為 fixture。**它是一份純 SHORT 的
 報表**，正好踩中舊版四個錯的每一個：
@@ -78,7 +78,7 @@ def direction_summary_df(report: BacktestReport) -> pd.DataFrame:
     return read_direction_summary(report.direction_summary_path)
 
 
-# === 三份 CSV 真的被讀進來（F-084）===
+# === 三份 CSV 真的被讀進來===
 def test_all_reporter_outputs_are_located(report: BacktestReport) -> None:
     """reporter 落地的四份 CSV 與五張圖，前端都要找得到"""
 
@@ -103,7 +103,7 @@ def test_event_report_is_readable(report: BacktestReport) -> None:
     assert counts["forced_cover_suspended"] == 1
 
 
-# === F-082：ROI 不再乘 100 ===
+# === ROI 不再乘 100 ===
 def test_overview_matches_direction_summary(
     trading_df: pd.DataFrame, direction_summary_df: pd.DataFrame
 ) -> None:
@@ -238,7 +238,7 @@ def test_daily_returns_are_per_day_not_per_trade(
     assert len(returns) > exit_days
 
 
-# === F-082：一律 Exit Date 排序 ===
+# === 一律 Exit Date 排序 ===
 def test_sort_by_exit_date_differs_from_sell_date(trading_df: pd.DataFrame) -> None:
     """
     SHORT 的 `Sell Date` 是開倉日，兩種排序在本 fixture 確實不同
