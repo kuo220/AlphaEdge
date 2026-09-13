@@ -45,6 +45,17 @@ jobs:
       - name: 分層相依檢查
         run: python scripts/check_layer_deps.py
 
+      # 文件路徑漂移閘門：`.md` 裡指不到、但同名檔存在於別處的路徑引用。
+      # 這支在 2026-09-13 之前不在任何閘門裡，於是它在 HEAD 上紅了三天沒人發現
+      # （健檢第四輪 S2）。純靜態掃描，不需要資料庫，約 0.3 秒
+      - name: 文件路徑檢查
+        run: python scripts/check_doc_paths.py
+
+      # `core/api` 的死介面閘門：零呼叫零測試的公開方法。
+      # 它會 import `core/api`，故排在測試相依裝好之後
+      - name: API 死介面檢查
+        run: python scripts/check_api_orphan_methods.py
+
       # SHORT 回歸線：純記憶體、不需要資料庫，約 0.7 秒
       # LONG 線需要 data/db/tw_stock.db，CI 沒有，故仍只能在本機跑
       # （`scripts/run_regression.sh` 現在會在 skip 時以結束碼 3 明說沒跑）
