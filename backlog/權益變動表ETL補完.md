@@ -21,7 +21,9 @@
 | S2 | cleaner：實作 `clean_equity_changes()` | `core/pipeline/tw/cleaners/financial_statement_cleaner.py` | 單元測試（不連網、不連 DB），比照 `tests/test_stock_margin_cleaner.py` | ✅ | 攤平成**長表**（見 S2）；`tests/test_financial_statement_cleaner_equity_change.py` 8 項通過 |
 | S3 | loader：建表與欄位定義 | `core/pipeline/tw/loaders/financial_statement_loader.py` | `create_missing_tables()` 後 `equity_change` 表存在 | ✅ | PK 偏離原規格（不含 `公司名稱`、改含攤平後的兩個維度），見 S3 |
 | S4 | updater 接線與簽名修正 | `core/pipeline/tw/updaters/financial_statement_updater.py` | `--target fs` 跑通、增量更新正確 | ✅ | resume 改為**逐檔**而非逐年季，理由見 S4 |
-| S5 | 歷史回補與驗證 | DB `equity_change` 表 | 2013Q1 起資料入庫，抽樣與 MOPS 原站比對 | 🔄 | **2020Q1 已完成**（2026-08-22，230,163 列 / 1,743 檔，抽樣 6 檔 1,993 列比對 mismatch = 0）。**2026-09-03 21:59 起跑 2020Q2 節流驗證梯次**（2,087 檔），其餘 52 個年季待跑 |
+| S5 | 歷史回補與驗證 | DB `equity_change` 表 | 2013Q1 起資料入庫，抽樣與 MOPS 原站比對 | 🔄 | **執行追蹤已移交 [權益變動表回補續跑.md](權益變動表回補續跑.md)**（2026-09-05）；以下為移交前的紀錄。 2020Q1 完成（2026-08-22）。**2026-09-04 S6／S7 完成後 2020Q2 重跑驗證通過**（1,404 檔 / 0 cleaned empty / 0 unreachable），同日 10:12 起跑整段回補，11:32 因缺 `html5lib` 中止（資料零遺失）、修正後 **11:38 重啟**（估約 60~66 小時） |
+| S6 | 修正非 Q1 的期別標籤比對 | `core/pipeline/tw/cleaners/financial_statement_cleaner.py` | 2020 四季各抽一檔，四季都選得到本期表且不誤取去年同期 | ✅ | 2026-09-04 完成；2330 逐季實查四季全中，統計行補上 `cleaned empty`（見 S6） |
+| S7 | 中斷韌性：訊號收工、進度存檔、磁碟對帳 | `core/pipeline/shared/graceful_stop.py`、`core/pipeline/shared/season_planner.py`、`financial_statement_updater.py` | 離線 32 項測試 ＋ 實際送 SIGINT 的實測 | ✅ | 2026-09-04 完成；中斷不再丟掉手上那批，「查無資料」跨行程記住（見 S7） |
 
 ## 步驟詳述
 
@@ -167,12 +169,16 @@
 > **第一批資料要等 100 檔之後才落地**（`EQUITY_CHANGE_LOAD_BATCH_SIZE`），約 10 分鐘。
 > 啟動後前幾分鐘查 DB 是 0 列屬正常，不是失敗。
 >
-> **每次重跑會重打「查無資料」的那些檔**（2020Q1 是 343 檔）：resume 以「DB 有沒有列」為準，
-> 查無資料的公司不會留下任何列，因此無法與「還沒爬」區分。這與
-> [券商分點 NO_DATA 的 metadata 語意](../docs/pipeline/broker-trading-no-data.md) 是同一個問題，
-> 該文件已選型未實作；在那之前，每個年季的重跑會多打約 15% 的無效請求。
+> ~~**每次重跑會重打「查無資料」的那些檔**（2020Q1 是 343 檔）~~
+> **——已於 2026-09-04 由 S7 解決**：查無資料的公司記進
+> `data/downloads/tw_stock/meta/no_data/equity_change_season_progress.json`，
+> 重跑不再重打（申報期已關閉的年季才記，理由見 S7）。
+> 這與 [券商分點 NO_DATA 的 metadata 語意](../docs/pipeline/broker-trading-no-data.md)
+> 是同一個問題，該文件仍是選型未實作。
 >
 > - **執行方式**：`python -m tasks.update_db --target fs`。逐檔 resume 已就緒，中斷後重跑會自動只補差集，不需要手動記錄進度。
+>   **中斷方式（2026-09-04 起）**：直接 Ctrl+C 或 `kill <pid>`（SIGTERM）即可——手上那批會先入庫、
+>   進度會存檔、統計行會印完才離開；急著離開就再按一次 Ctrl+C（那時未入庫的那批會遺失）。
 > - **要分段跑**就直接呼叫 `FinancialStatementUpdater().update_equity_changes(start_year, end_year, start_season, end_season)` 指定較窄的年季區間；`--target fs` 走的是 `DEFAULT_START_YEAR` ~ 今年、Q1~Q4 的完整區間。
 > - **已知限制**（回補完成後仍會存在，寫在這裡免得事後被當成 bug）：
 >   1. 股票清單取自 `taiwan_stock_info` 的**現況**，已下市公司的歷史權益變動表不會被補到。
@@ -196,14 +202,216 @@
 >   **在那之前，S5 的整段回補跑下去會是錯的。**
 > - 下一步：本季跑完看統計行 → 決定節流值 → 再開整段（剩 52 季，依現行速率估約 47 小時）。
 
+> **⛔ 2026-09-03 23:27：2020Q2 梯次結束——節流過關，但入庫 0 列**
+>
+> | 項目 | 結果 |
+> |------|------|
+> | 統計行 | `2020Q2 done: 2087 requested, 244 no data, 0 unreachable` |
+> | 耗時 | 1 小時 28 分（2.5 秒/檔，比推估的 1.6 秒慢，但仍是舊設定的 2.4 倍快） |
+> | 結束碼 | 0 |
+> | **實際入庫** | **0 列**（DB 內 `equity_change` 仍只有 2020Q1） |
+>
+> **節流部分是通過的**：2,087 次請求連續 1.5 小時 `unreachable = 0`，
+> 0.5~1.5 秒/檔 ＋ 每 50 檔睡 15 秒這組值可以維持，不需要調回中間值。
+>
+> **但 1,843 檔有資料的公司全部清洗成空表**，log 裡是 3,689 條
+> `No equity changes table matched: XXXX 2020Q2` ＋ `Cleaned equity changes dataframe empty`。
+> 根因見 S6。
+>
+> ⚠️ **這次跑掉的 1.5 小時是全額損失**：查無資料的公司不留列、清洗成空的公司也不留列，
+> 兩者在 resume 眼中都是「還沒爬」，所以 S6 修好之後 2020Q2 要整季重跑。
+>
+> ⚠️ **而且它看起來完全像成功**：統計行三個數字都正常、結束碼 0、沒有任何 ERROR。
+> 統計行只數「請求」層的結果，不數「清洗後有幾檔真的產出資料」——
+> 這正是 [ETL失敗語意與缺口回補](ETL失敗語意與缺口回補.md) 在收斂的同一類問題，
+> 建議 S6 一併把 `cleaned_empty` 加進統計行。
+
+> **🔄 2026-09-04 10:12：整段回補起跑（S6／S7 完成後）**
+>
+> **先重跑 2020Q2 驗證 S6**（10:12 主動以 SIGTERM 收工，因為要換成整段回補；未跑完的部分由整段回補接手）：
+>
+> | 項目 | 結果 |
+> |------|------|
+> | 統計行 | `1404 requested / 1305 ok / 99 no data / 0 unreachable / **0 cleaned empty**` |
+> | 入庫 | 1,305 檔 / 214,614 列（＝ `ok` 數，收工時手上那批完整落地、零遺失） |
+> | 進度檔 | `no_data: {"2020Q2": 99}`、`incomplete: {}` |
+> | 速率 | 約 2.1 秒/檔（一個年季約 1.2 小時） |
+>
+> 2026-09-03 同一季跑出來是 2,087 檔全數清成空表、入庫 0 列；**S6 修正後 1,305 檔全部清出資料、`cleaned empty` 為 0**。
+> 這也是 S7 的第二次實地驗證——這次是全市場規模，SIGTERM 後手上那批照樣完整入庫。
+>
+> - **範圍**：`update_equity_changes(2013, 2026, 1, 4)`＝56 個年季（2026Q3／Q4 會由 `is_season_filed()` 早退，各花 3 次試探）。
+> - **預估**：約 113,700 次請求 × 2.1 秒 ≈ **60~66 小時**。
+> - **已完成的年季不重打**：2020Q1（1,743 檔）與 2020Q2（1,305 檔）只會補各自的差集；
+>   2020Q1 的 343 檔查無資料因為早於進度檔機制，會被重問一次並就此記入永久名單。
+> - **中斷方式**：`kill <pid>` 或 Ctrl+C，手上那批會先入庫、進度存檔、印完統計行才離開；重跑不需任何參數。
+> - **要看的那行**：每季收尾的
+>   `N requested / N ok / N no data / N unreachable / N cleaned empty`——
+>   `unreachable` 明顯大於 0 代表節流放太寬，`cleaned empty` 大於 0 代表版面又變了（程式要修，重跑沒用）。
+
+> **⛔ → 🔄 2026-09-04 11:32：首次整段回補炸在缺套件，修好後 11:38 重啟**
+>
+> 跑完 2013Q1（`2087 requested / 1443 ok / 644 no data / 0 unreachable / 0 cleaned empty`）
+> 之後，在 2013Q2 的第 5 檔（代號 1107）以 `ImportError` 中止：
+> 該頁讓 lxml 解不動，`pd.read_html` 回退到 bs4 flavor 時發現**缺 `html5lib`**。
+>
+> **資料零遺失**：2013Q1 的 1,443 檔與 644 筆查無資料都已落地，
+> 2013Q2 已爬的 4 檔也由 S7 的收尾入庫寫進去了——例外一路往上炸，
+> `finally` 仍然把手上那批寫下來。
+>
+> **三個修正**：
+> 1. `html5lib==1.1` 補進 `requirements.txt` 並安裝（`lxml` 已在，缺的是回退用的那個）。
+> 2. **爬取層加上與清洗層對等的例外隔離**（`crawl_equity_changes_one()`）。
+>    S7 當時只隔離了 cleaner，crawler 的非預期例外仍會炸穿整段回補——
+>    而「一頁的問題不該炸掉幾十小時的回補」跟缺哪個套件無關，是結構問題。
+> 3. 隔離的代價是「環境壞了」會退化成一長串失敗，故加**連續例外斷路器**
+>    （`EQUITY_CHANGE_MAX_CONSECUTIVE_ERRORS = 20`）。
+>    ⚠️ 這與 §4.5 的「連續 N 檔查無資料就早退」**不是**同一種東西：
+>    那裡拿「沒有資料」這種正常結果當統計樣本（錯的），這裡數的是例外——
+>    例外從來不是合法的業務結果。
+>
+> 順帶修掉一條同源的靜默漏資料路徑：crawler 解析不出表格時原本回 `[]`
+> （＝確定沒有資料），會讓該檔被寫進永久名單從此不再嘗試；
+> 改回 `None`（待重試），與 `BaseDataCrawler` 的三態判準一致。
+>
+> **測試**：`tests/test_equity_change_interruption.py` 32 → 35 項，全套 902 項通過。
+> **重啟後 resume 正確**：2013Q1 `already complete, skipped`（0 次請求），
+> 2013Q2 從 2,083 檔（＝2,087 − 已爬的 4 檔）續跑。
+
+### S6. 修正非 Q1 的期別標籤比對 ✅
+
+- **目的**：`select_equity_changes_period_table()` 把本期表的標籤寫死為
+  `f"民國{roc_year}年第{season}季"`（`financial_statement_cleaner.py:415`），
+  **只有 Q1 對得上**。2026-09-03 以 2330 逐季實查 MOPS：
+
+  | 季別 | MOPS 實際標籤 | 現行程式比對的字串 | 結果 |
+  |:----:|---------------|--------------------|:----:|
+  | Q1 | `民國109年第1季` | `民國109年第1季` | ✅ |
+  | Q2 | `民國109年上半年度` | `民國109年第2季` | ❌ |
+  | Q3 | `民國109年前3季` | `民國109年第3季` | ❌ |
+  | Q4 | `民國109年度` | `民國109年第4季` | ❌ |
+
+  2020Q1 之所以成功，純粹因為它是 Q1。**照現況跑完整段回補，54 個年季裡只有
+  14 個 Q1 會有資料，其餘 40 季全部空轉**——每季白打兩千次請求、跑 1.5 小時、
+  印出正常的統計行、退出碼 0、DB 零列。
+- **做法**：
+  1. 標籤改為依季別產生的集合，而非單一字串：
+     Q1 → `第1季`、Q2 → `上半年度`、Q3 → `前3季`、Q4 → `年度`。
+     **維持「比對不到就回傳 None」的既有設計**（S2 已論證過：抓錯會把去年的
+     數字記成今年，且主鍵相同會安靜地佔住正確資料的位置），只是把可接受的
+     標籤補齊。
+  2. 同一頁的去年同期表標籤同樣是這四種形式（實查為 `民國108年上半年度` 等），
+     以「民國{roc_year}年」前綴區分本期與去年，這點不變。
+  3. 統計行補上 `cleaned_empty` 計數——本次事故正是因為統計行只數請求層的結果，
+     才會讓「兩千次請求、零列入庫」看起來像成功。
+- **產出**：`core/pipeline/tw/cleaners/financial_statement_cleaner.py`、
+  `core/pipeline/tw/updaters/financial_statement_updater.py`（統計行）、
+  `tests/test_financial_statement_cleaner_equity_change.py`（四季各一條 fixture）。
+- **驗證方式**：以 2020 四季各抽一檔實跑，四季都選得到本期表；
+  斷言選到的是本期而非去年同期（金額與 MOPS 原站比對）。
+- **相依**：無（S5 反過來相依本步驟）。
+
+> **✅ 完成紀錄（2026-09-04）**
+>
+> **標籤改為每季一組候選**（`FinancialStatementCleaner.EQUITY_CHANGE_PERIOD_LABELS`）：
+> Q1 `民國{roc}年第1季`、Q2 `民國{roc}年上半年度`、Q3 `民國{roc}年前3季`、Q4 `民國{roc}年度`。
+> 每季額外接受「第N季」的寫法，措辭若再調整不會整季空轉；
+> **比對不到仍一律回 `None`**（S2 已論證過的設計沒有放寬），
+> 本期與去年同期依舊只靠「民國{roc_year}年」前綴區分。
+>
+> **統計行補上 `cleaned empty`**：現在收尾是
+> `N requested / N ok / N no data / N unreachable / N cleaned empty`，
+> 且 `cleaned_empty`、`clean_failed`、`unreachable` 任一非 0 就升為 warning。
+> 舊版三個數字全正常卻入庫 0 列的情況不會再看起來像成功。
+> 清成空表**計為待重試**（寫進進度檔的 `incomplete`），不寫進「查無資料」永久名單——
+> 那是版面問題，不是「這檔沒有資料」。
+>
+> **驗證（2330，2020 四季實查 MOPS）**：
+>
+> | 季別 | 頁面上的標籤 | 選中 | 清洗結果 | 保留盈餘合計／期末餘額 |
+> |:----:|--------------|:----:|----------|------------------------|
+> | Q1 | `民國109年第1季`／`民國108年第1季` | 本期 ✅ | 165 列 / 15 項 | 1,385,495,748 |
+> | Q2 | `民國109年上半年度`／`民國108年上半年度` | 本期 ✅ | 210 列 / 15 項 | 1,441,491,990 |
+> | Q3 | `民國109年前3季`／`民國108年前3季` | 本期 ✅ | 210 列 / 15 項 | 1,513,976,388 |
+> | Q4 | `民國109年度`／`民國108年度` | 本期 ✅ | 225 列 / 15 項 | 1,588,686,081 |
+>
+> 保留盈餘逐季遞增，且**同一頁的去年同期表另外驗過一次**：2020Q2 頁面上
+> `民國108年上半年度` 那張的期末是 1,245,575,785，與本期的 1,441,491,990 明顯不同——
+> 兩張表確實被正確分開，不是碰巧選到同一張。
+>
+> **測試**：`tests/test_financial_statement_cleaner_equity_change.py` 由 11 項增為 19 項
+> （四季各一條標籤比對、三條非 Q1 的「不得誤取去年同期」、一條「補齊標籤不得放寬年份」）。
+
+### S7. 中斷韌性：訊號收工、進度存檔、磁碟對帳 ✅
+
+- **目的**：S5 的整段回補是十萬次請求、數十小時，**中斷是常態不是例外**。
+  但原本的四個缺口讓「中斷」的代價遠高於必要：
+
+  | 缺口 | 代價 |
+  |------|------|
+  | `KeyboardInterrupt` 從當下那行炸出去 | 記憶體裡等湊滿一批的資料（最多 100 檔、約兩分鐘請求）全部作廢，且它們在表裡不留任何列，重跑無法與「還沒爬」區分 |
+  | 「查無資料」不留紀錄 | 每次重跑重打（2020Q1 是 343 檔、佔 16%） |
+  | CSV 已落地、入庫前被中止 | 那批的請求成本白付 |
+  | cleaner 例外、單批入庫失敗會往上炸 | 一頁版面異常或一個壞批次中止剩下幾十小時 |
+- **做法**：
+  1. `core/pipeline/shared/graceful_stop.py`：`GracefulStop` 把 SIGINT／SIGTERM
+     轉成可輪詢的旗標，第一次只記旗標、第二次立即中止；節流改用
+     `stop.sleep()`（`time.sleep()` 被訊號打斷會自動續睡，見 PEP 475）。
+  2. `core/pipeline/shared/season_planner.py`：`SeasonProgressStore` ＋ `SeasonPlanner`，
+     把 `date_planner.py` 的差集公式換成「年季 × 個股」的單位。
+  3. `update_equity_changes_season()` 以 `try/finally` 收尾入庫；
+     cleaner 例外由 `clean_equity_changes_one()` 隔離在單檔；
+     批次入庫失敗收集後於整段結束才拋 `DataLoadError`。
+  4. `reconcile_season_csv_files()`：該年季還有待補公司時，先把磁碟上已落地的
+     CSV 補進資料庫再算待補清單。
+- **產出**：`core/pipeline/shared/graceful_stop.py`、`core/pipeline/shared/season_planner.py`、
+  `core/pipeline/tw/updaters/financial_statement_updater.py`、
+  `tests/test_equity_change_interruption.py`。
+- **驗證方式**：離線測試 ＋ 實際送 SIGINT 的實地驗證。
+- **相依**：S4。
+
+> **✅ 完成紀錄（2026-09-04）**
+>
+> **「查無資料」寫進進度檔的前提**（`data/downloads/tw_stock/meta/no_data/equity_change_season_progress.json`）：
+> **申報期已關閉才寫**。財報是逐家公司申報的，申報期間查某一檔沒有資料多半只代表
+> 它還沒送件；那時就寫進永久名單，它送件之後再也不會被抓——每季申報期間跑一次
+> 日常更新就會踩到。期限取各行業中最晚的那天再加 30 天寬限
+> （Q1 5/30、Q2 8/31、Q3 11/29、年報次年 3/31），與逐日來源「當天不寫入 `no_data`」
+> 是同一道防線。
+>
+> **`record_complete()` 刻意不存「已完成」集合**：哪些公司已經有資料，唯一真相是
+> 資料表本身。另存一份名單就會有不一致的窗口——行程在「進度存檔了、CSV 還沒入庫」
+> 之間被強制中止時，那份名單會宣稱完成而資料庫裡沒有列，那些公司從此不會再被爬。
+>
+> **實地驗證（2026-09-04，暫存 DB、真的打 MOPS）**：
+>
+> | 階段 | 動作 | 結果 |
+> |------|------|------|
+> | 1 | 2024Q1 六檔，開跑 7 秒後送 SIGINT | 已爬的 4 檔**全數入庫**（1,319 列），統計行 `4 requested / 4 ok`＋`依中止訊號收工，本季待補 2 檔`，結束碼 0 |
+> | 2 | 同參數重跑 | 只請求 `['2891', '6488']`——已入庫的 4 檔連 `is_season_filed()` 的試探都省下；磁碟對帳報 `新寫入 0 檔、已存在跳過 1 檔` |
+> | 3 | 2013Q1 查 2330／6488（6488 為 2015 年才上市） | `2 requested / 1 ok / 1 no data`，進度檔記下 `{"no_data": {"2013Q1": ["6488"]}}` |
+> | 4 | 2013Q1 重跑 | **請求數 0**（`already complete, skipped`） |
+>
+> 過程中還撞到一次真實的 MOPS 502，`RequestUtils` 的重試層正常吸收，
+> 未被誤判成「查無資料」。
+>
+> **測試**：`tests/test_equity_change_interruption.py` 32 項（訊號語意 5、申報期關閉判定 9、
+> 進度檔 5、差集 2、中斷與續跑 3、查無資料／過載 2、磁碟對帳 2、失敗隔離 4）。
+> 全套回歸 880 項通過。
+>
+> **偏離原規格**：本步驟不在原規劃內，是 2026-09-04 依使用者要求「處理隨時會中斷爬蟲的問題」
+> 而新增。`GracefulStop` 與 `SeasonProgressStore`／`SeasonPlanner` 放在
+> `core/pipeline/shared/` 而非權益變動表專屬目錄——前者對任何長時間爬取都適用，
+> 後者是逐檔來源的通用形狀（目前只有權益變動表在用，語意與 `date_planner.py` 對稱）。
+
 ---
 
 ## 關聯與狀態
 
 - **優先級**：P3（S5 歷史回補純屬執行，可隨時中斷續跑）
-- **進度**：4 / 5 項 ✅（S1~S4，2026-08-22）；S5 🔄 2020Q1 已完成（230,163 列 / 1,743 檔），2026-09-03 起跑 2020Q2 節流驗證梯次，其餘 52 個年季待跑
-- **相關程式**：`core/pipeline/tw/crawlers/financial_statement_crawler.py`、`core/pipeline/tw/cleaners/financial_statement_cleaner.py`、`core/pipeline/tw/loaders/financial_statement_loader.py`、`core/pipeline/tw/updaters/financial_statement_updater.py`、`core/config.py`（`EQUITY_CHANGE_TABLE_NAME`）、`tests/test_financial_statement_cleaner_equity_change.py`
+- **進度**：6 / 7 項 ✅（S1~S4 於 2026-08-22、S6~S7 於 2026-09-04）；S5 🔄 僅 2020Q1 有資料（230,163 列 / 1,743 檔），2020Q2 需整季重跑，其餘 52 個年季待跑。**S6 的阻塞已解除，S5 可直接開跑**
+- **相關程式**：`core/pipeline/tw/crawlers/financial_statement_crawler.py`、`core/pipeline/tw/cleaners/financial_statement_cleaner.py`、`core/pipeline/tw/loaders/financial_statement_loader.py`、`core/pipeline/tw/updaters/financial_statement_updater.py`、`core/pipeline/shared/graceful_stop.py`、`core/pipeline/shared/season_planner.py`、`core/config.py`（`EQUITY_CHANGE_TABLE_NAME`）、`tests/test_financial_statement_cleaner_equity_change.py`、`tests/test_equity_change_interruption.py`
 - **相關文件**：
   - [權益變動表](../docs/pipeline/equity-change.md)——2026-08-29 由本文件抽出的長期參考內容（資料形狀、涵蓋範圍、已知限制、節流）
   - [ETL 入庫約定](../docs/pipeline/etl-ingestion.md)（新增 updater 時的檢查表；§二的對照表已補上 `equity_change` 與其餘三張報表的差異）
-- **結案方式**：S5 完成後**整份刪除**並移除 `index.md` 對應列；該留的內容已在上述兩份 `docs/`，另需同步更新 `docs/pipeline/equity-change.md` §二的涵蓋範圍與 `docs/exchanges/data_coverage.md`
+- **結案方式**：S5 的執行追蹤已於 2026-09-05 移交 [權益變動表回補續跑.md](權益變動表回補續跑.md)；該文件的 S4 會把本文件與它一併刪除、移除 `index.md` 的兩列；該留的內容已在上述兩份 `docs/`，另需同步更新 `docs/pipeline/equity-change.md` §二的涵蓋範圍與 `docs/exchanges/data_coverage.md`
