@@ -50,6 +50,35 @@ class BaseDataAPI(ABC):
         return tuple(converted)
 
     @staticmethod
+    def check_table_exist(conn: sqlite3.Connection, table_name: str) -> bool:
+        """
+        - Description:
+            檢查資料表是否存在
+
+            **這支存在的理由是「表還沒建」與「查詢出錯」必須分得開**：舊版四支期貨
+            相關 API 用 `except sqlite3.OperationalError: return None` 收掉整類錯誤，
+            於是「尚未跑過 ETL」（正常）與「資料庫被鎖住、schema 壞掉、欄名打錯」
+            （不正常）長得一模一樣。後者在回測期間只會讓策略拿到 `None`——
+            **沒有任何錯誤，只是少開幾筆倉**（健檢第四輪 S1，與 F-056 同型）。
+
+            行為與 `core/pipeline/utils/sqlite_utils.py` 的同名方法一致。
+            **兩邊各有一份是刻意的**：讀取層不該為了一個五行的查詢反向相依 ETL
+            套件（F-007 已登記 `core/api` → `core/pipeline` 這條相依待移除）。
+        - Parameters:
+            - conn: sqlite3.Connection
+                資料庫連線
+            - table_name: str
+                資料表名稱
+        - Return:
+            - bool
+                資料表存在為 True
+        """
+
+        query: str = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?"
+        result: Tuple[int] = conn.execute(query, (table_name,)).fetchone()
+        return result[0] == 1
+
+    @staticmethod
     def build_column_map(df: pd.DataFrame, column: str) -> Dict[str, Any]:
         """
         - Description:

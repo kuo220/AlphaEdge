@@ -13,6 +13,7 @@ from core.config import (
     TW_FUTURES_DB_PATH,
 )
 from core.pipeline.shared.base_loader import BaseDataLoader
+from core.pipeline.utils.sqlite_utils import SQLiteUtils
 
 """
 台期貨籌碼 Loader（三張表）
@@ -150,19 +151,23 @@ class FuturesChipLoader(BaseDataLoader):
     def count_rows(self, table: str) -> int:
         """表內列數；表還不存在時為 0"""
 
-        try:
-            return self.conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
-        except sqlite3.OperationalError:
+        # 只有「表還沒建」才回 0。舊版連查詢錯誤一起吞，而 `add_to_db()` 是用
+        # 「入庫後列數 − 入庫前列數」算新增筆數——後一次查詢失敗就會印出負數列數
+        if not SQLiteUtils.check_table_exist(conn=self.conn, table_name=table):
             return 0
+        return self.conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
 
     def get_latest_date(self, table: str) -> Optional[str]:
         """表內最新的資料日期；供 updater 續跑（表不存在時為 None）"""
 
         self.connect()
-        try:
-            row = self.conn.execute(f"SELECT MAX(date) FROM {table}").fetchone()
-        except sqlite3.OperationalError:
+        # **這裡回 None 的代價是整段重爬**：`futures_chip_updater.resolve_start_date()`
+        # 拿到 None 就退回 `DEFAULT_START_DATE`。舊版把 `database is locked`
+        # 也吞成 None，於是背景有另一支 ETL 在寫同一個 DB 時，續跑會從預設起日
+        # 重來好幾個小時，而 log 只顯示一個看起來正常的起始日期（S1、F-056 同型）
+        if not SQLiteUtils.check_table_exist(conn=self.conn, table_name=table):
             return None
+        row = self.conn.execute(f"SELECT MAX(date) FROM {table}").fetchone()
         return row[0] if row else None
 
     def save_csv(self, df: pd.DataFrame, file_name: str) -> Optional[Path]:

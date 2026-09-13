@@ -98,12 +98,14 @@ class FuturesChipAPI(BaseDataAPI):
     ) -> Optional[str]:
         """該日之前最近一個有籌碼的日期（**嚴格小於**，見 `get_available()`）"""
 
-        try:
-            row = self.conn.execute(
-                f"SELECT MAX(date) FROM {table} WHERE date < ?", (str(date),)
-            ).fetchone()
-        except sqlite3.OperationalError:
+        # 表還沒建（尚未跑過籌碼 ETL）才回 None；其餘 sqlite 錯誤一律上拋，
+        # 否則「資料庫被鎖住」會被當成「這天之前沒有籌碼」而靜默少開倉（S1）
+        if not self.check_table_exist(conn=self.conn, table_name=table):
             return None
+
+        row = self.conn.execute(
+            f"SELECT MAX(date) FROM {table} WHERE date < ?", (str(date),)
+        ).fetchone()
 
         return row[0] if row and row[0] else None
 
@@ -205,12 +207,10 @@ class FuturesChipAPI(BaseDataAPI):
     ) -> Optional[Dict[str, str]]:
         """該表的資料涵蓋範圍（供人工確認回補進度）"""
 
-        try:
-            row = self.conn.execute(
-                f"SELECT MIN(date), MAX(date) FROM {table}"
-            ).fetchone()
-        except sqlite3.OperationalError:
+        if not self.check_table_exist(conn=self.conn, table_name=table):
             return None
+
+        row = self.conn.execute(f"SELECT MIN(date), MAX(date) FROM {table}").fetchone()
 
         if row is None or row[0] is None:
             return None
