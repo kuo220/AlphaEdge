@@ -30,8 +30,9 @@ graph TB
     end
 
     subgraph domain_layer ["Domain & Shared"]
-        Models["core/models<br/>(base/ + stock/)"]
+        Models["core/models<br/>(base/ + stock/ + futures/)"]
         Utils["core/utils"]
+        Config["core/config<br/>(paths / schema / settings)"]
     end
 
     subgraph data_layer ["Data & Pipeline"]
@@ -71,6 +72,8 @@ graph TB
     Feed --> Adapters
     API --> DB
     Adapters --> API
+    API --> Config
+    Pipeline --> Config
     Tasks --> Pipeline
     Pipeline --> DB
     Pipeline --> Data
@@ -96,7 +99,7 @@ graph TB
 | `tests/`        | Unit/integration tests for crawlers, updaters, and DB workflows                                                                 |
 | `docs/`         | Project docs (setup, deployment, data coverage)                                                                                 |
 | `strategy_lab/` | Research workspace organized by concept (`strategies/`, `data_analysis/`, `notebooks/`, `ideas/`); see `strategy_lab/README.md` |
-| `dev/`          | Optional dev tooling (conda env YAMLs, helper scripts)                                                                          |
+| `dev/`          | Optional conda environment definitions (`dev/env/quant_mac.yml`, `quant_win.yml`)                                                |
 | `backlog/`      | Internal notes and future work items                                                                                            |
 
 
@@ -124,6 +127,10 @@ graph TB
 | [Naming Axes](docs/dev/naming-axes.md)                  | Directory naming decision for the market axis vs the instrument-type axis |
 | [Runtime Artifacts](docs/dev/runtime-artifacts.md)      | Conventions for `data/` / `results/` / `logs/`, log bucketing and retention |
 | [Equity Change Data](docs/pipeline/equity-change.md)    | `equity_change` data shape, coverage, known limits and throttling |
+| [Corporate Actions](docs/pipeline/corporate-action.md)  | Adjustment ratios for non-dividend corporate actions (capital reduction, splits) and known limits |
+| [Frontend Report Metrics](docs/frontend/report-metrics.md) | How the frontend and the reporter share one set of performance-metric functions |
+| [Crawler Coverage Audit](docs/dev/crawler-coverage-2026-09.md) | Per-table coverage and stop points, measured from actual database content |
+| [Health Check Round 3](docs/dev/health-check-round3-2026-09.md) | Disposition and completion record for the five round-3 findings |
 
 
 ---
@@ -197,8 +204,11 @@ pre-commit install       # one-time; installs the git hook
 pre-commit run --all-files
 ```
 
-GitHub Actions runs `ruff check`, `ruff format --check` and `pytest -m "not slow"` on
-every push (see `.github/workflows/ci.yml`).
+On every push GitHub Actions runs, in order: `ruff check`, `ruff format --check`, the
+layer-dependency gate (`scripts/check_layer_deps.py`), the SHORT regression line, and
+`pytest -m "not slow"`, finishing with a coverage report under `continue-on-error`
+(see `.github/workflows/ci.yml`). **The LONG regression line needs
+`data/db/tw_stock.db`, which CI does not have, so it only runs locally.**
 
 If you switch to **Option 2 (Docker)** for this project, you do not need a local venv: the container image already provides an isolated Python environment.
 
@@ -337,18 +347,20 @@ AlphaEdge/
 │   │   └── tw/                # StockQuoteAdapter (day/tick → StockQuote), FuturesQuoteAdapter
 │   ├── managers/              # position managers (base/ + per-market)
 │   ├── models/                # domain models (base/ + stock/ + futures/)
-│   ├── utils/                 # shared helpers (enums, paths, time, logging)
+│   ├── utils/                 # shared helpers (enums, time, logging, Shioaji account)
+│   ├── config/                # paths, table schema and settings constants (lowest layer)
 │   ├── pipeline/              # ETL/update pipeline
-│   │   ├── shared/           # cross-market: four layer bases + HTTP helpers
+│   │   ├── shared/           # cross-market: four layer bases, HTTP helpers, date/season diffing
 │   │   ├── tw/               # TW equity/futures ETL (crawlers/cleaners/loaders/updaters)
-│   │   └── utils/            # constants, URL manager, DataFrame and SQLite helpers
+│   │   │   └── utils/        # TW-only helpers (URL table, tick metadata)
+│   │   └── utils/            # cross-market: constants, DataFrame and SQLite helpers, exceptions
 │   ├── backtest/              # backtest engine
 │   │   ├── backtester.py      # the only engine: market/instrument-agnostic, no subclasses
 │   │   ├── factory.py         # assembles the model set from (market, instrument_type)
 │   │   ├── models/            # InstrumentSpec / FillModel / CostModel / SettlementModel
 │   │   ├── datafeed/          # data loading, quote conversion, trading calendar
 │   │   ├── report/            # trading report, direction summary, charts
-│   │   ├── analysis/          # performance metrics (risk_metrics.py is pure functions; not yet wired into run())
+│   │   ├── analysis/          # performance metrics (`risk_metrics.py` is pure functions, shared by the frontend and the analyzer)
 ├── data/                      # runtime data (git-ignored): db/ (tw_stock.db, tw_futures.db) + downloads/
 ├── results/                   # per-strategy backtest outputs (csv / png), git-ignored
 ├── logs/                      # api/ pipeline/ backtest/, git-ignored
@@ -362,8 +374,8 @@ AlphaEdge/
 │   └── __init__.py
 ├── strategy_lab/              # research workspace (strategies/ / data_analysis/ / notebooks/ / ideas/)
 ├── tasks/                     # data update scripts
-├── tests/                     # test suites
-├── dev/                       # optional conda envs and dev scripts
+├── tests/                     # test suites (`backtest/` holds engine and regression lines; `temp/`, `database/` are runtime artifacts)
+├── dev/env/                   # optional conda environment definitions (mac/win)
 ├── backlog/                   # internal planning notes
 ├── docs/                      # project docs
 │   ├── backtest/              # engine architecture, module map, short-selling spec
@@ -374,8 +386,13 @@ AlphaEdge/
 │   ├── deployment/
 │   ├── exchanges/
 │   └── commands/
-├── scripts/
-│   └── run_regression.sh      # SHORT + LONG regression guardrail (run before/after engine changes)
+├── scripts/                   # guardrail checks and one-off tools
+│   ├── run_regression.sh      # SHORT + LONG regression guardrail (run before/after engine changes)
+│   ├── check_layer_deps.py    # layer deps, import cycles, cross-axis directory pollution (CI + pre-commit)
+│   ├── check_doc_paths.py     # file paths in docs that no longer resolve (stale after a move)
+│   ├── check_api_orphan_methods.py  # public methods in `core/api` with zero callers and zero tests
+│   ├── clean_pycache.sh       # remove __pycache__ and .pyc
+│   └── manual/                # scripts needing credentials or a database (see its README)
 ├── docker-compose.yml         # compose: core + frontend + shared results volume
 ├── run.py
 ├── README.md

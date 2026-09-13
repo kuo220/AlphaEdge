@@ -30,8 +30,9 @@ graph TB
     end
 
     subgraph domain_layer ["領域與共用層"]
-        Models["core/models<br/>（base/ ＋ stock/）"]
+        Models["core/models<br/>（base/ ＋ stock/ ＋ futures/）"]
         Utils["core/utils"]
+        Config["core/config<br/>（paths／schema／settings）"]
     end
 
     subgraph data_layer ["資料與流程層"]
@@ -71,6 +72,8 @@ graph TB
     Feed --> Adapters
     API --> DB
     Adapters --> API
+    API --> Config
+    Pipeline --> Config
     Tasks --> Pipeline
     Pipeline --> DB
     Pipeline --> Data
@@ -93,7 +96,7 @@ graph TB
 | `tests/`        | crawler、updater 與資料庫流程的單元/整合測試                          |
 | `docs/`         | 專案文件（環境設定、部署、資料覆蓋範圍）                              |
 | `strategy_lab/` | 策略研究工作區，依概念分為 `strategies/`、`data_analysis/`、`notebooks/`、`ideas/`；見 `strategy_lab/README.md` |
-| `dev/`          | 選用開發工具（conda 環境 YAML、輔助腳本）                             |
+| `dev/`          | 選用的 conda 環境定義（`dev/env/quant_mac.yml`、`quant_win.yml`）      |
 | `backlog/`      | 內部規劃與待辦筆記                                                    |
 
 ---
@@ -119,6 +122,10 @@ graph TB
 | [命名軸線](docs/dev/naming-axes.md) | 市場軸與商品類別軸的目錄命名定案，以及哪些目錄不分市場 |
 | [執行期產物](docs/dev/runtime-artifacts.md) | `data/`／`results/`／`logs/` 的目錄約定、日誌分桶與保留策略 |
 | [權益變動表資料](docs/pipeline/equity-change.md) | `equity_change` 的資料形狀、涵蓋範圍、已知限制與節流設定 |
+| [非除權息的公司行動與還原價](docs/pipeline/corporate-action.md) | 減資、面額變更、分割等非除權息事件的還原倍率來源與已知限制 |
+| [前端指標與報表同源化](docs/frontend/report-metrics.md) | 前端與 reporter 共用同一組績效指標函式的設計 |
+| [資料爬蟲涵蓋範圍盤點](docs/dev/crawler-coverage-2026-09.md) | 以資料庫實際內容為準的各表涵蓋範圍與中斷點 |
+| [健檢第三輪收斂](docs/dev/health-check-round3-2026-09.md) | 第三輪健檢五條的處置與完成紀錄 |
 
 ---
 
@@ -190,8 +197,11 @@ pre-commit install       # 只需執行一次，安裝 git hook
 pre-commit run --all-files
 ```
 
-每次 push 時 GitHub Actions 會跑 `ruff check`、`ruff format --check` 與
-`pytest -m "not slow"`（見 `.github/workflows/ci.yml`）。
+每次 push 時 GitHub Actions 會依序跑 `ruff check`、`ruff format --check`、
+分層相依檢查（`scripts/check_layer_deps.py`）、SHORT 回歸線與
+`pytest -m "not slow"`，最後以 `continue-on-error` 產出覆蓋率報告
+（見 `.github/workflows/ci.yml`）。**LONG 回歸線需要 `data/db/tw_stock.db`，
+CI 沒有該檔，只能在本機跑。**
 
 若改採下方 **方式 2（Docker）**，則**不需要**在本機使用 venv，映像內已具備隔離的 Python 環境。
 
@@ -327,18 +337,20 @@ AlphaEdge/
 │   │   └── tw/               # StockQuoteAdapter（日線/Tick → StockQuote）、FuturesQuoteAdapter
 │   ├── managers/              # 倉位管理器（base/ ＋ 各市場）
 │   ├── models/                # 領域模型（base/ ＋ stock/ ＋ futures/）
-│   ├── utils/                 # 共用工具（enum、路徑、時間、日誌）
+│   ├── utils/                 # 共用工具（enum、時間、日誌、Shioaji 帳號）
+│   ├── config/                # 路徑、資料表 schema 與設定常數（全專案最底層）
 │   ├── pipeline/              # ETL / 更新流程
-│   │   ├── shared/           # 跨市場共用：四層 base ＋ HTTP 工具
+│   │   ├── shared/           # 跨市場共用：四層 base ＋ HTTP 工具、日期／年季差集
 │   │   ├── tw/               # 台股／台期貨 ETL（crawlers／cleaners／loaders／updaters）
-│   │   └── utils/            # 常數、URL 管理、DataFrame 與 SQLite 工具
+│   │   │   └── utils/        # 只有台股用得到的工具（URL 總表、tick metadata）
+│   │   └── utils/            # 跨市場通用：常數、DataFrame 與 SQLite 工具、例外類別
 │   ├── backtest/              # 回測引擎
 │   │   ├── backtester.py      # 唯一引擎：市場與商品皆無關、無子類
 │   │   ├── factory.py         # 依（market, instrument_type）組合組裝 model 組合
 │   │   ├── models/            # InstrumentSpec／FillModel／CostModel／SettlementModel
 │   │   ├── datafeed/          # 資料載入、報價轉換、交易日判定
 │   │   ├── report/            # 交易報表、多空統計、圖表
-│   │   ├── analysis/          # 績效指標（risk_metrics.py 為純函式，尚未接進 run() 主流程）
+│   │   ├── analysis/          # 績效指標（`risk_metrics.py` 為純函式，前端與 analyzer 共用同一組公式）
 ├── data/                      # 執行期資料（不進版控）：db/（tw_stock.db、tw_futures.db）＋ downloads/
 ├── results/                   # 各策略回測輸出（csv／png），不進版控
 ├── logs/                      # api/、pipeline/、backtest/ 三桶，不進版控
@@ -352,8 +364,8 @@ AlphaEdge/
 │   └── __init__.py
 ├── strategy_lab/              # 策略研究工作區（strategies/ / data_analysis/ / notebooks/ / ideas/）
 ├── tasks/                     # 資料更新腳本
-├── tests/                     # 測試套件
-├── dev/                       # 選用 conda 環境與開發腳本
+├── tests/                     # 測試套件（`backtest/` 為引擎與回歸線；`temp/`、`database/` 為執行期產物）
+├── dev/env/                   # 選用的 conda 環境定義（mac／win）
 ├── backlog/                   # 內部規劃筆記
 ├── docs/                      # 專案文件
 │   ├── backtest/              # 引擎架構、模組使用關係、放空框架規格
@@ -364,8 +376,13 @@ AlphaEdge/
 │   ├── deployment/
 │   ├── exchanges/
 │   └── commands/
-├── scripts/
-│   └── run_regression.sh      # 回歸雙線護欄（動回測引擎前後都要跑）
+├── scripts/                   # 護欄檢查與一次性工具
+│   ├── run_regression.sh      # 回歸雙線護欄（動回測引擎前後都要跑）
+│   ├── check_layer_deps.py    # 分層相依、循環 import、跨軸目錄污染（CI 與 pre-commit 皆跑）
+│   ├── check_doc_paths.py     # 文件裡指不到的檔案路徑（搬家後沒更新的引用）
+│   ├── check_api_orphan_methods.py  # `core/api` 零呼叫零測試的公開方法
+│   ├── clean_pycache.sh       # 清除 __pycache__ 與 .pyc
+│   └── manual/                # 需要金鑰或資料庫的人工執行腳本（見該目錄 README）
 ├── docker-compose.yml         # compose：core + frontend + 共用 results volume
 ├── run.py
 ├── README.md
