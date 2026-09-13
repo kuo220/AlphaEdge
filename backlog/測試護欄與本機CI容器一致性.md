@@ -16,7 +16,7 @@
 | S3 | 入口退出碼與 `--mode live` | `run.py`、`tests/test_run_entry.py`（新增） | subprocess 測試：找不到策略 exit 2；`live` 明確 `NotImplementedError` | ✅ | **2026-09-10 完成**（`0138ca6`）：策略找不到 0 → 2 且訊息改走 stderr、`--mode live` 0 → 1；8 條 subprocess 測試，實測修正前 7 條會失敗 |
 | S4 | 一次性腳本清理與 `tests/manual_*` 搬家 | `scripts/dataframe_dot_to_bracket.py`（刪）、`generate_docs.py`（刪）、`clean_pycache.ps1`（修）、`scripts/migrations/migrate_db_naming.py`（搬）、`scripts/manual/*`（搬 ＋ README） | `git rm` 後 `pytest` 全綠；`grep return False tests/` 為 0 | ✅ | **2026-09-10 完成**（`f9c95e8`）：`tests/` 的 `return False` 由 **19 降為 2**（一個測試替身的 stub、一個 docstring），`except Exception` 剩 1 處且在 docstring |
 | S5 | 測試護欄補強：策略不自建連線、loguru 隔離、`sys.path.insert` 清理 | `tests/test_strategy_data_access.py`、`scripts/check_layer_deps.py`、`strategy_lab/**/run.py`、四份 README | 在策略加 `StockPriceAPI()` 即紅；pytest 後 `logs/` mtime 不變；`python -m` 方式可跑研究腳本 | ✅ | **2026-09-10 完成**（`6c3be9b`）：`sys.path.insert` 由 **18 降為 0**；loguru 隔離**實查發現早就做掉了**，實測 pytest 前後 `logs/` mtime 未變 |
-| S6 | 環境變數、相依檔與設定檔一致 | `.env.example`、`core/config/{schema,settings}.py`、`core/utils/path.py`（刪）、`dev/env/*.yml`、`requirements.txt`、`pyproject.toml` | `.env.example` 與 `os.getenv` 對照無缺口；`requirements.txt` 由 `pyproject` 重新產生；per-file-ignores 路徑存在 | ⬜ | F-096、F-100、F-015、F-016、F-018 |
+| S6 | 環境變數、相依檔與設定檔一致 | `.env.example`、`core/config/{schema,settings}.py`、`core/utils/path.py`（刪）、`dev/env/*.yml`、`requirements.txt`、`pyproject.toml` | `.env.example` 與 `os.getenv` 對照無缺口；`requirements.txt` 由 `pyproject` 重新產生；per-file-ignores 路徑存在 | ⬜ | F-096、F-100、F-015、F-016、F-018。**2026-09-13：`core/utils/path.py` 那個子項已由 [健檢第四輪收斂](健檢第四輪收斂.md) S3 做掉**（整支刪除；「併入 `config/paths.py`」不需要做，該檔早有自己的同名函式），本步驟剩其餘五項 |
 
 ## 步驟詳述
 
@@ -192,7 +192,7 @@
 ### S6. 環境變數、相依檔與設定檔一致 ⬜
 
 - **目的**：F-096、F-100、F-015、F-016、F-018。
-- **做法**：`.env.example` 補齊並標選填；`schema.py` 改讀 `settings.DDB_PATH` 且缺值即 raise；刪 `core/utils/path.py` 併入 `config/paths.py`；conda yml 標註停用或刪除；`requirements.txt` 以 `pip-compile` 重產；pyproject per-file-ignores 路徑修正。
+- **做法**：`.env.example` 補齊並標選填；`schema.py` 改讀 `settings.DDB_PATH` 且缺值即 raise；刪 `core/utils/path.py`（**2026-09-13 已由健檢第四輪 S3 完成**，且不需要併入——`config/paths.py` 早有逐行相同的同名函式）；conda yml 標註停用或刪除；`requirements.txt` 以 `pip-compile` 重產；pyproject per-file-ignores 路徑修正。
 - **產出**：見進度表。
 - **驗證方式**：`pytest -m "not slow"`、`ruff check .`、健檢 S20 的 AST 對照腳本重跑無缺口。
 - **相依**：無。

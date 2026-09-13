@@ -256,7 +256,10 @@ class CorporateActionCleaner(BaseDataCleaner):
                 return None
             year: int = int(TimeUtils.convert_roc_to_ad_year(roc_year))
             return datetime.date(year, int(month), int(day))
-        except Exception:
+        except (ValueError, TypeError):
+            # 只收「這個字串不是日期」：拆不出三段、月日非數字、日期超出範圍，
+            # 以及 `convert_roc_to_ad_year()` 對無效年份拋的 ValueError。
+            # 原本是 `except Exception`，連 schema 變更造成的錯誤都會被清成 None
             return None
 
     @staticmethod

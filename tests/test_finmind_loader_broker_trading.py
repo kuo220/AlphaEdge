@@ -1,26 +1,27 @@
 """
 測試 `finmind/broker_trading_loader.load_from_dataframe()` 的優化（第 2 點）：
 只查詢本批 df 涉及的 (stock_id, securities_trader_id) 在 DB 中已存在的 key，而非全表掃描。
-使用測試用臨時資料庫。
+
+**資料庫走 pytest 的 `tmp_path`**：本測試原本在 `tests/temp/` 建帶時間戳的 `.db`
+且從不刪除，跑一次留一個 12 MB 的檔——2026-09-13 清理時已累積 560 個、275 MB
+（健檢第四輪 S6）。`tmp_path` 由 pytest 負責回收，且每個測試各自隔離。
 """
 
-import datetime
 import sqlite3
 from pathlib import Path
+from typing import List
 from unittest.mock import patch
 
 import pandas as pd
 
 from core.config import STOCK_TRADING_DAILY_REPORT_TABLE_NAME
 
-project_root: Path = Path(__file__).resolve().parent.parent
-
 
 def _make_broker_trading_df(
     stock_id: str,
     securities_trader_id: str,
     securities_trader: str,
-    dates: list[str],
+    dates: List[str],
 ) -> pd.DataFrame:
     """組出符合 loader 需求的 broker trading DataFrame。"""
     rows = []
@@ -40,12 +41,10 @@ def _make_broker_trading_df(
     return pd.DataFrame(rows)
 
 
-def test_load_broker_trading_from_dataframe_optimization():
+def test_load_broker_trading_from_dataframe_optimization(tmp_path: Path) -> None:
     """驗證優化 2：只查本批 (stock_id, securities_trader_id) 的已存在 key，且重複不重插、新日期可插入。"""
-    temp_dir: Path = project_root / "tests" / "temp"
-    temp_dir.mkdir(parents=True, exist_ok=True)
-    timestamp: str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    temp_db_path: str = str(temp_dir / f"test_finmind_loader_opt_{timestamp}.db")
+
+    temp_db_path: str = str(tmp_path / "tw_stock.db")
 
     with (
         patch("core.config.TW_STOCK_DB_PATH", temp_db_path),
@@ -143,8 +142,3 @@ def test_load_broker_trading_from_dataframe_optimization():
 
         finally:
             loader.disconnect()
-
-
-if __name__ == "__main__":
-    test_load_broker_trading_from_dataframe_optimization()
-    print("test_finmind_loader_broker_trading: 全部通過")
