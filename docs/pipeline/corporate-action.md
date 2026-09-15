@@ -85,7 +85,7 @@ python -m tasks.update_db --target corporate_action
 減資倍率 9.99 的倒數會把事件後的價格往下調回來，分割 0.25 的倒數 4 會往上調。
 
 - **不要在呼叫端再套一次分割調整**：分割已在累乘係數裡，再套一次就是重複調整（分割日的報酬會變成數百 %）。
-  reporter 與 analyzer 的 benchmark 還原價一律直接用 `get_adjusted_close_series()`。
+  reporter 的 benchmark 還原價一律直接用 `get_adjusted_close_series()`。
 - **只用「相鄰兩日收盤比值」當訊號的策略不受影響**：後復權係數對相鄰兩日是同一個常數會約掉，
   只有事件正好落在那兩日之間才會變。**用到跨期價格水準的策略就會受影響**，回歸 baseline 要重產。
 

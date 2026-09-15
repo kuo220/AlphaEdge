@@ -167,7 +167,7 @@ class StockCostModel:
         """資金效率：分母為「實際佔用的資金」→ 存入 record.roi_on_capital"""
 ```
 
-**兩個 ROI 的用途分工（必須遵守）**：`analyzer.py` 的所有聚合統計（平均報酬、獲利因子、勝率分組）**一律使用 `record.roi`**。若當沖用名目、融券用保證金當分母，兩者混在同一個平均值裡毫無意義（保證金基準的數值天生高一截）。`roi_on_capital` 只出現在報表的獨立欄位，供評估資金運用效率。
+**兩個 ROI 的用途分工（必須遵守）**：任何跨交易的聚合統計（平均報酬、獲利因子、勝率分組）**一律使用 `record.roi`**。若當沖用名目、融券用保證金當分母，兩者混在同一個平均值裡毫無意義（保證金基準的數值天生高一截）。`roi_on_capital` 只出現在報表的獨立欄位，供評估資金運用效率。
 
 **券費與利息的計算時點（單一 source of truth，避免重複計費）**
 
@@ -463,7 +463,6 @@ snapshot_daily_equity(date, quotes)
 | `core/backtest/models/settlement_model.py` | 當沖強制回補、借券費計提、維持率追繳、停券回補、股利補償 |
 | `core/managers/stock/position_manager.py` | 放空開平倉兩個分支、FIFO 方向篩選、雙向持倉拒單 |
 | `core/backtest/report/reporter.py` | 時間軸用 `exit_date`、放空欄位、多空統計、事件報表 |
-| `core/backtest/analysis/analyzer.py` | 多空分開指標 |
 | `core/utils/constant.py`／`instrument.py` | enum、費率、檔位表、`round_to_tick` |
 | `core/models/stock/*` | 放空欄位、`entry/exit` 實體欄位、方向感知查詢 |
 | `tests/backtest/` | 單元／整合測試、SHORT 快照回歸、LONG 逐筆回歸 |

@@ -194,68 +194,15 @@ def test_direction_summary_and_event_report(
     assert event_df[event_df["Event"] == "limit_up_cover_failed"]["Count"].iloc[0] == 1
 
 
-def test_analyzer_direction_metrics(make_strategy) -> None:
-    """analyzer 的多空分開指標與放空成本統計"""
-
-    from core.backtest.analysis.analyzer import StockBacktestAnalyzer
-
-    strategy = make_strategy()
-    account: StockAccount = StockAccount(1000000.0)
-    strategy.setup_account(account)
-
-    account.trade_records.append(
-        StockTradeRecord(
-            id=1,
-            stock_id="2330",
-            is_closed=True,
-            position_type=PositionType.SHORT,
-            sell_date=DAY_1,
-            sell_price=100.0,
-            buy_date=datetime.date(2024, 1, 12),
-            buy_price=95.0,
-            borrow_fee=80.0,
-            interest=10.0,
-            holding_days=10,
-            realized_pnl=4548.0,
-            roi=4.53,
-        )
-    )
-    account.trade_records.append(
-        StockTradeRecord(
-            id=2,
-            stock_id="2317",
-            is_closed=True,
-            position_type=PositionType.LONG,
-            buy_date=DAY_1,
-            buy_price=50.0,
-            sell_date=datetime.date(2024, 1, 5),
-            sell_price=48.0,
-            realized_pnl=-2184.0,
-            roi=-4.37,
-        )
-    )
-
-    analyzer: StockBacktestAnalyzer = StockBacktestAnalyzer(strategy)
-
-    assert analyzer.compute_trade_count_by_direction() == {"SHORT": 1, "LONG": 1}
-    assert analyzer.compute_pnl_by_direction() == {"SHORT": 4548.0, "LONG": -2184.0}
-    assert analyzer.compute_short_cost() == {
-        "borrow_fee": 80.0,
-        "interest": 10.0,
-        "dividend_compensation": 0.0,
-    }
-    assert analyzer.compute_average_holding_days() == 5.0
-
-
 # === 分割調整：已由 corporate_action 經還原係數統一處理（還原價 S3）===
 def test_adjustment_factor_covers_splits_and_reductions() -> None:
     """
     分割與減資都要進累乘係數，不再靠一份只認得 0050 的過渡表
 
     `core/api/tw/stock_split.py` 於 2026-09-13 刪除。在那之前，還原係數只認
-    除權息（`stock_dividend` 不含分割），所以 reporter 與 analyzer 各自
+    除權息（`stock_dividend` 不含分割），所以 reporter 得自己
     再套一次分割調整才拿得到正確的 benchmark；`corporate_action` 表上線後
-    兩者都由 `get_adjusted_close_series()` 一次處理完。
+    改由 `get_adjusted_close_series()` 一次處理完。
     """
 
     import sqlite3
@@ -326,9 +273,7 @@ def test_benchmark_uses_adjusted_close() -> None:
     benchmark 取的是**還原**收盤價，不是原始收盤價
 
     0050 年年配息，用原始價當基準等於讓基準每年少賺一次配息，策略看起來
-    永遠贏得比實際多。`analyzer.compute_benchmark_daily_returns()` 早就改用
-    還原價，reporter 一直沒跟上——同一份回測的「資產與基準比較圖」與
-    Information Ratio 因此用著兩條不同的基準線。
+    永遠贏得比實際多。
     """
 
     import datetime as dt

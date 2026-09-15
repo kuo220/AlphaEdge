@@ -144,8 +144,7 @@ sequenceDiagram
 | `core/backtest/report/base.py` | `BaseBacktestReporter`：報表介面與存檔工具 |
 | `core/backtest/report/reporter.py` | 台股報表：交易明細、多空統計、事件計數、五張圖、benchmark（`0050` 還原價）比較 |
 | `core/backtest/report/futures_reporter.py` | 期貨報表：繼承台股報表，只覆寫交易明細欄位（`Contract ID`）、多空統計欄位、對標序列（近月拼接） |
-| `core/backtest/analysis/analyzer.py` | 績效指標（Sharpe／Sortino／Profit Factor 等） |
-| `core/backtest/analysis/risk_metrics.py` | 風險調整後報酬的純函式，前端與 reporter 共用同一份公式 |
+| `core/backtest/analysis/risk_metrics.py` | 風險調整後報酬的純函式；目前只有前端呼叫（Sharpe／Sortino），reporter 不計算這類指標 |
 
 ---
 
@@ -176,7 +175,7 @@ sequenceDiagram
 | `Mark-to-market` | `daily_equity` 有值（正常回測路徑） | 每個交易日一點 | — |
 | `Realized only` | `daily_equity` 為空 | 只有平倉日有點 | **MDD 被低估**：持倉期間的逆勢被整段抹平，而那正是留倉放空最大的風險來源 |
 
-採用的口徑會標在圖表標題或註腳上，避免不同期的報表被混著看。`StockBacktestAnalyzer.compute_equity_curve()` 兩條路徑也都以初始資金為第一個節點，與圖表同口徑。
+採用的口徑會標在圖表標題或註腳上，避免不同期的報表被混著看。
 
 **`everyday_profit` 與 `everyday_equity_change` 語意不同、不可互相取代**：前者只在平倉當天有數值，後者是逐日權益的差分，持倉期間被軋的那幾天會有負值。
 

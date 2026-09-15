@@ -631,7 +631,7 @@ class StockCostModel(BaseCostModel):
             - roi: float
                 報酬率（%）
         - Notes:
-            多空、當沖與留倉共用同一基準，analyzer 的所有聚合統計都應使用本值
+            多空、當沖與留倉共用同一基準，跨交易的聚合統計（平均報酬、勝率分組等）都應使用本值
         """
 
         shares: int = StockUtils.convert_lot_to_share(volume)

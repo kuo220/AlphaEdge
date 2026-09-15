@@ -67,12 +67,10 @@ class StockBacktestReporter(BaseBacktestReporter):
 
             **benchmark 必須用還原價**：原始收盤價在除權息日有跳空，
             0050 這種年年配息的標的，用原始價當基準等於讓基準每年少賺一次配息，
-            策略看起來永遠贏得比實際多。`analyzer.compute_benchmark_daily_returns()`
-            早就改用還原價了，reporter 這邊一直沒跟上，於是同一份回測的
-            「資產與基準比較圖」與 Information Ratio 用的是兩條不同的基準線。
+            策略看起來永遠贏得比實際多。
 
-            分割仍要另外補：`stock_dividend` 只記除權息、不含分割
-            （見 `core/api/tw/stock_split.py`），兩者都套上才是完整的還原序列。
+            分割與減資已由 `corporate_action` 併入還原係數，
+            `get_adjusted_close_series()` 一次處理完，這裡不可再套一次分割調整。
         """
 
         # Price data；`conn` 由呼叫端注入時共用同一條連線，close() 不會關掉別人的

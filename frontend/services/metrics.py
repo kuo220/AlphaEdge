@@ -13,9 +13,9 @@ from core.backtest.analysis.risk_metrics import (
 """
 前端的指標計算
 
-**與 reporter 共用同一份公式**：Sharpe 與 Sortino 直接 import
-`core/backtest/analysis/risk_metrics.py` 的純函式，不在前端另寫一份。
-同一個指標算兩次、寫在兩個地方，最後一定會出現「報表說 1.2、前端說 0.8」
+**公式集中在 `core/backtest/analysis/risk_metrics.py`**：Sharpe 與 Sortino 直接 import
+它的純函式，不在前端另寫一份。reporter 目前不計算這兩個指標；日後要算也必須呼叫
+同一份——同一個指標寫在兩個地方，最後一定會出現「報表說 1.2、前端說 0.8」
 而沒有人知道哪個對。
 
 舊版 `app.py` 自己寫的那份正好是 `risk_metrics` 開頭列的四個缺陷：
@@ -29,8 +29,8 @@ from core.backtest.analysis.risk_metrics import (
 
 ⚠️ **這是前端唯一 import `core` 的地方**，且只用得到 `risk_metrics`——
 它是只相依 `math` 與 `typing` 的純函式檔。`core/backtest/analysis/__init__.py`
-因此刻意不 eager import analyzer（否則會拉進 shioaji 與 sqlite3，
-實測 1,164 個模組），`frontend/Dockerfile` 也只 COPY 這條最小鏈。
+因此刻意不在套件層 import 任何模組（否則可能拉進 shioaji 與 sqlite3），
+`frontend/Dockerfile` 也只 COPY 這條最小鏈。
 `tests/test_frontend_metrics.py` 有一條測試盯住這個 import 不會變重。
 """
 

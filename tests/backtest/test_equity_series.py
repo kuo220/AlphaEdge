@@ -1,11 +1,10 @@
 import datetime
 from pathlib import Path
-from typing import Callable, Dict, List
+from typing import Callable, List
 
 import pandas as pd
 import pytest
 
-from core.backtest.analysis.analyzer import StockBacktestAnalyzer
 from core.backtest.report.reporter import StockBacktestReporter
 from core.models import StockAccount, StockTradeRecord
 from core.utils import PositionType
@@ -177,39 +176,6 @@ def test_mark_to_market_mdd_is_deeper_than_realized(
     # 已實現口徑完全看不到回撤（權益一路向上）
     assert realized_mdd == 0.0
     assert mark_to_market_mdd == -1.0
-
-
-def test_analyzer_mdd_matches_reporter_series(make_strategy, reporter_factory) -> None:
-    """analyzer 與圖表必須同口徑：兩者算出的 MDD 要一致"""
-
-    strategy = make_strategy(start_date=DAY_1, end_date=datetime.date(2024, 1, 5))
-    account: StockAccount = StockAccount(1000000.0)
-    strategy.setup_account(account)
-    account.trade_records.append(
-        make_closed_record(1, datetime.date(2024, 1, 5), 5000.0)
-    )
-
-    daily_equity: List[Dict] = [
-        {"Date": DAY_1, "Equity": 1000000.0},
-        {"Date": datetime.date(2024, 1, 3), "Equity": 990000.0},
-        {"Date": datetime.date(2024, 1, 4), "Equity": 995000.0},
-        {"Date": datetime.date(2024, 1, 5), "Equity": 1005000.0},
-    ]
-
-    reporter: StockBacktestReporter = reporter_factory(strategy, account)
-    reporter.trading_report = reporter.generate_trading_report()
-    reporter.daily_equity = daily_equity
-
-    series: pd.Series = reporter.get_equity_series()[0]
-    reporter_mdd: float = round(float((series / series.cummax() - 1).min() * 100), 2)
-
-    analyzer: StockBacktestAnalyzer = StockBacktestAnalyzer(strategy)
-
-    assert analyzer.compute_mdd(daily_equity) == reporter_mdd
-
-    # analyzer 的曲線同樣以初始資金為第一個節點
-    assert analyzer.compute_equity_curve(daily_equity)[0] == 1000000.0
-    assert len(analyzer.compute_equity_curve(daily_equity)) == len(series)
 
 
 def test_everyday_equity_change_skipped_without_daily_equity(
