@@ -15,6 +15,8 @@ alwaysApply: true
 ## 執行步驟
 
 1. 使用者要求「commit + push」時，先讀 [`CLAUDE.md`](../../CLAUDE.md) §4，再依該節格式撰寫與回覆。
+2. 使用者要求「commit + push + merge」時，改讀 [`.claude/skills/commit-push-merge/SKILL.md`](../../.claude/skills/commit-push-merge/SKILL.md)，
+   依該文件執行 merge 進 `main` 與同步分支的流程。
 
 > 規則需要修改時，改 `CLAUDE.md`，不要改本檔。
 > 本檔僅在指標失效（例如章節重編號）時才需要更新。
