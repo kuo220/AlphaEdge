@@ -8,22 +8,34 @@
   兩個概念被混在同一個欄位。
 - **目標**：已確認沒有資料的 `(broker_id, stock_id)` 區間不再重複請求；資料延遲上架的情況仍有機會被補回。
 - **範圍界線**：只改券商分點（`broker_trading`）的 metadata 讀寫，**不動**其他 FinMind 資料集、
-  不改 DB schema、不做爬取並行化或批次寫入（已評估為不做，理由見 [ETL 入庫約定](../docs/pipeline/etl-ingestion.md)）。
+  不改 DB schema、不做爬取並行化或批次寫入（已評估為不做，理由見 [ETL 入庫約定](../docs/pipeline/etl-ingestion.md)〈券商分點〉）。
 - **驗收標準**：對一組已知無資料的組合連跑兩次，第二次不發出 API 請求；metadata 從 DB 重新整理或清理後，
   NO_DATA 的進度仍保留；`pytest -m "not slow"` 全綠。
 - **解除條件（何時值得動工）**：確認要省下 FinMind API 額度，或 NO_DATA 的重複請求開始影響日更時間。
   在那之前重複請求的成本可以接受。
+  **2026-09-15 現況**：券商分點只回補了 5 家券商、停在 `2026-01-28`，且
+  [爬蟲缺口回補與非交易日批次清理.md](爬蟲缺口回補與非交易日批次清理.md) 已依使用者裁示（2026-09-05）
+  排除所有 FinMind 工作，**目前沒有券商分點的回補或日更在跑**，重複請求的實際成本為零——維持 ⬜。
 
 ## 進度追蹤表
 
 | 編號 | 步驟名稱 | 產出檔案 | 驗證方式 | 狀態 | 備註／中斷點 |
 |------|----------|----------|----------|:----:|--------------|
-| S1 | metadata 增加 `last_attempted_date` | `core/pipeline/tw/updaters/finmind/common.py`、`broker_trading_updater.py`、對應測試 | 見步驟章節的四條驗證 | ⬜ | 方案已選定（做法一），見〈附：方案比較〉 |
+| S1 | metadata 增加 `last_attempted_date` | `core/pipeline/tw/updaters/finmind/common.py`（`BrokerTradingMetadataStore`）、`broker_trading_updater.py`、對應測試 | 見步驟章節的四條驗證 | ⬜ | 方案已選定（做法一），見〈附：方案比較〉；2026-09-15 對照程式，現況寫在 S1 |
 | S2 | NO_DATA 區間的延遲重試（可選） | 同上 | 手動把 `last_attempted_date` 調到 N 天前，重跑時該區間被重新請求 | ⬜ | 相依 S1；不做也不影響 S1 的效益 |
 
 ## S1. metadata 增加 `last_attempted_date` ⬜
 
 - **目的**：把「有資料到哪一天」與「已請求過到哪一天」拆成兩個欄位。
+- **現況（2026-09-15 對照程式）**：
+  - metadata 由 `common.py` 的 `BrokerTradingMetadataStore` 讀寫，結構為
+    `{broker_id: {stock_id: {earliest_date, latest_date}}}`，內容一律**由 DB 反推**。
+    批量更新已不寫 CSV，DB ＋ metadata 是唯一的續跑依據。
+  - `BrokerTradingUpdater.update()` 以 `get_existing_dates()` 展開 `earliest_date`～`latest_date`
+    判斷要不要請求；`update_combination()` 回 `UpdateStatus.NO_DATA` 時只記 debug log、**不動 metadata**。
+  - `refresh_from_database()` 在批次開始、每 `BATCH_UPDATE_METADATA_INTERVAL`（500）個組合、
+    quota 耗盡等待前與批次結束時都會呼叫，而且**「覆寫日期範圍」與「清掉 DB 沒有的組合」都在這同一個方法內**
+    ——下方第 4、5 條的兩個保留點都要改在這裡，漏改的話新欄位一個批次內就會被清掉好幾次。
 - **做法**：每個 `(broker_id, stock_id)` 除了來自 DB 的 `earliest_date` / `latest_date`，再多一個 `last_attempted_date`：
 
   | 欄位 | 語意 | 來源 |
@@ -34,11 +46,12 @@
   1. **決定請求區間**：起始日 = `max(latest_date + 1, last_attempted_date + 1)`。
   2. **API 有資料並寫入 DB**：照現有流程從 DB 更新 `earliest_date` / `latest_date`，並把本次請求的 `end_date` 寫入 `last_attempted_date`。
   3. **API 回傳 NO_DATA**：不寫 DB，但**要更新 metadata**——把 `last_attempted_date` 設為本次請求的 `end_date`。
-  4. **從 DB 更新 metadata 時**（`refresh_from_database()`）：只覆寫 `earliest_date` / `latest_date`，**必須保留** `last_attempted_date`。
-  5. **清理 metadata 時**：某組合在 DB 沒有任何一筆、但 metadata 有 `last_attempted_date` 時**不要刪除**——那代表「曾請求過但無資料」，刪掉下次又會從頭請求。
+     注意 `load()` 有快取、只在 `refresh_from_database()` 寫檔後更新，NO_DATA 的寫入要同時更新快取與檔案。
+  4. **從 DB 更新 metadata 時**（`refresh_from_database()` 前半段）：只覆寫 `earliest_date` / `latest_date`，**必須保留** `last_attempted_date`。
+  5. **清理 metadata 時**（`refresh_from_database()` 後半段、刪除「DB 不存在的組合」的迴圈）：某組合在 DB 沒有任何一筆、但 metadata 有 `last_attempted_date` 時**不要刪除**——那代表「曾請求過但無資料」，刪掉下次又會從頭請求。
 
   第 4、5 條是最容易漏的兩處：漏了會讓 NO_DATA 的進度被靜默覆蓋或清掉，症狀是「改完之後 API 用量沒有下降」，但不會有任何錯誤訊息。
-- **產出**：`core/pipeline/tw/updaters/finmind/common.py`（metadata 讀寫）、`core/pipeline/tw/updaters/finmind/broker_trading_updater.py`、新增測試。
+- **產出**：`core/pipeline/tw/updaters/finmind/common.py`（`BrokerTradingMetadataStore`）、`core/pipeline/tw/updaters/finmind/broker_trading_updater.py`、新增測試（比照既有的 `tests/test_finmind_broker_trading_batch.py`）。
 - **驗證方式**：
   1. 對一組已知無資料的 `(broker_id, stock_id)` 連跑兩次，第二次不再發出 API 請求。
   2. 先寫入 `last_attempted_date`，再觸發一次「從 DB 更新」，該欄位不變。
@@ -70,6 +83,8 @@
 **優點**：實作最小。
 **缺點**：`latest_date` 語意變成「有資料**或**已檢查到這天」；從 DB 更新 metadata 時必須取兩者較大值，
 否則會把 NO_DATA 的進度蓋掉——這條合併規則一旦有人忘記，錯誤是靜默的。
+**2026-09-15 補充**：現行 `refresh_from_database()` 的「情況 B」確實是取兩者較大值，但同一方法的清理迴圈會刪掉
+DB 沒有任何一筆的組合，做法二對「從未有資料」的組合依然無效——這是採用做法一的另一個理由。
 
 ### 業界慣例對照
 
