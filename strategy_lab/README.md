@@ -115,8 +115,12 @@ ideas/           data_analysis/      strategies/<name>/      core/strategies/sto
 
 ## 可直接複用的資料 API
 
-所有 API 都在 `core/api/`，直接 import 就能用。
+所有 API 都在 `core/api/tw/`，直接 import 就能用。
 **回傳值統一為 `pandas.DataFrame`**，方便接 `numpy / sklearn / plotly`。
+
+> 這裡是**研究用法**：直接建立 API 物件、拿 `DataFrame` 自己處理欄位。搬進 `core/strategies/`
+> 寫正式策略時規則相反——API 由引擎的 `DataFeed` 建立，策略只能用具名查詢方法（`get_close_map()` 等），
+> 見 [策略撰寫指南](../core/strategies/README.md)〈資料 API 使用方式〉。
 
 ### StockPriceAPI — 日線價格資料 (SQLite)
 

@@ -1,22 +1,30 @@
 # AlphaEdge Frontend
 
-此目錄提供 AlphaEdge 回測結果的 Streamlit 唯讀檢視器。
+此目錄提供 AlphaEdge 回測結果的 Streamlit 唯讀檢視器，股票與期貨報表共用同一個介面。
 
 ## 功能
 
 - 側欄選擇 `results/<StrategyName>/` 策略資料夾
-- 顯示回測核心 Metrics（交易數、勝率、總損益、平均 ROI、最後資產）
-- 顯示交易明細表（可依股票代號篩選）
-- 顯示互動圖（資產曲線、每日損益）
-- 顯示 reporter 輸出的 PNG 圖片（若存在）
-- 下載 CSV 與圖片檔
+- **總覽**：策略摘要、關鍵指標、多空統計、事件計數；期貨報表（以報表欄位判斷）另外顯示保證金與口數曝險
+- **交易明細**：可依股票代號／契約篩選
+- **圖表**：互動圖（資產曲線、每日損益）
+- **圖片**：reporter 輸出的 PNG（若存在）
+- **下載**：CSV 與圖片檔
 
 ## 安裝
 
-在專案根目錄執行：
+本機：先依根目錄 README 裝好 `requirements.txt`，再於專案根目錄補裝 frontend extra：
 
 ```bash
-pip install -r frontend/requirements.txt
+python -m pip install -e ".[frontend]"
+```
+
+Docker 映像**不安裝本專案**：只 COPY `frontend/` 與 `core/backtest/analysis/risk_metrics.py`，
+相依一律來自 `frontend/requirements.txt`（streamlit、pandas、plotly）。
+
+```bash
+docker build -f frontend/Dockerfile -t alphaedge-frontend .
+docker run --rm -p 8501:8501 -v "$(pwd)/results:/results:ro" alphaedge-frontend
 ```
 
 ## 啟動
@@ -27,15 +35,15 @@ pip install -r frontend/requirements.txt
 streamlit run frontend/app.py
 ```
 
+啟動後在瀏覽器開啟 `http://localhost:8501`。
+
 ## 結果目錄設定
 
-預設會讀取：
-
-`results`
-
-可透過環境變數覆寫：
+預設讀取專案根目錄的 `results/`（Docker 映像內為 `/results`），可透過環境變數覆寫：
 
 ```bash
 export ALPHAEDGE_RESULTS_DIR=/your/custom/path
 streamlit run frontend/app.py
 ```
+
+舊變數名 `ALPHAEDGE_BACKTEST_RESULTS` 已更名為 `ALPHAEDGE_RESULTS_DIR`：目前仍相容（會發出 `DeprecationWarning`），下一版將移除。
