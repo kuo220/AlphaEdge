@@ -127,11 +127,11 @@ class StockMarginUpdater(BaseDataUpdater):
             logger.info(date.strftime("%Y/%m/%d"))
             twse: CrawlResult = self.crawler.crawl_twse_margin(date)
             tpex: CrawlResult = self.crawler.crawl_tpex_margin(date)
-            day_status: CrawlStatus = stats.record(twse, tpex)
+            day_status: CrawlStatus = self.record_market_day(stats, twse, tpex)
 
             # Step 2: Clean
-            # 任一市場沒問到時兩邊都不清洗：這天反正不入庫，清洗只會在 downloads
-            # 留下半份 CSV
+            # 任一市場沒問到（含一邊查無資料）時兩邊都不清洗：這天反正不入庫，
+            # 清洗只會在 downloads 留下半份 CSV
             cleaned: bool = True
             if day_status is not CrawlStatus.FAILED:
                 if twse.is_ok:

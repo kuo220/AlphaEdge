@@ -27,6 +27,7 @@ class UpdateStats:
     no_data: int = 0  # 站方明確回覆沒有資料（休市或尚未公布）
     unreachable: int = 0  # 取不到且無法斷定站方有沒有資料，下次會重試
     clean_failed: int = 0  # 抓到了但清洗失敗（版面異常），同樣下次會重試
+    partial_no_data: int = 0  # 一邊查無資料、另一邊有資料，同樣下次會重試
 
     def record(self, *results: CrawlResult) -> CrawlStatus:
         """
@@ -67,6 +68,13 @@ class UpdateStats:
         self.unreachable += 1
         self.clean_failed += 1
 
+    def count_partial_no_data(self) -> None:
+        """單一市場查無資料：從 ok 移到 unreachable，並單獨計數"""
+
+        self.ok = max(self.ok - 1, 0)
+        self.unreachable += 1
+        self.partial_no_data += 1
+
     def summary_line(self, source: str) -> str:
         """單行統計字串"""
 
@@ -77,6 +85,8 @@ class UpdateStats:
         )
         if self.clean_failed:
             line += f"（其中 {self.clean_failed} 天是清洗失敗）"
+        if self.partial_no_data:
+            line += f"（其中 {self.partial_no_data} 天是單一市場查無資料）"
         return line
 
     def report(self, source: str) -> None:
@@ -150,6 +160,38 @@ class BaseDataUpdater(ABC):
         return True
 
     @staticmethod
+    def record_market_day(
+        stats: UpdateStats, twse: CrawlResult, tpex: CrawlResult
+    ) -> CrawlStatus:
+        """
+        - Description:
+            記錄上市＋上櫃拼成的一天，並回報這一天整體算哪一種
+
+            在 `UpdateStats.record()` 之上多擋一種組合：一邊 `NO_DATA`、另一邊 `OK`。
+            站方的「查無資料」涵蓋「尚未公布」，而兩個市場的公布時間不同——收盤後
+            先公布的那一邊若照常入庫，當日就只有半個市場。故這種組合視為 `FAILED`，
+            整天不入庫、下次重試。代價是若真有「一個市場開市、另一個休市」的日子，
+            它會每輪被重試；那只是多幾次請求，半個市場入庫則不會有任何錯誤。
+
+            不改 `UpdateStats.record()` 本身：除權息、減資等區間查詢也共用它，
+            一個市場在整段區間內查無資料是正常的。
+        - Parameters:
+            - stats: UpdateStats
+                本批統計
+            - twse / tpex: CrawlResult
+                兩個市場的爬取結果
+        - Return:
+            - CrawlStatus
+                這一天的整體結果
+        """
+
+        day_status: CrawlStatus = stats.record(twse, tpex)
+        if day_status is CrawlStatus.OK and not (twse.is_ok and tpex.is_ok):
+            stats.count_partial_no_data()
+            return CrawlStatus.FAILED
+        return day_status
+
+    @staticmethod
     def report_partial_day(
         source: str,
         date: datetime.date,
@@ -169,13 +211,14 @@ class BaseDataUpdater(ABC):
             - date: datetime.date
                 該日
             - twse / tpex: CrawlResult
-                兩個市場的爬取結果；兩者皆 `OK` 代表是清洗失敗
+                兩個市場的爬取結果；兩者皆 `OK` 代表是清洗失敗，
+                一邊 `NO_DATA` 代表該市場休市或尚未公布
         """
 
         logger.warning(
             f"[{source}] {date} 未完整取得（TWSE: {twse.status.value}、"
-            f"TPEX: {tpex.status.value}；兩者皆 ok 代表清洗失敗），"
-            f"整天不入庫、下次執行會重試"
+            f"TPEX: {tpex.status.value}；兩者皆 ok 代表清洗失敗，"
+            f"一邊 no_data 代表該市場休市或尚未公布），整天不入庫、下次執行會重試"
         )
 
     @staticmethod
