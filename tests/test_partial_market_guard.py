@@ -31,7 +31,8 @@ from core.pipeline.utils import ListingBoard
 只入庫問到的那一邊時，資料**看起來是有的**——日期軸正常、年季齊全——
 只是少了半個市場，不會有任何錯誤：
 
-- 日頻表：`price` 2026-09-07~09 在 TPEX 封鎖本機 IP 時只入庫了 TWSE 的 1,350 檔。
+- 日頻表：`price` 2026-09-07~09 在 TPEX 回應中斷時只入庫了 TWSE 的 1,350 檔；
+  `chip` 2026-09-15 收盤後 TWSE 尚未公布（回覆查無資料），只入庫了 TPEX 的 900 檔。
 - 財報：資產負債表 2021Q1 整季缺、現金流量表 2024Q1 上市只剩 1 檔，而且年季續跑
   是 `MAX + 1`，之後永遠不回頭。
 
@@ -205,20 +206,55 @@ def test_day_with_a_failed_cleaner_is_not_loaded(
 
 
 @pytest.mark.parametrize(("updater_cls", "kind"), DAILY_UPDATERS)
+@pytest.mark.parametrize(
+    "no_data_market", ["TWSE", "TPEX"], ids=["twse_no_data", "tpex_no_data"]
+)
+def test_day_with_one_market_no_data_is_not_loaded(
+    updater_cls: Type[BaseDataUpdater],
+    kind: str,
+    no_data_market: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    一邊回覆查無資料、另一邊有資料的那天，同樣整天不入庫
+
+    站方的「查無資料」涵蓋「尚未公布」：兩個市場公布時間不同，收盤後先公布的
+    那一邊會單獨入庫。舊行為把這種組合當成正常日，於是當日只有半個市場。
+    """
+
+    ok: CrawlResult = CrawlResult.ok(raw_table())
+    no_data: CrawlResult = CrawlResult.no_data("站方回覆查無資料（休市或尚未公布）")
+    results: Dict[datetime.date, Tuple[CrawlResult, CrawlResult]] = {
+        DAY_OK: (CrawlResult.ok(raw_table()), CrawlResult.ok(raw_table())),
+        DAY_PARTIAL: (no_data, ok) if no_data_market == "TWSE" else (ok, no_data),
+    }
+    updater, loaded, cleaned = make_daily_updater(
+        updater_cls, kind, tmp_path, monkeypatch, results
+    )
+
+    updater.update(start_date=DAY_OK, end_date=DAY_PARTIAL)
+
+    assert loaded_dates(loaded) == {"20240102"}
+    # 有資料的那一邊也不清洗，downloads 才不會留下半份 CSV
+    assert [date for _, date in cleaned if date == DAY_PARTIAL] == []
+    progress: DateProgressStore = DateProgressStore(kind)
+    assert progress.incomplete == {DAY_PARTIAL}
+    assert DAY_PARTIAL not in progress.no_data
+
+
+@pytest.mark.parametrize(("updater_cls", "kind"), DAILY_UPDATERS)
 def test_complete_days_are_still_loaded(
     updater_cls: Type[BaseDataUpdater],
     kind: str,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """防止改過頭：兩個市場都問到，或一邊明確回覆查無資料，照常入庫"""
+    """防止改過頭：兩個市場都問到，照常入庫"""
 
     results: Dict[datetime.date, Tuple[CrawlResult, CrawlResult]] = {
         DAY_OK: (CrawlResult.ok(raw_table()), CrawlResult.ok(raw_table())),
-        DAY_PARTIAL: (
-            CrawlResult.ok(raw_table()),
-            CrawlResult.no_data("站方回覆查無資料"),
-        ),
+        DAY_PARTIAL: (CrawlResult.ok(raw_table()), CrawlResult.ok(raw_table())),
     }
     updater, loaded, _ = make_daily_updater(
         updater_cls, kind, tmp_path, monkeypatch, results
@@ -228,6 +264,33 @@ def test_complete_days_are_still_loaded(
 
     assert loaded_dates(loaded) == {"20240102", "20240103"}
     assert DateProgressStore(kind).incomplete == set()
+
+
+@pytest.mark.parametrize(("updater_cls", "kind"), DAILY_UPDATERS)
+def test_day_with_both_markets_no_data_is_holiday(
+    updater_cls: Type[BaseDataUpdater],
+    kind: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """防止改過頭：兩個市場都回覆查無資料仍記為休市，不列入待重試"""
+
+    results: Dict[datetime.date, Tuple[CrawlResult, CrawlResult]] = {
+        DAY_OK: (CrawlResult.ok(raw_table()), CrawlResult.ok(raw_table())),
+        DAY_PARTIAL: (
+            CrawlResult.no_data("站方回覆查無資料"),
+            CrawlResult.no_data("站方回覆查無資料"),
+        ),
+    }
+    updater, _, _ = make_daily_updater(
+        updater_cls, kind, tmp_path, monkeypatch, results
+    )
+
+    updater.update(start_date=DAY_OK, end_date=DAY_PARTIAL)
+
+    progress: DateProgressStore = DateProgressStore(kind)
+    assert progress.no_data == {DAY_PARTIAL}
+    assert progress.incomplete == set()
 
 
 # === 財報三表：crawler ===
