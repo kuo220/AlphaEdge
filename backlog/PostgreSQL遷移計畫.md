@@ -43,7 +43,7 @@
 | Phase2-1 | 改造 SQLite 專屬語法（`sqlite_master` / `PRAGMA`） | `core/pipeline/utils/sqlite_utils.py`、`core/api/base.py`、10 支 loader、`core/pipeline/tw/loaders/finmind/schema.py`、`futures_stock_universe_updater.py` | 改用 Inspector 後行為等價 | ⬜ | 相依 Phase1-1；高影響優先改 |
 | Phase2-2 | 改造 Loader／Updater | `core/pipeline/shared/`（`base_loader.py`、`date_planner.py`）、`core/pipeline/tw/loaders/**`、`core/pipeline/tw/updaters/**`、`core/pipeline/tw/cleaners/corporate_action_detector.py` | 核心 update task 可在 PostgreSQL 跑完 | ⬜ | 相依 Phase2-1 |
 | Phase2-3 | 改造查詢 API 與回測 DataFeed | `core/api/base.py`、`core/api/tw/*.py`、`core/backtest/datafeed/tw/*.py`、`core/config/schema.py`（欄位 Enum 下沉） | 各 API 查詢結果與 SQLite 一致；回測回歸雙線逐筆相同 | ⬜ | 相依 Phase2-1；含 `constant.py` 欄位 Enum 下沉（見〈關聯與狀態〉） |
-| Phase2-4 | 改造 tasks 與 scripts | `tasks/delete_price_data.py`、`scripts/fix_single_market_batches.py`、`scripts/manual/*` | 可在 PostgreSQL 正常執行 | ⬜ | 相依 Phase2-1；`scripts/manual/` 可改可刪，逐支判斷 |
+| Phase2-4 | 改造 tasks 與 scripts | `tasks/delete_price_data.py`、`scripts/manual/*` | 可在 PostgreSQL 正常執行 | ⬜ | 相依 Phase2-1；`scripts/manual/` 可改可刪，逐支判斷 |
 | Phase3-1 | 選定資料遷移方案（pgloader 或 Python ETL） | 本文件（決策紀錄） | 決策與理由寫入本文件 | ⬜ | 相依 Phase2-1~Phase2-4；中文欄位名稱需特別驗證 |
 | Phase3-2 | 執行一次性資料遷移與完整性比對 | 遷移腳本／指令紀錄 | 每張表 row count 比對、主鍵完整性、抽樣 20 筆查詢一致 | ⬜ | 相依 Phase3-1 |
 | Phase4-1 | 測試 fixture 支援 PostgreSQL 測試資料庫 | `tests/conftest.py`、直接 `import sqlite3` 的 30 個測試檔 | 不再直接建立 SQLite 連線灌樣本 | ⬜ | 相依 Phase2-1~Phase2-4 |
@@ -170,7 +170,7 @@ PostgreSQL 對應的是 `INSERT ... ON CONFLICT DO NOTHING`，且**必須有對�
 
 - **目的**：補齊最後的直連殘留。
 - **做法**：同上。`scripts/manual/` 是手動除錯腳本，逐支判斷改寫或刪除。
-- **產出**：`tasks/delete_price_data.py`、`scripts/fix_single_market_batches.py`、`scripts/manual/*`。
+- **產出**：`tasks/delete_price_data.py`、`scripts/manual/*`。
 - **驗證方式**：可在 PostgreSQL 正常執行。
 - **相依**：Phase2-1。
 
