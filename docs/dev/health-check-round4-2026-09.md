@@ -36,7 +36,7 @@
 |------|----------|----------|----------|:----:|--------------|
 | S1 | 期貨線 8 處吞 `sqlite3.OperationalError` 收斂 | `core/api/base.py`、`core/pipeline/tw/loaders/futures_chip_loader.py`、`core/api/tw/` 三支 API、`tests/test_sqlite_error_semantics.py` | 表不存在仍回 `None`／`0`；其餘 sqlite 錯誤上拋；以「鎖住的 DB」實測會拋而非靜默 | ✅ | **2026-09-13 完成**：8 處全清，新增 12 條測試，**其中 9 條實測在修正前會失敗**。回歸雙線零數值變動 |
 | S2 | 兩支護欄腳本進 CI 與 pre-commit | `.github/workflows/ci.yml`、`.pre-commit-config.yaml` | 三支腳本在 CI 皆執行且結束碼 0；刻意寫一個搬過家的路徑要當場紅 | ✅ | **2026-09-13 完成**：那 5 處漂移已由同日另一條線的文件整理清掉，本步驟只剩補閘門 |
-| S3 | 刪除死程式碼 `core/utils/path.py` | `core/utils/path.py`（刪） | 全專案零引用；`pytest -m "not slow"` 全綠 | ✅ | **2026-09-13 完成**：與 `core/config/paths.py` 的同名函式逐行相同。`code-quality.md` 未改——該檔的覆蓋率基線段落已被同日的文件整理移除。**本步驟同時把 [測試護欄](../../backlog/測試護欄與本機CI容器一致性.md) S6 的該子項做掉** |
+| S3 | 刪除死程式碼 `core/utils/path.py` | `core/utils/path.py`（刪） | 全專案零引用；`pytest -m "not slow"` 全綠 | ✅ | **2026-09-13 完成**：與 `core/config/paths.py` 的同名函式逐行相同。`code-quality.md` 未改——該檔的覆蓋率基線段落已被同日的文件整理移除。**本步驟同時把 「測試護欄與本機CI容器一致性」（2026-09-15 已結案，見 git 歷史） S6 的該子項做掉** |
 | S4 | 補齊缺漏的回傳型別標註並開啟 ANN 閘門 | `core/**`、`tasks/`、`frontend/`、`tests/`、`pyproject.toml`、`docs/dev/code-quality.md` | `ruff check .` 全綠且 `ANN201`／`ANN204` 已在 `select` 內 | ✅ | **2026-09-13 完成**：實際補 **181 處**（不只 150，`tests/` 另有 41 處）。⚠️ 過程中抓到 **4 個抽象方法被自動化補錯**，見該步驟 |
 | S5 | ETL 層失敗語意的測試補強 | `tests/test_sqlite_error_semantics.py`、`tests/test_loader_failure_reporting.py` | 四個情境各有測試覆蓋 | ✅ | **2026-09-13 完成**：情境 1 隨 S1（12 條）、情境 3 新增 1 條、情境 4 補期貨線 2 條；⚠️ 情境 2 實查發現**早就有測試**，情境 4 的 tick 半邊**不適用** |
 | S6 | 執行期產物治理：測試暫存 DB | `tests/test_finmind_loader_broker_trading.py` | 連跑兩次 `pytest`，`tests/temp/` 不再產生 | ✅ | **2026-09-13 完成**：改用 `tmp_path`，該目錄不再出現。⚠️ **`.ruff_cache` 那半條實查後判定不必做**，理由見該步驟 |
@@ -129,7 +129,7 @@
   3. pre-commit 只加 `check_doc_paths.py`（`check_api_orphan_methods.py` 要 import `core/api`，比較慢，留給 CI）。
 - **產出**：`.github/workflows/ci.yml`、`.pre-commit-config.yaml`、`scripts/check_doc_paths.py`。
 - **驗證方式**：三支腳本在 CI 皆執行且結束碼 0；刻意在文件裡寫一個搬過家的路徑，CI 要當場紅。
-- **相依**：無。**但與 [測試護欄與本機CI容器一致性](../../backlog/測試護欄與本機CI容器一致性.md) S6 是同一個檔案群**（那一步要改 `pyproject.toml` 的 per-file-ignores），建議同批施作。
+- **相依**：無。**但與 「測試護欄與本機CI容器一致性」（2026-09-15 已結案，見 git 歷史） S6 是同一個檔案群**（那一步要改 `pyproject.toml` 的 per-file-ignores），建議同批施作。
 
 > **✅ 完成紀錄（2026-09-13）**
 >
@@ -171,7 +171,7 @@
 >
 > - `docs/dev/code-quality.md` **沒有改**——原訂要把「覆蓋率 0%」那一條改為已刪除，
 >   但該檔的覆蓋率基線段落已在同日的文件整理（`c6bab3e`）中移除，沒有東西要改。
-> - 這一刪同時完成了 [測試護欄與本機CI容器一致性](../../backlog/測試護欄與本機CI容器一致性.md) S6
+> - 這一刪同時完成了 「測試護欄與本機CI容器一致性」（2026-09-15 已結案，見 git 歷史） S6
 >   的「刪 `core/utils/path.py` 併入 `config/paths.py`」子項。**併入那半不需要做**：
 >   `config/paths.py` 早就有自己的同名函式，被刪的那一份沒有任何獨有邏輯。
 
