@@ -98,8 +98,8 @@ Resume 尤其不能用「表最大年季 +1」：一個年季爬到一半中斷�
 
 **批量更新清洗後直接入庫，不寫 `broker_trading/{broker_id}/{stock_id}.csv`**：
 resume 依據是 DB ＋ metadata，用不到 CSV；而寫 CSV 要把同組合的舊檔整份讀進來合併再寫回，
-每個組合都付一次檔案 I/O。**已知限制**：`tasks/load_broker_trading_to_db.py`（從 CSV
-重建 DB）因此只涵蓋當初仍寫 CSV 時期的資料，DB 才是券商分點的唯一來源。
+每個組合都付一次檔案 I/O。**已知限制**：既有的 CSV 因此只涵蓋當初仍寫 CSV 時期的資料，
+不能拿來重建 DB，DB 才是券商分點的唯一來源。
 `FinMindCleaner.clean_broker_trading_daily_report()` 預設仍寫 CSV，單獨呼叫時行為不變。
 
 **刻意不做並行爬取與跨組合批次寫入**：瓶頸是 FinMind 每小時的 API quota，

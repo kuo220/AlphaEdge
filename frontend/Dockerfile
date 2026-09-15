@@ -14,7 +14,7 @@ COPY frontend /app/frontend
 
 # 前端唯一用到的後端程式碼：風險指標的共用公式（見 frontend/services/metrics.py）。
 # 只 COPY 這條最小鏈，映像不必帶整個 core/ 與 shioaji——`risk_metrics.py`
-# 只相依 math 與 typing，而 `analysis/__init__.py` 刻意不 eager import analyzer。
+# 只相依 math 與 typing，而 `analysis/__init__.py` 刻意不在套件層 import 任何模組。
 # 哪天前端多用了 core 的別的東西，這裡會在啟動時 ImportError 而不是安靜地算錯。
 COPY core/__init__.py /app/core/__init__.py
 COPY core/backtest/__init__.py /app/core/backtest/__init__.py

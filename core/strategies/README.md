@@ -62,6 +62,10 @@ AlphaEdge 的策略系統採用物件導向設計，台股策略一律繼承 `Ba
 > [多市場回測引擎架構](../../docs/backtest/multi-market-engine.md) 與
 > [模組使用關係](../../docs/backtest/module-map.md)。
 
+> **期貨策略**繼承 `BaseFuturesStrategy`（`core/strategies/futures/base.py`）。本文件以台股為主，
+> 期貨策略與股票策略的差異（一天有多個到期月、口數由保證金決定、日夜盤是兩筆行情、沒有券源限制）見
+> [台期貨平台](../../docs/futures/tw-futures-platform.md)〈四、策略〉。
+
 ### 目錄結構
 
 ```
@@ -86,7 +90,7 @@ core/strategies/
 > 所以美股策略日後會放進 `stock/` 而不是新開 `us/`（見
 > [命名軸線](../../docs/dev/naming-axes.md)〈落地位置〉）。
 
-> **2026-08-15：動能策略 2~5 已刪除。** 四者皆為 `MomentumStrategy1` 的變形（Tick 級別、均線動能、開盤進出等），維護成本高於價值，且 `MomentumStrategy1` 是 LONG 回歸 baseline 的唯一來源。台股策略目前保留 `MomentumStrategy1` 與 `OvernightLeadEventStrategy` 兩支。
+> **2026-08-15：動能策略 2~5 已刪除。** 四者皆為 `MomentumStrategy1` 的變形（Tick 級別、均線動能、開盤進出等），維護成本高於價值，且 `MomentumStrategy1` 是 LONG 回歸 baseline 的唯一來源。當時台股策略保留 `MomentumStrategy1` 與 `OvernightLeadEventStrategy` 兩支，其後新增的策略以上方目錄結構為準。
 
 ## 如何撰寫新策略
 
@@ -483,7 +487,7 @@ def calculate_position_size(
 ### 回測級別說明
 
 - **`Scale.DAY`**: 日線回測，使用每日收盤價
-- **`Scale.TICK`**: 逐筆回測，使用每筆成交資料
+- **`Scale.TICK`**: 逐筆回測，使用每筆成交資料（僅台股；期貨 Tick 回測未實作）
 
 ### 單根 bar 的執行順序
 

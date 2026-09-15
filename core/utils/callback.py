@@ -3,20 +3,18 @@ from typing import Any, Dict
 import shioaji as sj
 
 from .constant import OrderState
-from .notify import Notification
 
 
 class Callback:
     """Order callback"""
 
     @staticmethod
-    def order_callback(api: sj.Shioaji, token: str) -> None:
+    def order_callback(api: sj.Shioaji) -> None:
         """
         設置委託 or 成交回報的輸出格式
 
         Parameters
         - api: 永豐API
-        - token: Line notify token
         """
         print("* Setting order callback...")
 
@@ -30,15 +28,6 @@ class Callback:
                 print(
                     f"【Order Deal】 Stock: {msg['code']} | Volume: {msg['quantity']} | Price: {msg['price']} | Action: {msg['action']}"
                 )
-
-                # Notify
-                deal_info: Dict[str, Any] = {
-                    "code": msg["code"],
-                    "volume": msg["quantity"],
-                    "price": msg["price"],
-                    "action": msg["action"],
-                }
-                Notification.post_deal_notify(token, deal_info)
 
         api.set_order_callback(order_cb)
 

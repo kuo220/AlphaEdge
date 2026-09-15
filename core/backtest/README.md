@@ -1,6 +1,6 @@
 # 回測系統說明
 
-AlphaEdge 的回測系統提供了完整的策略回測功能，支援多種回測級別和詳細的績效分析。
+AlphaEdge 的回測系統提供策略回測與績效分析。支援哪些市場、商品與方向，見根目錄 `README_zh.md`〈回測支援範圍〉。
 
 ## 目錄
 
@@ -16,25 +16,12 @@ AlphaEdge 的回測系統提供了完整的策略回測功能，支援多種回�
 
 ## 回測級別
 
-AlphaEdge 支援四種回測級別（KBar 級別）：
+`Scale` 只有兩種級別（KBar 級別）：
 
-1. **TICK**: 逐筆成交資料回測
-   - 使用 `StockTickAPI` 取得逐筆成交資料
-   - 適合需要精確價格和時間的策略
-   - 可參考 `core/strategies/stock/momentum_strategy_1.py` 範例
-
-2. **DAY**: 日線資料回測
-   - 使用 `StockPriceAPI` 取得日線收盤價資料
-   - 適合基於日線技術指標的策略
-   - 可參考 `core/strategies/stock/momentum_strategy_1.py` 或 `core/strategies/stock/simple_long_strategy.py` 範例
-
-3. **MIX**: 混合級別回測
-   - 同時使用 TICK 和 DAY 資料
-   - 目前尚未完全實作
-
-4. **ALL**: 使用所有可用資料
-   - 同時載入 TICK 和 DAY 資料 API
-   - 適合需要同時使用多種資料來源的策略
+| 級別 | 資料來源 | 適用商品 | 說明 |
+| ---- | -------- | -------- | ---- |
+| `Scale.DAY` | 台股：`StockPriceAPI` 日線；台期貨：`tw_futures.db` 日行情 | 台股、台期貨 | 預設值；範例見 `core/strategies/stock/momentum_strategy_1.py` |
+| `Scale.TICK` | `StockTickAPI` 逐筆成交（DolphinDB） | 僅台股 | 需 `[tick]` 相依與 DolphinDB；期貨 Tick 回測未實作，`TwFuturesDataFeed` 會回空報價 |
 
 在策略中設定回測級別：
 
@@ -49,7 +36,7 @@ self.scale: str = Scale.DAY  # 或 Scale.TICK
 1. **初始化策略**: 載入策略類別並初始化
 2. **設定帳戶**: 建立虛擬帳戶，設定初始資金
 3. **載入資料 API**: 根據回測級別載入對應的資料 API
-4. **資料適配**: 透過 `StockQuoteAdapter`（`core/adapters/tw/stock_quote_adapter.py`）將日線／Tick API 資料轉成統一的 `StockQuote`
+4. **資料適配**: 透過 `core/adapters/tw/` 的 `StockQuoteAdapter`／`FuturesQuoteAdapter` 將 API 資料轉成統一的 `StockQuote`／`FuturesQuote`
 5. **執行回測**: 逐日（或逐筆）執行策略邏輯
    - 檢查停損訊號
    - 檢查平倉訊號
@@ -267,10 +254,13 @@ for stock_quote, ref_price, open_volume in self.sizer.size(
 
 ## 績效指標
 
-**計算路徑有兩條，職責不同**：正式回測輸出（報表 CSV 與四張圖）由
-`report/reporter.py` 產生；`analysis/analyzer.py`（`StockBacktestAnalyzer`）
-則供測試與研究驗算指標使用，不在 `Backtester.run()` 的輸出路徑上。
-兩者指標定義應保持一致，修改任一邊的公式時須同步檢查另一邊。
+正式回測輸出（報表 CSV 與圖表）由 `report/reporter.py` 產生，reporter 目前**不計算**
+Sharpe／Sortino／Information Ratio 等風險調整後報酬。
+
+這類公式集中在 `analysis/risk_metrics.py`（純函式），目前只有前端
+（`frontend/services/metrics.py`）呼叫它算 Sharpe 與 Sortino；Information Ratio 的函式已備好，
+但報表沒有輸出基準日報酬，前端無從計算。日後要讓報表輸出這些指標，一律呼叫
+`risk_metrics.py`，不要在 reporter 另寫一份。
 
 回測系統會自動計算以下績效指標：
 

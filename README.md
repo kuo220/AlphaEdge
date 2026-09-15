@@ -16,7 +16,7 @@ graph TB
     end
 
     subgraph strategy_layer ["Strategy Layer"]
-        Strategies["core/strategies<br/>(declares market)"]
+        Strategies["core/strategies<br/>(declares market + instrument_type)"]
         Loader["strategy_loader.py"]
     end
 
@@ -88,6 +88,34 @@ graph TB
 
 
 
+## Backtest Coverage
+
+Each backtest runs one (market, instrument) combination, declared by the strategy base and dispatched by `factory.py`. Direction (LONG / SHORT) and instrument type are independent axes: accounting always follows each order's `position_type`, and the strategy's `allowed_directions` is only a direction whitelist.
+
+Data ranges below reflect an inventory of `data/db` taken on 2026-09-15 and will move as the data is updated.
+
+| Market × Instrument | Status | Scope and data range | Bar scale | Directions | Strategy base |
+| ------------------- | ------ | -------------------- | --------- | ---------- | ------------- |
+| TW stocks (`TW` × `STOCK`) | ✅ Supported | Symbols in `tw_stock.db`: prices 2013-01-02 – 2026-09-15 (2,392 symbols on the latest trading day)<br>Signals use adjusted prices by default; ex-dividend and corporate-action data also start 2013-01<br>Margin trading balances and institutional chip data 2013-01-02 – 2026-09-14 | `DAY`, `TICK` (ticks live in DolphinDB, not `data/db`; needs the `[tick]` extra) | **LONG**: fully cash-funded (no margin financing), overnight or intraday<br>**SHORT**: `DAY_TRADE` (cash day-trade short), `MARGIN` (margin-account short, overnight, default), `SBL` (securities borrowing, overnight); borrow fees, maintenance-ratio margin call and ex-dividend forced cover included<br>Long and short can coexist across symbols; opposite positions in the same symbol are rejected | `BaseStockStrategy` |
+| TW index futures (`TW` × `FUTURE`) | ✅ Supported | TX, MTX, TMF, TE, ZEF, TF, ZFF; automatic contract roll<br>**Day-session prices** (`DAY`): TX / MTX / TE / TF from 2015-01-05 (backfill start), ZEF from 2021-06-28, ZFF from 2021-12-06, TMF from 2024-07-29 (listing dates); updated to 2026-09-01 – 09-03<br>**Night-session prices** (`NIGHT` / `COMBINED`): TX / MTX from 2017-05-16, TE from 2018-11-20, ZEF from 2021-06-29, TMF from 2024-07-30; **TF / ZFF only from 2025-06-24**<br>**Margin** (lookup mode): TX / MTX from 2020-03-13, TE / TF from 2020-07-22, ZEF from 2021-08-12, ZFF from 2022-01-26, TMF from 2024-08-09 | `DAY` only | **LONG / SHORT**: the same margin trading, daily mark-to-market and margin call; no borrow availability or borrow fees<br>Long and short can coexist across contracts; opposite positions in the same contract are rejected | `BaseFuturesStrategy` |
+| Stock futures / ETF futures | ❌ Not backtestable yet | **Data**: universe of 320 products (249 single-stock, 47 mini single-stock, 21 ETF, 3 mini ETF), snapshots only for 2026-08-29 – 09-02; prices only for three trial products: CDF, NYF (2026-08-27 – 08-28) and EEF (2026-08-27 day session)<br>**Code blocker**: `FuturesPositionManager.open_position()` looks up the multiplier in `FUTURES_MULTIPLIER`, which has no stock futures, so **the first open raises `KeyError`** in both lookup and ratio margin modes (the DataFeed already reads the universe; the position manager does not)<br>**Other gaps**: single-stock futures margin lives in the rate table while lookup mode only reads the amount table, so opens abort (ETF future NYF is in the amount table from 2020-07-22); contract sizes only go back to the 2026-08-29 snapshot | `DAY` only | Designed like TW index futures, but aborts on the first open | `BaseFuturesStrategy` |
+| US market, options | ❌ Not supported | `Market.US` and `InstrumentType.OPTION` are defined only; the factory raises `ValueError` | — | — | — |
+
+> - Holding both directions requires `allowed_directions = {LONG, SHORT}`; a LONG intraday strategy must declare `bar_execution_order = OPEN_THEN_CLOSE` itself.
+> - `enable_intraday` defaults to `True`, so a SHORT strategy goes through `DAY_TRADE` automatically; to hold shorts overnight, set it to `False` and pick a `short_method`.
+> - Futures calendar-spread legs each pay full margin (spread margin is not modeled).
+
+### Main limitations
+
+- Tick-level futures backtests are not implemented (`TwFuturesDataFeed.get_quotes()` returns an empty list).
+- The futures margin lookup start date differs per product (earliest 2020-03, see the table); earlier periods can only use the `FuturesMarginConfig.ratio()` approximation, which distorts tradable lots and margin-call thresholds.
+- Futures tick size is only registered for the TAIEX futures family (1 point); TE / ZEF / TF / ZFF are distorted if slippage is set in ticks (default slippage is 0, so unaffected).
+- A single backtest cannot hold TW stocks and TW futures at the same time (cross-market portfolios / hedging).
+- The TW stock below-reference-price short restriction and the daily day-trade whitelist are not wired into matching yet, so short and day-trade opportunities are overestimated.
+- The `--mode live` path is not implemented.
+
+See [Short-Selling Framework](docs/backtest/short-selling-framework.md) and [TW Futures Platform](docs/futures/tw-futures-platform.md) for details.
+
 ## Module Guide
 
 
@@ -132,56 +160,161 @@ graph TB
 
 ## Environment Setup
 
-### Option 1: Local venv + requirements.txt
+First time here? Go in order: **prepare the database → pick one of the three ways to run → (if needed) set environment variables**.
+Section 4 is only for changing the code.
 
-**macOS / Linux**
+### 1. Prepare the database
 
-```bash
-# create virtualenv
-python3 -m venv .venv
-# activate virtualenv
-source .venv/bin/activate
+Backtests and the frontend need the SQLite3 databases. Download them from [Google Drive](https://drive.google.com/drive/folders/1iKTpnfECyHIgVj9SJ2al5BKBwceXr_ZE?usp=share_link)
+and put them in `data/db/` under the project root (the code expects `data/db/tw_stock.db` and `data/db/tw_futures.db`).
 
-# install dependencies (use -m pip so installs target this venv’s Python)
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+```text
+AlphaEdge/
+└── data/
+    └── db/
+        ├── tw_stock.db
+        └── tw_futures.db
 ```
 
-**Windows (PowerShell or CMD)**
+To bring the data up to date afterwards, see "Update database" under Command Usage below.
+
+### 2. Choose how to run it (pick one)
+
+All three run the same code — **pick one and follow it**; you do not need all of them:
+
+| Option | Best for | Install first | Where backtest results go |
+| ------ | -------- | ------------- | ------------------------- |
+| Option 1: Local Python (recommended) | Writing strategies, changing code | Python 3.12+ | `results/` at the project root |
+| Option 2: Docker Compose | No Python install; one command to backtest and view results | Docker | Docker volume `alphaedge_results` |
+| Option 3: Docker Container | Controlling the backtest and frontend containers separately | Docker | `results/` at the project root (mounted) |
+
+#### Option 1: Local Python (recommended)
+
+**Step 1: Create a virtualenv and install**
+
+macOS / Linux:
+
+```bash
+python3 -m venv .venv                       # create the virtualenv
+source .venv/bin/activate                   # activate it
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt   # install dependencies and the project itself
+```
+
+Windows (PowerShell or CMD):
 
 ```powershell
-# create virtualenv
 python -m venv .venv
-# activate virtualenv
 .venv\Scripts\activate
-
-# install dependencies (use -m pip so installs target this venv’s Python)
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-To exit the virtualenv in the current shell:
+The last line of `requirements.txt` is `-e .`, so the same command installs the project too, and
+`core` / `tasks` / `tests` are importable from any directory. Activate the virtualenv in every new
+terminal; run `deactivate` to leave it.
+
+**Step 2: Run a backtest**
 
 ```bash
-deactivate
+python run.py --strategy MomentumStrategy1
 ```
 
-`requirements.txt` holds fully pinned versions plus a trailing `-e .`, so that single
-command installs both the dependencies and the project itself — `core` / `tasks` /
-`tests` become importable from **any** working directory. The package metadata
-(dependency names, optional extras, Python version) lives in `pyproject.toml`.
+- `--strategy` takes a strategy class name; existing strategies live in `core/strategies/stock/` and `core/strategies/futures/`.
+- Optional: `--show` opens charts in a browser; `--mode live` is not implemented (exits with code 1).
+- Results are written to `results/` at the project root.
 
-For development work, install the dev extras as well:
+**Step 3: Open the frontend to view results**
+
+The frontend packages are not in the base install, so add them once:
+
+```bash
+python -m pip install -e ".[frontend]"   # one-time
+streamlit run frontend/app.py
+```
+
+Open `http://localhost:8501`. Leave the frontend running and use another terminal tab (with the virtualenv activated) to keep running backtests.
+
+#### Option 2: Docker Compose
+
+One command builds and starts two containers: `core` runs one backtest and exits, `frontend` keeps serving the page.
+
+```bash
+# Build images and start (default strategy: MomentumStrategy1)
+docker compose up --build
+
+# Use a different strategy
+STRATEGY=MomentumFuturesStrategy docker compose up
+
+# Run in the background / stop and remove containers
+docker compose up -d
+docker compose down
+```
+
+Open `http://localhost:8501`. After changing code, add `--build` so the images pick up the change.
+
+> The images contain **no database**; compose mounts the host's `./data` **read-only**. Skip
+> "1. Prepare the database" and the backtest fails at `sqlite3.connect`. Read-only is deliberate:
+> the container only runs backtests and must not write to the host database.
+> Backtest results go to the `alphaedge_results` volume; logs go to the host's `./logs`.
+
+#### Option 3: Docker Container
+
+**Step 1: Build the images**
+
+```bash
+docker build -f core/Dockerfile -t alphaedge-core .
+docker build -f frontend/Dockerfile -t alphaedge-frontend .
+```
+
+**Step 2: Run a backtest**
+
+```bash
+docker run --rm \
+  -v "$(pwd)/data:/app/data:ro" \
+  -v "$(pwd)/results:/app/results" \
+  alphaedge-core --strategy MomentumStrategy1
+```
+
+The image has no database, so mount the host `data/` read-only; results are written back to the host
+`results/`, otherwise they vanish when the container exits. To type commands inside the container
+instead, use `--entrypoint /bin/bash` with `-it`, then run `python run.py --help`.
+
+**Step 3: Start the frontend**
+
+```bash
+docker run --rm -p 8501:8501 -v "$(pwd)/results:/results:ro" alphaedge-frontend
+```
+
+Open `http://localhost:8501`. The frontend reads the mounted `results/`; without the mount it shows no backtests.
+
+### 3. Set environment variables (optional)
+
+**Skip this if you only run daily backtests.** To update data or use ticks, copy the template and fill in what you need:
+
+```bash
+cp .env.example .env
+```
+
+| Variable | Purpose | Needed when |
+| -------- | ------- | ----------- |
+| `DDB_PATH`, `DDB_HOST`, `DDB_PORT`, `DDB_USER`, `DDB_PASSWORD` | DolphinDB connection | Accessing tick data, running tick backtests |
+| `API_KEY`, `API_SECRET_KEY` | Sinopac Shioaji API | Crawling tick data |
+| `FINMIND_API_TOKEN` | FinMind API | Updating FinMind data (stock overview, brokers, broker branches) |
+
+`.env` is read by the local code; the Docker images do not include it. Details in [Dev Setup](docs/setup/dev-setup.md).
+
+### 4. Developer tools (when changing code)
+
+Inside the Option 1 virtualenv, add the dev extras:
 
 ```bash
 python -m pip install -e ".[dev]"   # pytest, pytest-timeout, pytest-cov, ruff
 ```
 
-Optional extras: `frontend` (Streamlit UI), `tick` (DolphinDB tick storage), `lab`
-(`strategy_lab` report output). They are deliberately **not** part of the base install —
-the backtest and ETL paths run without them.
+Other optional extras: `tick` (DolphinDB tick storage), `lab` (`strategy_lab` report output); the backtest and ETL paths run without them.
 
-#### Lint, format and tests
+**Lint, format and tests**
 
 ```bash
 ruff check .            # CLAUDE.md §2.5 / §2.10, configured in pyproject.toml
@@ -191,7 +324,7 @@ pytest                  # full suite (needs data/db/tw_stock.db)
 ./scripts/run_regression.sh   # LONG + SHORT regression, must stay row-identical
 ```
 
-To have the same checks run automatically before each commit:
+**Pre-commit checks**: run ruff, the layer-dependency gate and the doc path check automatically before each commit (tests and the API orphan-method check are left to CI).
 
 ```bash
 pip install pre-commit
@@ -199,113 +332,13 @@ pre-commit install       # one-time; installs the git hook
 pre-commit run --all-files
 ```
 
-On every push GitHub Actions runs, in order: `ruff check`, `ruff format --check`, the
-layer-dependency gate (`scripts/check_layer_deps.py`), the SHORT regression line, and
+**CI**: on every push GitHub Actions runs, in order: `ruff check`, `ruff format --check`, the
+layer-dependency gate (`scripts/check_layer_deps.py`), the doc path check
+(`scripts/check_doc_paths.py`), the API orphan-method check
+(`scripts/check_api_orphan_methods.py`), the SHORT regression line, and
 `pytest -m "not slow"`, finishing with a coverage report under `continue-on-error`
 (see `.github/workflows/ci.yml`). **The LONG regression line needs
 `data/db/tw_stock.db`, which CI does not have, so it only runs locally.**
-
-If you switch to **Option 2 (Docker)** for this project, you do not need a local venv: the container image already provides an isolated Python environment.
-
-Copy and fill credentials / paths: `cp .env.example .env` (details in [Dev Setup](docs/setup/dev-setup.md)).
-
-### Run Trader + Frontend Together (Local)
-
-After installing dependencies above, open two terminal tabs at project root:
-
-**Tab 1 (Trader: run backtest)**
-
-```bash
-source .venv/bin/activate
-python run.py --strategy <StrategyClassName>
-# optional: --show opens charts in a browser; --mode live is not implemented (exits with code 1)
-```
-
-**Tab 2 (Frontend: view results)**
-
-```bash
-source .venv/bin/activate
-streamlit run frontend/app.py
-```
-
-Then open: `http://localhost:8501`
-
-### Option 2: Docker Container
-
-Open an **interactive shell** inside the image and run commands exactly as you would in the venv. The trader image sets `ENTRYPOINT` to `python run.py`, so override it with `--entrypoint` to get a terminal.
-
-#### Trader Container
-
-```bash
-# build image
-docker build -f core/Dockerfile -t alphaedge-core .
-
-# start the container and enter a shell (working directory: /app); the image has no database, mount the host data/
-docker run --rm -it -v "$(pwd)/data:/app/data:ro" --entrypoint /bin/bash alphaedge-core
-```
-
-Inside the container:
-
-```bash
-python run.py --help
-python run.py --strategy <StrategyClassName>
-```
-
-#### Frontend Container
-
-```bash
-# build image
-docker build -f frontend/Dockerfile -t alphaedge-frontend .
-
-# map the port, start the container and enter a shell (working directory: /app)
-docker run --rm -it -p 8501:8501 --entrypoint /bin/bash alphaedge-frontend
-```
-
-Inside the container:
-
-```bash
-streamlit run frontend/app.py --server.address=0.0.0.0 --server.port=8501
-```
-
-Then open `http://localhost:8501` in the browser.
-
-#### One-off run (no interactive shell)
-
-```bash
-docker run --rm alphaedge-core --help
-docker run --rm -p 8501:8501 alphaedge-frontend
-```
-
-### Option 3: Docker Compose (Trader + Frontend)
-
-> ⚠️ **You must prepare `data/db/*.db` on the host first.** The images contain **no
-> database**; compose bind-mounts the host's `./data` **read-only** at `/app/data`.
-> Without it the core service fails at `sqlite3.connect`.
-> See "Update database" under Command Usage below for how to build the database.
->
-> Read-only is deliberate: the container only runs backtests and must not write to
-> the host database, which a background ETL job may be writing at the same time.
-> Backtest output goes to the `alphaedge_results` volume; logs go to the mounted `./logs`.
-
-#### Build and Start
-
-```bash
-# Build all services
-docker compose build
-
-# Start core and frontend together
-docker compose up
-```
-
-#### Run in Background / Stop
-
-```bash
-# Start in detached mode
-docker compose up -d
-
-# Stop and remove containers
-docker compose down
-```
 
 ## Command Usage
 
@@ -350,12 +383,13 @@ AlphaEdge/
 │   │   │   └── utils/        # TW-only helpers (URL table, tick metadata)
 │   │   └── utils/            # cross-market: constants, DataFrame and SQLite helpers, exceptions
 │   ├── backtest/              # backtest engine
+│   │   ├── README.md          # bar scales, price basis, fill assumptions, performance metrics
 │   │   ├── backtester.py      # the only engine: market/instrument-agnostic, no subclasses
 │   │   ├── factory.py         # assembles the model set from (market, instrument_type)
 │   │   ├── models/            # InstrumentSpec / FillModel / CostModel / SettlementModel
-│   │   ├── datafeed/          # data loading, quote conversion, trading calendar
+│   │   ├── datafeed/          # data loading, quote conversion, trading calendar, futures roll
 │   │   ├── report/            # trading report, direction summary, charts
-│   │   └── analysis/          # performance metrics (`risk_metrics.py` is pure functions, shared by the frontend and the analyzer)
+│   │   └── analysis/          # performance metrics (`risk_metrics.py` holds pure risk-adjusted return functions, currently called by the frontend)
 ├── data/                      # runtime data (git-ignored): db/ (tw_stock.db, tw_futures.db) + downloads/
 ├── results/                   # per-strategy backtest outputs (csv / png), git-ignored
 ├── logs/                      # api/ pipeline/ backtest/, git-ignored
@@ -364,7 +398,7 @@ AlphaEdge/
 │   ├── config.py              # frontend configuration
 │   ├── services/              # data loading and metrics (no Streamlit calls, so testable)
 │   │   ├── report_loader.py   # load backtest report files
-│   │   ├── metrics.py         # stock report metrics (same formulas as the reporter)
+│   │   ├── metrics.py         # stock report metrics (Sharpe / Sortino via `risk_metrics.py`)
 │   │   └── futures_metrics.py # futures-only metrics (margin, lot exposure)
 │   ├── static/theme.css       # page styles
 │   ├── requirements.txt       # frontend image dependencies
@@ -386,11 +420,10 @@ AlphaEdge/
 │   └── commands/              # command usage (zh-TW / en)
 ├── scripts/                   # guardrail checks and one-off tools
 │   ├── run_regression.sh      # SHORT + LONG regression guardrail (run before/after engine changes)
-│   ├── check_layer_deps.py    # layer deps, import cycles, cross-axis directory pollution (CI + pre-commit)
-│   ├── check_doc_paths.py     # file paths in docs that no longer resolve (stale after a move)
-│   ├── check_api_orphan_methods.py  # public methods in `core/api` with zero callers and zero tests
+│   ├── check_layer_deps.py    # layer deps, import cycles, market-semantics leaks, cross-axis directory pollution (CI + pre-commit)
+│   ├── check_doc_paths.py     # file paths in docs that no longer resolve (stale after a move; CI + pre-commit)
+│   ├── check_api_orphan_methods.py  # public methods in `core/api` with zero callers and zero tests (CI)
 │   ├── clean_pycache.sh/.ps1  # remove __pycache__ and .pyc (macOS/Linux, Windows)
-│   ├── fix_single_market_batches.py  # one-off data fix: batches loaded for only one market
 │   └── manual/                # scripts needing credentials or a database (see its README)
 ├── docker-compose.yml         # compose: core + frontend + shared results volume
 ├── run.py
