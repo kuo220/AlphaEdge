@@ -29,12 +29,7 @@ ENV_SCAN_PATHS: List[str] = ["core", "tasks", "frontend", "scripts", "run.py"]
 ENV_READER_NAMES: Set[str] = {"getenv", "get_env_path", "get_int_env"}
 
 # 範本有列、但程式不直接讀的鍵（鍵 → 理由）
-ENV_EXAMPLE_ONLY_KEYS: Dict[str, str] = {
-    "LINE_CHANNEL_ACCESS_TOKEN": (
-        "`Notification.post_line_notify()` 的 token 由呼叫端傳入，而實盤模式尚未實作、"
-        "目前沒有呼叫端；留在範本是為了接上實盤時有一致的鍵名"
-    ),
-}
+ENV_EXAMPLE_ONLY_KEYS: Dict[str, str] = {}
 
 # 範本裡「鍵=值」的行，選填鍵以 `# KEY=` 的註解形式列出，一併計入
 ENV_EXAMPLE_KEY_PATTERN: re.Pattern = re.compile(r"^#?\s*([A-Z][A-Z0-9_]*)=")
