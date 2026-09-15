@@ -16,6 +16,21 @@ docker build -f core/Dockerfile -t alphaedge-core .
 docker build -f frontend/Dockerfile -t alphaedge-frontend .
 ```
 
+### 映像裡有什麼、為什麼
+
+| 項目 | 做法 | 為什麼 |
+|------|------|--------|
+| core 的 Python 相依 | 先照 `requirements.txt` 的鎖定版本裝第三方套件，再 `pip install -e .` 裝本專案 | 與本機、CI 同一種安裝方式；只改原始碼時第一層仍吃快取 |
+| editable 安裝 | 必須是 `-e`，不可一般安裝 | `core/config/paths.py` 以 `__file__` 推算專案根目錄，一般安裝會把程式複製進 site-packages，`results/`、`logs/` 就不會落在 `/app` 底下的掛載點 |
+| core 內含 `chromium` | apt 安裝並設 `BROWSER_PATH=/usr/bin/chromium` | 回測報表存 PNG 走 plotly → kaleido 1.x，它不內建瀏覽器，缺了會在報表最後一步失敗（CSV 已寫出、圖全沒有）。`plotly_get_chrome` 下載的 Chrome for Testing 沒有 linux arm64 版本，故用 Debian 套件 |
+| frontend 相依 | 只裝 `frontend/requirements.txt` | 前端映像不安裝本專案，只 COPY `risk_metrics.py` 那條最小鏈 |
+| `.dockerignore` | 排除 `data/`、`results/`、`logs/`、`.env*`、`.venv/`、`.git/` | build context 是專案根目錄，不排除會把數 GB 的資料庫與金鑰送進 daemon，日後有人寫 `COPY . .` 還會打包進映像 |
+
+映像大小約 core 2.9 GB（其中 chromium 與 shioaji 佔大宗）、frontend 0.9 GB。
+
+**已知限制**：`frontend/app.py` 仍使用 Streamlit 已棄用的 `use_container_width` 參數（執行時會印棄用警告），
+而 `frontend/requirements.txt` 只釘下限 `streamlit>=1.40`；Streamlit 移除該參數後，重建的前端映像會在渲染表格與圖表時出錯，屆時改用 `width="stretch"`。
+
 ## 2) 準備資料與環境檔
 
 建議至少準備：

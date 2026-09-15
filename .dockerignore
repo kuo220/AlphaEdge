@@ -1,0 +1,27 @@
+# build context 以專案根目錄為準（見 docker-compose.yml），不排除的話會把本機的
+# 資料庫（`data/` 數 GB）、venv 與金鑰一併送進 daemon；日後有人寫 `COPY . .`
+# 時它們還會被打包進映像。資料庫一律在執行期以 volume 唯讀掛載，不進映像。
+
+# 執行期產物（與 .gitignore 同一組）
+data/
+results/
+logs/
+
+# 金鑰：容器需要時以 compose 的 environment／env_file 傳入
+.env
+.env.*
+!.env.example
+
+# 本機環境與版控
+.venv/
+.git/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# 測試產物與研究產物
+tests/database/
+tests/downloads/
+tests/temp/
+strategy_lab/**/output/
