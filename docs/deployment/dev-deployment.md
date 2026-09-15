@@ -71,9 +71,6 @@ streamlit run frontend/app.py
 # 刪除指定日期的 price 資料（預設只預覽，加 --apply 才刪）
 python -m tasks.delete_price_data --date 2025-07-13
 
-# 將 broker_trading CSV 載入 tw_stock.db
-python -m tasks.load_broker_trading_to_db
-
 # 清理已輪替的日誌（預設只預覽）
 python -m tasks.clean_logs
 ```

@@ -176,8 +176,6 @@ def test_no_single_market_batches() -> None:
     列數本來就偏低的日期（早年補行交易的週六、跌停鎖死的股災日），變成紅燈噪音。
     實測命中的 11 天該市場只剩 0~15 檔而鄰日 1,020~1,339 檔，兩者之間有兩個
     數量級的空隙，10% 這條線落在空隙裡，兩邊都不會擦到。
-
-    清理工具見 `scripts/fix_single_market_batches.py`。
     """
 
     conn: sqlite3.Connection = sqlite3.connect(TW_STOCK_DB_PATH)
